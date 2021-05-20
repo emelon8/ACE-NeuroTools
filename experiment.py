@@ -8,12 +8,18 @@ Created on Mon Oct 19 09:36:36 2020
 import csv
 import pickle
 import os.path
+from misc_Functions import googleSheetsToCSV
 
 class experiment:
     """Base class for experiment analysis.
     LINENUM is the line number of the experiment on the csv file.
     FILENAME is the filename of the csv file."""
     def __init__(self, lineNum, filename='experiments.csv'):
+        #Download google sheet
+        if filename.find('.csv') == -1:
+            if os.path.exists('storage.json'):
+                os.remove('storage.json')
+            filename = googleSheetsToCSV(filename)
         # Import the CSV file 
         experimentCSV = []
         with open(filename, newline='') as s:
@@ -36,3 +42,5 @@ class experiment:
             fileToStore = open(filename, 'wb')
         pickle.dump(self, fileToStore)
         fileToStore.close()
+        
+

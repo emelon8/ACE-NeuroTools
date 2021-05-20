@@ -6,19 +6,26 @@ Miscellaneous functions
 
 @author: eric
 """
-
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 plt.rcParams['svg.fonttype'] = 'none'
+"""
 import os
+"""
 import pickle
 import cv2
 from tqdm import tqdm
 from scipy.signal import butter, lfilter, freqz, filtfilt
+"""
+## Katherine's New Code
+from apiclient import discovery
+from httplib2 import Http
+from oauth2client import file, client, tools ##supported indefinitley by google-auth
 
-
+"""
 def _overlapBinning(data, windowLength, windowStep):
-    """Prepare signal for miniscopeEEG.computeSpectrogram(). Developed with code mostly from Morgan Siegmann. Takes a 1D array and bins it into segments that overlap and then forms into a matrix. windowLength and windowStep units are samples"""
+   #Prepare signal for miniscopeEEG.computeSpectrogram(). Developed with code mostly from Morgan Siegmann. Takes a 1D array and bins it into segments that overlap and then forms into a matrix. windowLength and windowStep units are samples
     startInds = np.arange(0, len(data), windowStep)
     # check to see if the last row is full window length
     incompleteRows = (len(data) - startInds) < windowLength
@@ -30,12 +37,14 @@ def _overlapBinning(data, windowLength, windowStep):
 
 
 def _prepAxes(title='', xLabel='', yLabel='', subPlots=None):
-    """Prepare figure and axis/axes for plotting. Returns the figure handle and either the axis handle or a list of axes handles.
+    
+    Prepare figure and axis/axes for plotting. Returns the figure handle and either the axis handle or a list of axes handles.
     TITLE is the title of the axis or list of titles (in order) for the axes.
     XLABEL is the xlabel of the axis or list of xlabels (in order) for the axes.
     YLABEL is the ylabel of the axis or list of ylabels (in order) for the axes.
     SUBPLOTS is a list to prepare the subplot axes: [number of rows, number of columns].
-    The elements in TITLE, XLABEL, and YLABEL label the plots first from left to right, then from top to bottom."""
+    The elements in TITLE, XLABEL, and YLABEL label the plots first from left to right, then from top to bottom.
+    
     h = plt.figure()
     if subPlots is None:
         ax = h.add_subplot()
@@ -60,11 +69,12 @@ def _prepAxes(title='', xLabel='', yLabel='', subPlots=None):
 
 
 def spectrogram(tVec, freqVec, specData, cBarPercentLims=[5.,95.], xLabel='Time (s)', yLabel='Frequency (Hz)', cLabel='Power (dB)'):
-    """Plots a spectrogram that has already been computed.
+   Plots a spectrogram that has already been computed.
     TVEC is a vector of the x-axis time points or a time vector consisting of just [min, max].
     FREQVEC is a vector of the y-axis frequency points, or a frequency vector consisting of just [min, max].
     SPECDATA is the matrix of spectral power.
-    CBARPERCENTLIMS sets the bounds on the color bar by finding the specified percentages of the power in specData."""
+    CBARPERCENTLIMS sets the bounds on the color bar by finding the specified percentages of the power in specData.
+   
     h, ax = _prepAxes(xLabel=xLabel, yLabel=yLabel)
     cBarMin = np.percentile(specData, cBarPercentLims[0])
     cBarMax = np.percentile(specData, cBarPercentLims[1])
@@ -75,7 +85,7 @@ def spectrogram(tVec, freqVec, specData, cBarPercentLims=[5.,95.], xLabel='Time 
 
 
 def markEvents(axisHandle, eventTimes):
-    """Mark Neuralynx events on a given plot"""
+   ##Mark Neuralynx events on a given plot
     yLimits = axisHandle.get_ylim()
     xLimits = axisHandle.get_xlim()
     lineLength = np.diff(yLimits)
@@ -85,8 +95,8 @@ def markEvents(axisHandle, eventTimes):
 
 
 def _findFilePaths(directory, fileExtensions, fileStartsWith=None):
-    """Makes a list of the full paths of all files of type FILEEXTENSIONS in DIRECTORY, sorted by the time they were last modified.
-    FILEEXTENSIONS is a string of the file extension or a list or tuple with multiple file extensions."""
+    ##Makes a list of the full paths of all files of type FILEEXTENSIONS in DIRECTORY, sorted by the time they were last modified.
+    FILEEXTENSIONS is a string of the file extension or a list or tuple with multiple file extensions.
     if type(fileExtensions) is str:
         fileExtensionsTuple = (fileExtensions,)
     else:
@@ -103,7 +113,7 @@ def _findFilePaths(directory, fileExtensions, fileStartsWith=None):
 
 
 def loadObj(filename):
-    """Loads a pickled object into memory from FILENAME. Useful for loading a previously used instance of a class (e.g., miniscope_EEG.miniscopeEEG class)."""
+    ##Loads a pickled object into memory from FILENAME. Useful for loading a previously used instance of a class (e.g., miniscope_EEG.miniscopeEEG class).##
     fileToRead = open(filename, 'rb')
     loadedObject = pickle.load(fileToRead)
     fileToRead.close()
@@ -111,7 +121,7 @@ def loadObj(filename):
 
 
 def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0, framesPerFile=1000, fs=30, frameStep=10, goodRadius=2000, notchHalfWidth=3, centerHalfHeightToLeave=90, cutoff=3.0, butterOrder=6, mode='display', compressionCodec='FFV1'):
-    """Loads a movie and removes both the horizontal bands (that slowly travel upwards) from the movie and the slow flicker of the entire image. Code largely stolen from Daniel Aharoni's python notebook (https://github.com/Aharoni-Lab/Miniscope-v4/tree/master/Miniscope-v4-Denoising-Notebook).
+    ##Loads a movie and removes both the horizontal bands (that slowly travel upwards) from the movie and the slow flicker of the entire image. Code largely stolen from Daniel Aharoni's python notebook (https://github.com/Aharoni-Lab/Miniscope-v4/tree/master/Miniscope-v4-Denoising-Notebook).
     DATADIR is the directory that contains the movie files to be denoised.
     DATAFILEPREFIX is anything that comes before the number of the movie file. For example, the file 'msCam0.avi' would have a prefix of 'msCam'.
     SHOWVIDEO determines whether to display the movie file prior to beginning the analysis.
@@ -125,7 +135,7 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
     CUTOFF
     BUTTERORDER
     MODE determines whether to 'save' or 'display' the denoised movie.
-    COMPRESSIONCODEC determines the compression codec to use. Options are 'FFV1' or 'GREY'."""
+    COMPRESSIONCODEC determines the compression codec to use. Options are 'FFV1' or 'GREY'.
     # Makes sure path ends with '/'
     if (dataDir[-1] is not '/'):
         dataDir = dataDir + '/'
@@ -396,7 +406,7 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
 
 
 def importVideoAsNumpyArray(filename, frames='all', displayFrame=False, frameToDisplay=10):
-    """Code stolen from https://stackoverflow.com/questions/42163058/how-to-turn-a-video-into-numpy-array and edited"""
+    ##Code stolen from https://stackoverflow.com/questions/42163058/how-to-turn-a-video-into-numpy-array and edited
     cap = cv2.VideoCapture(filename)
     frameCount = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     frameWidth = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -414,3 +424,39 @@ def importVideoAsNumpyArray(filename, frames='all', displayFrame=False, frameToD
         cv2.namedWindow('frame ' + str(frameToDisplay))
         cv2.imshow('frame ' + str(frameToDisplay), buf[frameToDisplay - 1])
     return buf
+"""
+
+def googleSheetsToCSV(filename):
+    SCOPES = 'https://www.googleapis.com/auth/drive.readonly'
+    store = file.Storage('storage.json')
+    creds = store.get()
+    if not creds or creds.invalid:
+        flow = client.flow_from_clientsecrets('client_secret.json', SCOPES)
+        creds = tools.run_flow(flow, store)
+    DRIVE = discovery.build('drive', 'v3', http=creds.authorize(Http()))
+    
+    FILENAME = filename
+    SRC_MIMETYPE = 'application/vnd.google-apps.spreadsheet'
+    DST_MIMETYPE = 'text/csv'
+    
+    files = DRIVE.files().list(
+        q='name="%s" and mimeType="%s"' % (FILENAME, SRC_MIMETYPE),
+        orderBy='modifiedTime desc,name').execute().get('files', [])
+    
+    if files:
+        fn = '%s.csv' % os.path.splitext(files[0]['name'].replace(' ', '_'))[0]
+        print('Exporting "%s" as "%s"... ' % (files[0]['name'], fn), end='') 
+        data = DRIVE.files().export(fileId=files[0]['id'], mimeType=DST_MIMETYPE).execute()
+        if data:
+            with open(fn, 'wb') as f:
+                f.write(data)
+            print('DONE')
+            print(fn)
+            return (fn)
+        else:
+            print('ERROR (could not download file)')
+    else:
+        print('!!! ERROR: File not found')
+        
+        
+      
