@@ -6,24 +6,19 @@ Miscellaneous functions
 
 @author: eric
 """
-"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 plt.rcParams['svg.fonttype'] = 'none'
-"""
 import os
-"""
 import pickle
 import cv2
 from tqdm import tqdm
 from scipy.signal import butter, lfilter, freqz, filtfilt
-"""
-## Katherine's New Code
 from apiclient import discovery
 from httplib2 import Http
-from oauth2client import file, client, tools ##supported indefinitley by google-auth
+from oauth2client import file, client, tools ##supported indefinitely by google-auth
 
-"""
 def _overlapBinning(data, windowLength, windowStep):
    #Prepare signal for miniscopeEEG.computeSpectrogram(). Developed with code mostly from Morgan Siegmann. Takes a 1D array and bins it into segments that overlap and then forms into a matrix. windowLength and windowStep units are samples
     startInds = np.arange(0, len(data), windowStep)
@@ -424,7 +419,7 @@ def importVideoAsNumpyArray(filename, frames='all', displayFrame=False, frameToD
         cv2.namedWindow('frame ' + str(frameToDisplay))
         cv2.imshow('frame ' + str(frameToDisplay), buf[frameToDisplay - 1])
     return buf
-"""
+
 
 def googleSheetsToCSV(filename):
     SCOPES = 'https://www.googleapis.com/auth/drive.readonly'
@@ -456,7 +451,4 @@ def googleSheetsToCSV(filename):
         else:
             print('ERROR (could not download file)')
     else:
-        print('!!! ERROR: File not found')
-        
-        
-      
+        print('!!! ERROR: File not found')      
