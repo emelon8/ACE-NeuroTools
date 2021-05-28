@@ -196,7 +196,7 @@ class miniscope(experiment.experiment):
         """Run all preprocessing steps in one method, using their default options."""
         if saveMovie:
             if denoise:
-                self.denoiseMovie()
+                self.denoiseCaMovie()
             if detrend and dFoverF:
                 self.detrendCaFluorescence(saveMovie=False)
                 self.computedFoverF(saveMovie=False)
@@ -207,7 +207,7 @@ class miniscope(experiment.experiment):
                 self.computedFoverF(saveMovie=True)
         else:
             if denoise:
-                self.denoiseMovie(saveMovie=False)
+                self.denoiseCaMovie(saveMovie=False)
             if detrend:
                 self.detrendCaFluorescence(saveMovie=False)
             if dFoverF:
