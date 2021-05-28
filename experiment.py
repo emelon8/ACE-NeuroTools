@@ -17,8 +17,10 @@ class experiment:
     def __init__(self, lineNum, filename='experiments.csv'):
         #Download google sheet
         if filename.find('.csv') == -1:
+            ''' ##Likely best in a deconstructor
             if os.path.exists('storage.json'):
                 os.remove('storage.json')
+            '''
             filename = googleSheetsToCSV(filename)
         # Import the CSV file 
         experimentCSV = []

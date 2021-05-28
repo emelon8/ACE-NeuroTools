@@ -32,14 +32,14 @@ def _overlapBinning(data, windowLength, windowStep):
 
 
 def _prepAxes(title='', xLabel='', yLabel='', subPlots=None):
-    
+    """
     Prepare figure and axis/axes for plotting. Returns the figure handle and either the axis handle or a list of axes handles.
     TITLE is the title of the axis or list of titles (in order) for the axes.
     XLABEL is the xlabel of the axis or list of xlabels (in order) for the axes.
     YLABEL is the ylabel of the axis or list of ylabels (in order) for the axes.
     SUBPLOTS is a list to prepare the subplot axes: [number of rows, number of columns].
     The elements in TITLE, XLABEL, and YLABEL label the plots first from left to right, then from top to bottom.
-    
+    """
     h = plt.figure()
     if subPlots is None:
         ax = h.add_subplot()
@@ -64,12 +64,13 @@ def _prepAxes(title='', xLabel='', yLabel='', subPlots=None):
 
 
 def spectrogram(tVec, freqVec, specData, cBarPercentLims=[5.,95.], xLabel='Time (s)', yLabel='Frequency (Hz)', cLabel='Power (dB)'):
-   Plots a spectrogram that has already been computed.
+    """
+    Plots a spectrogram that has already been computed.
     TVEC is a vector of the x-axis time points or a time vector consisting of just [min, max].
     FREQVEC is a vector of the y-axis frequency points, or a frequency vector consisting of just [min, max].
     SPECDATA is the matrix of spectral power.
     CBARPERCENTLIMS sets the bounds on the color bar by finding the specified percentages of the power in specData.
-   
+    """
     h, ax = _prepAxes(xLabel=xLabel, yLabel=yLabel)
     cBarMin = np.percentile(specData, cBarPercentLims[0])
     cBarMax = np.percentile(specData, cBarPercentLims[1])
@@ -90,8 +91,11 @@ def markEvents(axisHandle, eventTimes):
 
 
 def _findFilePaths(directory, fileExtensions, fileStartsWith=None):
-    ##Makes a list of the full paths of all files of type FILEEXTENSIONS in DIRECTORY, sorted by the time they were last modified.
+    '''
+    Makes a list of the full paths of all files of type FILEEXTENSIONS in DIRECTORY, sorted by the time they were last modified.
     FILEEXTENSIONS is a string of the file extension or a list or tuple with multiple file extensions.
+    '''
+    
     if type(fileExtensions) is str:
         fileExtensionsTuple = (fileExtensions,)
     else:
@@ -116,7 +120,8 @@ def loadObj(filename):
 
 
 def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0, framesPerFile=1000, fs=30, frameStep=10, goodRadius=2000, notchHalfWidth=3, centerHalfHeightToLeave=90, cutoff=3.0, butterOrder=6, mode='display', compressionCodec='FFV1'):
-    ##Loads a movie and removes both the horizontal bands (that slowly travel upwards) from the movie and the slow flicker of the entire image. Code largely stolen from Daniel Aharoni's python notebook (https://github.com/Aharoni-Lab/Miniscope-v4/tree/master/Miniscope-v4-Denoising-Notebook).
+    '''
+    Loads a movie and removes both the horizontal bands (that slowly travel upwards) from the movie and the slow flicker of the entire image. Code largely stolen from Daniel Aharoni's python notebook (https://github.com/Aharoni-Lab/Miniscope-v4/tree/master/Miniscope-v4-Denoising-Notebook).
     DATADIR is the directory that contains the movie files to be denoised.
     DATAFILEPREFIX is anything that comes before the number of the movie file. For example, the file 'msCam0.avi' would have a prefix of 'msCam'.
     SHOWVIDEO determines whether to display the movie file prior to beginning the analysis.
@@ -131,7 +136,9 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
     BUTTERORDER
     MODE determines whether to 'save' or 'display' the denoised movie.
     COMPRESSIONCODEC determines the compression codec to use. Options are 'FFV1' or 'GREY'.
-    # Makes sure path ends with '/'
+    Makes sure path ends with '/'
+    '''
+    
     if (dataDir[-1] is not '/'):
         dataDir = dataDir + '/'
         
@@ -422,6 +429,7 @@ def importVideoAsNumpyArray(filename, frames='all', displayFrame=False, frameToD
 
 
 def googleSheetsToCSV(filename):
+    """Code stolen from http://wescpy.blogspot.com/2016/07/exporting-google-sheet--as-csv.html"""
     SCOPES = 'https://www.googleapis.com/auth/drive.readonly'
     store = file.Storage('storage.json')
     creds = store.get()
@@ -446,9 +454,38 @@ def googleSheetsToCSV(filename):
             with open(fn, 'wb') as f:
                 f.write(data)
             print('DONE')
-            print(fn)
             return (fn)
         else:
             print('ERROR (could not download file)')
     else:
-        print('!!! ERROR: File not found')      
+        print('!!! ERROR: File not found')
+
+def quat_to_euler(qw,qx,qy,qz,degrees='False'):
+    m00 = 1.0 - 2.0*qy*qy - 2.0*qz*qz
+    m01 = 2.0*qx*qy + 2.0*qz*qw
+    m02 = 2.0*qx*qz - 2.0*qy*qw
+    m10 = 2.0*qx*qy - 2.0*qz*qw
+    m11 = 1 - 2.0*qx*qx - 2.0*qz*qz
+    m12 = 2.0*qy*qz + 2.0*qx*qw
+    m20 = 2.0*qx*qz + 2.0*qy*qw
+    m21 = 2.0*qy*qz - 2.0*qx*qw
+    m22 = 1.0 - 2.0*qx*qx - 2.0*qy*qy
+    
+    eulerAngles = []
+    
+    R = np.arctan2(m12, m22) ##Roll
+    eulerAngles.append(R)
+    c2 = np.sqrt(m00*m00 + m01*m01)
+    P = np.arctan2(-m02, c2)##Pitch
+    eulerAngles.append(P)
+    s1 = np.sin(R)
+    c1 = np.cos(R)
+    Y = np.arctan2(s1*m20 - c1*m10, c1*m11-s1*m21) ##Yaw
+    eulerAngles.append(Y)
+    if degrees == True:
+        eulerAngles = [math.degrees(R),math.degrees(P),math.degrees(Y)]
+    return eulerAngles
+ 
+            
+            
+          

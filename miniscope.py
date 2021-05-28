@@ -18,6 +18,9 @@ import misc_Functions
 
 class miniscope(experiment.experiment):
     """This is the class definition for handling miniscopes (1-photon calcium imaging) data."""
+    def __init__(self):
+        print('init')
+    """
     def __init__(self, filenameMiniscope='metaData.json', lineNum=None, filename='experiments.csv', analysisFilename='analysis_parameters.csv'):
         if lineNum != None:
             super().__init__(lineNum, filename=filename)
@@ -39,7 +42,7 @@ class miniscope(experiment.experiment):
             self.miniscopeImportAnalysisParams(lineNum, analysisFilename)
         else:
             self._analysisParamsDict = {}
-
+        """
 
     def miniscopeImportAnalysisParams(self, lineNum, filename):
         """Import parameters for calcium movie analysis using CaImAn."""
@@ -387,3 +390,89 @@ class miniscope(experiment.experiment):
     def multiSessionRegistration(self):
         """Register components (neurons) between different recording sessions."""
         pass
+    
+    def quatFile_to_eulerFile(self, filename='headOrientation.csv', nf='True'): ##returns newfilename
+        newfilename = filename.replace('.csv', 'inEulerAngles.csv')
+        if os.path.exists(filename):
+            print('File exists') 
+            with open(filename, newline='') as f:
+                reader = csv.reader(f)
+                if nf == 'True':
+                    with open(newfilename, 'w', newline='') as nf:
+                        writer = csv.writer(nf) 
+                        header = []
+                        header.append('Time Stamp (ms)')
+                        header.append('x')
+                        header.append('y')
+                        header.append('z')
+                        writer.writerow(header)
+                        next(f)
+                        for line in reader:
+                            eulerAngles = self.conv_quat_to_euler(line)
+                            writer.writerow(eulerAngles)
+                    return newfilename
+                else:
+                    matrix = []
+                    next(f)
+                    for line in reader:
+                        eulerAngles = self.conv_quat_to_euler(line)
+                        matrix.append(eulerAngles)
+                    return matrix
+        else:
+            print('!!! ERROR: File not found') 
+            return
+        
+        def conv_quat_to_euler(line):
+            if len(line) != 5:
+                print ('!!! ERROR: Invalid file')
+                return
+            time = line[0]
+            qw = line[1]
+            qx = line[2]
+            qy = line[3]
+            qz = line[4]
+            eulerAngles = list(misc_Functions.quat_to_euler(qw,qx,qy,qz, degrees=False))
+            eulerAngles.insert(0, time) ##time in matrix?
+            return eulerAngles
+            
+        
+        def graph_Movement(self,filename='headOrientationinEulerAngles.csv',plotName='movementPlot.png'): ##eulerAngle file
+        
+            if 'inEulerAngles.csv' not in filename and '.csv' in filename:
+                filename = self.quatFile_to_eulerFile(filename)
+            elif '.csv' not in filename:
+                print('!!! ERROR: Invalid file')
+                return
+                
+            if os.path.exists(filename):
+                print('File exists')  
+                with open(filename, newline='') as f:        
+                    reader = csv.reader(f)
+                    y = []
+                    avgAngle = []
+                    time = []
+                    next(f) ##skip header line
+                    for line in reader:
+                        if len(line) != 4:
+                            print ('!!! ERROR: Invalid file')
+                            return
+                        eulerAngleSum = (float(line[1]) + float(line[2]) + float(line[3]))/3 ##ac
+                        avgAngle.append(eulerAngleSum)
+                        time.append(float(line[0]))
+                    count = 1 ##skips first line
+                    while count < len(avgAngle):
+                        deltaAngle = abs((avgAngle[count])-avgAngle[count-1])
+                        deltaTime = abs(time[count]-avgAngle[count-1])
+                        y.append(deltaAngle/deltaTime)
+                        count += 1
+                    x = list(time[1:]) ##skips first time
+                    y = list(y)
+                    plt.plot(x, y)
+                    plt.xlabel('time(ms)')
+                    plt.ylabel('angle change over time (rad/s)')
+                    plt.title('movement over time')
+                    plt.show()
+                    plt.savefig(plotName)
+            else:
+                print('!!! ERROR: File not found')
+                return
