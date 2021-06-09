@@ -15,13 +15,12 @@ import matplotlib.pyplot as plt
 plt.rcParams['svg.fonttype'] = 'none'
 import caiman as cm
 import misc_Functions
+import sys
 
 class miniscope(experiment.experiment):
     """This is the class definition for handling miniscopes (1-photon calcium imaging) data."""
-    def __init__(self):
-        print('init')
-    """
-    def __init__(self, filenameMiniscope='metaData.json', lineNum=None, filename='experiments.csv', analysisFilename='analysis_parameters.csv'):
+    def __init__(self, filenameMiniscope='metaData.json', lineNum=None, 
+                 filename='experiments.csv', analysisFilename='analysis_parameters.csv'):
         if lineNum != None:
             super().__init__(lineNum, filename=filename)
         else:
@@ -31,9 +30,11 @@ class miniscope(experiment.experiment):
         self.experiment['Miniscope settings filename'] = filenameMiniscope
         with open(filenameMiniscope) as s:
             self.experiment.update(load(s))
+       
         settingsFilename = os.path.split(filenameMiniscope)
-        with open(settingsFilename[0] + '/Miniscope/' + settingsFilename[1]) as s:
-            self.experiment.update(load(s))
+
+        with open('Miniscope/' + settingsFilename[1]) as s: 
+            self.experiment.update(load(s)) 
         
         if 'directory' not in self.experiment:
             self.experiment['directory'] = os.path.abspath(os.path.dirname(filenameMiniscope))
@@ -42,7 +43,6 @@ class miniscope(experiment.experiment):
             self.miniscopeImportAnalysisParams(lineNum, analysisFilename)
         else:
             self._analysisParamsDict = {}
-        """
 
     def miniscopeImportAnalysisParams(self, lineNum, filename):
         """Import parameters for calcium movie analysis using CaImAn."""
@@ -162,7 +162,6 @@ class miniscope(experiment.experiment):
             mode = 'save'
         misc_Functions.denoiseMovie(self.experiment['directory'], mode=mode)
 
-
     def detrendCaFluorescence(self, saveMovie=True, detrendType='median', plotTrend=False):
         """Loads the calcium movie and detrends it based on the fluorescence of the entire movie.
         SAVEMOVE determines whether to save the debleached movie (with '_detrended' appended to the filename).
@@ -216,6 +215,7 @@ class miniscope(experiment.experiment):
 
     def processCaMovies(self, motionCorrect=True, saveMotionCorrect=True, inspectMotionCorrection=False, inspectCorrPNR=False, downsampleForCorrPNR=1, runCNMFE=True, saveCNMFEFilename='', editComponents=True, deconvolve=True):
         """Preprocess calcium imaging data."""
+        print('processing movie)')
         if 'movieFilePaths' not in dir(self):
             self.findMovieFilePaths()
         self._analysisParamsDict['fnames'] = self.movieFilePaths
