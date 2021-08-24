@@ -519,7 +519,7 @@ class miniscope(experiment.experiment):
             print('File exists') 
             with open(filename, newline='') as f:
                 reader = csv.reader(f)
-                if nf == 'True':
+                if nf == 'True': # do you want to create a new file
                     with open(newfilename, 'w', newline='') as nf:
                         writer = csv.writer(nf) 
                         header = []
@@ -530,33 +530,20 @@ class miniscope(experiment.experiment):
                         writer.writerow(header)
                         next(f)
                         for line in reader:
-                            eulerAngles = self.conv_quat_to_euler(line)
+                            eulerAngles = misc_Functions.conv_quat_to_euler(line)
                             writer.writerow(eulerAngles)
                     return newfilename
                 else:
                     matrix = []
                     next(f)
                     for line in reader:
-                        eulerAngles = self.conv_quat_to_euler(line)
+                        eulerAngles = misc_Functions.conv_quat_to_euler(line)
                         matrix.append(eulerAngles)
                     return matrix
         else:
-            print('!!! ERROR: File not found') 
+            print('!!! ERROR: File not found')  # FIXME
             return
         
-        def _conv_quat_to_euler(line):
-            if len(line) != 5:
-                print ('!!! ERROR: Invalid file')
-                return
-            time = line[0]
-            qw = line[1]
-            qx = line[2]
-            qy = line[3]
-            qz = line[4]
-            eulerAngles = list(misc_Functions.quat_to_euler(qw,qx,qy,qz, degrees=False))
-            eulerAngles.insert(0, time) ##time in matrix?
-            return eulerAngles
-            
         
         def graph_Movement(self,filename='headOrientationinEulerAngles.csv',plotName='movementPlot.png'): ##eulerAngle file
         
@@ -576,9 +563,9 @@ class miniscope(experiment.experiment):
                     next(f) ##skip header line
                     for line in reader:
                         if len(line) != 4:
-                            print ('!!! ERROR: Invalid file')
+                            print ('!!! ERROR: Invalid file') # FIXME
                             return
-                        eulerAngleSum = (float(line[1]) + float(line[2]) + float(line[3]))/3 ##ac
+                        eulerAngleSum = (float(line[1]) + float(line[2]) + float(line[3]))/3 # FIXME change to difference between angles instead of averaging the angles
                         avgAngle.append(eulerAngleSum)
                         time.append(float(line[0]))
                     count = 1 ##skips first line
@@ -587,6 +574,11 @@ class miniscope(experiment.experiment):
                         deltaTime = abs(time[count]-avgAngle[count-1])
                         y.append(deltaAngle/deltaTime)
                         count += 1
+                    '''
+                    FIXME
+                    make an array and take the diff between the rows so you have three columns
+                    figure out how you want to represent them as one value and graph
+                    '''
                     x = list(time[1:]) ##skips first time
                     y = list(y)
                     plt.plot(x, y)
@@ -596,7 +588,7 @@ class miniscope(experiment.experiment):
                     plt.show()
                     plt.savefig(plotName)
             else:
-                print('!!! ERROR: File not found')
+                print('!!! ERROR: File not found') # FIXME
                 return
     
     
@@ -638,8 +630,8 @@ class miniscope(experiment.experiment):
         filename = None # FIXME
         # Visualize to crop
         self._cropWindow(filename)
-        self.movie = self.movie.crop('av')
-        self.movie.play()
+        self.movie = self.movie.crop(crop_left = self.x0)
+        self.movie.play() # FIXME probably comment out at some point
 
     '''Borrowed in part from: https://stackoverflow.com/questions/68822772/gui-measuring-picture-size-for-cropping/68829339#68829339'''
     def _update(self, window, x0, y0, x1, y1):
@@ -652,7 +644,7 @@ class miniscope(experiment.experiment):
         self.y1 = y1
         # print(repr(x0), repr(y0), repr(x1), repr(y1))
         window['-START-'].update(f'Start: ({x0}, {y0})')
-        window['-STOP-' ].update(f'Start: ({x1}, {y1})')
+        window['-STOP-' ].update(f'Stop: ({x1}, {y1})')
         window['-BOX-'  ].update(f'Box: ({abs(x1-x0+1)}, {abs(y1-y0+1)})')
     
     
@@ -704,7 +696,7 @@ class miniscope(experiment.experiment):
         print('sasdfasdf')
         #window.close()
         
-        return
+        
        
                             
                     

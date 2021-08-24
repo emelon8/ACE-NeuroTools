@@ -41,7 +41,6 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
     def _syncCaMovieTimes(self, channel, writeFile=False, ttl=False):
         """Create time vector for calcium movies from TTL events in Neuralynx."""
         print('Syncing Calcium Movie Times...')
-        start_time = time.time()
         try:
             self.tCaIm = []
             file = misc_Functions._findFilePaths(directory=self.experiment['directory'],fileStartsWith='syncCaMovieTimes')[0]
@@ -53,7 +52,6 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
                 for row in reader:
                     self.tCaIm.append(float(row[1]))
             self.tCaIm = np.asarray(self.tCaIm)
-            x = len(self.tCaIm)
         except AttributeError:
             frameAcqIdx = (self.NeuralynxEvents['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0000).') | (self.NeuralynxEvents['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0001).')
             if ttl: 
@@ -70,9 +68,9 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
                 with open((self.filePath+'//syncCaMovieTimes.csv'), 'w', newline='') as nf:
                     writer = csv.writer(nf) 
                     pOUC = []
-                    pOUC.append('Period(s) of Uncertainty')
+                    # pOUC.append('Period(s) of Uncertainty')
                     pOUC.append(self.pOUC)
-                    writer.writerow(pOUC)
+                    # writer.writerow(pOUC)
                     header = []
                     header.append('Frame')
                     header.append('Time(s)')
@@ -83,7 +81,6 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
                         line.append(k)
                         line.append(ti)
                         writer.writerow(line)
-        print("--- %s seconds ---" % (time.time() - start_time))
             
     def _correcttCaIm(self, tCaIm):
         dtCaIm = np.diff(tCaIm)
@@ -96,7 +93,6 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
         # aug = 0
         start = []
         end = []
-        nStart = []
         pOUC = [] # period of uncertainty
         for h, ti in enumerate(tCaIm):
             if h in lTTLaI:
@@ -111,14 +107,10 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
                 # aug+=nFD
             else:
                 nT.append(tCaIm[h])
-        for num in start:
-            if num in end:
-                end.remove(num)
-            else:
-                nStart.append(num)
-        for k, idx in enumerate(nStart):
-            pOUC.append(str(f"{round(tCaIm[idx],4):08}") + '-' + str(f"{round(tCaIm[end[k]],4):08}"))
-        return (nT, pOUC)
+       
+        for k, idx in enumerate(start):
+            pOUC.append(str(f"{round(tCaIm[idx],4):08}") + '-' + str(f"{round(tCaIm[end[k]],4):08}")) #FIXME
+        return(nT, pOUC)
     
     def _phaseCaEvents(self, channel, neuron, syncToEEGChannel):
         """Compare calcium events to the phase extracted from a specified EEG channel."""
@@ -181,10 +173,11 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
                 x = len(self.tCaIm)
         
         # Starts comparing TTL timestamps to miniscope timestamps and finds points of instability
-        numDroppedFrames = len(self.tCaIm)-len(self.timeStamps)
+        
         if len(self.timeStamps) == len(self.tCaIm):
             return
         else:
+            numDroppedFrames = len(self.tCaIm)-len(self.timeStamps)
             dropFramesIndices = self._turningPoints(self.timeStamps,numDroppedFrames,plot)
             sectionMeans = []
             for k,val in enumerate(dropFramesIndices):
@@ -238,9 +231,9 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
                 
     def _turningPoints(self,timeStamps,numDroppedFrames,plot=False):
         # step detection algorithm borrowed from https://stackoverflow.com/questions/48000663/step-detection-in-one-dimensional-data
-        self.clockTime = self.tCaIm - self.tCaIm[0]
-        self.clockDiffStart = self.timeStamps - self.clockTime[:len(timeStamps)] # probably put comparing thing here
-        self.clockDiffEnd = self.timeStamps[len(timeStamps)-numDroppedFrames:] - self.clockTime[len(timeStamps):]
+        self.clockTime = self.tCaIm - self.tCaIm[0] # FIXME make not self throughout function
+        self.clockDiffStart = self.timeStamps - self.clockTime[:len(timeStamps)] 
+        self.clockDiffEnd = self.timeStamps[len(timeStamps)-numDroppedFrames:] - self.clockTime[len(timeStamps):] # FIXME consider if you need to add number of dropped frames so this is right
         #check the beginning
         startInd = self._stepID(self.clockDiffStart,plot)
         #check the end
@@ -299,7 +292,7 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
             plt.plot(dary)
             plt.plot(dary_step/(epsilon))
             plt.show()
-        return(sx[idx])
+        return(sx[idx]) 
         
     def _findtIdxCaIm(self,k,caImEvent,lastIndex,channel,endPoint):
         if k == 0:

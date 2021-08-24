@@ -104,6 +104,8 @@ def _findFilePaths(directory=None,fileExtensions=None,fileStartsWith=None,
     '''
     Makes a list of the full paths of all files of type FILEEXTENSIONS in DIRECTORY, sorted by the time they were last modified.
     FILEEXTENSIONS is a string of the file extension or a list or tuple with multiple file extensions.
+    removeFile = returns path of folder containing the files you want
+    
     '''
     
     if(fileExtensions==None and fileStartsWith==None):
@@ -559,12 +561,12 @@ def googleSheetsToCSV(filename):
             print('DONE')
             return (fn)
         else:
-            print('ERROR (could not download file)')
+            raise AttributeError('could not download file')
     else:
-        print('!!! ERROR: File not found')
+        raise AttributeError('File not found')
 
 
-def quat_to_euler(qw,qx,qy,qz,degrees='False'):
+def quat_to_euler(qw,qx,qy,qz,degrees=False):
     m00 = 1.0 - 2.0*qy*qy - 2.0*qz*qz
     m01 = 2.0*qx*qy + 2.0*qz*qw
     m02 = 2.0*qx*qz - 2.0*qy*qw
@@ -590,6 +592,18 @@ def quat_to_euler(qw,qx,qy,qz,degrees='False'):
         eulerAngles = [math.degrees(R),math.degrees(P),math.degrees(Y)]
     return eulerAngles
 
+def _conv_quat_to_euler(line):
+            if len(line) != 5:
+                print ('!!! ERROR: Invalid file') # FIXME
+                return
+            time = line[0]
+            qw = line[1]
+            qx = line[2]
+            qy = line[3]
+            qz = line[4]
+            eulerAngles = list(quat_to_euler(qw,qx,qy,qz, degrees=False))
+            eulerAngles.insert(0, time) ##time in matrix?
+            return eulerAngles
 
 def _calcNumMinusMean(num, mean):
     return(num - mean)

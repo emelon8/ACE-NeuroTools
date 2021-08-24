@@ -21,12 +21,13 @@ class experiment:
     def __init__(self, lineNum, filename='experiments.csv'):
         #Download google sheet
         self.lineNum = lineNum
-        if filename.find('.csv') == -1:
-            ''' ##Likely best in a deconstructor
+        if filename.find('.csv') == -1: # FIXME make this so it checks the folder and if it doesn't exist check google sheets
+            ##Likely best in a deconstructor
             if os.path.exists('storage.json'):
                 os.remove('storage.json')
-            '''
-            #filename = googleSheetsToCSV(filename)
+            filename = misc_Functions.googleSheetsToCSV(filename)
+            
+            
         # Import the CSV file 
         experimentCSV = []
         with open(filename, newline='') as s:
