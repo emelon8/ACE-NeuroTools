@@ -5,6 +5,7 @@ Created on Mon Oct 19 08:43:50 2020
 @author: eric
 """
 
+
 import csv
 import os.path
 from json import load
@@ -16,33 +17,74 @@ plt.rcParams['svg.fonttype'] = 'none'
 import caiman as cm
 import misc_Functions
 import sys
+import json
+import base64
+from io import BytesIO
+from PIL import Image
+import PySimpleGUI as sg
+
+
 
 class miniscope(experiment.experiment):
     """This is the class definition for handling miniscopes (1-photon calcium imaging) data."""
     def __init__(self, filenameMiniscope='metaData.json', lineNum=None, 
                  filename='experiments.csv', analysisFilename='analysis_parameters.csv'):
+        self.lineNum = lineNum
         if lineNum != None:
             super().__init__(lineNum, filename=filename)
         else:
             self.experiment = {}
         
         # Import the meta data files and add to the experiment dictionary
+        
+        try:
+            metaDataPaths = misc_Functions._findFilePaths(self.experiment['directory'], fileExtensions='.json', fileStartsWith='metaData')
+            for path in metaDataPaths:
+                with open(path) as m:
+                    data = json.loads(m.read())
+                    for key in data:
+                        self.experiment[key] = data[key]
+                        if key == 'frameRate':
+                            try: 
+                                self.experiment[key] = float(data[key])
+                            except ValueError:
+                                self.experiment[key] = float(data[key].replace('FPS',''))
+                    m.close()
+        except AttributeError:
+            pass
+        '''
         self.experiment['Miniscope settings filename'] = filenameMiniscope
         with open(filenameMiniscope) as s:
             self.experiment.update(load(s))
        
         settingsFilename = os.path.split(filenameMiniscope)
-
         with open('Miniscope/' + settingsFilename[1]) as s: 
             self.experiment.update(load(s)) 
-        
+        '''
         if 'directory' not in self.experiment:
             self.experiment['directory'] = os.path.abspath(os.path.dirname(filenameMiniscope))
-        
+            
         if lineNum != None:
             self.miniscopeImportAnalysisParams(lineNum, analysisFilename)
         else:
             self._analysisParamsDict = {}
+            
+        timeStampsFilename = self.findMovieFilePaths(fileStartsWith='timeStamps',fileExtensions='.csv')        
+        
+        if len(timeStampsFilename) == 1:
+            timeStampsFilename = timeStampsFilename[0]
+        else:
+            raise ValueError('More than one timeStamps files found')
+        self.timeStamps= []
+        self.frameNum = []
+        with open(timeStampsFilename, newline='') as t:
+            next(t)
+            reader = csv.reader(t)
+            for row in reader:
+                self.frameNum.append(int(row[0]))
+                self.timeStamps.append(float(row[1]))
+        self.timeStamps = np.divide((np.asarray(self.timeStamps) - self.timeStamps[0]), 1000) # converts from ms to s
+
 
     def miniscopeImportAnalysisParams(self, lineNum, filename):
         """Import parameters for calcium movie analysis using CaImAn."""
@@ -55,22 +97,26 @@ class miniscope(experiment.experiment):
         # Make a dictionary with each of the columns in the CSV file
         self._analysisParamsDict = {}
         for k, columnTitle in enumerate(analysisParamsCSV[0]):
-            self._analysisParamsDict[columnTitle] = analysisParamsCSV[lineNum][k]
-            
-            # Fix the types of different parameters if they're not supposed to be strings
-            if (self._analysisParamsDict[columnTitle] == 'False') or (self._analysisParamsDict[columnTitle] == 'True'):
-                self._analysisParamsDict[columnTitle] = bool(self._analysisParamsDict[columnTitle])
-            elif self._analysisParamsDict[columnTitle] == 'None':
+            try:
+                self._analysisParamsDict[columnTitle] = analysisParamsCSV[lineNum][k]
+            except IndexError:
                 self._analysisParamsDict[columnTitle] = None
-            elif self._analysisParamsDict[columnTitle][0] == '(':
-                convertParamTuple = []
-                for k, c in enumerate(self._analysisParamsDict[columnTitle].replace('(', '').replace(')', '').replace(' ', '').split(',')):
-                    convertParamTuple.append(int(c))
-                self._analysisParamsDict[columnTitle] = tuple(convertParamTuple)
-            elif self._analysisParamsDict[columnTitle].isdecimal():
-                self._analysisParamsDict[columnTitle] = int(self._analysisParamsDict[columnTitle])
-            elif ('.' in self._analysisParamsDict[columnTitle]) and (self._analysisParamsDict[columnTitle].split('.')[0].isdecimal()):
-                self._analysisParamsDict[columnTitle] = float(self._analysisParamsDict[columnTitle])
+            else:  
+                # Fix the types of different parameters if they're not supposed to be strings
+                if (self._analysisParamsDict[columnTitle] == 'False') or (self._analysisParamsDict[columnTitle] == 'True'):
+                    self._analysisParamsDict[columnTitle] = bool(self._analysisParamsDict[columnTitle])
+                elif (self._analysisParamsDict[columnTitle] == 'None') or (not self._analysisParamsDict[columnTitle]):
+                    self._analysisParamsDict[columnTitle] = None
+                elif (self._analysisParamsDict[columnTitle][0] == '('):
+                    convertParamTuple = []
+                    for k, c in enumerate(self._analysisParamsDict[columnTitle].replace('(', '').replace(')', '').replace(' ', '').split(',')):
+                        if c.isnumeric():
+                            convertParamTuple.append(int(c))
+                    self._analysisParamsDict[columnTitle] = tuple(convertParamTuple)
+                elif self._analysisParamsDict[columnTitle].isdecimal():
+                    self._analysisParamsDict[columnTitle] = int(self._analysisParamsDict[columnTitle])
+                elif ('.' in self._analysisParamsDict[columnTitle]) and (self._analysisParamsDict[columnTitle].split('.')[0].isdecimal()):
+                    self._analysisParamsDict[columnTitle] = float(self._analysisParamsDict[columnTitle])
 
 
     def miniscopeImportEvents(self):
@@ -87,15 +133,18 @@ class miniscope(experiment.experiment):
         self.miniscopeEvents['labels'] = np.array(self.miniscopeEvents[labels])
 
 
-    def findMovieFilePaths(self, directory=None, fileExtensions='.avi', fileStartsWith='msCam'):
+    def findMovieFilePaths(self, directory=None, fileExtensions='.avi', 
+                           fileStartsWith='',removeFile=False,printPath=False,
+                           fileAndDirectory=False):
         """Makes a list of the full paths of all movie files in DIRECTORY.
         FILEEXTENSIONS is a string of the file extension or a list or tuple with multiple file extensions."""
         if directory == None:
             directory = self.experiment['directory']
-        self.movieFilePaths = misc_Functions._findFilePaths(directory, fileExtensions, fileStartsWith=fileStartsWith)
+        self.movieFilePaths = misc_Functions._findFilePaths(directory,fileExtensions,fileStartsWith,
+                                                            removeFile,printPath,fileAndDirectory)
+        return self.movieFilePaths
 
-
-    def importCaMovies(self, filenames=None):
+    def importCaMovies(self, filenames=None, crop=False):
         """Import calcium imaging data. Not necessary if using processCaMovies().
         FILENAMES can be a single movie file or a list of movie files (in the order that you want them).
         SYNCTOEEGCHANNEL is the string representing the channel to which the timing of the movie frames will be synced."""
@@ -106,14 +155,20 @@ class miniscope(experiment.experiment):
             self.movie = cm.load(filenames)
         else:
             self.movie = cm.load_movie_chain(filenames)
-        self._importCaMoviesFilenames = filenames
+        # self.movie.play()
+        # self._importCaMoviesFilenames = filenames
+        if crop:
+            self._crop(self.movie)
+        
+        
 
-
-    def convertCaMovies(self, filenames=None, newFileType='.tif', joinMovies=False):
+    def convertCaMovies(self, filenames=None, newFileType='.tif', joinMovies=False, metaDataConvert=True):
         """Convert calcium movies from one type to another. File types must be supported by CaImAn.
         The new filename(s) is the same as the first filename in FILENAMES, with NEWFILETYPE appended to the end.
         JOINMOVIES determines whether all of the movie files in FILENAMES are converted to a single new movie, or whether they are saved in len(FILENAMES) movies."""
+        print('Converting movies...')
         filenamesArg = filenames
+        difVideos=[]
         if (filenames == None) and ('movie' in self.__dir__()):
             filenames = self._importCaMoviesFilenames
         elif filenames == None:
@@ -132,8 +187,16 @@ class miniscope(experiment.experiment):
                 self.movie.save(os.path.splitext(filenames[0])[0] + newFileType)
             else:
                 for k in range(len(filenames)):
-                    movie = cm.load(filenames[k])
-                    movie.save(os.path.splitext(filenames[k])[0] + newFileType) ###########maybe use the saveCaMovie method here and elsewhere in this method?
+                    try:
+                        movie = cm.load(filenames[k])
+                        movie.save(os.path.splitext(filenames[k])[0] + newFileType) ###########maybe use the saveCaMovie method here and elsewhere in this method?
+                    except:
+                        difVideos.append(filenames[k])
+        if metaDataConvert:
+            self._metaDataConverter()
+        if len(difVideos)!=0:
+            print('ERRORS with: '+str(difVideos))
+            print('Consider investigating')
 
 
     def saveCaMovie(self, processingStep=''):
@@ -161,6 +224,7 @@ class miniscope(experiment.experiment):
         if saveMovie:
             mode = 'save'
         misc_Functions.denoiseMovie(self.experiment['directory'], mode=mode)
+
 
     def detrendCaFluorescence(self, saveMovie=True, detrendType='median', plotTrend=False):
         """Loads the calcium movie and detrends it based on the fluorescence of the entire movie.
@@ -195,7 +259,7 @@ class miniscope(experiment.experiment):
         """Run all preprocessing steps in one method, using their default options."""
         if saveMovie:
             if denoise:
-                self.denoiseMovie()
+                self.denoiseCaMovie()
             if detrend and dFoverF:
                 self.detrendCaFluorescence(saveMovie=False)
                 self.computedFoverF(saveMovie=False)
@@ -206,16 +270,18 @@ class miniscope(experiment.experiment):
                 self.computedFoverF(saveMovie=True)
         else:
             if denoise:
-                self.denoiseMovie(saveMovie=False)
+                self.denoiseCaMovie(saveMovie=False)
             if detrend:
                 self.detrendCaFluorescence(saveMovie=False)
             if dFoverF:
                 self.computedFoverF(saveMovie=False)
 
-
-    def processCaMovies(self, motionCorrect=True, saveMotionCorrect=True, inspectMotionCorrection=False, inspectCorrPNR=False, downsampleForCorrPNR=1, runCNMFE=True, saveCNMFEFilename='', editComponents=True, deconvolve=True):
+    
+    def processCaMovies(self, motionCorrect=True, saveMotionCorrect=True, inspectMotionCorrection=False, 
+                        inspectCorrPNR=False, downsampleForCorrPNR=1, runCNMFE=True, saveCNMFEFilename='', 
+                        editComponents=True, deconvolve=False):
         """Preprocess calcium imaging data."""
-        print('processing movie)')
+        print('processing movie...')
         if 'movieFilePaths' not in dir(self):
             self.findMovieFilePaths()
         self._analysisParamsDict['fnames'] = self.movieFilePaths
@@ -240,10 +306,11 @@ class miniscope(experiment.experiment):
         if deconvolve:
             self._deconvolve()
         
+        
         cm.stop_server(dview=dview)
 
 
-    def _motionCorrection(self, dview, saveMotionCorrect, inspectMotionCorrection):
+    def _motionCorrection(self, dview=None, saveMotionCorrect=True, inspectMotionCorrection=True):
         """Use motion correction to correct for movement during the calcium movies."""
         mc = cm.motion_correction.MotionCorrect(self.optsCaImAn.get('data', 'fnames'), dview=dview, **self.optsCaImAn.get_group('motion'))
         mc.motion_correct(save_movie=saveMotionCorrect)
@@ -366,7 +433,7 @@ class miniscope(experiment.experiment):
             self.CNMFEFilename = os.path.join(self.experiment['directory'], saveCNMFEFilename)
             cnm.save(self.CNMFEFilename)
     
-    
+
     def removeComponents(self, idxToRemove, filename=None, saveNewCNMFE=True):
         """Remove or merge components extracted using the CNMF-E algorithm.
         IDXTOREMOVE are the indices of components to remove.
@@ -382,16 +449,71 @@ class miniscope(experiment.experiment):
             cnmObj.save(self.CNMFEFilename)
 
 
-    def _deconvolve(self):
-        """"""
-        pass
-
-
+    def _deconvolve(self, p=None, method_deconvolution=None, bas_nonneg=None,
+               noise_method=None, optimize_g=0, s_min=None, **kwargs):
+        """Performs deconvolution on already extracted traces using
+        constrained foopsi.
+        """
+        pass 
+    
+        p = (self.params.get('preprocess', 'p') 
+             if p is None else p)
+        method_deconvolution = (self.params.get('temporal', 'method_deconvolution')
+                if method_deconvolution is None else method_deconvolution)
+        bas_nonneg = (self.params.get('temporal', 'bas_nonneg')
+                      if bas_nonneg is None else bas_nonneg)
+        noise_method = (self.params.get('temporal', 'noise_method')
+                        if noise_method is None else noise_method)
+        s_min = self.params.get('temporal', 's_min') if s_min is None else s_min
+    
+        F = self.estimates.C + self.estimates.YrA
+        args = dict()
+        args['p'] = p
+        args['method_deconvolution'] = method_deconvolution
+        args['bas_nonneg'] = bas_nonneg
+        args['noise_method'] = noise_method
+        args['s_min'] = s_min
+        args['optimize_g'] = optimize_g
+        args['noise_range'] = self.params.get('temporal', 'noise_range')
+        args['fudge_factor'] = self.params.get('temporal', 'fudge_factor')
+    
+        args_in = [(F[jj], None, jj, None, None, None, None,
+                    args) for jj in range(F.shape[0])]
+    
+        if 'multiprocessing' in str(type(self.dview)):
+            fluor = self.optsCaImAn
+            results = self.dview.map_async(cm.deconvolve.constrained_foopsi(fluor,p=p, 
+                                            method_deconvolution=method_deconvolution,
+                                            noise_method=noise_method, optimize_g=optimize_g, 
+                                            s_min=s_min), args_in).get(4294967)
+        elif self.dview is not None:
+            results = self.dview.map_sync(cm.deconvolve.constrained_foopsi_parallel(), args_in)
+        else:
+            results = list(map(cm.deconvolve.constrained_foopsi_parallel(), args_in))
+    
+        if sys.version_info >= (3, 0):
+            results = list(zip(*results))
+        else:  # python 2
+            results = zip(*results)
+    
+        order = list(results[7])
+        self.estimates.C = np.stack([results[0][i] for i in order])
+        self.estimates.S = np.stack([results[1][i] for i in order])
+        self.estimates.bl = [results[3][i] for i in order]
+        self.estimates.c1 = [results[4][i] for i in order]
+        self.estimates.g = [results[6][i] for i in order]
+        self.estimates.neurons_sn = [results[5][i] for i in order]
+        self.estimates.lam = [results[8][i] for i in order]
+        self.estimates.YrA = F - self.estimates.C
+        return self
+    
+    
     def multiSessionRegistration(self):
         """Register components (neurons) between different recording sessions."""
         pass
     
-    def quatFile_to_eulerFile(self, filename='headOrientation.csv', nf='True'): ##returns newfilename
+    
+    def _quatFile_to_eulerFile(self, filename='headOrientation.csv', nf='True'): ##returns newfilename
         newfilename = filename.replace('.csv', 'inEulerAngles.csv')
         if os.path.exists(filename):
             print('File exists') 
@@ -422,7 +544,7 @@ class miniscope(experiment.experiment):
             print('!!! ERROR: File not found') 
             return
         
-        def conv_quat_to_euler(line):
+        def _conv_quat_to_euler(line):
             if len(line) != 5:
                 print ('!!! ERROR: Invalid file')
                 return
@@ -439,7 +561,7 @@ class miniscope(experiment.experiment):
         def graph_Movement(self,filename='headOrientationinEulerAngles.csv',plotName='movementPlot.png'): ##eulerAngle file
         
             if 'inEulerAngles.csv' not in filename and '.csv' in filename:
-                filename = self.quatFile_to_eulerFile(filename)
+                filename = self._quatFile_to_eulerFile(filename)
             elif '.csv' not in filename:
                 print('!!! ERROR: Invalid file')
                 return
@@ -476,3 +598,115 @@ class miniscope(experiment.experiment):
             else:
                 print('!!! ERROR: File not found')
                 return
+    
+    
+    def _metaDataConverter(self):#Suggestion: it might be good to start combining the metaDatas and marking them with the animalID or some experiment identifier (not sure how this program will work if you have a lot of different videos/metaData)
+        fpath = self.findMovieFilePaths(fileExtensions='.json', fileStartsWith='metaData')
+        for fileExt in fpath:
+            with open(fileExt) as f:
+                data = json.loads(f.read())
+                if 'animalID' in data:
+                    ext=fileExt.replace('\\metaData.json', '\\Miniscope\\metaData.json')
+                    animalID=data['animalID']
+                    timeStamp=data['recordingStartTime']
+                    year=str(timeStamp['year'])
+                    month=str('%02d' % timeStamp['month'])
+                    day=str('%02d' % timeStamp['day'])
+                    second=str('%02d' % timeStamp['second'])
+                    minute=str('%02d' % timeStamp['minute'])
+                    hour=str('%02d' % timeStamp['hr'])
+                    date=year+month+day+'_'+hour+minute+second
+                    with open(ext) as d:
+                        data2 = json.loads(d.read())
+                        if 'frameRate' in data2:
+                            try: 
+                                frameRate=float(data2['frameRate'])
+                            except ValueError:
+                                frameRate = float(data2['frameRate'].replace('FPS',''))
+                        jdict ={'origin':animalID,'fps':frameRate,'date':date,
+                                'orig_meta':[data,data2]}
+                        jsonFile=json.dumps(jdict,indent=4)
+                        newFileName=ext.replace('\\metaData.json', '\\metaDataTif.json')
+                        n = open(newFileName, 'w')
+                        n.write(jsonFile)
+                        n.close()
+
+                    
+    def _crop(self,movie):
+        
+        # FIXME FIND MAX PROJECTION
+        filename = None # FIXME
+        # Visualize to crop
+        self._cropWindow(filename)
+        self.movie = self.movie.crop('av')
+        self.movie.play()
+
+    '''Borrowed in part from: https://stackoverflow.com/questions/68822772/gui-measuring-picture-size-for-cropping/68829339#68829339'''
+    def _update(self, window, x0, y0, x1, y1):
+        """
+        Update rectangle information
+        """
+        self.x0 = x0 
+        self.y0 = y0
+        self.x1 = x1
+        self.y1 = y1
+        # print(repr(x0), repr(y0), repr(x1), repr(y1))
+        window['-START-'].update(f'Start: ({x0}, {y0})')
+        window['-STOP-' ].update(f'Start: ({x1}, {y1})')
+        window['-BOX-'  ].update(f'Box: ({abs(x1-x0+1)}, {abs(y1-y0+1)})')
+    
+    
+    def _cropWindow(self,filename=None):
+        filename="20200719_161857.png" # FIXME update with max projection image
+        image = Image.open(filename) 
+        im = image.resize((608, 608), resample=Image.CUBIC) # FIXME need to fix this so it imports from the crop size
+        with BytesIO() as output:
+            im.save(output, format="PNG")
+            data = output.getvalue()
+        
+        layout = [
+            [sg.Graph((608, 608), (0, 0), (608, 608), key='-GRAPH-', # FIXME need to fix this too
+                drag_submits=True, enable_events=True, background_color='green')],
+            [sg.Text("Start: None", key="-START-"),
+             sg.Text("Stop: None",  key="-STOP-"),
+             sg.Text("Box: None",   key="-BOX-")],
+        ]
+        
+        window = sg.Window("Measure", layout, finalize=True)
+        graph = window['-GRAPH-']
+        graph.draw_image(data=data, location=(0, 608))
+        x0, y0 = None, None
+        x1, y1 = None, None
+        colors = ['blue', 'white']
+        index = False
+        figure = None
+        while True:
+        
+            event, values = window.read(timeout=100)
+            
+            if event == sg.WINDOW_CLOSED: # FIXME ends program when it closes window
+                print(self.x0,self.y0,self.x1,self.y1) 
+                
+                break
+            elif event in ('-GRAPH-', '-GRAPH-+UP'):
+                if (x0, y0) == (None, None):
+                    x0, y0 = values['-GRAPH-']
+                x1, y1 = values['-GRAPH-']
+                self._update(window,x0, y0, x1, y1)
+                if event == '-GRAPH-+UP':
+                    x0, y0 = None, None
+        
+            if figure:
+                graph.delete_figure(figure)
+            if None not in (x0, y0, x1, y1):
+                figure = graph.draw_rectangle((x0, y0), (x1, y1), line_color=colors[index])
+                index = not index
+        print('sasdfasdf')
+        #window.close()
+        
+        return
+       
+                            
+                    
+                    
+          

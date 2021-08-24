@@ -12,28 +12,114 @@ import numpy as np
 import matplotlib.pyplot as plt
 plt.rcParams['svg.fonttype'] = 'none'
 import misc_Functions
+import sys
+import csv
+from math import sqrt
+from six.moves import zip
+import scipy.signal
+import scipy.interpolate
+from rdp import rdp
+import time
 
 class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
     """This is the class definition for handling miniscopes and simultaneous EEG data."""
-    def __init__(self, lineNum, filename='experiments.csv', filenameMiniscope='miniscope_settings_and_notes.dat'):
+    def __init__(self, lineNum, filename='experiments.csv', filenameMiniscope='metaData.json'):
+        self.lineNum = lineNum
+        
         super().__init__(filenameMiniscope=filenameMiniscope, lineNum=lineNum, filename=filename)
 
 
-    def importEvents(self):
+    def importEvents(self, channel='CBvsPFCEEG', writeFile=False, ttl=False,plot=False):
         """Translate the events imported from self.experiment['Miniscope settings filename']
         into a common time as the Neuralynx time format and combine the events from the two sources."""
-        pass
+        self.NeuralynxImportEvents()
+        self.importEphysData(channels=channel)
+        self._syncCaMovieTimes(channel, writeFile, ttl)
+        self.correctTimeStamps(channel,plot)
 
 
-    def _syncCaMovieTimes(self, channel):
+    def _syncCaMovieTimes(self, channel, writeFile=False, ttl=False):
         """Create time vector for calcium movies from TTL events in Neuralynx."""
-        frameAcqIdx = (self.NeuralynxEvents['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0000).') | (self.NeuralynxEvents['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0001).')
-        self.tCaIm = np.nan * np.ones(np.shape(frameAcqIdx))
-        for k, caImEvent in enumerate(self.NeuralynxEvents['timestamps'][frameAcqIdx]):
-            self._tIdxCaIm[k] = (self.tEEG[channel] - caImEvent).argmin()
-        self.tCaIm = self.tEEG[channel][self._tIdxCaIm]
-
-
+        print('Syncing Calcium Movie Times...')
+        start_time = time.time()
+        try:
+            self.tCaIm = []
+            file = misc_Functions._findFilePaths(directory=self.experiment['directory'],fileStartsWith='syncCaMovieTimes')[0]
+            with open(file, newline='') as f:
+                reader = csv.reader(f)
+                self.pOUC = list(reader[1])
+                next(f)
+                reader = csv.reader(f)
+                for row in reader:
+                    self.tCaIm.append(float(row[1]))
+            self.tCaIm = np.asarray(self.tCaIm)
+            x = len(self.tCaIm)
+        except AttributeError:
+            frameAcqIdx = (self.NeuralynxEvents['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0000).') | (self.NeuralynxEvents['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0001).')
+            if ttl: 
+                self.tCaIm = self.NeuralynxEvents['timestamps'][frameAcqIdx]
+                return
+            endPoint = round(int(self.samplingRate[channel]) * 2 / int(self.experiment['frameRate'])) 
+            self._tIdxCaIm = np.empty(len(self.NeuralynxEvents['timestamps'][frameAcqIdx]),dtype=int)
+            lastIndex = 0
+            for k, caImEvent in enumerate(self.NeuralynxEvents['timestamps'][frameAcqIdx]):
+                self._tIdxCaIm[k] = self._findtIdxCaIm(k,caImEvent,lastIndex,channel,endPoint)
+                lastIndex = self._tIdxCaIm[k]
+            self.tCaIm, self.pOUC = self._correcttCaIm(self.tEEG[channel][self._tIdxCaIm])
+            if writeFile:
+                with open((self.filePath+'//syncCaMovieTimes.csv'), 'w', newline='') as nf:
+                    writer = csv.writer(nf) 
+                    pOUC = []
+                    pOUC.append('Period(s) of Uncertainty')
+                    pOUC.append(self.pOUC)
+                    writer.writerow(pOUC)
+                    header = []
+                    header.append('Frame')
+                    header.append('Time(s)')
+                    writer.writerow(header)
+                    lastIndex = 0
+                    for k, ti in enumerate(self.tCaIm):
+                        line = []
+                        line.append(k)
+                        line.append(ti)
+                        writer.writerow(line)
+        print("--- %s seconds ---" % (time.time() - start_time))
+            
+    def _correcttCaIm(self, tCaIm):
+        dtCaIm = np.diff(tCaIm)
+        frameRate = self.experiment['frameRate']
+        lTTLaI = np.where(dtCaIm > .040)[0] # long TTL array index
+        nAFPI = [] # number add frames per index
+        for i in lTTLaI:
+            nAFPI.append(round(dtCaIm[i]/(1/frameRate)))
+        nT = []
+        # aug = 0
+        start = []
+        end = []
+        nStart = []
+        pOUC = [] # period of uncertainty
+        for h, ti in enumerate(tCaIm):
+            if h in lTTLaI:
+                idx = int(np.where(lTTLaI==(h))[0])
+                nFD = nAFPI[idx] + 1
+                l = np.linspace(tCaIm[h], tCaIm[h+1], nFD)
+                start.append(h)
+                end.append(h+1)
+                for i, num in enumerate(l):
+                    if i != (len(l) - 1):
+                        nT.append(num)
+                # aug+=nFD
+            else:
+                nT.append(tCaIm[h])
+        for num in start:
+            if num in end:
+                end.remove(num)
+            else:
+                nStart.append(num)
+        for k, idx in enumerate(nStart):
+            pOUC.append(str(f"{round(tCaIm[idx],4):08}") + '-' + str(f"{round(tCaIm[end[k]],4):08}"))
+        return (nT, pOUC)
+    
     def _phaseCaEvents(self, channel, neuron, syncToEEGChannel):
         """Compare calcium events to the phase extracted from a specified EEG channel."""
         self._syncCaMovieTimes(channel)
@@ -61,3 +147,165 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
     def phaseCaEventsPolarPlot(self, channel='CBvsPFCEEG', neuron='all', bins=18, plotMeanVector=True):
         """"""
         pass
+    
+    
+    def correctTimeStamps(self,channel='CBvsPFCEEG', plot=False):
+        print('Correcting time stamps...')
+        start_time = time.time()
+        
+        '''
+        TODO
+            run on that data
+            it finds steps
+            period of uncertainty
+            Party
+        '''
+
+        # A whole bunch of fail safes
+        try:
+            x = len(self.tCaIm)
+        except AttributeError:
+            try:
+                self.tCaIm = []
+                file = misc_Functions._findFilePaths(directory=self.experiment['directory'],fileStartsWith='syncCaMovieTimes')[0]
+                with open(file, newline='') as f:
+                    reader = csv.reader(f)
+                    self.pOUC = list(reader[1])
+                    next(f)
+                    for row in reader:
+                        self.tCaIm.append(float(row[1]))
+                self.tCaIm = np.asarray(self.tCaIm)
+                x = len(self.tCaIm)
+            except AttributeError:
+                self.importEvents(channel=channel)
+                x = len(self.tCaIm)
+        
+        # Starts comparing TTL timestamps to miniscope timestamps and finds points of instability
+        numDroppedFrames = len(self.tCaIm)-len(self.timeStamps)
+        if len(self.timeStamps) == len(self.tCaIm):
+            return
+        else:
+            dropFramesIndices = self._turningPoints(self.timeStamps,numDroppedFrames,plot)
+            sectionMeans = []
+            for k,val in enumerate(dropFramesIndices):
+                if k == 0:
+                    mean = np.mean(self.clockDiffStart[:int(val)]) 
+                    sectionMeans.append(mean)
+                elif val == dropFramesIndices[-1]:
+                    mean = np.mean(self.clockDiffStart[int(val):])
+                    sectionMeans.append(mean)
+                    break
+                else:
+                    mean = np.mean(self.clockDiffStart[int(val):int(dropFramesIndices[k+1])])
+                    sectionMeans.append(mean)
+            diffTimes = abs(np.diff(sectionMeans))
+            tPF = 1 / self.experiment['frameRate']
+            nDFPI = [] # number of dropped frames per index
+            for val in diffTimes:
+                nDFPI.append(round(val/tPF))
+            if sum(nDFPI) != numDroppedFrames:
+                raise ValueError('Wrong number of frames to be deleted found')
+            else:
+                self.tCaIm = list(self.tCaIm)
+                PoUC = [] # Period of Uncertainty
+                for k, index in enumerate(dropFramesIndices[:-1]):
+                    string = ''
+                    start = None
+                    end = None
+                    if nDFPI[k] != 0:
+                        if nDFPI[k] == 1:
+                            self.tCaIm.pop(int(index))  
+                            #self.tCaIm.pop(int(index+1))
+                            start = self.tCaIm[int(index)]
+                            end = self.tCaIm[int(index + 1)]
+                        else:
+                            x = list(range(nDFPI[k]))
+                            for l in x:
+                                self.tCaIm.pop(int(index + l))
+                                if (l == 0):
+                                    start = self.tCaIm[int(index+l)]
+                                    # print(start)
+                                elif (l == (nDFPI[k]-1)):
+                                     end = self.tCaIm[int(index+l)]
+                                     #print(end)# decide how long the end time should be?
+                        string = str(f"{start:08}") + '-' + str(f"{end:08}")
+                        PoUC.append(string)
+                self.pOUC = np.sort(np.concatenate((self.pOUC,PoUC)))
+                if len(self.tCaIm) != len(self.timeStamps):
+                    raise ValueError('Number deleted frames is incorrect')
+                print(self.pOUC)
+        print("--- %s seconds ---" % (time.time() - start_time))
+                
+    def _turningPoints(self,timeStamps,numDroppedFrames,plot=False):
+        # step detection algorithm borrowed from https://stackoverflow.com/questions/48000663/step-detection-in-one-dimensional-data
+        self.clockTime = self.tCaIm - self.tCaIm[0]
+        self.clockDiffStart = self.timeStamps - self.clockTime[:len(timeStamps)] # probably put comparing thing here
+        self.clockDiffEnd = self.timeStamps[len(timeStamps)-numDroppedFrames:] - self.clockTime[len(timeStamps):]
+        #check the beginning
+        startInd = self._stepID(self.clockDiffStart,plot)
+        #check the end
+        endInd = self._stepID(self.clockDiffEnd,plot) + len(timeStamps)
+        self.inds = np.concatenate((startInd,endInd))
+        return(self.inds)
+        
+        
+    def _angle(self,directions):
+        """Return the angle between vectors
+        """
+        vec2 = directions[1:]
+        vec1 = directions[:-1]
+    
+        norm1 = np.sqrt((vec1 ** 2).sum(axis=1))
+        norm2 = np.sqrt((vec2 ** 2).sum(axis=1))
+        cos = (vec1 * vec2).sum(axis=1) / (norm1 * norm2)   
+        return np.arccos(cos)
+    
+    
+    def _stepID(self,clockDiff,plot):
+        d = clockDiff
+        dary = np.array([*map(float, d)])
+        dary -= np.average(dary)
+        step = np.hstack((np.ones(len(dary)), -1*np.ones(len(dary))))
+        dary_step = np.convolve(dary, step, mode='valid')
+        
+        # using RDP algorithm borrowed from https://www.gakhov.com/articles/find-turning-points-for-a-trajectory-in-python.html
+        var = np.empty(len(dary_step)*2)
+        for k,val in enumerate(dary_step):
+            var[2*k] = k
+            var[2*k+1] = val
+        
+        trajectory = np.asarray(var).reshape(len(dary_step),2)
+        epsilon = 31 # FIXME This number is arbitrary .1 * len(clockDiff)- this works for smaller cases 
+        simplified_trajectory = rdp(trajectory, epsilon=epsilon)
+        sx, sy = simplified_trajectory.T
+        
+        # Define a minimum angle to treat change in direction as significant (valuable turning point).
+        min_angle = 0
+    
+        # Compute the direction vectors on the simplified_trajectory.
+        directions = np.diff(simplified_trajectory, axis=0)
+        theta = self._angle(directions)
+        
+        # Select the index of the points with the greatest theta. Large theta is associated with greatest change in direction.
+        idx = np.where(theta > min_angle)[0] + 1
+    
+        epsilon = epsilon*5 #makes graph aspect look right
+        
+        # Visualize valuable turning points on the simplified trjectory.
+        if plot:
+            plt.plot(sx, sy/(epsilon), 'gx-', label='simplified trajectory')
+            plt.plot(sx[idx], sy[idx]/(epsilon), 'ro', markersize = 7, label='turning points')
+            plt.legend(loc='best')
+            plt.plot(dary)
+            plt.plot(dary_step/(epsilon))
+            plt.show()
+        return(sx[idx])
+        
+    def _findtIdxCaIm(self,k,caImEvent,lastIndex,channel,endPoint):
+        if k == 0:
+            _tIdxCaIm = np.abs(self.tEEG[channel][lastIndex:]-caImEvent).argmin()+lastIndex
+        elif (len(self.tEEG[channel][lastIndex:]) - endPoint < 0):
+            _tIdxCaIm = np.abs(self.tEEG[channel][lastIndex:]-caImEvent).argmin()+lastIndex
+        else:
+            _tIdxCaIm = np.abs(self.tEEG[channel][lastIndex:(lastIndex + endPoint)]-caImEvent).argmin()+lastIndex
+        return(_tIdxCaIm)
