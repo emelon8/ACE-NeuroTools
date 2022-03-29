@@ -9,6 +9,6 @@ For use in converting select .avi files to .tif files for preliminary analyses u
 
 import miniscope
 
-obj = miniscope.miniscope('settings_and_notes.dat')
+obj = miniscope.miniscope('D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R211022/2021_11_02/10_58_59/Miniscope/metaData.json', lineNum=8)
 
-obj.convertCaMovies(filenames=['msCam1.avi', 'msCam2.avi', 'msCam3.avi'])
+obj.convertCaMovies()
