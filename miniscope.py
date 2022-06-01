@@ -43,12 +43,12 @@ class miniscope(experiment.experiment):
                 with open(path) as m:
                     data = json.loads(m.read())
                     for key in data:
-                        self.experiment[key] = data[key]
+                        self.experiment[key] = data[key] #FIXME might be setting the key twice 1 as string 2 as float
                         if key == 'frameRate':
                             try: 
                                 self.experiment[key] = float(data[key])
                             except ValueError:
-                                self.experiment[key] = float(data[key].replace('FPS',''))
+                                self.experiment[key] = float(data[key].replace('FPS','')) #FIXME print error/warning to console saying "this rat from this date has no framerate"
                     m.close()
         except AttributeError:
             pass
@@ -57,7 +57,7 @@ class miniscope(experiment.experiment):
         with open(filenameMiniscope) as s:
             self.experiment.update(load(s))
        
-        settingsFilename = os.path.split(filenameMiniscope)
+        settingsFilename = os.path.split(filenameMiniscope)     # FIXME take a look to see if this can be deleted
         with open('Miniscope/' + settingsFilename[1]) as s: 
             self.experiment.update(load(s)) 
         '''
@@ -113,7 +113,7 @@ class miniscope(experiment.experiment):
                         if c.isnumeric():
                             convertParamTuple.append(int(c))
                     self._analysisParamsDict[columnTitle] = tuple(convertParamTuple)
-                elif self._analysisParamsDict[columnTitle].isdecimal():
+                elif self._analysisParamsDict[columnTitle].isdecimal(): #FIXME this never reaches the next line if the number is actually a float
                     self._analysisParamsDict[columnTitle] = int(self._analysisParamsDict[columnTitle])
                 elif ('.' in self._analysisParamsDict[columnTitle]) and (self._analysisParamsDict[columnTitle].split('.')[0].isdecimal()):
                     self._analysisParamsDict[columnTitle] = float(self._analysisParamsDict[columnTitle])
@@ -142,7 +142,6 @@ class miniscope(experiment.experiment):
             directory = self.experiment['directory']
         self.movieFilePaths = misc_Functions._findFilePaths(directory,fileExtensions,fileStartsWith,
                                                             removeFile,printPath,fileAndDirectory)
-        return self.movieFilePaths
 
     def importCaMovies(self, filenames=None, crop=False):
         """Import calcium imaging data. Not necessary if using processCaMovies().
@@ -249,8 +248,8 @@ class miniscope(experiment.experiment):
             self.saveCaMovie(processingStep='_detrended')
 
 
-    def computedFoverF(self, saveMovie=True):
-        """"""
+    def computedFoverF(self, saveMovie=True): #TODO does nothing other than save the video with new name
+        """""" 
         if saveMovie:
             self.saveCaMovie(processingStep='_dFoverF')
 
@@ -545,55 +544,56 @@ class miniscope(experiment.experiment):
             return
         
         
-        def graph_Movement(self,filename='headOrientationinEulerAngles.csv',plotName='movementPlot.png'): ##eulerAngle file
-        
-            if 'inEulerAngles.csv' not in filename and '.csv' in filename:
-                filename = self._quatFile_to_eulerFile(filename)
-            elif '.csv' not in filename:
-                print('!!! ERROR: Invalid file')
-                return
-                
-            if os.path.exists(filename):
-                print('File exists')  
-                with open(filename, newline='') as f:        
-                    reader = csv.reader(f)
-                    y = []
-                    avgAngle = []
-                    time = []
-                    next(f) ##skip header line
-                    for line in reader:
-                        if len(line) != 4:
-                            print ('!!! ERROR: Invalid file') # FIXME
-                            return
-                        eulerAngleSum = (float(line[1]) + float(line[2]) + float(line[3]))/3 # FIXME change to difference between angles instead of averaging the angles
-                        avgAngle.append(eulerAngleSum)
-                        time.append(float(line[0]))
-                    count = 1 ##skips first line
-                    while count < len(avgAngle):
-                        deltaAngle = abs((avgAngle[count])-avgAngle[count-1])
-                        deltaTime = abs(time[count]-avgAngle[count-1])
-                        y.append(deltaAngle/deltaTime)
-                        count += 1
-                    '''
-                    FIXME
-                    make an array and take the diff between the rows so you have three columns
-                    figure out how you want to represent them as one value and graph
-                    '''
-                    x = list(time[1:]) ##skips first time
-                    y = list(y)
-                    plt.plot(x, y)
-                    plt.xlabel('time(ms)')
-                    plt.ylabel('angle change over time (rad/s)')
-                    plt.title('movement over time')
-                    plt.show()
-                    plt.savefig(plotName)
-            else:
-                print('!!! ERROR: File not found') # FIXME
-                return
+    def graph_Movement(self,filename='headOrientationinEulerAngles.csv',plotName='movementPlot.png'): ##eulerAngle file
     
+        if 'inEulerAngles.csv' not in filename and '.csv' in filename:
+            filename = self._quatFile_to_eulerFile(filename)
+        elif '.csv' not in filename:
+            print('!!! ERROR: Invalid file')
+            return
+            
+        if os.path.exists(filename):
+            print('File exists')  
+            with open(filename, newline='') as f:        
+                reader = csv.reader(f)
+                y = []
+                avgAngle = []
+                time = []
+                next(f) ##skip header line
+                for line in reader:
+                    if len(line) != 4:
+                        print ('!!! ERROR: Invalid file') # FIXME
+                        return
+                    eulerAngleSum = (float(line[1]) + float(line[2]) + float(line[3]))/3 # FIXME change to difference between angles instead of averaging the angles
+                    avgAngle.append(eulerAngleSum)
+                    time.append(float(line[0]))
+                count = 1 ##skips first line
+                while count < len(avgAngle):
+                    deltaAngle = abs((avgAngle[count])-avgAngle[count-1])
+                    deltaTime = abs(time[count]-avgAngle[count-1])
+                    y.append(deltaAngle/deltaTime)
+                    count += 1
+                '''
+                FIXME
+                make an array and take the diff between the rows so you have three columns
+                figure out how you want to represent them as one value and graph
+                '''
+                x = list(time[1:]) ##skips first time
+                y = list(y)
+                plt.plot(x, y)
+                plt.xlabel('time(ms)')
+                plt.ylabel('angle change over time (rad/s)')
+                plt.title('movement over time')
+                plt.show()
+                plt.savefig(plotName)
+        else:
+            print('!!! ERROR: File not found') # FIXME
+            return
+
     
     def _metaDataConverter(self):#Suggestion: it might be good to start combining the metaDatas and marking them with the animalID or some experiment identifier (not sure how this program will work if you have a lot of different videos/metaData)
-        fpath = self.findMovieFilePaths(fileExtensions='.json', fileStartsWith='metaData')
+        directory = self.experiment['directory']
+        fpath = misc_Functions._findFilePaths(directory=directory,fileExtensions='.json',fileStartsWith='metaData')
         for fileExt in fpath:
             with open(fileExt) as f:
                 data = json.loads(f.read())
