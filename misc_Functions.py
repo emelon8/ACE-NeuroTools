@@ -49,6 +49,22 @@ def _prepAxes(title='', xLabel='', yLabel='', subPlots=None):
     SUBPLOTS is a list to prepare the subplot axes: [number of rows, number of columns].
     The elements in TITLE, XLABEL, and YLABEL label the plots first from left to right, then from top to bottom.
     """
+    if isinstance(xLabel, list) and isinstance(yLabel, list):
+        if len(xLabel) > len(yLabel):
+            while len(xLabel) is not len(yLabel):
+               yLabel.append('')
+        if len(yLabel) > len(xLabel):
+            while len(xLabel) is not len(yLabel):
+               xLabel.append('')
+    elif isinstance(xLabel, list) and isinstance(yLabel, str):
+        yLabel.append('')
+        while len(xLabel) is not len(yLabel):
+            yLabel.append('')
+    elif isinstance(xLabel, str) and isinstance(yLabel, list):
+        xLabel.append('')
+        while len(xLabel) is not len(yLabel):
+            xLabel.append('')
+
     h = plt.figure()
     if subPlots is None:
         ax = h.add_subplot()
@@ -65,9 +81,12 @@ def _prepAxes(title='', xLabel='', yLabel='', subPlots=None):
             yLabel = [yLabel] * (subPlots[0]*subPlots[1])
         for k in range(subPlots[0]*subPlots[1]):
             ax.append(h.add_subplot(subPlots[0], subPlots[1], k+1))
-            ax[k].set_title(title[k])
-            ax[k].set_xlabel(xLabel[k])
-            ax[k].set_ylabel(yLabel[k])
+            if k <= len(title):
+                ax[k].set_title(title[k])
+            if k <= len(xLabel):
+                ax[k].set_xlabel(xLabel[k])
+            if k <= len(yLabel):
+                ax[k].set_ylabel(yLabel[k])
     h.tight_layout()
     return h, ax
 
@@ -219,7 +238,7 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
         
         # Makes sure path ends with '/'
         
-        if (filePath[-1] is not "/"):
+        if filePath[-1] is not "/":
             filePath = filePath + "/"
         print('filePath='+filePath)
             
@@ -448,13 +467,13 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
     
         codec = cv2.VideoWriter_fourcc(compressionCodec[0],compressionCodec[1],compressionCodec[2],compressionCodec[3])
         
-        if (mode is "save" and not path.exists(filePath + "Denoised")):
+        if mode is "save" and not path.exists(filePath + "Denoised"):
             os.mkdir(filePath + "Denoised")
         
-        while (path.exists(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum)) and running is True):
+        while not (not path.exists(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum)) or not (running is True)):
             cap = cv2.VideoCapture(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum))
         
-            if (mode is "save"):
+            if mode is "save":
                 writeFile = cv2.VideoWriter(filePath + "Denoised/" + dataFilePrefix + "denoised{:.0f}.avi".format(fileNum),  
                                     codec, 60, (cols,rows), isColor=False) 
         
@@ -486,10 +505,10 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
         
                     
                     
-                    if (mode is "save"):
+                    if mode is "save":
                         writeFile.write(img_back)
         
-                    if (mode is "display"):
+                    if mode is "display":
                         im_diff = (128 + (frame - img_back)*2)
                         im_v = cv2.hconcat([frame, img_back])
                         im_v = cv2.hconcat([im_v, im_diff])
@@ -503,7 +522,7 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
         
                     frameCount = frameCount + 1
         
-            if (mode is "save"):
+            if mode is "save":
                 writeFile.release()
         
         cv2.destroyAllWindows()
