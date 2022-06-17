@@ -35,7 +35,7 @@ class miniscope(experiment.experiment):
          #   cutFile.append(int(file[114:-4]))
         #sortIdx = np.argsort(np.array(cutFile))
         #program.movieFilePaths = list(np.array(program.movieFilePaths)[sortIdx])
-        program.processCaMovies(inspectMotionCorrection=True, inspectCorrPNR=True)
+        program.processCaMovies(inspectMotionCorrection=True, inspectCorrPNR=True, saveProcessedData=True)
 
     """This is the class definition for handling miniscopes (1-photon calcium imaging) data."""
 
@@ -289,7 +289,7 @@ class miniscope(experiment.experiment):
 
     def processCaMovies(self, motionCorrect=True, saveMotionCorrect=True, inspectMotionCorrection=False,
                         inspectCorrPNR=False, downsampleForCorrPNR=1, runCNMFE=True, saveCNMFEFilename='',
-                        editComponents=True, deconvolve=False):
+                        editComponents=True, deconvolve=False, saveProcessedData=False):
         """Preprocess calcium imaging data."""
         print('processing movie...')
         if 'movieFilePaths' not in dir(self):
@@ -317,6 +317,9 @@ class miniscope(experiment.experiment):
 
         if deconvolve:
             self._deconvolve()
+
+        if saveProcessedData:
+            self.saveObj(ratID=True, timeStamp=True)
 
         cm.stop_server(dview=dview)
 
@@ -450,6 +453,7 @@ class miniscope(experiment.experiment):
         """Segments neurons, demixes spatially overlapping neurons, and denoises the calcium activity from calcium movies. See paper describing the method: https://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3"""
         cnm = cm.source_extraction.cnmf.CNMF(n_processes=nProcesses, dview=dview, Ain=None, params=self.optsCaImAn)
         cnm.fit(self.images)
+        self.estimates = cnm.estimates
         if saveCNMFEFilename:
             self.CNMFEFilename = os.path.join(self.experiment['directory'], saveCNMFEFilename)
             cnm.save(self.CNMFEFilename)

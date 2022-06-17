@@ -8,6 +8,8 @@ Created on Mon Oct 19 09:36:36 2020
 import csv
 import pickle
 import os.path
+import numpy
+import datetime
 import sys
 import misc_Functions
 import json
@@ -48,11 +50,17 @@ class experiment:
             self.experiment['zero time (s)'] = 0
 
             
-    def saveObj(self, filename=None):
+    def saveObj(self, filename=None, ratID=False, timeStamp=False):
         """Save the class instance to a pickled file.
         FILENAME is the name of the pickled file the data is saved to."""
         if filename == None:
-            fileToStore = open(os.path.splitext(str(self.__class__)[:-2])[-1][1:] + '.pickle', 'wb')
+            id = ''
+            time = ''
+            if ratID:
+                id = self.experiment['id']
+            if timeStamp:
+                time = str(numpy.datetime64('now')).replace(":","-")
+            fileToStore = open(id + "_" + os.path.splitext(str(self.__class__)[:-2])[-1][1:] + "_" + time + '.pickle', 'wb')
         else:
             fileToStore = open(filename, 'wb')
         pickle.dump(self, fileToStore)
