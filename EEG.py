@@ -144,52 +144,51 @@ class NeuralynxEEG(experiment.experiment):
             EEG = self.EEG[channel]
         except:
             self.importEphysData(channels=channel)
-        else:
-            dt = self.tEEG[channel][1]-self.tEEG[channel][0]
-            mean = np.mean(EEG) 
-            meanCalcVect = np.vectorize(misc_Functions._calcNumMinusMean)
-            EEG = meanCalcVect(EEG,mean)
-
-            # implement thresholding
-            
-            compVThreshVect = np.vectorize(misc_Functions._compVThresh)
-            decimateMask = compVThreshVect(EEG,VThreshold)
+            EEG = self.EEG[channel]
         
-            # find area with small gap in between threshold crossing
-            
-            diffMask = np.diff(decimateMask)
-            diffMaskNeg1 = np.where(diffMask == -1)[0]
+        dt = self.tEEG[channel][1]-self.tEEG[channel][0]
+        mean = np.mean(EEG) 
+        meanCalcVect = np.vectorize(misc_Functions._calcNumMinusMean)
+        EEG = meanCalcVect(EEG,mean)
 
-            for k in diffMaskNeg1:
-                diffMaskNext1 = np.where(diffMask[k:] == 1)[0]
-                for index in diffMaskNext1:
-                    if (index - 1) < TThreshold/dt:
-                        decimateMask[k:(k - 2 + index)] = True
-            han = hann(hannNum) 
-            invHan = abs(han - 1) 
-            halfHan = math.floor(np.size(invHan)/2)
-            decLocs = np.where(decimateMask)[0]
+        # implement thresholding
+        
+        compVThreshVect = np.vectorize(misc_Functions._compVThresh)
+        decimateMask = compVThreshVect(EEG,VThreshold)
+    
+        # find area with small gap in between threshold crossing
+        
+        diffMask = np.diff(decimateMask)
+        diffMaskNeg1 = np.where(diffMask == -1)[0]
+
+        for k in diffMaskNeg1:
+            diffMaskNext1 = np.where(diffMask[k:] == 1)[0]
+            for index in diffMaskNext1:
+                if (index - 1) < TThreshold/dt:
+                    decimateMask[k:(k - 2 + index)] = True
+        han = hann(hannNum) 
+        invHan = abs(han - 1) 
+        halfHan = math.floor(np.size(invHan)/2)
+        decLocs = np.where(decimateMask)[0]
+        
+        for ele in decLocs:
+            plusH = ele + halfHan + 1
+            minusH = ele - halfHan 
             
-            for ele in decLocs:
-                plusH = ele + halfHan + 1
-                minusH = ele - halfHan 
-                
-                if np.size(EEG) >= plusH:
-                    if minusH > 0:
-                        EEG[minusH: plusH] = np.multiply(EEG[minusH: plusH], invHan) 
-                    else:
-                        EEG[0: plusH] = np.multiply(EEG[0: plusH], invHan[(halfHan - decLocs + 1):])
+            if np.size(EEG) >= plusH:
+                if minusH > 0:
+                    EEG[minusH: plusH] = np.multiply(EEG[minusH: plusH], invHan) 
                 else:
-                    sizeEEGmod = np.size(EEG[minusH:])
-                    EEG[minusH:] = np.multiply(EEG[minusH:], invHan[0: sizeEEGmod]) 
-            
-            self.EEG[channel]=EEG
-            if plot:
-                print("Plotting...")
-                plt.figure()
-                plt.plot(EEG)
-                plt.title('{0}'.format(channel))
-                plt.xlabel('Time(s)')
-                plt.ylabel('Voltage(\u03BC'+'V)')
-                
+                    EEG[0: plusH] = np.multiply(EEG[0: plusH], invHan[(halfHan - decLocs + 1):])
+            else:
+                sizeEEGmod = np.size(EEG[minusH:])
+                EEG[minusH:] = np.multiply(EEG[minusH:], invHan[0: sizeEEGmod]) 
         
+        self.EEG[channel]=EEG
+        if plot:
+            print("Plotting...")
+            plt.figure()
+            plt.plot(EEG)
+            plt.title('{0}'.format(channel))
+            plt.xlabel('Time(s)')
+            plt.ylabel('Voltage(\u03BC'+'V)')
