@@ -673,51 +673,75 @@ class miniscope(experiment.experiment):
 
     def _cropWindow(self, filename=None):
         filename = "20200719_161857.png"  # FIXME update with max projection image
-        image = Image.open(filename)
-        im = image.resize((608, 608), resample=Image.CUBIC)  # FIXME need to fix this so it imports from the crop size
-        with BytesIO() as output:
-            im.save(output, format="PNG")
-            data = output.getvalue()
+        # define the window layout
+        layout = [[sg.Text('Max Projection', key='-TITLE-')],
+                  [sg.Graph((608, 608), (0, 0), (608, 608), key='-GRAPH-', drag_submits=True, enable_events=True)],
+                  [sg.Text("Start: None", key="-START-"), sg.Text("Stop: None", key="-STOP-"),
+                   sg.Text("Box: None", key="-BOX-")],
+                  [sg.Combo(['Max', 'Min', 'Range', 'Std'], key='-OPTION-', default_value='Max', readonly=True,
+                            auto_size_text=True, enable_events=True)],
+                  [sg.Button('Submit', key="-SUBMIT-")]]
 
-        layout = [
-            [sg.Graph((608, 608), (0, 0), (608, 608), key='-GRAPH-',  # FIXME need to fix this too
-                      drag_submits=True, enable_events=True, background_color='green')],
-            [sg.Text("Start: None", key="-START-"),
-             sg.Text("Stop: None", key="-STOP-"),
-             sg.Text("Box: None", key="-BOX-")],
-        ]
+        # create the form and show it without the plot
+        window = sg.Window('CropGUI', layout, finalize=True,
+                           element_justification='center', font='Helvetica 18')
 
-        window = sg.Window("Measure", layout, finalize=True)
+        # add the plot to the window
         graph = window['-GRAPH-']
-        graph.draw_image(data=data, location=(0, 608))
         x0, y0 = None, None
         x1, y1 = None, None
-        colors = ['blue', 'white']
+        colors = ['red', 'white']
         index = False
-        figure = None
+        box = None
+        window['-GRAPH-'].draw_image()
         while True:
 
             event, values = window.read(timeout=100)
 
-            if event == sg.WINDOW_CLOSED:  # FIXME ends program when it closes window
-                print(self.x0, self.y0, self.x1, self.y1)
-
+            if event == sg.WINDOW_CLOSED:
                 break
+            elif event in '-OPTION-':
+                window['-TITLE-'].update(values['-OPTION-'] + " Projection")
+                # TODO based on selection it will change the image in -GRAPH-
+
+            elif event in '-SUBMIT-':
+                self.x0 = x0
+                self.y0 = y0
+                self.x1 = x1
+                self.y1 = y1
+                break
+
             elif event in ('-GRAPH-', '-GRAPH-+UP'):
                 if (x0, y0) == (None, None):
                     x0, y0 = values['-GRAPH-']
+                    if values['-GRAPH-'][0] < 0:
+                        x0 = 0
+                    if values['-GRAPH-'][0] > 608:
+                        x0 = 608
+                    if values['-GRAPH-'][1] < 0:
+                        y0 = 0
+                    if values['-GRAPH-'][1] > 608:
+                        y0 = 608
                 x1, y1 = values['-GRAPH-']
+                if values['-GRAPH-'][0] < 0:
+                    x1 = 0
+                if values['-GRAPH-'][0] > 608:
+                    x1 = 608
+                if values['-GRAPH-'][1] < 0:
+                    y1 = 0
+                if values['-GRAPH-'][1] > 608:
+                    y1 = 608
                 self._update(window, x0, y0, x1, y1)
                 if event == '-GRAPH-+UP':
                     x0, y0 = None, None
 
-            if figure:
-                graph.delete_figure(figure)
+            if box:
+                graph.delete_figure(box)
             if None not in (x0, y0, x1, y1):
-                figure = graph.draw_rectangle((x0, y0), (x1, y1), line_color=colors[index])
+                box = graph.draw_rectangle((x0, y0), (x1, y1), line_color=colors[index])
                 index = not index
-        print('sasdfasdf')
-        # window.close()
+
+        window.close()
 
 
 
