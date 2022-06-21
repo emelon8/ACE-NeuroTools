@@ -5,7 +5,6 @@ Created on Mon Oct 19 08:43:50 2020
 @author: eric
 """
 
-
 import csv
 import os.path
 from json import load
@@ -13,6 +12,7 @@ import experiment
 import numpy as np
 from scipy.signal import detrend
 import matplotlib.pyplot as plt
+
 plt.rcParams['svg.fonttype'] = 'none'
 import caiman as cm
 import misc_Functions
@@ -24,31 +24,45 @@ from PIL import Image
 import PySimpleGUI as sg
 
 
-
 class miniscope(experiment.experiment):
+
+    @staticmethod
+    def main():
+        program = miniscope(lineNum=2, filenameMiniscope='/Miniscope/metaData.json')
+        #program.findMovieFilePaths()
+        cutFile = []
+        #for file in program.movieFilePaths:
+         #   cutFile.append(int(file[114:-4]))
+        #sortIdx = np.argsort(np.array(cutFile))
+        #program.movieFilePaths = list(np.array(program.movieFilePaths)[sortIdx])
+        program.processCaMovies(inspectMotionCorrection=True, inspectCorrPNR=True, saveProcessedData=True)
+
     """This is the class definition for handling miniscopes (1-photon calcium imaging) data."""
-    def __init__(self, filenameMiniscope='metaData.json', lineNum=None, 
+
+    def __init__(self, filenameMiniscope='metaData.json', lineNum=None,
                  filename='experiments.csv', analysisFilename='analysis_parameters.csv'):
         self.lineNum = lineNum
         if lineNum != None:
             super().__init__(lineNum, filename=filename)
         else:
             self.experiment = {}
-        
+
         # Import the meta data files and add to the experiment dictionary
-        
+
         try:
-            metaDataPaths = misc_Functions._findFilePaths(self.experiment['directory'], fileExtensions='.json', fileStartsWith='metaData')
+            metaDataPaths = misc_Functions._findFilePaths(self.experiment['directory'], fileExtensions='.json',
+                                                          fileStartsWith='metaData')
             for path in metaDataPaths:
                 with open(path) as m:
                     data = json.loads(m.read())
                     for key in data:
-                        self.experiment[key] = data[key] #FIXME might be setting the key twice 1 as string 2 as float
+                        self.experiment[key] = data[key]  # FIXME might be setting the key twice 1 as string 2 as float
                         if key == 'frameRate':
-                            try: 
+                            try:
                                 self.experiment[key] = float(data[key])
                             except ValueError:
-                                self.experiment[key] = float(data[key].replace('FPS','')) #FIXME print error/warning to console saying "this rat from this date has no framerate"
+                                self.experiment[key] = float(data[key].replace('FPS',
+                                                                               ''))  # FIXME print error/warning to console saying "this rat from this date has no framerate"
                     m.close()
         except AttributeError:
             pass
@@ -63,19 +77,19 @@ class miniscope(experiment.experiment):
         '''
         if 'directory' not in self.experiment:
             self.experiment['directory'] = os.path.abspath(os.path.dirname(filenameMiniscope))
-            
+
         if lineNum != None:
             self.miniscopeImportAnalysisParams(lineNum, analysisFilename)
         else:
             self._analysisParamsDict = {}
-            
-        timeStampsFilename = self.findMovieFilePaths(fileStartsWith='timeStamps',fileExtensions='.csv')        
-        
+
+        timeStampsFilename = misc_Functions._findFilePaths(self.experiment['directory'], '.csv', 'timeStamps', False, False, False)
+
         if len(timeStampsFilename) == 1:
             timeStampsFilename = timeStampsFilename[0]
         else:
             raise ValueError('More than one timeStamps files found')
-        self.timeStamps= []
+        self.timeStamps = []
         self.frameNum = []
         with open(timeStampsFilename, newline='') as t:
             next(t)
@@ -83,8 +97,7 @@ class miniscope(experiment.experiment):
             for row in reader:
                 self.frameNum.append(int(row[0]))
                 self.timeStamps.append(float(row[1]))
-        self.timeStamps = np.divide((np.asarray(self.timeStamps) - self.timeStamps[0]), 1000) # converts from ms to s
-
+        self.timeStamps = np.divide((np.asarray(self.timeStamps) - self.timeStamps[0]), 1000)  # converts from ms to s
 
     def miniscopeImportAnalysisParams(self, lineNum, filename):
         """Import parameters for calcium movie analysis using CaImAn."""
@@ -93,7 +106,7 @@ class miniscope(experiment.experiment):
             reader = csv.reader(s)
             for row in reader:
                 analysisParamsCSV.append(row)
-        
+
         # Make a dictionary with each of the columns in the CSV file
         self._analysisParamsDict = {}
         for k, columnTitle in enumerate(analysisParamsCSV[0]):
@@ -101,29 +114,35 @@ class miniscope(experiment.experiment):
                 self._analysisParamsDict[columnTitle] = analysisParamsCSV[lineNum][k]
             except IndexError:
                 self._analysisParamsDict[columnTitle] = None
-            else:  
+            else:
                 # Fix the types of different parameters if they're not supposed to be strings
-                if (self._analysisParamsDict[columnTitle] == 'False') or (self._analysisParamsDict[columnTitle] == 'True'):
+                if (self._analysisParamsDict[columnTitle] == 'False') or (
+                        self._analysisParamsDict[columnTitle] == 'True'):
                     self._analysisParamsDict[columnTitle] = bool(self._analysisParamsDict[columnTitle])
                 elif (self._analysisParamsDict[columnTitle] == 'None') or (not self._analysisParamsDict[columnTitle]):
                     self._analysisParamsDict[columnTitle] = None
                 elif (self._analysisParamsDict[columnTitle][0] == '('):
                     convertParamTuple = []
-                    for k, c in enumerate(self._analysisParamsDict[columnTitle].replace('(', '').replace(')', '').replace(' ', '').split(',')):
+                    for k, c in enumerate(
+                            self._analysisParamsDict[columnTitle].replace('(', '').replace(')', '').replace(' ',
+                                                                                                            '').split(
+                                    ',')):
                         if c.isnumeric():
                             convertParamTuple.append(int(c))
                     self._analysisParamsDict[columnTitle] = tuple(convertParamTuple)
-                elif self._analysisParamsDict[columnTitle].isdecimal(): #FIXME this never reaches the next line if the number is actually a float
+                elif self._analysisParamsDict[
+                    columnTitle].isdecimal():  # FIXME this never reaches the next line if the number is actually a float
                     self._analysisParamsDict[columnTitle] = int(self._analysisParamsDict[columnTitle])
-                elif ('.' in self._analysisParamsDict[columnTitle]) and (self._analysisParamsDict[columnTitle].split('.')[0].isdecimal()):
+                elif ('.' in self._analysisParamsDict[columnTitle]) and (
+                self._analysisParamsDict[columnTitle].split('.')[0].isdecimal()):
                     self._analysisParamsDict[columnTitle] = float(self._analysisParamsDict[columnTitle])
-
 
     def miniscopeImportEvents(self):
         """Import calcium imaging experiment events."""
         self.miniscopeEvents = {}
         # Make a dictionary with each of the columns in the DAT file
-        for k, columnTitle in enumerate(self._miniscopeExperimentDAT[3]): # self._miniscopeExperimentDAT was previously imported in __init__, but the format of this file ('settings_and_notes.dat') changed.
+        for k, columnTitle in enumerate(self._miniscopeExperimentDAT[
+                                            3]):  # self._miniscopeExperimentDAT was previously imported in __init__, but the format of this file ('settings_and_notes.dat') changed.
             self.miniscopeEvents[columnTitle] = []
             for h in range(4, len(self._miniscopeExperimentDAT)):
                 self.miniscopeEvents[columnTitle].append(self._miniscopeExperimentDAT[h][k])
@@ -132,23 +151,22 @@ class miniscope(experiment.experiment):
         self.miniscopeEvents['timestamps'] = np.array(self.miniscopeEvents[timestamps], dtype=int)
         self.miniscopeEvents['labels'] = np.array(self.miniscopeEvents[labels])
 
-
-    def findMovieFilePaths(self, directory=None, fileExtensions='.avi', 
-                           fileStartsWith='',removeFile=False,printPath=False,
+    def findMovieFilePaths(self, directory=None, fileExtensions='.avi',
+                           fileStartsWith='', removeFile=False, printPath=False,
                            fileAndDirectory=False):
         """Makes a list of the full paths of all movie files in DIRECTORY.
         FILEEXTENSIONS is a string of the file extension or a list or tuple with multiple file extensions."""
         if directory == None:
             directory = self.experiment['directory']
-        self.movieFilePaths = misc_Functions._findFilePaths(directory,fileExtensions,fileStartsWith,
-                                                            removeFile,printPath,fileAndDirectory)
+        self.movieFilePaths = misc_Functions._findFilePaths(directory, fileExtensions, fileStartsWith,
+                                                            removeFile, printPath, fileAndDirectory)
 
-    def importCaMovies(self, filenames=None, crop=False):
+    def importCaMovies(self, filenames=None, crop=False, fileExtenstions='.avi'):
         """Import calcium imaging data. Not necessary if using processCaMovies().
         FILENAMES can be a single movie file or a list of movie files (in the order that you want them).
         SYNCTOEEGCHANNEL is the string representing the channel to which the timing of the movie frames will be synced."""
         if filenames == None:
-            self.findMovieFilePaths()
+            self.findMovieFilePaths(fileExtenstions)
             filenames = self.movieFilePaths
         if type(filenames) is str:
             self.movie = cm.load(filenames)
@@ -158,8 +176,6 @@ class miniscope(experiment.experiment):
         # self._importCaMoviesFilenames = filenames
         if crop:
             self._crop(self.movie)
-        
-        
 
     def convertCaMovies(self, filenames=None, newFileType='.tif', joinMovies=False, metaDataConvert=True):
         """Convert calcium movies from one type to another. File types must be supported by CaImAn.
@@ -167,7 +183,7 @@ class miniscope(experiment.experiment):
         JOINMOVIES determines whether all of the movie files in FILENAMES are converted to a single new movie, or whether they are saved in len(FILENAMES) movies."""
         print('Converting movies...')
         filenamesArg = filenames
-        difVideos=[]
+        difVideos = []
         if (filenames == None) and ('movie' in self.__dir__()):
             filenames = self._importCaMoviesFilenames
         elif filenames == None:
@@ -188,15 +204,15 @@ class miniscope(experiment.experiment):
                 for k in range(len(filenames)):
                     try:
                         movie = cm.load(filenames[k])
-                        movie.save(os.path.splitext(filenames[k])[0] + newFileType) ###########maybe use the saveCaMovie method here and elsewhere in this method?
+                        movie.save(os.path.splitext(filenames[k])[
+                                       0] + newFileType)  ###########maybe use the saveCaMovie method here and elsewhere in this method?
                     except:
                         difVideos.append(filenames[k])
         if metaDataConvert:
             self._metaDataConverter()
-        if len(difVideos)!=0:
-            print('ERRORS with: '+str(difVideos))
+        if len(difVideos) != 0:
+            print('ERRORS with: ' + str(difVideos))
             print('Consider investigating')
-
 
     def saveCaMovie(self, processingStep=''):
         """Saves the calcium movie that is currently in SELF.MOVIE."""
@@ -204,7 +220,7 @@ class miniscope(experiment.experiment):
             if type(self._importCaMoviesFilenames) is not list:
                 filename, filetype = os.path.splitext(self._importCaMoviesFilenames)
                 filename += processingStep
-                self.movie.save(filename + filetype)###############
+                self.movie.save(filename + filetype)  ###############
             else:
                 filenameFirst, filetype = os.path.splitext(self._importCaMoviesFilenames[0])
                 filenameLast, _ = os.path.splitext(self._importCaMoviesFilenames[-1])
@@ -213,8 +229,7 @@ class miniscope(experiment.experiment):
                 filenumFirst = filenameFirst[np.where(filenumFirstIdx)[0][0]:]
                 filenumLast = filenameLast[np.where(filenumLastIdx)[0][0]:]
                 filenumLast += processingStep
-                self.movie.save(filename + '_' + filenumFirst + '_' + filenumLast + filetype)
-
+                self.movie.save(filename + '_' + filenumFirst + '_' + filenumLast + filetype) #FIXME Filename is not a variable here
 
     def denoiseCaMovie(self, saveMovie=True):
         """Loads a movie and removes both the horizontal bands (that slowly travel upwards) from the movie and the slow flicker of the entire image.
@@ -223,7 +238,6 @@ class miniscope(experiment.experiment):
         if saveMovie:
             mode = 'save'
         misc_Functions.denoiseMovie(self.experiment['directory'], mode=mode)
-
 
     def detrendCaFluorescence(self, saveMovie=True, detrendType='median', plotTrend=False):
         """Loads the calcium movie and detrends it based on the fluorescence of the entire movie.
@@ -247,12 +261,10 @@ class miniscope(experiment.experiment):
         if saveMovie:
             self.saveCaMovie(processingStep='_detrended')
 
-
-    def computedFoverF(self, saveMovie=True): #TODO does nothing other than save the video with new name
-        """""" 
+    def computedFoverF(self, saveMovie=True):  # TODO does nothing other than save the video with new name
+        """"""
         if saveMovie:
             self.saveCaMovie(processingStep='_dFoverF')
-
 
     def preprocessCaMovies(self, saveMovie=True, denoise=True, detrend=True, dFoverF=True):
         """Run all preprocessing steps in one method, using their default options."""
@@ -275,10 +287,9 @@ class miniscope(experiment.experiment):
             if dFoverF:
                 self.computedFoverF(saveMovie=False)
 
-    
-    def processCaMovies(self, motionCorrect=True, saveMotionCorrect=True, inspectMotionCorrection=False, 
-                        inspectCorrPNR=False, downsampleForCorrPNR=1, runCNMFE=True, saveCNMFEFilename='', 
-                        editComponents=True, deconvolve=False):
+    def processCaMovies(self, motionCorrect=True, saveMotionCorrect=True, inspectMotionCorrection=False,
+                        inspectCorrPNR=False, downsampleForCorrPNR=1, runCNMFE=True, saveCNMFEFilename='',
+                        editComponents=True, deconvolve=False, saveProcessedData=False):
         """Preprocess calcium imaging data."""
         print('processing movie...')
         if 'movieFilePaths' not in dir(self):
@@ -290,46 +301,50 @@ class miniscope(experiment.experiment):
             self._motionCorrection(dview, saveMotionCorrect, inspectMotionCorrection)
         else:
             if saveMotionCorrect:
-                fname_new = cm.save_memmap(self.optsCaImAn.get('data', 'fnames'), base_name='memmap_', order='C', border_to_0=0, dview=dview) # if no motion correction just memory map the file
+                fname_new = cm.save_memmap(self.optsCaImAn.get('data', 'fnames'), base_name='memmap_', order='C',
+                                           border_to_0=0,
+                                           dview=dview)  # if no motion correction just memory map the file
                 self.optsCaImAn.change_params({'fnames': fname_new})
-        
+
         if inspectCorrPNR or runCNMFE:
-            Yr, dims_new, T = cm.load_memmap(self.optsCaImAn.get('data', 'fnames'))
+            Yr, dims_new, T = cm.load_memmap(self.optsCaImAn.get('data', 'fnames')[0])
             self.optsCaImAn.change_params({'dims': dims_new})
             self.images = Yr.T.reshape((T,) + dims_new, order='F')
             if inspectCorrPNR:
                 self._corrPNR(inspectCorrPNR, downsampleForCorrPNR)
             if runCNMFE:
                 self._CNMFE(nProcesses, dview, saveCNMFEFilename)
-        
+
         if deconvolve:
             self._deconvolve()
-        
-        
-        cm.stop_server(dview=dview)
 
+        if saveProcessedData:
+            self.saveObj(ratID=True, timeStamp=True)
+
+        cm.stop_server(dview=dview)
 
     def _motionCorrection(self, dview=None, saveMotionCorrect=True, inspectMotionCorrection=True):
         """Use motion correction to correct for movement during the calcium movies."""
-        mc = cm.motion_correction.MotionCorrect(self.optsCaImAn.get('data', 'fnames'), dview=dview, **self.optsCaImAn.get_group('motion'))
+        mc = cm.motion_correction.MotionCorrect(self.optsCaImAn.get('data', 'fnames'), dview=dview,
+                                                **self.optsCaImAn.get_group('motion'))
         mc.motion_correct(save_movie=saveMotionCorrect)
         if self.optsCaImAn.get('motion', 'pw_rigid'):
-            bord_px = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)), np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
+            bord_px = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)), np.max(np.abs(mc.y_shifts_els)))).astype(int)
         else:
-            bord_px = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(np.int)
-        
+            bord_px = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(int)
+
         if inspectMotionCorrection:
             self._inspectMotionCorrection(mc)
-        
+
         bord_px = 0 if self.optsCaImAn.get('motion', 'border_nan') == 'copy' else bord_px
         self.optsCaImAn.change_params({'border_pix': bord_px})
-        
+
         if saveMotionCorrect:
             fname_new = cm.save_memmap(mc.mmap_file, base_name='memmap_', order='C', border_to_0=bord_px)
             self.optsCaImAn.change_params({'fnames': fname_new})
 
-
-    def _inspectMotionCorrection(self, mc, plotRigidMotionCorrection=True, plotShifts=True, playConcatenatedMovies=True, downsampleRatio=0.2, plotCorrelation=True, plotAdvancedMCInspection=True):
+    def _inspectMotionCorrection(self, mc, plotRigidMotionCorrection=True, plotShifts=True, playConcatenatedMovies=True,
+                                 downsampleRatio=0.2, plotCorrelation=True, plotAdvancedMCInspection=True):
         """Various plots and movies to help with the inspection of motion correction effectiveness.
         MC is the motion correction object obtained from SELF._MOTIONCORRECTION().
         PLOTRIGIDMOTIONCORRECTION is a boolean that determines whether rigid motion correction is plotted.
@@ -343,95 +358,105 @@ class miniscope(experiment.experiment):
             ax[0].imshow(mc.total_template_rig)  # % plot template
             ax[1].plot(mc.shifts_rig)  # % plot rigid shifts
             ax[1].legend(['X Shifts', 'Y Shifts'])
-        
+
         if plotShifts:
             if self.optsCaImAn.get('motion', 'pw_rigid'):
                 h, ax = misc_Functions._prepAxes(xLabel='Frames', yLabel='Pixels')
                 ax.plot(mc.shifts_rig)
-                ax.legend(['X Shifts','Y Shifts'])
+                ax.legend(['X Shifts', 'Y Shifts'])
             else:
-                h, ax = misc_Functions._prepAxes(xLabel=['', 'Frames'], yLabel=['X Shifts (Pixels)', 'Y Shifts (Pixels)'], subPlots=[2, 1])
+                h, ax = misc_Functions._prepAxes(xLabel=['', 'Frames'],
+                                                 yLabel=['X Shifts (Pixels)', 'Y Shifts (Pixels)'], subPlots=[2, 1])
                 ax[0].plot(mc.x_shifts_els)
                 ax[1].plot(mc.y_shifts_els)
-        
+
         if playConcatenatedMovies or plotCorrelation:
             if 'movie' not in self.__dir__():
-                self.importCaMovies(fnames=self.movieFilePaths)
+                self.importCaMovies(filenames=self.movieFilePaths)
             mcMovie = cm.load(mc.mmap_file)
             if playConcatenatedMovies:
-                cm.concatenate([self.movie.resize(1, 1, downsampleRatio) - mc.min_mov*mc.nonneg_movie,
-                                mcMovie.resize(1, 1, downsampleRatio)], axis=2).play(fr=self._analysisParamsDict['fr'], q_max=99.5, magnification=2, bord_px=self.optsCaImAn.get('patch', 'border_pix'))
+                cm.concatenate([self.movie.resize(1, 1, downsampleRatio) - mc.min_mov * mc.nonneg_movie,
+                                mcMovie.resize(1, 1, downsampleRatio)], axis=2).play(fr=self._analysisParamsDict['fr'],
+                                                                                     q_max=99.5, magnification=2,
+                                                                                     bord_px=self.optsCaImAn.get(
+                                                                                         'patch', 'border_pix'))
             if plotCorrelation:
                 h, ax = misc_Functions._prepAxes(xLabel=['', 'Frames'], yLabel=['', 'Pixels'], subPlots=[1, 2])
                 ax[0].imshow(self.movie.local_correlations(eight_neighbours=True, swap_dim=False))
                 ax[1].imshow(mcMovie.local_correlations(eight_neighbours=True, swap_dim=False))
-        
+
         if plotAdvancedMCInspection:
-            final_size = np.subtract(self.optsCaImAn.get('data', 'dims'), 2 * mc.border_to_0) # remove pixels in the boundaries
+            final_size = np.subtract(self.optsCaImAn.get('data', 'dims'),
+                                     2 * mc.border_to_0)  # remove pixels in the boundaries
             winsize = 100
             swap_dim = False
-            resize_fact_flow = .2    # downsample for computing ROF
-            
+            resize_fact_flow = .2  # downsample for computing ROF
+
             tmpl_orig, correlations_orig, flows_orig, norms_orig, crispness_orig = cm.motion_correction.compute_metrics_motion_correction(
-            mc.fname[0], final_size[0], final_size[1], swap_dim, winsize=winsize, play_flow=False, resize_fact_flow=resize_fact_flow)
-            
+                mc.fname[0], final_size[0], final_size[1], swap_dim, winsize=winsize, play_flow=False,
+                resize_fact_flow=resize_fact_flow)
+
             tmpl_mc, correlations_mc, flows_mc, norms_mc, crispness_mc = cm.motion_correction.compute_metrics_motion_correction(
                 mc.mmap_file[0], final_size[0], final_size[1],
                 swap_dim, winsize=winsize, play_flow=False, resize_fact_flow=resize_fact_flow)
-            
-            h, ax = misc_Functions._prepAxes(xLabel=['Frame', 'Original'], yLabel=['Correlation', 'Motion Corrected'], subPlots=[2, 1])
+
+            h, ax = misc_Functions._prepAxes(xLabel=['Frame', 'Original'], yLabel=['Correlation', 'Motion Corrected'],
+                                             subPlots=[2, 1])
             ax[0].plot(correlations_orig)
             ax[0].plot(correlations_mc)
-            plt.legend(['Original','Motion Corrected'])
+            plt.legend(['Original', 'Motion Corrected'])
             ax[1].scatter(correlations_orig, correlations_mc)
-            ax[1].plot([0,1],[0,1],'r--')
+            ax[1].plot([0, 1], [0, 1], 'r--')
             ax[1].axis('square')
-            
+
             # print crispness values
-            print('Crispness original: '+ str(int(crispness_orig)))
-            print('Crispness motion corrected: '+ str(int(crispness_mc)))
-            
+            print('Crispness original: ' + str(int(crispness_orig)))
+            print('Crispness motion corrected: ' + str(int(crispness_mc)))
+
             # plot the results of Residual Optical Flow
             fls = [mc.fname[0][:-4] + '_metrics.npz', mc.mmap_file[0][:-4] + '_metrics.npz']
-            
-            h, ax = misc_Functions._prepAxes(title=['Mean', 'Corr Image', 'Mean Optical Flow', '', '', ''], xLabel=['Original', '', '', 'Motion Corrected', '', ''], yLabel=[], subPlots=[2, 3])
-            
-            for cnt, fl in zip(range(len(fls)),fls):
+
+            h, ax = misc_Functions._prepAxes(title=['Mean', 'Corr Image', 'Mean Optical Flow', '', '', ''],
+                                             xLabel=['Original', '', '', 'Motion Corrected', '', ''], yLabel=['', '', '', '', '', ''],
+                                             subPlots=[2, 3])
+
+            for cnt, fl in zip(range(len(fls)), fls):
                 with np.load(fl) as ld:
                     print(str(np.mean(ld['norms'])) + '+/-' + str(np.std(ld['norms'])) +
                           '; ' + str(ld['smoothness']) + '; ' + str(ld['smoothness_corr']))
-                    
+
                     if cnt == 0:
                         mean_img = np.mean(cm.load(mc.fname[0]), 0)[12:-12, 12:-12]
                     else:
                         mean_img = np.mean(cm.load(mc.mmap_file[0]), 0)[12:-12, 12:-12]
-                    
+
                     lq, hq = np.nanpercentile(mean_img, [0.5, 99.5])
                     ax[3 * cnt + 1].imshow(mean_img, vmin=lq, vmax=hq)
                     ax[3 * cnt + 2].imshow(ld['img_corr'], vmin=0, vmax=0.35)
-                    #ax[3 * cnt + 3].plot(ld['norms'])
-                    #ax[3 * cnt + 3].xlabel('frame')
-                    #ax[3 * cnt + 3].ylabel('norm opt flow')
-                    ax[3 * cnt + 3].imshow(np.mean(
-                        np.sqrt(ld['flows'][:, :, :, 0]**2 + ld['flows'][:, :, :, 1]**2), 0), vmin=0, vmax=0.3)
-                    ax[3 * cnt + 3].colorbar()
-
+                    # ax[3 * cnt + 3].plot(ld['norms'])
+                    # ax[3 * cnt + 3].xlabel('frame')
+                    # ax[3 * cnt + 3].ylabel('norm opt flow')
+                    if len(ax) > (3 * cnt + 3):
+                        mappable = ax[3 * cnt + 3].imshow(np.mean(
+                            np.sqrt(ld['flows'][:, :, :, 0] ** 2 + ld['flows'][:, :, :, 1] ** 2), 0), vmin=0, vmax=0.3)
+                        plt.colorbar(mappable=mappable, ax=ax[3 * cnt + 3]) #FIXME colorbar() is NOT an attribute of ax. It is of plt though
 
     def _corrPNR(self, inspectCorrPNR, downsampleForCorrPNR):
         """Create the correlation and peak-noise-ratio (PNR) images and, if desired, inspect them with an interactive plot to determine min_corr and min_pnr."""
-        self.cn_filter, self.pnr = cm.summary_images.correlation_pnr(self.images[::downsampleForCorrPNR], gSig=self.optsCaImAn.get('init_params', 'gSig')[0], swap_dim=False)
+        self.cn_filter, self.pnr = cm.summary_images.correlation_pnr(self.images[::downsampleForCorrPNR],
+                                                                     gSig=self.optsCaImAn.get('init', 'gSig')[0],
+                                                                     swap_dim=False)
         if inspectCorrPNR:
             cm.utils.visualization.inspect_correlation_pnr(self.cn_filter, self.pnr)
-
 
     def _CNMFE(self, nProcesses, dview, saveCNMFEFilename):
         """Segments neurons, demixes spatially overlapping neurons, and denoises the calcium activity from calcium movies. See paper describing the method: https://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3"""
         cnm = cm.source_extraction.cnmf.CNMF(n_processes=nProcesses, dview=dview, Ain=None, params=self.optsCaImAn)
         cnm.fit(self.images)
+        self.estimates = cnm.estimates
         if saveCNMFEFilename:
             self.CNMFEFilename = os.path.join(self.experiment['directory'], saveCNMFEFilename)
             cnm.save(self.CNMFEFilename)
-    
 
     def removeComponents(self, idxToRemove, filename=None, saveNewCNMFE=True):
         """Remove or merge components extracted using the CNMF-E algorithm.
@@ -447,24 +472,23 @@ class miniscope(experiment.experiment):
             self.CNMFEFilename = os.path.join(filenameParts[0] + '_components_removed' + filenameParts[1])
             cnmObj.save(self.CNMFEFilename)
 
-
     def _deconvolve(self, p=None, method_deconvolution=None, bas_nonneg=None,
-               noise_method=None, optimize_g=0, s_min=None, **kwargs):
+                    noise_method=None, optimize_g=0, s_min=None, **kwargs):
         """Performs deconvolution on already extracted traces using
         constrained foopsi.
         """
-        pass 
-    
-        p = (self.params.get('preprocess', 'p') 
+        pass
+
+        p = (self.params.get('preprocess', 'p')
              if p is None else p)
         method_deconvolution = (self.params.get('temporal', 'method_deconvolution')
-                if method_deconvolution is None else method_deconvolution)
+                                if method_deconvolution is None else method_deconvolution)
         bas_nonneg = (self.params.get('temporal', 'bas_nonneg')
                       if bas_nonneg is None else bas_nonneg)
         noise_method = (self.params.get('temporal', 'noise_method')
                         if noise_method is None else noise_method)
         s_min = self.params.get('temporal', 's_min') if s_min is None else s_min
-    
+
         F = self.estimates.C + self.estimates.YrA
         args = dict()
         args['p'] = p
@@ -475,26 +499,27 @@ class miniscope(experiment.experiment):
         args['optimize_g'] = optimize_g
         args['noise_range'] = self.params.get('temporal', 'noise_range')
         args['fudge_factor'] = self.params.get('temporal', 'fudge_factor')
-    
+
         args_in = [(F[jj], None, jj, None, None, None, None,
                     args) for jj in range(F.shape[0])]
-    
+
         if 'multiprocessing' in str(type(self.dview)):
             fluor = self.optsCaImAn
-            results = self.dview.map_async(cm.deconvolve.constrained_foopsi(fluor,p=p, 
-                                            method_deconvolution=method_deconvolution,
-                                            noise_method=noise_method, optimize_g=optimize_g, 
-                                            s_min=s_min), args_in).get(4294967)
+            results = self.dview.map_async(cm.deconvolve.constrained_foopsi(fluor, p=p,
+                                                                            method_deconvolution=method_deconvolution,
+                                                                            noise_method=noise_method,
+                                                                            optimize_g=optimize_g,
+                                                                            s_min=s_min), args_in).get(4294967)
         elif self.dview is not None:
             results = self.dview.map_sync(cm.deconvolve.constrained_foopsi_parallel(), args_in)
         else:
             results = list(map(cm.deconvolve.constrained_foopsi_parallel(), args_in))
-    
+
         if sys.version_info >= (3, 0):
             results = list(zip(*results))
         else:  # python 2
             results = zip(*results)
-    
+
         order = list(results[7])
         self.estimates.C = np.stack([results[0][i] for i in order])
         self.estimates.S = np.stack([results[1][i] for i in order])
@@ -505,22 +530,20 @@ class miniscope(experiment.experiment):
         self.estimates.lam = [results[8][i] for i in order]
         self.estimates.YrA = F - self.estimates.C
         return self
-    
-    
+
     def multiSessionRegistration(self):
         """Register components (neurons) between different recording sessions."""
         pass
-    
-    
-    def _quatFile_to_eulerFile(self, filename='headOrientation.csv', nf='True'): ##returns newfilename
+
+    def _quatFile_to_eulerFile(self, filename='headOrientation.csv', nf='True'):  ##returns newfilename
         newfilename = filename.replace('.csv', 'inEulerAngles.csv')
         if os.path.exists(filename):
-            print('File exists') 
+            print('File exists')
             with open(filename, newline='') as f:
                 reader = csv.reader(f)
-                if nf == 'True': # do you want to create a new file
+                if nf == 'True':  # do you want to create a new file
                     with open(newfilename, 'w', newline='') as nf:
-                        writer = csv.writer(nf) 
+                        writer = csv.writer(nf)
                         header = []
                         header.append('Time Stamp (ms)')
                         header.append('x')
@@ -542,43 +565,44 @@ class miniscope(experiment.experiment):
         else:
             print('!!! ERROR: File not found')  # FIXME
             return
-        
-        
-    def graph_Movement(self,filename='headOrientationinEulerAngles.csv',plotName='movementPlot.png'): ##eulerAngle file
-    
+
+    def graph_Movement(self, filename='headOrientationinEulerAngles.csv',
+                       plotName='movementPlot.png'):  ##eulerAngle file
+
         if 'inEulerAngles.csv' not in filename and '.csv' in filename:
             filename = self._quatFile_to_eulerFile(filename)
         elif '.csv' not in filename:
             print('!!! ERROR: Invalid file')
             return
-            
+
         if os.path.exists(filename):
-            print('File exists')  
-            with open(filename, newline='') as f:        
+            print('File exists')
+            with open(filename, newline='') as f:
                 reader = csv.reader(f)
                 y = []
                 avgAngle = []
                 time = []
-                next(f) ##skip header line
+                next(f)  ##skip header line
                 for line in reader:
                     if len(line) != 4:
-                        print ('!!! ERROR: Invalid file') # FIXME
+                        print('!!! ERROR: Invalid file')  # FIXME
                         return
-                    eulerAngleSum = (float(line[1]) + float(line[2]) + float(line[3]))/3 # FIXME change to difference between angles instead of averaging the angles
+                    eulerAngleSum = (float(line[1]) + float(line[2]) + float(
+                        line[3])) / 3  # FIXME change to difference between angles instead of averaging the angles
                     avgAngle.append(eulerAngleSum)
                     time.append(float(line[0]))
-                count = 1 ##skips first line
+                count = 1  ##skips first line
                 while count < len(avgAngle):
-                    deltaAngle = abs((avgAngle[count])-avgAngle[count-1])
-                    deltaTime = abs(time[count]-avgAngle[count-1])
-                    y.append(deltaAngle/deltaTime)
+                    deltaAngle = abs((avgAngle[count]) - avgAngle[count - 1])
+                    deltaTime = abs(time[count] - avgAngle[count - 1])
+                    y.append(deltaAngle / deltaTime)
                     count += 1
                 '''
                 FIXME
                 make an array and take the diff between the rows so you have three columns
                 figure out how you want to represent them as one value and graph
                 '''
-                x = list(time[1:]) ##skips first time
+                x = list(time[1:])  ##skips first time
                 y = list(y)
                 plt.plot(x, y)
                 plt.xlabel('time(ms)')
@@ -587,118 +611,140 @@ class miniscope(experiment.experiment):
                 plt.show()
                 plt.savefig(plotName)
         else:
-            print('!!! ERROR: File not found') # FIXME
+            print('!!! ERROR: File not found')  # FIXME
             return
 
-    
-    def _metaDataConverter(self):#Suggestion: it might be good to start combining the metaDatas and marking them with the animalID or some experiment identifier (not sure how this program will work if you have a lot of different videos/metaData)
+    def _metaDataConverter(
+            self):  # Suggestion: it might be good to start combining the metaDatas and marking them with the animalID or some experiment identifier (not sure how this program will work if you have a lot of different videos/metaData)
         directory = self.experiment['directory']
-        fpath = misc_Functions._findFilePaths(directory=directory,fileExtensions='.json',fileStartsWith='metaData')
+        fpath = misc_Functions._findFilePaths(directory=directory, fileExtensions='.json', fileStartsWith='metaData')
         for fileExt in fpath:
             with open(fileExt) as f:
                 data = json.loads(f.read())
                 if 'animalID' in data:
-                    ext=fileExt.replace('\\metaData.json', '\\Miniscope\\metaData.json')
-                    animalID=data['animalID']
-                    timeStamp=data['recordingStartTime']
-                    year=str(timeStamp['year'])
-                    month=str('%02d' % timeStamp['month'])
-                    day=str('%02d' % timeStamp['day'])
-                    second=str('%02d' % timeStamp['second'])
-                    minute=str('%02d' % timeStamp['minute'])
-                    hour=str('%02d' % timeStamp['hr'])
-                    date=year+month+day+'_'+hour+minute+second
+                    ext = fileExt.replace('\\metaData.json', '\\Miniscope\\metaData.json')
+                    animalID = data['animalID']
+                    timeStamp = data['recordingStartTime']
+                    year = str(timeStamp['year'])
+                    month = str('%02d' % timeStamp['month'])
+                    day = str('%02d' % timeStamp['day'])
+                    second = str('%02d' % timeStamp['second'])
+                    minute = str('%02d' % timeStamp['minute'])
+                    hour = str('%02d' % timeStamp['hr'])
+                    date = year + month + day + '_' + hour + minute + second
                     with open(ext) as d:
                         data2 = json.loads(d.read())
                         if 'frameRate' in data2:
-                            try: 
-                                frameRate=float(data2['frameRate'])
+                            try:
+                                frameRate = float(data2['frameRate'])
                             except ValueError:
-                                frameRate = float(data2['frameRate'].replace('FPS',''))
-                        jdict ={'origin':animalID,'fps':frameRate,'date':date,
-                                'orig_meta':[data,data2]}
-                        jsonFile=json.dumps(jdict,indent=4)
-                        newFileName=ext.replace('\\metaData.json', '\\metaDataTif.json')
+                                frameRate = float(data2['frameRate'].replace('FPS', ''))
+                        jdict = {'origin': animalID, 'fps': frameRate, 'date': date,
+                                 'orig_meta': [data, data2]}
+                        jsonFile = json.dumps(jdict, indent=4)
+                        newFileName = ext.replace('\\metaData.json', '\\metaDataTif.json')
                         n = open(newFileName, 'w')
                         n.write(jsonFile)
                         n.close()
 
-                    
-    def _crop(self,movie):
-        
+    def _crop(self, movie):
+
         # FIXME FIND MAX PROJECTION
-        filename = None # FIXME
+        filename = None  # FIXME
         # Visualize to crop
         self._cropWindow(filename)
-        self.movie = self.movie.crop(crop_left = self.x0)
-        self.movie.play() # FIXME probably comment out at some point
+        self.movie = self.movie.crop(crop_left=self.x0)
+        self.movie.play()  # FIXME probably comment out at some point
 
     '''Borrowed in part from: https://stackoverflow.com/questions/68822772/gui-measuring-picture-size-for-cropping/68829339#68829339'''
+
     def _update(self, window, x0, y0, x1, y1):
         """
         Update rectangle information
         """
-        self.x0 = x0 
+        self.x0 = x0
         self.y0 = y0
         self.x1 = x1
         self.y1 = y1
         # print(repr(x0), repr(y0), repr(x1), repr(y1))
         window['-START-'].update(f'Start: ({x0}, {y0})')
-        window['-STOP-' ].update(f'Stop: ({x1}, {y1})')
-        window['-BOX-'  ].update(f'Box: ({abs(x1-x0+1)}, {abs(y1-y0+1)})')
-    
-    
-    def _cropWindow(self,filename=None):
-        filename="20200719_161857.png" # FIXME update with max projection image
-        image = Image.open(filename) 
-        im = image.resize((608, 608), resample=Image.CUBIC) # FIXME need to fix this so it imports from the crop size
-        with BytesIO() as output:
-            im.save(output, format="PNG")
-            data = output.getvalue()
-        
-        layout = [
-            [sg.Graph((608, 608), (0, 0), (608, 608), key='-GRAPH-', # FIXME need to fix this too
-                drag_submits=True, enable_events=True, background_color='green')],
-            [sg.Text("Start: None", key="-START-"),
-             sg.Text("Stop: None",  key="-STOP-"),
-             sg.Text("Box: None",   key="-BOX-")],
-        ]
-        
-        window = sg.Window("Measure", layout, finalize=True)
+        window['-STOP-'].update(f'Stop: ({x1}, {y1})')
+        window['-BOX-'].update(f'Box: ({abs(x1 - x0 + 1)}, {abs(y1 - y0 + 1)})')
+
+    def _cropWindow(self, filename=None):
+        filename = "20200719_161857.png"  # FIXME update with max projection image
+        # define the window layout
+        layout = [[sg.Text('Max Projection', key='-TITLE-')],
+                  [sg.Graph((608, 608), (0, 0), (608, 608), key='-GRAPH-', drag_submits=True, enable_events=True)],
+                  [sg.Text("Start: None", key="-START-"), sg.Text("Stop: None", key="-STOP-"),
+                   sg.Text("Box: None", key="-BOX-")],
+                  [sg.Combo(['Max', 'Min', 'Range', 'Std'], key='-OPTION-', default_value='Max', readonly=True,
+                            auto_size_text=True, enable_events=True)],
+                  [sg.Button('Submit', key="-SUBMIT-")]]
+
+        # create the form and show it without the plot
+        window = sg.Window('CropGUI', layout, finalize=True,
+                           element_justification='center', font='Helvetica 18')
+
+        # add the plot to the window
         graph = window['-GRAPH-']
-        graph.draw_image(data=data, location=(0, 608))
         x0, y0 = None, None
         x1, y1 = None, None
-        colors = ['blue', 'white']
+        colors = ['red', 'white']
         index = False
-        figure = None
+        box = None
+        window['-GRAPH-'].draw_image()
         while True:
-        
+
             event, values = window.read(timeout=100)
-            
-            if event == sg.WINDOW_CLOSED: # FIXME ends program when it closes window
-                print(self.x0,self.y0,self.x1,self.y1) 
-                
+
+            if event == sg.WINDOW_CLOSED:
                 break
+            elif event in '-OPTION-':
+                window['-TITLE-'].update(values['-OPTION-'] + " Projection")
+                # TODO based on selection it will change the image in -GRAPH-
+
+            elif event in '-SUBMIT-':
+                self.x0 = x0
+                self.y0 = y0
+                self.x1 = x1
+                self.y1 = y1
+                break
+
             elif event in ('-GRAPH-', '-GRAPH-+UP'):
                 if (x0, y0) == (None, None):
                     x0, y0 = values['-GRAPH-']
+                    if values['-GRAPH-'][0] < 0:
+                        x0 = 0
+                    if values['-GRAPH-'][0] > 608:
+                        x0 = 608
+                    if values['-GRAPH-'][1] < 0:
+                        y0 = 0
+                    if values['-GRAPH-'][1] > 608:
+                        y0 = 608
                 x1, y1 = values['-GRAPH-']
-                self._update(window,x0, y0, x1, y1)
+                if values['-GRAPH-'][0] < 0:
+                    x1 = 0
+                if values['-GRAPH-'][0] > 608:
+                    x1 = 608
+                if values['-GRAPH-'][1] < 0:
+                    y1 = 0
+                if values['-GRAPH-'][1] > 608:
+                    y1 = 608
+                self._update(window, x0, y0, x1, y1)
                 if event == '-GRAPH-+UP':
                     x0, y0 = None, None
-        
-            if figure:
-                graph.delete_figure(figure)
+
+            if box:
+                graph.delete_figure(box)
             if None not in (x0, y0, x1, y1):
-                figure = graph.draw_rectangle((x0, y0), (x1, y1), line_color=colors[index])
+                box = graph.draw_rectangle((x0, y0), (x1, y1), line_color=colors[index])
                 index = not index
-        print('sasdfasdf')
-        #window.close()
-        
-        
-       
-                            
-                    
-                    
-          
+
+        window.close()
+
+
+
+if __name__ == "__main__":
+    program = miniscope
+    program.main()
