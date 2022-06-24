@@ -651,7 +651,7 @@ class miniscope(experiment.experiment):
     def _crop(self, movie):
 
         # FIXME FIND MAX PROJECTION
-        # plt.imshow(np.maximum(movie[0], movie[1], movie[2]), cmap='Greys')
+
         self.x0 = 0
         self.y0 = 0
         self.x1 = 0
@@ -663,8 +663,6 @@ class miniscope(experiment.experiment):
         if croppedMovie is not None:
             self.movie = croppedMovie
         self.movie.play()  # FIXME probably comment out at some point
-
-    '''Borrowed in part from: https://stackoverflow.com/questions/68822772/gui-measuring-picture-size-for-cropping/68829339#68829339'''
 
     def _updateCoords(self, window, x0, y0, x1, y1):
         """
