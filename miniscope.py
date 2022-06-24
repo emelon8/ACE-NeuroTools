@@ -6,6 +6,7 @@ Created on Mon Oct 19 08:43:50 2020
 """
 
 import csv
+import io
 import os.path
 from json import load
 import experiment
@@ -650,10 +651,17 @@ class miniscope(experiment.experiment):
     def _crop(self, movie):
 
         # FIXME FIND MAX PROJECTION
-        filename = None  # FIXME
-        # Visualize to crop
-        self._cropWindow(filename)
-        self.movie = self.movie.crop(crop_left=self.x0)
+        # plt.imshow(np.maximum(movie[0], movie[1], movie[2]), cmap='Greys')
+        self.x0 = 0
+        self.y0 = 0
+        self.x1 = 0
+        self.y1 = 0
+        self._cropWindow(movie)
+        # cropTop =  movie.shape[2] - self.y0
+        # cropRight = movie.shape[1] - self.x1
+        croppedMovie = self.movie.crop(crop_left=self.x0, crop_top=self.y0, crop_right=self.x1, crop_bottom=self.y1)
+        if croppedMovie is not None:
+            self.movie = croppedMovie
         self.movie.play()  # FIXME probably comment out at some point
 
     '''Borrowed in part from: https://stackoverflow.com/questions/68822772/gui-measuring-picture-size-for-cropping/68829339#68829339'''
@@ -662,20 +670,23 @@ class miniscope(experiment.experiment):
         """
         Update rectangle information
         """
-        self.x0 = x0
-        self.y0 = y0
-        self.x1 = x1
-        self.y1 = y1
+        if x0 is not None:
+            self.x0 = x0
+        if y0 is not None:
+            self.y0 = y0
+        if x1 is not None:
+            self.x1 = x1
+        if y1 is not None:
+            self.y1 = y1
         # print(repr(x0), repr(y0), repr(x1), repr(y1))
         window['-START-'].update(f'Start: ({x0}, {y0})')
         window['-STOP-'].update(f'Stop: ({x1}, {y1})')
         window['-BOX-'].update(f'Box: ({abs(x1 - x0 + 1)}, {abs(y1 - y0 + 1)})')
 
-    def _cropWindow(self, filename=None):
-        filename = "20200719_161857.png"  # FIXME update with max projection image
+    def _cropWindow(self, movie, filename=None):
         # define the window layout
         layout = [[sg.Text('Max Projection', key='-TITLE-')],
-                  [sg.Graph((608, 608), (0, 0), (608, 608), key='-GRAPH-', drag_submits=True, enable_events=True)],
+                  [sg.Graph((movie.shape[1], movie.shape[2]), (0, 0), (movie.shape[1], movie.shape[2]), key='-GRAPH-', drag_submits=True, enable_events=True)],
                   [sg.Text("Start: None", key="-START-"), sg.Text("Stop: None", key="-STOP-"),
                    sg.Text("Box: None", key="-BOX-")],
                   [sg.Combo(['Max', 'Min', 'Range', 'Std'], key='-OPTION-', default_value='Max', readonly=True,
@@ -693,7 +704,15 @@ class miniscope(experiment.experiment):
         colors = ['red', 'white']
         index = False
         box = None
-        window['-GRAPH-'].draw_image()
+
+        # adds projection to GUI
+        pic_IObytes = io.BytesIO()
+        plt.imsave(pic_IObytes, np.maximum(movie[0], movie[1], movie[2]), format='png')
+        plt.close()
+        pic_IObytes.seek(0)
+        pic_hash = base64.b64encode(pic_IObytes.read())
+        graph.draw_image(data=pic_hash, location=(0, self.movie.shape[2]))
+
         while True:
 
             event, values = window.read(timeout=100)
@@ -705,10 +724,14 @@ class miniscope(experiment.experiment):
                 # TODO based on selection it will change the image in -GRAPH-
 
             elif event in '-SUBMIT-':
-                self.x0 = x0
-                self.y0 = y0
-                self.x1 = x1
-                self.y1 = y1
+                if self.x0 is None:
+                    self.x0 = 0
+                if self.y0 is None: #fixme this is bad
+                    self.y0 = 0
+                if self.x1 is None:
+                    self.x1 = 0
+                if self.y1 is None:
+                    self.y1 = 0
                 break
 
             elif event in ('-GRAPH-', '-GRAPH-+UP'):
@@ -733,7 +756,7 @@ class miniscope(experiment.experiment):
                     y1 = 608
                 self._update(window, x0, y0, x1, y1)
                 if event == '-GRAPH-+UP':
-                    x0, y0 = None, None
+                     x0, y0 = None, None
 
             if box:
                 graph.delete_figure(box)
