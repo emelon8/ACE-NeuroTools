@@ -666,7 +666,7 @@ class miniscope(experiment.experiment):
 
     '''Borrowed in part from: https://stackoverflow.com/questions/68822772/gui-measuring-picture-size-for-cropping/68829339#68829339'''
 
-    def _update(self, window, x0, y0, x1, y1):
+    def _updateCoords(self, window, x0, y0, x1, y1):
         """
         Update rectangle information
         """
@@ -683,13 +683,42 @@ class miniscope(experiment.experiment):
         window['-STOP-'].update(f'Stop: ({x1}, {y1})')
         window['-BOX-'].update(f'Box: ({abs(x1 - x0 + 1)}, {abs(y1 - y0 + 1)})')
 
+    def _updateImage(self, graph, max=False, min=False, STD=False, mean=False, median=False, cmap=None):
+        # adds projection to GUI
+        pic_IObytes = io.BytesIO()
+        if max: #TODO CHANGE TO SELECT SELF.MAX/MIN, ETC INSTEAD OF CALCULATING IT EVERYTIME
+            plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png', cmap=cmap)
+        elif min:
+            plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png', cmap=cmap)
+        elif STD:
+            plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png', cmap=cmap)
+        elif mean:
+            plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png', cmap=cmap)
+        elif median:
+            plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png', cmap=cmap)
+        plt.close()
+        pic_IObytes.seek(0)
+        pic_hash = base64.b64encode(pic_IObytes.read())
+        graph.draw_image(data=pic_hash, location=(0, self.movie.shape[2]))
+
     def _cropWindow(self, movie, filename=None):
         # define the window layout
+        cmapOptions = ['None', 'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
+                      'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu',
+                      'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn', 'binary', 'gist_yarg', 'gist_gray', 'gray', 'bone',
+                      'pink', 'spring', 'summer', 'autumn', 'winter', 'cool',
+                      'Wistia', 'hot', 'afmhot', 'gist_heat', 'copper', 'PiYG', 'PRGn', 'BrBG', 'PuOr', 'RdGy', 'RdBu', 'RdYlBu',
+                      'RdYlGn', 'Spectral', 'coolwarm', 'bwr', 'seismic', 'Pastel1', 'Pastel2', 'Paired', 'Accent', 'Dark2',
+                      'Set1', 'Set2', 'Set3', 'tab10', 'tab20', 'tab20b',
+                      'tab20c']
+
         layout = [[sg.Text('Max Projection', key='-TITLE-')],
                   [sg.Graph((movie.shape[1], movie.shape[2]), (0, 0), (movie.shape[1], movie.shape[2]), key='-GRAPH-', drag_submits=True, enable_events=True)],
                   [sg.Text("Start: None", key="-START-"), sg.Text("Stop: None", key="-STOP-"),
                    sg.Text("Box: None", key="-BOX-")],
-                  [sg.Combo(['Max', 'Min', 'Range', 'Std'], key='-OPTION-', default_value='Max', readonly=True,
+                  [sg.Text("Projection Type:"), sg.Combo(['Max', 'Min', 'Mean', 'Median', 'Std'], key='-OPTION-', default_value='Max', readonly=True,
+                            auto_size_text=True, enable_events=True)],
+                  [sg.Text("CMAP:"), sg.Combo(cmapOptions, key='-CMAP-', default_value='None', readonly=True,
                             auto_size_text=True, enable_events=True)],
                   [sg.Button('Submit', key="-SUBMIT-")]]
 
@@ -705,13 +734,7 @@ class miniscope(experiment.experiment):
         index = False
         box = None
 
-        # adds projection to GUI
-        pic_IObytes = io.BytesIO()
-        plt.imsave(pic_IObytes, np.maximum(movie[0], movie[1], movie[2]), format='png')
-        plt.close()
-        pic_IObytes.seek(0)
-        pic_hash = base64.b64encode(pic_IObytes.read())
-        graph.draw_image(data=pic_hash, location=(0, self.movie.shape[2]))
+        self._updateImage(graph, max=True)
 
         while True:
 
@@ -721,17 +744,28 @@ class miniscope(experiment.experiment):
                 break
             elif event in '-OPTION-':
                 window['-TITLE-'].update(values['-OPTION-'] + " Projection")
-                # TODO based on selection it will change the image in -GRAPH-
-
+                if values['-OPTION-'] == 'Max':
+                    self._updateImage(graph, max=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'Min':
+                    self._updateImage(graph, min=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'STD':
+                    self._updateImage(graph, STD=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'Mean':
+                    self._updateImage(graph, mean=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'Median':
+                    self._updateImage(graph, median=True, cmap=values['-CMAP-'])
+            elif event in '-CMAP-':
+                if values['-OPTION-'] == 'Max':
+                    self._updateImage(graph, max=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'Min':
+                    self._updateImage(graph, min=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'STD':
+                    self._updateImage(graph, STD=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'Mean':
+                    self._updateImage(graph, mean=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'Median':
+                    self._updateImage(graph, median=True, cmap=values['-CMAP-'])
             elif event in '-SUBMIT-':
-                if self.x0 is None:
-                    self.x0 = 0
-                if self.y0 is None: #fixme this is bad
-                    self.y0 = 0
-                if self.x1 is None:
-                    self.x1 = 0
-                if self.y1 is None:
-                    self.y1 = 0
                 break
 
             elif event in ('-GRAPH-', '-GRAPH-+UP'):
@@ -754,7 +788,7 @@ class miniscope(experiment.experiment):
                     y1 = 0
                 if values['-GRAPH-'][1] > 608:
                     y1 = 608
-                self._update(window, x0, y0, x1, y1)
+                self._updateCoords(window, x0, y0, x1, y1)
                 if event == '-GRAPH-+UP':
                      x0, y0 = None, None
 
