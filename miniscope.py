@@ -686,16 +686,28 @@ class miniscope(experiment.experiment):
     def _updateImage(self, graph, max=False, min=False, STD=False, mean=False, median=False, cmap=None):
         # adds projection to GUI
         pic_IObytes = io.BytesIO()
-        if max: #TODO CHANGE TO SELECT SELF.MAX/MIN, ETC INSTEAD OF CALCULATING IT EVERYTIME
-            plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png', cmap=cmap)
-        elif min:
-            plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png', cmap=cmap)
-        elif STD:
-            plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png', cmap=cmap)
-        elif mean:
-            plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png', cmap=cmap)
-        elif median:
-            plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png', cmap=cmap)
+        if cmap is None or cmap == 'None':
+            if max:  # TODO CHANGE TO SELECT SELF.MAX/MIN, ETC INSTEAD OF CALCULATING IT EVERYTIME
+                plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png')
+            elif min:
+                plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png')
+            elif STD:
+                plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png')
+            elif mean:
+                plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png')
+            elif median:
+                plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png')
+        else:
+            if max: #TODO CHANGE TO SELECT SELF.MAX/MIN, ETC INSTEAD OF CALCULATING IT EVERYTIME
+                plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png', cmap=cmap)
+            elif min:
+                plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png', cmap=cmap)
+            elif STD:
+                plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png', cmap=cmap)
+            elif mean:
+                plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png', cmap=cmap)
+            elif median:
+                plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png', cmap=cmap)
         plt.close()
         pic_IObytes.seek(0)
         pic_hash = base64.b64encode(pic_IObytes.read())
