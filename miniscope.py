@@ -646,6 +646,17 @@ class miniscope(experiment.experiment):
                         n = open(newFileName, 'w')
                         n.write(jsonFile)
                         n.close()
+    def _projections(self,  ):
+
+        self.Max = np.maximum(self.movie[0], self.movie[1], self.movie[2])
+
+        self.Std = np.std(self.movie, axis=0)
+
+        self.CNMFEFilenameMin = np.minimum(self.movie[0], self.movie[1], self.movie[2])
+
+        Mean = np.mean(self.movie, axis=(0))
+        
+        Med = np.median(self.movie, axis=0)
 
     def _crop(self, movie):
 
