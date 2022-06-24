@@ -715,7 +715,7 @@ class miniscope(experiment.experiment):
 
     def _cropWindow(self, movie, filename=None):
         # define the window layout
-        cmapOptions = ['None', 'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
+        cmapOptions = ['None', 'viridis', 'plasma', 'inferno', 'magma', 'cividis', 'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
                       'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu',
                       'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn', 'binary', 'gist_yarg', 'gist_gray', 'gray', 'bone',
                       'pink', 'spring', 'summer', 'autumn', 'winter', 'cool',
