@@ -731,7 +731,7 @@ class miniscope(experiment.experiment):
                             auto_size_text=True, enable_events=True)],
                   [sg.Text("CMAP:"), sg.Combo(cmapOptions, key='-CMAP-', default_value='viridis', readonly=True,
                             auto_size_text=True, enable_events=True)],
-                  [sg.Text("Box Colors:"), sg.Combo(boxOptions, key='-COLORBOX-', default_value=['red/white'], readonly=True,
+                  [sg.Text("Box Colors:"), sg.Combo(boxOptions, key='-COLORBOX-', default_value='red/white', readonly=True,
                                                     auto_size_text=True, enable_events=True)],
                   [sg.Button('Submit', key="-SUBMIT-")]]
 
@@ -790,7 +790,7 @@ class miniscope(experiment.experiment):
             elif event in '-SUBMIT-':
                 break
 
-            elif event in ('-GRAPH-', '-GRAPH-+UP'):
+            elif event in '-GRAPH-':
                 if (x0, y0) == (None, None):
                     x0, y0 = values['-GRAPH-']
                     if values['-GRAPH-'][0] < 0:
@@ -811,14 +811,13 @@ class miniscope(experiment.experiment):
                 if values['-GRAPH-'][1] > movie.shape[2]:
                     y1 = movie.shape[2]
                 self._updateCoords(window, x0, y0, x1, y1)
-                if event == '-GRAPH-+UP':
-                     x0, y0 = None, None
-
-            if box:
-                graph.delete_figure(box)
-            if None not in (x0, y0, x1, y1):
-                box = graph.draw_rectangle((x0, y0), (x1, y1), line_color=colors[index])
-                index = not index
+                if box:
+                    graph.delete_figure(box)
+                if None not in (x0, y0, x1, y1):
+                    box = graph.draw_rectangle((x0, y0), (x1, y1), line_color=colors[index])
+                    index = not index
+            elif event.endswith('+UP'):
+                 x0, y0 = None, None
 
         window.close()
 
