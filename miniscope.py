@@ -660,8 +660,8 @@ class miniscope(experiment.experiment):
         self.Med = np.median(self.movie, axis=0)
 
     def _crop(self, movie):
-
-        # FIXME FIND MAX PROJECTION
+        #Get all projections
+        self._projections()
 
         self.x0 = 0
         self.y0 = 0
@@ -692,31 +692,19 @@ class miniscope(experiment.experiment):
         window['-STOP-'].update(f'Stop: ({x1}, {y1})')
         window['-BOX-'].update(f'Box: ({abs(x1 - x0 + 1)}, {abs(y1 - y0 + 1)})')
 
-    def _updateImage(self, graph, max=False, min=False, STD=False, mean=False, median=False, cmap=None):
+    def _updateImage(self, graph, max=False, min=False, STD=False, mean=False, median=False, cmap='viridis'):
         # adds projection to GUI
         pic_IObytes = io.BytesIO()
-        if cmap is None or cmap == 'None':
-            if max:  # TODO CHANGE TO SELECT SELF.MAX/MIN, ETC INSTEAD OF CALCULATING IT EVERYTIME
-                plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png')
-            elif min:
-                plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png')
-            elif STD:
-                plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png')
-            elif mean:
-                plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png')
-            elif median:
-                plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png')
-        else:
-            if max: #TODO CHANGE TO SELECT SELF.MAX/MIN, ETC INSTEAD OF CALCULATING IT EVERYTIME
-                plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png', cmap=cmap)
-            elif min:
-                plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png', cmap=cmap)
-            elif STD:
-                plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png', cmap=cmap)
-            elif mean:
-                plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png', cmap=cmap)
-            elif median:
-                plt.imsave(pic_IObytes, np.maximum(self.movie[0], self.movie[1], self.movie[2]), format='png', cmap=cmap)
+        if max:
+            plt.imsave(pic_IObytes, self.Max, format='png', cmap=cmap)
+        elif min:
+            plt.imsave(pic_IObytes, self.Min, format='png', cmap=cmap)
+        elif STD:
+            plt.imsave(pic_IObytes, self.Std, format='png', cmap=cmap)
+        elif mean:
+            plt.imsave(pic_IObytes, self.Mean, format='png', cmap=cmap)
+        elif median:
+            plt.imsave(pic_IObytes, self.Med, format='png', cmap=cmap)
         plt.close()
         pic_IObytes.seek(0)
         pic_hash = base64.b64encode(pic_IObytes.read())
@@ -724,7 +712,7 @@ class miniscope(experiment.experiment):
 
     def _cropWindow(self, movie, filename=None):
         # define the window layout
-        cmapOptions = ['None', 'viridis', 'plasma', 'inferno', 'magma', 'cividis', 'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
+        cmapOptions = ['viridis', 'plasma', 'inferno', 'magma', 'cividis', 'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
                       'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu',
                       'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn', 'binary', 'gist_yarg', 'gist_gray', 'gray', 'bone',
                       'pink', 'spring', 'summer', 'autumn', 'winter', 'cool',
@@ -733,14 +721,18 @@ class miniscope(experiment.experiment):
                       'Set1', 'Set2', 'Set3', 'tab10', 'tab20', 'tab20b',
                       'tab20c']
 
+        boxOptions = ['red/white', 'blue/white', 'red/yellow', 'blue/yellow']
+
         layout = [[sg.Text('Max Projection', key='-TITLE-')],
                   [sg.Graph((movie.shape[1], movie.shape[2]), (0, 0), (movie.shape[1], movie.shape[2]), key='-GRAPH-', drag_submits=True, enable_events=True)],
                   [sg.Text("Start: None", key="-START-"), sg.Text("Stop: None", key="-STOP-"),
                    sg.Text("Box: None", key="-BOX-")],
                   [sg.Text("Projection Type:"), sg.Combo(['Max', 'Min', 'Mean', 'Median', 'Std'], key='-OPTION-', default_value='Max', readonly=True,
                             auto_size_text=True, enable_events=True)],
-                  [sg.Text("CMAP:"), sg.Combo(cmapOptions, key='-CMAP-', default_value='None', readonly=True,
+                  [sg.Text("CMAP:"), sg.Combo(cmapOptions, key='-CMAP-', default_value='viridis', readonly=True,
                             auto_size_text=True, enable_events=True)],
+                  [sg.Text("Box Colors:"), sg.Combo(boxOptions, key='-COLORBOX-', default_value=['red/white'], readonly=True,
+                                                    auto_size_text=True, enable_events=True)],
                   [sg.Button('Submit', key="-SUBMIT-")]]
 
         # create the form and show it without the plot
@@ -763,6 +755,15 @@ class miniscope(experiment.experiment):
 
             if event == sg.WINDOW_CLOSED:
                 break
+            elif event in '-COLORBOX-':
+                if values['-COLORBOX-'] == 'red/white':
+                    colors = ['red', 'white']
+                elif values['-COLORBOX-'] == 'blue/white':
+                    colors = ['blue', 'white']
+                elif values['-COLORBOX-'] == 'red/yellow':
+                    colors = ['red', 'yellow']
+                elif values['-COLORBOX-'] == 'blue/yellow':
+                    colors = ['blue', 'yellow']
             elif event in '-OPTION-':
                 window['-TITLE-'].update(values['-OPTION-'] + " Projection")
                 if values['-OPTION-'] == 'Max':
@@ -794,21 +795,21 @@ class miniscope(experiment.experiment):
                     x0, y0 = values['-GRAPH-']
                     if values['-GRAPH-'][0] < 0:
                         x0 = 0
-                    if values['-GRAPH-'][0] > 608:
-                        x0 = 608
+                    if values['-GRAPH-'][0] > movie.shape[1]:
+                        x0 = movie.shape[1]
                     if values['-GRAPH-'][1] < 0:
                         y0 = 0
-                    if values['-GRAPH-'][1] > 608:
-                        y0 = 608
+                    if values['-GRAPH-'][1] > movie.shape[2]:
+                        y0 = movie.shape[2]
                 x1, y1 = values['-GRAPH-']
                 if values['-GRAPH-'][0] < 0:
                     x1 = 0
-                if values['-GRAPH-'][0] > 608:
-                    x1 = 608
+                if values['-GRAPH-'][0] > movie.shape[1]:
+                    x1 = movie.shape[1]
                 if values['-GRAPH-'][1] < 0:
                     y1 = 0
-                if values['-GRAPH-'][1] > 608:
-                    y1 = 608
+                if values['-GRAPH-'][1] > movie.shape[2]:
+                    y1 = movie.shape[2]
                 self._updateCoords(window, x0, y0, x1, y1)
                 if event == '-GRAPH-+UP':
                      x0, y0 = None, None
