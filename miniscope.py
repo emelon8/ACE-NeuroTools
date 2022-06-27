@@ -721,7 +721,8 @@ class miniscope(experiment.experiment):
                       'Set1', 'Set2', 'Set3', 'tab10', 'tab20', 'tab20b',
                       'tab20c']
 
-        boxOptions = ['red/white', 'blue/white', 'red/yellow', 'blue/yellow']
+        boxOptions = ['red/white', 'blue/white', 'red/yellow', 'blue/yellow', 'blue/green',
+                      'green/yellow', 'red/green', 'green/white']
 
         layout = [[sg.Text('Max Projection', key='-TITLE-')],
                   [sg.Graph((movie.shape[1], movie.shape[2]), (0, 0), (movie.shape[1], movie.shape[2]), key='-GRAPH-', drag_submits=True, enable_events=True)],
@@ -742,7 +743,6 @@ class miniscope(experiment.experiment):
         # add the plot to the window
         graph = window['-GRAPH-']
         x0, y0 = None, None
-        x1, y1 = None, None
         colors = ['red', 'white']
         index = False
         box = None
@@ -764,6 +764,15 @@ class miniscope(experiment.experiment):
                     colors = ['red', 'yellow']
                 elif values['-COLORBOX-'] == 'blue/yellow':
                     colors = ['blue', 'yellow']
+                elif values['-COLORBOX-'] == 'blue/green':
+                    colors = ['blue', 'green']
+                elif values['-COLORBOX-'] == 'green/yellow':
+                    colors = ['green', 'yellow']
+                elif values['-COLORBOX-'] == 'red/green':
+                    colors = ['red', 'green']
+                elif values['-COLORBOX-'] == 'green/white':
+                    colors = ['green', 'white']
+
             elif event in '-OPTION-':
                 window['-TITLE-'].update(values['-OPTION-'] + " Projection")
                 if values['-OPTION-'] == 'Max':
