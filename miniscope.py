@@ -648,15 +648,17 @@ class miniscope(experiment.experiment):
                         n.close()
     def _projections(self):
 
-        self.Max = np.maximum(self.movie[0], self.movie[1], self.movie[2])
+        self.Max = np.amax(self.movie, axis=0)
 
         self.Std = np.std(self.movie, axis=0)
 
-        self.Min = np.minimum(self.movie[0], self.movie[1], self.movie[2])
+        self.Min = np.amin(self.movie, axis=0)
 
-        self.Mean = np.mean(self.movie, axis=(0))
+        self.Mean = np.mean(self.movie, axis=0)
         
         self.Med = np.median(self.movie, axis=0)
+
+        self.Range = Max - Min
 
     def _crop(self, movie):
 
