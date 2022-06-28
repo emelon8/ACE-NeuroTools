@@ -645,22 +645,24 @@ class miniscope(experiment.experiment):
                         n = open(newFileName, 'w')
                         n.write(jsonFile)
                         n.close()
+                        
     def _projections(self):
 
-        self.Max = np.maximum(self.movie[0], self.movie[1], self.movie[2])
+        self.Max = np.amax(self.movie, axis=0)
 
         self.Std = np.std(self.movie, axis=0)
 
-        self.Min = np.minimum(self.movie[0], self.movie[1], self.movie[2])
+        self.Min = np.amin(self.movie, axis=0)
 
-        self.Mean = np.mean(self.movie, axis=(0))
+        self.Mean = np.mean(self.movie, axis=0)
         
         self.Med = np.median(self.movie, axis=0)
+
+        self.Range = Max - Min
 
     def _cropMovie(self, crop_top=0, crop_bottom=0, crop_left=0, crop_right=0, crop_begin=0, crop_end=0) -> None:
         """
         Crop movie (inline)
-
         Args:
             crop_top/crop_bottom/crop_left,crop_right: Distance from edge of frame in pixels
 
