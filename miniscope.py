@@ -6,6 +6,7 @@ Created on Mon Oct 19 08:43:50 2020
 """
 
 import csv
+import io
 import os.path
 from json import load
 import experiment
@@ -172,8 +173,6 @@ class miniscope(experiment.experiment):
             self.movie = cm.load(filenames)
         else:
             self.movie = cm.load_movie_chain(filenames)
-        # self.movie.play()
-        # self._importCaMoviesFilenames = filenames
         if crop:
             self._crop(self.movie)
 
@@ -646,6 +645,7 @@ class miniscope(experiment.experiment):
                         n = open(newFileName, 'w')
                         n.write(jsonFile)
                         n.close()
+                        
     def _projections(self):
 
         self.Max = np.amax(self.movie, axis=0)
@@ -660,99 +660,224 @@ class miniscope(experiment.experiment):
 
         self.Range = Max - Min
 
-    def _crop(self, movie):
+    def _cropMovie(self, crop_top=0, crop_bottom=0, crop_left=0, crop_right=0, crop_begin=0, crop_end=0) -> None:
+        """
+        Crop movie (inline)
+        Args:
+            crop_top/crop_bottom/crop_left,crop_right: Distance from edge of frame in pixels
 
-        # FIXME FIND MAX PROJECTION
-        filename = None  # FIXME
-        # Visualize to crop
-        self._cropWindow(filename)
-        self.movie = self.movie.crop(crop_left=self.x0)
+            crop_begin/crop_end: Start Frame to end Frame
+        """
+        t, h, w = self.movie.shape
+        tempArray = self.movie[crop_begin:t - crop_end, crop_top:h - crop_bottom, crop_left:w - crop_right]
+        return tempArray
+
+    def _crop(self, movie):
+        #Get all projections
+        self._projections()
+
+        self.x0 = 0
+        self.y0 = 0
+        self.x1 = 0
+        self.y1 = 0
+        self._cropWindow(movie)
+
+        if self.x1 > self.x0:
+            # rectangle was drawn from Left -> Right
+            if self.y1 > self.y0:
+                #Bottom L -> Upper R
+                cropBottom = self.y0
+                cropTop = movie.shape[1] - self.y1
+                cropLeft = self.x0
+                cropRight = movie.shape[2] - self.x1
+                croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom, crop_left=cropLeft)
+            else:
+                #Upper L -> Bottom R
+                cropBottom = self.y1
+                cropTop = movie.shape[1] - self.y0
+                cropLeft = self.x0
+                cropRight = movie.shape[2] - self.x1
+                croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
+                                               crop_left=cropLeft)
+        else:
+            # rectangle was drawn from R -> L
+            if self.y1 > self.y0:
+                # Bottom R -> Upper L
+                cropBottom = self.y0
+                cropTop = movie.shape[1] - self.y1
+                cropLeft = self.x1
+                cropRight = movie.shape[2] - self.x0
+                croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
+                                               crop_left=cropLeft)
+            else:
+                # Upper R -> Bottom L
+                cropBottom = self.y1
+                cropTop = movie.shape[1] - self.y0
+                cropLeft = self.x1
+                cropRight = movie.shape[2] - self.x0
+                croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
+                                               crop_left=cropLeft)
+        #protects against no cropping
+        if croppedMovie is not None:
+            self.movie = croppedMovie
         self.movie.play()  # FIXME probably comment out at some point
 
-    '''Borrowed in part from: https://stackoverflow.com/questions/68822772/gui-measuring-picture-size-for-cropping/68829339#68829339'''
-
-    def _update(self, window, x0, y0, x1, y1):
+    def _updateCoords(self, window, x0, y0, x1, y1):
         """
         Update rectangle information
         """
-        self.x0 = x0
-        self.y0 = y0
-        self.x1 = x1
-        self.y1 = y1
-        # print(repr(x0), repr(y0), repr(x1), repr(y1))
+        if x0 is not None:
+            self.x0 = x0
+        if y0 is not None:
+            self.y0 = y0
+        if x1 is not None:
+            self.x1 = x1
+        if y1 is not None:
+            self.y1 = y1
         window['-START-'].update(f'Start: ({x0}, {y0})')
         window['-STOP-'].update(f'Stop: ({x1}, {y1})')
         window['-BOX-'].update(f'Box: ({abs(x1 - x0 + 1)}, {abs(y1 - y0 + 1)})')
 
-    def _cropWindow(self, filename=None):
-        filename = "20200719_161857.png"  # FIXME update with max projection image
+    def _updateImage(self, graph, max=False, min=False, STD=False, mean=False, median=False, cmap='viridis'):
+        # adds projection to GUI
+        pic_IObytes = io.BytesIO()
+        if max:
+            plt.imsave(pic_IObytes, self.Max, format='png', cmap=cmap)
+        elif min:
+            plt.imsave(pic_IObytes, self.Min, format='png', cmap=cmap)
+        elif STD:
+            plt.imsave(pic_IObytes, self.Std, format='png', cmap=cmap)
+        elif mean:
+            plt.imsave(pic_IObytes, self.Mean, format='png', cmap=cmap)
+        elif median:
+            plt.imsave(pic_IObytes, self.Med, format='png', cmap=cmap)
+        plt.close()
+        pic_IObytes.seek(0)
+        pic_hash = base64.b64encode(pic_IObytes.read())
+        graph.draw_image(data=pic_hash, location=(0, self.movie.shape[2]))
+
+    def _cropWindow(self, movie, filename=None):
         # define the window layout
+        cmapOptions = ['viridis', 'plasma', 'inferno', 'magma', 'cividis', 'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
+                      'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu',
+                      'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn', 'binary', 'gist_yarg', 'gist_gray', 'gray', 'bone',
+                      'pink', 'spring', 'summer', 'autumn', 'winter', 'cool',
+                      'Wistia', 'hot', 'afmhot', 'gist_heat', 'copper', 'PiYG', 'PRGn', 'BrBG', 'PuOr', 'RdGy', 'RdBu', 'RdYlBu',
+                      'RdYlGn', 'Spectral', 'coolwarm', 'bwr', 'seismic', 'Pastel1', 'Pastel2', 'Paired', 'Accent', 'Dark2',
+                      'Set1', 'Set2', 'Set3', 'tab10', 'tab20', 'tab20b',
+                      'tab20c']
+
+        boxOptions = ['red/white', 'blue/white', 'red/yellow', 'blue/yellow', 'blue/green',
+                      'green/yellow', 'red/green', 'green/white']
+
         layout = [[sg.Text('Max Projection', key='-TITLE-')],
-                  [sg.Graph((608, 608), (0, 0), (608, 608), key='-GRAPH-', drag_submits=True, enable_events=True)],
+                  [sg.Graph((movie.shape[2], movie.shape[1]), (0, 0), (movie.shape[1], movie.shape[2]), key='-GRAPH-', drag_submits=True, enable_events=True)],
                   [sg.Text("Start: None", key="-START-"), sg.Text("Stop: None", key="-STOP-"),
                    sg.Text("Box: None", key="-BOX-")],
-                  [sg.Combo(['Max', 'Min', 'Range', 'Std'], key='-OPTION-', default_value='Max', readonly=True,
+                  [sg.Text("Projection Type:"), sg.Combo(['Max', 'Min', 'Mean', 'Median', 'Std'], key='-OPTION-', default_value='Max', readonly=True,
                             auto_size_text=True, enable_events=True)],
+                  [sg.Text("CMAP:"), sg.Combo(cmapOptions, key='-CMAP-', default_value='viridis', readonly=True,
+                            auto_size_text=True, enable_events=True)],
+                  [sg.Text("Box Colors:"), sg.Combo(boxOptions, key='-COLORBOX-', default_value='red/white', readonly=True,
+                                                    auto_size_text=True, enable_events=True)],
                   [sg.Button('Submit', key="-SUBMIT-")]]
 
         # create the form and show it without the plot
-        window = sg.Window('CropGUI', layout, finalize=True,
+        window = sg.Window('CropGUI', layout, finalize=True, resizable=True,
                            element_justification='center', font='Helvetica 18')
 
         # add the plot to the window
         graph = window['-GRAPH-']
         x0, y0 = None, None
-        x1, y1 = None, None
         colors = ['red', 'white']
         index = False
         box = None
-        window['-GRAPH-'].draw_image()
-        while True:
 
+        #adds image to window
+        self._updateImage(graph, max=True)
+
+        while True:
+            #controls events to update window
             event, values = window.read(timeout=100)
 
             if event == sg.WINDOW_CLOSED:
                 break
+            #color of box options
+            elif event in '-COLORBOX-':
+                if values['-COLORBOX-'] == 'red/white':
+                    colors = ['red', 'white']
+                elif values['-COLORBOX-'] == 'blue/white':
+                    colors = ['blue', 'white']
+                elif values['-COLORBOX-'] == 'red/yellow':
+                    colors = ['red', 'yellow']
+                elif values['-COLORBOX-'] == 'blue/yellow':
+                    colors = ['blue', 'yellow']
+                elif values['-COLORBOX-'] == 'blue/green':
+                    colors = ['blue', 'green']
+                elif values['-COLORBOX-'] == 'green/yellow':
+                    colors = ['green', 'yellow']
+                elif values['-COLORBOX-'] == 'red/green':
+                    colors = ['red', 'green']
+                elif values['-COLORBOX-'] == 'green/white':
+                    colors = ['green', 'white']
+            #Type of image options
             elif event in '-OPTION-':
                 window['-TITLE-'].update(values['-OPTION-'] + " Projection")
-                # TODO based on selection it will change the image in -GRAPH-
+                if values['-OPTION-'] == 'Max':
+                    self._updateImage(graph, max=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'Min':
+                    self._updateImage(graph, min=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'STD':
+                    self._updateImage(graph, STD=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'Mean':
+                    self._updateImage(graph, mean=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'Median':
+                    self._updateImage(graph, median=True, cmap=values['-CMAP-'])
 
+            #CMAP of image
+            elif event in '-CMAP-':
+                if values['-OPTION-'] == 'Max':
+                    self._updateImage(graph, max=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'Min':
+                    self._updateImage(graph, min=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'STD':
+                    self._updateImage(graph, STD=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'Mean':
+                    self._updateImage(graph, mean=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'Median':
+                    self._updateImage(graph, median=True, cmap=values['-CMAP-'])
             elif event in '-SUBMIT-':
-                self.x0 = x0
-                self.y0 = y0
-                self.x1 = x1
-                self.y1 = y1
                 break
 
-            elif event in ('-GRAPH-', '-GRAPH-+UP'):
+            #drawing the box and getting x/y values
+            elif event in '-GRAPH-':
                 if (x0, y0) == (None, None):
                     x0, y0 = values['-GRAPH-']
                     if values['-GRAPH-'][0] < 0:
                         x0 = 0
-                    if values['-GRAPH-'][0] > 608:
-                        x0 = 608
+                    if values['-GRAPH-'][0] > movie.shape[2]:
+                        x0 = movie.shape[2]
                     if values['-GRAPH-'][1] < 0:
                         y0 = 0
-                    if values['-GRAPH-'][1] > 608:
-                        y0 = 608
+                    if values['-GRAPH-'][1] > movie.shape[1]:
+                        y0 = movie.shape[1]
                 x1, y1 = values['-GRAPH-']
                 if values['-GRAPH-'][0] < 0:
                     x1 = 0
-                if values['-GRAPH-'][0] > 608:
-                    x1 = 608
+                if values['-GRAPH-'][0] > movie.shape[2]:
+                    x1 = movie.shape[2]
                 if values['-GRAPH-'][1] < 0:
                     y1 = 0
-                if values['-GRAPH-'][1] > 608:
-                    y1 = 608
-                self._update(window, x0, y0, x1, y1)
-                if event == '-GRAPH-+UP':
-                    x0, y0 = None, None
-
-            if box:
-                graph.delete_figure(box)
-            if None not in (x0, y0, x1, y1):
-                box = graph.draw_rectangle((x0, y0), (x1, y1), line_color=colors[index])
-                index = not index
+                if values['-GRAPH-'][1] > movie.shape[1]:
+                    y1 = movie.shape[1]
+                self._updateCoords(window, x0, y0, x1, y1)
+                if box:
+                    graph.delete_figure(box)
+                if None not in (x0, y0, x1, y1):
+                    box = graph.draw_rectangle((x0, y0), (x1, y1), line_color=colors[index])
+                    index = not index
+            elif event.endswith('+UP'):
+                 x0, y0 = None, None
 
         window.close()
 
