@@ -173,8 +173,6 @@ class miniscope(experiment.experiment):
             self.movie = cm.load(filenames)
         else:
             self.movie = cm.load_movie_chain(filenames)
-        # self.movie.play()
-        # self._importCaMoviesFilenames = filenames
         if crop:
             self._crop(self.movie)
 
@@ -659,6 +657,19 @@ class miniscope(experiment.experiment):
         
         self.Med = np.median(self.movie, axis=0)
 
+    def _cropMovie(self, crop_top=0, crop_bottom=0, crop_left=0, crop_right=0, crop_begin=0, crop_end=0) -> None:
+        """
+        Crop movie (inline)
+
+        Args:
+            crop_top/crop_bottom/crop_left,crop_right: Distance from edge of frame in pixels
+
+            crop_begin/crop_end: Start Frame to end Frame
+        """
+        t, h, w = self.movie.shape
+        tempArray = self.movie[crop_begin:t - crop_end, crop_top:h - crop_bottom, crop_left:w - crop_right]
+        return tempArray
+
     def _crop(self, movie):
         #Get all projections
         self._projections()
@@ -677,14 +688,14 @@ class miniscope(experiment.experiment):
                 cropTop = movie.shape[1] - self.y1
                 cropLeft = self.x0
                 cropRight = movie.shape[2] - self.x1
-                croppedMovie = self.movie.crop(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom, crop_left=cropLeft)
+                croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom, crop_left=cropLeft)
             else:
                 #Upper L -> Bottom R
                 cropBottom = self.y1
                 cropTop = movie.shape[1] - self.y0
                 cropLeft = self.x0
                 cropRight = movie.shape[2] - self.x1
-                croppedMovie = self.movie.crop(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
+                croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
                                                crop_left=cropLeft)
         else:
             # rectangle was drawn from R -> L
@@ -694,7 +705,7 @@ class miniscope(experiment.experiment):
                 cropTop = movie.shape[1] - self.y1
                 cropLeft = self.x1
                 cropRight = movie.shape[2] - self.x0
-                croppedMovie = self.movie.crop(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
+                croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
                                                crop_left=cropLeft)
             else:
                 # Upper R -> Bottom L
@@ -702,7 +713,7 @@ class miniscope(experiment.experiment):
                 cropTop = movie.shape[1] - self.y0
                 cropLeft = self.x1
                 cropRight = movie.shape[2] - self.x0
-                croppedMovie = self.movie.crop(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
+                croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
                                                crop_left=cropLeft)
         #protects against no cropping
         if croppedMovie is not None:
