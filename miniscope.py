@@ -658,7 +658,7 @@ class miniscope(experiment.experiment):
         
         self.Med = np.median(self.movie, axis=0)
 
-        self.Range = Max - Min
+        self.Range = self.Max - self.Min
 
     def _cropMovie(self, crop_top=0, crop_bottom=0, crop_left=0, crop_right=0, crop_begin=0, crop_end=0) -> None:
         """
@@ -673,7 +673,7 @@ class miniscope(experiment.experiment):
         return tempArray
 
     def _crop(self, movie):
-        #Get all projections
+        # Get all projections
         self._projections()
 
         self.x0 = 0
@@ -682,41 +682,43 @@ class miniscope(experiment.experiment):
         self.y1 = 0
         self._cropWindow(movie)
 
-        if self.x1 > self.x0:
-            # rectangle was drawn from Left -> Right
-            if self.y1 > self.y0:
-                #Bottom L -> Upper R
-                cropBottom = self.y0
-                cropTop = movie.shape[1] - self.y1
-                cropLeft = self.x0
-                cropRight = movie.shape[2] - self.x1
-                croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom, crop_left=cropLeft)
+        croppedMovie = None
+        if self.x1 and self.x0 and self.y1 and self.y0 != 0:
+            if self.x1 > self.x0:
+                # rectangle was drawn from Left -> Right
+                if self.y1 > self.y0:
+                    #Bottom L -> Upper R
+                    cropBottom = self.y0
+                    cropTop = movie.shape[1] - self.y1
+                    cropLeft = self.x0
+                    cropRight = movie.shape[2] - self.x1
+                    croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom, crop_left=cropLeft)
+                else:
+                    #Upper L -> Bottom R
+                    cropBottom = self.y1
+                    cropTop = movie.shape[1] - self.y0
+                    cropLeft = self.x0
+                    cropRight = movie.shape[2] - self.x1
+                    croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
+                                                   crop_left=cropLeft)
             else:
-                #Upper L -> Bottom R
-                cropBottom = self.y1
-                cropTop = movie.shape[1] - self.y0
-                cropLeft = self.x0
-                cropRight = movie.shape[2] - self.x1
-                croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
-                                               crop_left=cropLeft)
-        else:
-            # rectangle was drawn from R -> L
-            if self.y1 > self.y0:
-                # Bottom R -> Upper L
-                cropBottom = self.y0
-                cropTop = movie.shape[1] - self.y1
-                cropLeft = self.x1
-                cropRight = movie.shape[2] - self.x0
-                croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
-                                               crop_left=cropLeft)
-            else:
-                # Upper R -> Bottom L
-                cropBottom = self.y1
-                cropTop = movie.shape[1] - self.y0
-                cropLeft = self.x1
-                cropRight = movie.shape[2] - self.x0
-                croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
-                                               crop_left=cropLeft)
+                # rectangle was drawn from R -> L
+                if self.y1 > self.y0:
+                    # Bottom R -> Upper L
+                    cropBottom = self.y0
+                    cropTop = movie.shape[1] - self.y1
+                    cropLeft = self.x1
+                    cropRight = movie.shape[2] - self.x0
+                    croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
+                                                   crop_left=cropLeft)
+                else:
+                    # Upper R -> Bottom L
+                    cropBottom = self.y1
+                    cropTop = movie.shape[1] - self.y0
+                    cropLeft = self.x1
+                    cropRight = movie.shape[2] - self.x0
+                    croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
+                                                   crop_left=cropLeft)
         #protects against no cropping
         if croppedMovie is not None:
             self.movie = croppedMovie
@@ -738,7 +740,7 @@ class miniscope(experiment.experiment):
         window['-STOP-'].update(f'Stop: ({x1}, {y1})')
         window['-BOX-'].update(f'Box: ({abs(x1 - x0 + 1)}, {abs(y1 - y0 + 1)})')
 
-    def _updateImage(self, graph, max=False, min=False, STD=False, mean=False, median=False, cmap='viridis'):
+    def _updateImage(self, graph, max=False, min=False, STD=False, mean=False, median=False, range=False, cmap='viridis'):
         # adds projection to GUI
         pic_IObytes = io.BytesIO()
         if max:
@@ -751,6 +753,8 @@ class miniscope(experiment.experiment):
             plt.imsave(pic_IObytes, self.Mean, format='png', cmap=cmap)
         elif median:
             plt.imsave(pic_IObytes, self.Med, format='png', cmap=cmap)
+        elif range:
+            plt.imsave(pic_IObytes, self.Range, format='png', cmap=cmap)
         plt.close()
         pic_IObytes.seek(0)
         pic_hash = base64.b64encode(pic_IObytes.read())
@@ -758,7 +762,7 @@ class miniscope(experiment.experiment):
 
     def _cropWindow(self, movie, filename=None):
         # define the window layout
-        cmapOptions = ['viridis', 'plasma', 'inferno', 'magma', 'cividis', 'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
+        cmapOptions = ['viridis', 'jet', 'plasma', 'inferno', 'magma', 'cividis', 'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
                       'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu',
                       'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn', 'binary', 'gist_yarg', 'gist_gray', 'gray', 'bone',
                       'pink', 'spring', 'summer', 'autumn', 'winter', 'cool',
@@ -774,7 +778,7 @@ class miniscope(experiment.experiment):
                   [sg.Graph((movie.shape[2], movie.shape[1]), (0, 0), (movie.shape[1], movie.shape[2]), key='-GRAPH-', drag_submits=True, enable_events=True)],
                   [sg.Text("Start: None", key="-START-"), sg.Text("Stop: None", key="-STOP-"),
                    sg.Text("Box: None", key="-BOX-")],
-                  [sg.Text("Projection Type:"), sg.Combo(['Max', 'Min', 'Mean', 'Median', 'Std'], key='-OPTION-', default_value='Max', readonly=True,
+                  [sg.Text("Projection Type:"), sg.Combo(['Max', 'Min', 'Mean', 'Median', 'Std', "Range"], key='-OPTION-', default_value='Max', readonly=True,
                             auto_size_text=True, enable_events=True)],
                   [sg.Text("CMAP:"), sg.Combo(cmapOptions, key='-CMAP-', default_value='viridis', readonly=True,
                             auto_size_text=True, enable_events=True)],
@@ -833,6 +837,8 @@ class miniscope(experiment.experiment):
                     self._updateImage(graph, mean=True, cmap=values['-CMAP-'])
                 elif values['-OPTION-'] == 'Median':
                     self._updateImage(graph, median=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'Range':
+                    self._updateImage(graph, range=True, cmap=values['-CMAP-'])
 
             #CMAP of image
             elif event in '-CMAP-':
@@ -846,6 +852,8 @@ class miniscope(experiment.experiment):
                     self._updateImage(graph, mean=True, cmap=values['-CMAP-'])
                 elif values['-OPTION-'] == 'Median':
                     self._updateImage(graph, median=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'Range':
+                    self._updateImage(graph, range=True, cmap=values['-CMAP-'])
             elif event in '-SUBMIT-':
                 break
 
