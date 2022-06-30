@@ -8,7 +8,6 @@ Created on Mon Oct 19 08:43:50 2020
 import csv
 import io
 import os.path
-from json import load
 import experiment
 import numpy as np
 from scipy.signal import detrend
@@ -20,8 +19,6 @@ import misc_Functions
 import sys
 import json
 import base64
-from io import BytesIO
-from PIL import Image
 import PySimpleGUI as sg
 
 
