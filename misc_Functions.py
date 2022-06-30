@@ -18,9 +18,6 @@ import cv2
 from tqdm import tqdm
 from scipy.signal import butter, freqz, filtfilt ##they imported lfilter, but never used it
 from IPython.display import clear_output
-from apiclient import discovery
-from httplib2 import Http
-from oauth2client import file, client, tools ##supported indefinitely by google-auth
 import os.path
 from os import path
 from matplotlib import pyplot as plt
@@ -550,40 +547,6 @@ def importVideoAsNumpyArray(filename, frames='all', displayFrame=False, frameToD
         cv2.namedWindow('frame ' + str(frameToDisplay))
         cv2.imshow('frame ' + str(frameToDisplay), buf[frameToDisplay - 1])
     return buf
-
-
-def googleSheetsToCSV(filename):
-    """Code stolen from http://wescpy.blogspot.com/2016/07/exporting-google-sheet--as-csv.html"""
-    SCOPES = 'https://www.googleapis.com/auth/drive.readonly'
-    store = file.Storage('storage.json')
-    creds = store.get()
-    if not creds or creds.invalid:
-        flow = client.flow_from_clientsecrets('client_secret.json', SCOPES)
-        creds = tools.run_flow(flow, store)
-    DRIVE = discovery.build('drive', 'v3', http=creds.authorize(Http()))
-    
-    FILENAME = filename
-    SRC_MIMETYPE = 'application/vnd.google-apps.spreadsheet'
-    DST_MIMETYPE = 'text/csv'
-    
-    files = DRIVE.files().list(
-        q='name="%s" and mimeType="%s"' % (FILENAME, SRC_MIMETYPE),
-        orderBy='modifiedTime desc,name').execute().get('files', [])
-    
-    if files:
-        fn = '%s.csv' % os.path.splitext(files[0]['name'].replace(' ', '_'))[0]
-        print('Exporting "%s" as "%s"... ' % (files[0]['name'], fn), end='') 
-        data = DRIVE.files().export(fileId=files[0]['id'], mimeType=DST_MIMETYPE).execute()
-        if data:
-            with open(fn, 'wb') as f:
-                f.write(data)
-            print('DONE')
-            return (fn)
-        else:
-            raise AttributeError('could not download file')
-    else:
-        raise AttributeError('File not found')
-
 
 def quat_to_euler(qw,qx,qy,qz,degrees=False):
     m00 = 1.0 - 2.0*qy*qy - 2.0*qz*qz
