@@ -174,7 +174,7 @@ class miniscope(experiment.experiment):
         else:
             self.movie = cm.load_movie_chain(filenames)
         if crop:
-            self._crop(self.movie)
+            self._crop(self.movie, GUI=True)
 
     def convertCaMovies(self, filenames=None, newFileType='.tif', joinMovies=False, metaDataConvert=True):
         """Convert calcium movies from one type to another. File types must be supported by CaImAn.
@@ -675,14 +675,15 @@ class miniscope(experiment.experiment):
     def _crop(self, movie, GUI=False):
         # Get all projections
         self._projections()
-        cropCoordinates = {
-            "x0": self._analysisParamsDict['crop0'][0],
-            "y0": self._analysisParamsDict['crop0'][1],
-            "x1": self._analysisParamsDict['crop1'][0],
-            "y1": self._analysisParamsDict['crop1'][1]
+        # Grab saved crop coords from .csv file that has been read
+        self.cropCoordinates = {
+            "x0": self._analysisParamsDict['crop'][0],
+            "y0": self._analysisParamsDict['crop'][1],
+            "x1": self._analysisParamsDict['crop'][2],
+            "y1": self._analysisParamsDict['crop'][3]
         }
-        self.cropCoordinates = cropCoordinates
-        self._cropWindow(movie)
+        if GUI:
+            self._cropWindow(movie)
 
         croppedMovie = None
         if self.cropCoordinates['x1'] and self.cropCoordinates['x0'] and self.cropCoordinates['y1'] and self.cropCoordinates['y0'] != 0:
@@ -781,13 +782,13 @@ class miniscope(experiment.experiment):
                   [sg.Graph((movie.shape[2], movie.shape[1]), (0, 0), (movie.shape[1], movie.shape[2]), key='-GRAPH-', drag_submits=True, enable_events=True)],
                   [sg.Text("Start: None", key="-START-"), sg.Text("Stop: None", key="-STOP-"),
                    sg.Text("Box: None", key="-BOX-")],
-                  [sg.Text("Projection Type:"), sg.Combo(['Max', 'Min', 'Mean', 'Median', 'Std', "Range"], key='-OPTION-', default_value='Max', readonly=True,
+                  [sg.Text("Projection Type:"), sg.Combo(['Max', 'Min', 'Mean', 'Median', 'STD', "Range"], key='-OPTION-', default_value='Max', readonly=True,
                             auto_size_text=True, enable_events=True)],
                   [sg.Text("CMAP:"), sg.Combo(cmapOptions, key='-CMAP-', default_value='viridis', readonly=True,
                             auto_size_text=True, enable_events=True)],
                   [sg.Text("Box Colors:"), sg.Combo(boxOptions, key='-COLORBOX-', default_value='red/white', readonly=True,
                                                     auto_size_text=True, enable_events=True)],
-                  [sg.Button('Submit', key="-SUBMIT-")]]
+                  [sg.Button('Cancel', key="-CANCEL-"), sg.Button('Submit', key="-SUBMIT-")]]
 
         # create the form and show it without the plot
         window = sg.Window('CropGUI', layout, finalize=True, resizable=True,
@@ -807,7 +808,12 @@ class miniscope(experiment.experiment):
             #controls events to update window
             event, values = window.read(timeout=100)
 
-            if event == sg.WINDOW_CLOSED:
+            if event == sg.WINDOW_CLOSED or event in '-CANCEL-':
+                # Make sure that nothing gets cropped
+                self.cropCoordinates['x0'] = 0
+                self.cropCoordinates['y0'] = 0
+                self.cropCoordinates['x1'] = 0
+                self.cropCoordinates['y1'] = 0
                 break
 
             #color of box options
@@ -829,6 +835,8 @@ class miniscope(experiment.experiment):
                 elif values['-COLORBOX-'] == 'green/white':
                     colors = ['green', 'white']
                 # Redraw crop rectangle
+                if box:
+                    graph.delete_figure(box)
                 index = not index
                 box = graph.draw_rectangle((self.cropCoordinates['x0'], self.cropCoordinates['y0']),
                                            (self.cropCoordinates['x1'], self.cropCoordinates['y1']),
@@ -850,6 +858,8 @@ class miniscope(experiment.experiment):
                 elif values['-OPTION-'] == 'Range':
                     self._updateImage(graph, range=True, cmap=values['-CMAP-'])
                 # Redraw crop rectangle
+                if box:
+                    graph.delete_figure(box)
                 index = not index
                 box = graph.draw_rectangle((self.cropCoordinates['x0'], self.cropCoordinates['y0']),
                                            (self.cropCoordinates['x1'], self.cropCoordinates['y1']),
@@ -870,6 +880,8 @@ class miniscope(experiment.experiment):
                 elif values['-OPTION-'] == 'Range':
                     self._updateImage(graph, range=True, cmap=values['-CMAP-'])
                 # Redraw crop rectangle
+                if box:
+                    graph.delete_figure(box)
                 index = not index
                 box = graph.draw_rectangle((self.cropCoordinates['x0'], self.cropCoordinates['y0']),
                                            (self.cropCoordinates['x1'], self.cropCoordinates['y1']),
