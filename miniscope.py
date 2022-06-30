@@ -672,51 +672,59 @@ class miniscope(experiment.experiment):
         tempArray = self.movie[crop_begin:t - crop_end, crop_top:h - crop_bottom, crop_left:w - crop_right]
         return tempArray
 
-    def _crop(self, movie):
+    def _crop(self, movie, GUI=False):
         # Get all projections
         self._projections()
 
-        self.x0 = 0
-        self.y0 = 0
-        self.x1 = 0
-        self.y1 = 0
+        #check to see if the values are stored in analysis params
+
+
+
+        #else:
+        cropCoordinates = {
+            "x0": self._analysisParamsDict['crop0'][0],
+            "y0": self._analysisParamsDict['crop0'][1],
+            "x1": self._analysisParamsDict['crop1'][0],
+            "y1": self._analysisParamsDict['crop1'][1]
+        }
+        self.cropCoordinates = cropCoordinates
         self._cropWindow(movie)
 
         croppedMovie = None
-        if self.x1 and self.x0 and self.y1 and self.y0 != 0:
-            if self.x1 > self.x0:
+        if self.cropCoordinates['x1'] and self.cropCoordinates['x0'] and self.cropCoordinates['y1'] and self.cropCoordinates['y0'] != 0:
+            if self.cropCoordinates['x1'] > self.cropCoordinates['x0']:
                 # rectangle was drawn from Left -> Right
-                if self.y1 > self.y0:
+                if self.cropCoordinates['y1'] > self.cropCoordinates['y0']:
                     #Bottom L -> Upper R
-                    cropBottom = self.y0
-                    cropTop = movie.shape[1] - self.y1
-                    cropLeft = self.x0
-                    cropRight = movie.shape[2] - self.x1
+                    cropBottom = self.cropCoordinates['y0']
+                    cropTop = movie.shape[1] - self.cropCoordinates['y1']
+                    cropLeft = self.cropCoordinates['x0']
+                    cropRight = movie.shape[2] - self.cropCoordinates['x1']
                     croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom, crop_left=cropLeft)
                 else:
                     #Upper L -> Bottom R
-                    cropBottom = self.y1
-                    cropTop = movie.shape[1] - self.y0
-                    cropLeft = self.x0
-                    cropRight = movie.shape[2] - self.x1
+                    cropBottom = self.cropCoordinates['y1']
+                    cropTop = movie.shape[1] - self.cropCoordinates['y0']
+                    cropLeft = self.cropCoordinates['x0']
+                    cropRight = movie.shape[2] - self.cropCoordinates['x1']
                     croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
                                                    crop_left=cropLeft)
             else:
                 # rectangle was drawn from R -> L
-                if self.y1 > self.y0:
+                if self.cropCoordinates['y1'] > self.cropCoordinates['y0']:
                     # Bottom R -> Upper L
-                    cropBottom = self.y0
-                    cropTop = movie.shape[1] - self.y1
-                    cropLeft = self.x1
-                    cropRight = movie.shape[2] - self.x0
+                    cropBottom = self.cropCoordinates['y0']
+                    cropTop = movie.shape[1] - self.cropCoordinates['y1']
+                    cropLeft = self.cropCoordinates['x1']
+                    cropRight = movie.shape[2] - self.cropCoordinates['x0']
                     croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
                                                    crop_left=cropLeft)
                 else:
                     # Upper R -> Bottom L
-                    cropBottom = self.y1
-                    cropTop = movie.shape[1] - self.y0
-                    cropLeft = self.x1
-                    cropRight = movie.shape[2] - self.x0
+                    cropBottom = self.cropCoordinates['y1']
+                    cropTop = movie.shape[1] - self.cropCoordinates['y0']
+                    cropLeft = self.cropCoordinates['x1']
+                    cropRight = movie.shape[2] - self.cropCoordinates['x0']
                     croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
                                                    crop_left=cropLeft)
         #protects against no cropping
@@ -729,13 +737,13 @@ class miniscope(experiment.experiment):
         Update rectangle information
         """
         if x0 is not None:
-            self.x0 = x0
+            self.cropCoordinates['x0'] = x0
         if y0 is not None:
-            self.y0 = y0
+            self.cropCoordinates['y0'] = y0
         if x1 is not None:
-            self.x1 = x1
+            self.cropCoordinates['x1'] = x1
         if y1 is not None:
-            self.y1 = y1
+            self.cropCoordinates['y1'] = y1
         window['-START-'].update(f'Start: ({x0}, {y0})')
         window['-STOP-'].update(f'Stop: ({x1}, {y1})')
         window['-BOX-'].update(f'Box: ({abs(x1 - x0 + 1)}, {abs(y1 - y0 + 1)})')
@@ -758,7 +766,7 @@ class miniscope(experiment.experiment):
         plt.close()
         pic_IObytes.seek(0)
         pic_hash = base64.b64encode(pic_IObytes.read())
-        graph.draw_image(data=pic_hash, location=(0, self.movie.shape[2]))
+        graph.draw_image(data=pic_hash, location=(0, self.movie.shape[1]))
 
     def _cropWindow(self, movie, filename=None):
         # define the window layout
