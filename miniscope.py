@@ -162,7 +162,7 @@ class miniscope(experiment.experiment):
         self.movieFilePaths = misc_Functions._findFilePaths(directory, fileExtensions, fileStartsWith,
                                                             removeFile, printPath, fileAndDirectory)
 
-    def importCaMovies(self, filenames=None, crop=False, fileExtenstions='.avi'):
+    def importCaMovies(self, filenames=None, fileExtenstions='.avi'):
         """Import calcium imaging data. Not necessary if using processCaMovies().
         FILENAMES can be a single movie file or a list of movie files (in the order that you want them).
         SYNCTOEEGCHANNEL is the string representing the channel to which the timing of the movie frames will be synced."""
@@ -173,8 +173,6 @@ class miniscope(experiment.experiment):
             self.movie = cm.load(filenames)
         else:
             self.movie = cm.load_movie_chain(filenames)
-        if crop:
-            self._crop(self.movie)
 
     def convertCaMovies(self, filenames=None, newFileType='.tif', joinMovies=False, metaDataConvert=True):
         """Convert calcium movies from one type to another. File types must be supported by CaImAn.
@@ -265,8 +263,10 @@ class miniscope(experiment.experiment):
         if saveMovie:
             self.saveCaMovie(processingStep='_dFoverF')
 
-    def preprocessCaMovies(self, saveMovie=True, denoise=True, detrend=True, dFoverF=True):
+    def preprocessCaMovies(self, saveMovie=True, crop=False, denoise=True, detrend=True, dFoverF=True):
         """Run all preprocessing steps in one method, using their default options."""
+        if crop:
+            self._crop(self.movie, GUI=True)
         if saveMovie:
             if denoise:
                 self.denoiseCaMovie()
@@ -672,51 +672,54 @@ class miniscope(experiment.experiment):
         tempArray = self.movie[crop_begin:t - crop_end, crop_top:h - crop_bottom, crop_left:w - crop_right]
         return tempArray
 
-    def _crop(self, movie):
+    def _crop(self, movie, GUI=False):
         # Get all projections
         self._projections()
-
-        self.x0 = 0
-        self.y0 = 0
-        self.x1 = 0
-        self.y1 = 0
-        self._cropWindow(movie)
+        # Grab saved crop coords from .csv file that has been read
+        self.cropCoordinates = {
+            "x0": self._analysisParamsDict['crop'][0],
+            "y0": self._analysisParamsDict['crop'][1],
+            "x1": self._analysisParamsDict['crop'][2],
+            "y1": self._analysisParamsDict['crop'][3]
+        }
+        if GUI:
+            self._cropWindow(movie)
 
         croppedMovie = None
-        if self.x1 and self.x0 and self.y1 and self.y0 != 0:
-            if self.x1 > self.x0:
+        if self.cropCoordinates['x1'] and self.cropCoordinates['x0'] and self.cropCoordinates['y1'] and self.cropCoordinates['y0'] != 0:
+            if self.cropCoordinates['x1'] > self.cropCoordinates['x0']:
                 # rectangle was drawn from Left -> Right
-                if self.y1 > self.y0:
+                if self.cropCoordinates['y1'] > self.cropCoordinates['y0']:
                     #Bottom L -> Upper R
-                    cropBottom = self.y0
-                    cropTop = movie.shape[1] - self.y1
-                    cropLeft = self.x0
-                    cropRight = movie.shape[2] - self.x1
+                    cropBottom = self.cropCoordinates['y0']
+                    cropTop = movie.shape[1] - self.cropCoordinates['y1']
+                    cropLeft = self.cropCoordinates['x0']
+                    cropRight = movie.shape[2] - self.cropCoordinates['x1']
                     croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom, crop_left=cropLeft)
                 else:
                     #Upper L -> Bottom R
-                    cropBottom = self.y1
-                    cropTop = movie.shape[1] - self.y0
-                    cropLeft = self.x0
-                    cropRight = movie.shape[2] - self.x1
+                    cropBottom = self.cropCoordinates['y1']
+                    cropTop = movie.shape[1] - self.cropCoordinates['y0']
+                    cropLeft = self.cropCoordinates['x0']
+                    cropRight = movie.shape[2] - self.cropCoordinates['x1']
                     croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
                                                    crop_left=cropLeft)
             else:
                 # rectangle was drawn from R -> L
-                if self.y1 > self.y0:
+                if self.cropCoordinates['y1'] > self.cropCoordinates['y0']:
                     # Bottom R -> Upper L
-                    cropBottom = self.y0
-                    cropTop = movie.shape[1] - self.y1
-                    cropLeft = self.x1
-                    cropRight = movie.shape[2] - self.x0
+                    cropBottom = self.cropCoordinates['y0']
+                    cropTop = movie.shape[1] - self.cropCoordinates['y1']
+                    cropLeft = self.cropCoordinates['x1']
+                    cropRight = movie.shape[2] - self.cropCoordinates['x0']
                     croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
                                                    crop_left=cropLeft)
                 else:
                     # Upper R -> Bottom L
-                    cropBottom = self.y1
-                    cropTop = movie.shape[1] - self.y0
-                    cropLeft = self.x1
-                    cropRight = movie.shape[2] - self.x0
+                    cropBottom = self.cropCoordinates['y1']
+                    cropTop = movie.shape[1] - self.cropCoordinates['y0']
+                    cropLeft = self.cropCoordinates['x1']
+                    cropRight = movie.shape[2] - self.cropCoordinates['x0']
                     croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
                                                    crop_left=cropLeft)
         #protects against no cropping
@@ -729,13 +732,13 @@ class miniscope(experiment.experiment):
         Update rectangle information
         """
         if x0 is not None:
-            self.x0 = x0
+            self.cropCoordinates['x0'] = x0
         if y0 is not None:
-            self.y0 = y0
+            self.cropCoordinates['y0'] = y0
         if x1 is not None:
-            self.x1 = x1
+            self.cropCoordinates['x1'] = x1
         if y1 is not None:
-            self.y1 = y1
+            self.cropCoordinates['y1'] = y1
         window['-START-'].update(f'Start: ({x0}, {y0})')
         window['-STOP-'].update(f'Stop: ({x1}, {y1})')
         window['-BOX-'].update(f'Box: ({abs(x1 - x0 + 1)}, {abs(y1 - y0 + 1)})')
@@ -758,7 +761,8 @@ class miniscope(experiment.experiment):
         plt.close()
         pic_IObytes.seek(0)
         pic_hash = base64.b64encode(pic_IObytes.read())
-        graph.draw_image(data=pic_hash, location=(0, self.movie.shape[2]))
+        # Draw image in graph
+        graph.draw_image(data=pic_hash, location=(0, self.movie.shape[1]))
 
     def _cropWindow(self, movie, filename=None):
         # define the window layout
@@ -778,13 +782,13 @@ class miniscope(experiment.experiment):
                   [sg.Graph((movie.shape[2], movie.shape[1]), (0, 0), (movie.shape[1], movie.shape[2]), key='-GRAPH-', drag_submits=True, enable_events=True)],
                   [sg.Text("Start: None", key="-START-"), sg.Text("Stop: None", key="-STOP-"),
                    sg.Text("Box: None", key="-BOX-")],
-                  [sg.Text("Projection Type:"), sg.Combo(['Max', 'Min', 'Mean', 'Median', 'Std', "Range"], key='-OPTION-', default_value='Max', readonly=True,
+                  [sg.Text("Projection Type:"), sg.Combo(['Max', 'Min', 'Mean', 'Median', 'STD', "Range"], key='-OPTION-', default_value='Max', readonly=True,
                             auto_size_text=True, enable_events=True)],
                   [sg.Text("CMAP:"), sg.Combo(cmapOptions, key='-CMAP-', default_value='viridis', readonly=True,
                             auto_size_text=True, enable_events=True)],
                   [sg.Text("Box Colors:"), sg.Combo(boxOptions, key='-COLORBOX-', default_value='red/white', readonly=True,
                                                     auto_size_text=True, enable_events=True)],
-                  [sg.Button('Submit', key="-SUBMIT-")]]
+                  [sg.Button('Cancel', key="-CANCEL-"), sg.Button('Submit', key="-SUBMIT-")]]
 
         # create the form and show it without the plot
         window = sg.Window('CropGUI', layout, finalize=True, resizable=True,
@@ -799,13 +803,22 @@ class miniscope(experiment.experiment):
 
         #adds image to window
         self._updateImage(graph, max=True)
+        box = graph.draw_rectangle((self.cropCoordinates['x0'], self.cropCoordinates['y0']),
+                                   (self.cropCoordinates['x1'], self.cropCoordinates['y1']),
+                                   line_color=colors[index])
 
         while True:
             #controls events to update window
             event, values = window.read(timeout=100)
 
-            if event == sg.WINDOW_CLOSED:
+            if event == sg.WINDOW_CLOSED or event in '-CANCEL-':
+                # Make sure that nothing gets cropped
+                self.cropCoordinates['x0'] = 0
+                self.cropCoordinates['y0'] = 0
+                self.cropCoordinates['x1'] = 0
+                self.cropCoordinates['y1'] = 0
                 break
+
             #color of box options
             elif event in '-COLORBOX-':
                 if values['-COLORBOX-'] == 'red/white':
@@ -824,6 +837,14 @@ class miniscope(experiment.experiment):
                     colors = ['red', 'green']
                 elif values['-COLORBOX-'] == 'green/white':
                     colors = ['green', 'white']
+                # Redraw crop rectangle
+                if box:
+                    graph.delete_figure(box)
+                index = not index
+                box = graph.draw_rectangle((self.cropCoordinates['x0'], self.cropCoordinates['y0']),
+                                           (self.cropCoordinates['x1'], self.cropCoordinates['y1']),
+                                           line_color=colors[index])
+
             #Type of image options
             elif event in '-OPTION-':
                 window['-TITLE-'].update(values['-OPTION-'] + " Projection")
@@ -839,6 +860,13 @@ class miniscope(experiment.experiment):
                     self._updateImage(graph, median=True, cmap=values['-CMAP-'])
                 elif values['-OPTION-'] == 'Range':
                     self._updateImage(graph, range=True, cmap=values['-CMAP-'])
+                # Redraw crop rectangle
+                if box:
+                    graph.delete_figure(box)
+                index = not index
+                box = graph.draw_rectangle((self.cropCoordinates['x0'], self.cropCoordinates['y0']),
+                                           (self.cropCoordinates['x1'], self.cropCoordinates['y1']),
+                                           line_color=colors[index])
 
             #CMAP of image
             elif event in '-CMAP-':
@@ -854,6 +882,14 @@ class miniscope(experiment.experiment):
                     self._updateImage(graph, median=True, cmap=values['-CMAP-'])
                 elif values['-OPTION-'] == 'Range':
                     self._updateImage(graph, range=True, cmap=values['-CMAP-'])
+                # Redraw crop rectangle
+                if box:
+                    graph.delete_figure(box)
+                index = not index
+                box = graph.draw_rectangle((self.cropCoordinates['x0'], self.cropCoordinates['y0']),
+                                           (self.cropCoordinates['x1'], self.cropCoordinates['y1']),
+                                           line_color=colors[index])
+
             elif event in '-SUBMIT-':
                 break
 
