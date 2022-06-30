@@ -675,12 +675,6 @@ class miniscope(experiment.experiment):
     def _crop(self, movie, GUI=False):
         # Get all projections
         self._projections()
-
-        #check to see if the values are stored in analysis params
-
-
-
-        #else:
         cropCoordinates = {
             "x0": self._analysisParamsDict['crop0'][0],
             "y0": self._analysisParamsDict['crop0'][1],
@@ -766,6 +760,7 @@ class miniscope(experiment.experiment):
         plt.close()
         pic_IObytes.seek(0)
         pic_hash = base64.b64encode(pic_IObytes.read())
+        # Draw image in graph
         graph.draw_image(data=pic_hash, location=(0, self.movie.shape[1]))
 
     def _cropWindow(self, movie, filename=None):
@@ -814,6 +809,7 @@ class miniscope(experiment.experiment):
 
             if event == sg.WINDOW_CLOSED:
                 break
+
             #color of box options
             elif event in '-COLORBOX-':
                 if values['-COLORBOX-'] == 'red/white':
@@ -832,6 +828,12 @@ class miniscope(experiment.experiment):
                     colors = ['red', 'green']
                 elif values['-COLORBOX-'] == 'green/white':
                     colors = ['green', 'white']
+                # Redraw crop rectangle
+                index = not index
+                box = graph.draw_rectangle((self.cropCoordinates['x0'], self.cropCoordinates['y0']),
+                                           (self.cropCoordinates['x1'], self.cropCoordinates['y1']),
+                                           line_color=colors[index])
+
             #Type of image options
             elif event in '-OPTION-':
                 window['-TITLE-'].update(values['-OPTION-'] + " Projection")
@@ -847,6 +849,11 @@ class miniscope(experiment.experiment):
                     self._updateImage(graph, median=True, cmap=values['-CMAP-'])
                 elif values['-OPTION-'] == 'Range':
                     self._updateImage(graph, range=True, cmap=values['-CMAP-'])
+                # Redraw crop rectangle
+                index = not index
+                box = graph.draw_rectangle((self.cropCoordinates['x0'], self.cropCoordinates['y0']),
+                                           (self.cropCoordinates['x1'], self.cropCoordinates['y1']),
+                                           line_color=colors[index])
 
             #CMAP of image
             elif event in '-CMAP-':
@@ -862,6 +869,12 @@ class miniscope(experiment.experiment):
                     self._updateImage(graph, median=True, cmap=values['-CMAP-'])
                 elif values['-OPTION-'] == 'Range':
                     self._updateImage(graph, range=True, cmap=values['-CMAP-'])
+                # Redraw crop rectangle
+                index = not index
+                box = graph.draw_rectangle((self.cropCoordinates['x0'], self.cropCoordinates['y0']),
+                                           (self.cropCoordinates['x1'], self.cropCoordinates['y1']),
+                                           line_color=colors[index])
+
             elif event in '-SUBMIT-':
                 break
 
