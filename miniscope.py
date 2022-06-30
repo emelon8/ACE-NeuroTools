@@ -162,7 +162,7 @@ class miniscope(experiment.experiment):
         self.movieFilePaths = misc_Functions._findFilePaths(directory, fileExtensions, fileStartsWith,
                                                             removeFile, printPath, fileAndDirectory)
 
-    def importCaMovies(self, filenames=None, crop=False, fileExtenstions='.avi'):
+    def importCaMovies(self, filenames=None, fileExtenstions='.avi'):
         """Import calcium imaging data. Not necessary if using processCaMovies().
         FILENAMES can be a single movie file or a list of movie files (in the order that you want them).
         SYNCTOEEGCHANNEL is the string representing the channel to which the timing of the movie frames will be synced."""
@@ -173,8 +173,6 @@ class miniscope(experiment.experiment):
             self.movie = cm.load(filenames)
         else:
             self.movie = cm.load_movie_chain(filenames)
-        if crop:
-            self._crop(self.movie, GUI=True)
 
     def convertCaMovies(self, filenames=None, newFileType='.tif', joinMovies=False, metaDataConvert=True):
         """Convert calcium movies from one type to another. File types must be supported by CaImAn.
@@ -265,8 +263,10 @@ class miniscope(experiment.experiment):
         if saveMovie:
             self.saveCaMovie(processingStep='_dFoverF')
 
-    def preprocessCaMovies(self, saveMovie=True, denoise=True, detrend=True, dFoverF=True):
+    def preprocessCaMovies(self, saveMovie=True, crop=False, denoise=True, detrend=True, dFoverF=True):
         """Run all preprocessing steps in one method, using their default options."""
+        if crop:
+            self._crop(self.movie, GUI=True)
         if saveMovie:
             if denoise:
                 self.denoiseCaMovie()
@@ -803,6 +803,9 @@ class miniscope(experiment.experiment):
 
         #adds image to window
         self._updateImage(graph, max=True)
+        box = graph.draw_rectangle((self.cropCoordinates['x0'], self.cropCoordinates['y0']),
+                                   (self.cropCoordinates['x1'], self.cropCoordinates['y1']),
+                                   line_color=colors[index])
 
         while True:
             #controls events to update window
