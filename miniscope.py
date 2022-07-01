@@ -166,6 +166,8 @@ class miniscope(experiment.experiment):
         if filenames == None:
             self.findMovieFilePaths(fileExtenstions)
             filenames = self.movieFilePaths
+        else:
+            self.movieFilePaths = filenames
         if type(filenames) is str:
             self.movie = cm.load(filenames)
         else:
@@ -210,20 +212,20 @@ class miniscope(experiment.experiment):
 
     def saveCaMovie(self, processingStep=''):
         """Saves the calcium movie that is currently in SELF.MOVIE."""
-        if '_importCaMoviesFilenames' in self.__dir__():
-            if type(self._importCaMoviesFilenames) is not list:
-                filename, filetype = os.path.splitext(self._importCaMoviesFilenames)
+        if 'movieFilePaths' in self.__dir__():
+            if type(self.movieFilePaths) is not list:
+                filename, filetype = os.path.splitext(self.movieFilePaths)
                 filename += processingStep
-                self.movie.save(filename + filetype)  ###############
+                self.movie.save(filename + filetype)
             else:
-                filenameFirst, filetype = os.path.splitext(self._importCaMoviesFilenames[0])
-                filenameLast, _ = os.path.splitext(self._importCaMoviesFilenames[-1])
+                filenameFirst, filetype = os.path.splitext(self.movieFilePaths[0])
+                filenameLast, _ = os.path.splitext(self.movieFilePaths[-1])
                 filenumFirstIdx = [f.isdecimal() for f in filenameFirst[-5:]]
                 filenumLastIdx = [f.isdecimal() for f in filenameLast[-5:]]
                 filenumFirst = filenameFirst[np.where(filenumFirstIdx)[0][0]:]
                 filenumLast = filenameLast[np.where(filenumLastIdx)[0][0]:]
                 filenumLast += processingStep
-                self.movie.save(filename + '_' + filenumFirst + '_' + filenumLast + filetype) #FIXME Filename is not a variable here
+                self.movie.save(filenumFirst + '_' + filenumLast + filetype)
 
     def denoiseCaMovie(self, saveMovie=True):
         """Loads a movie and removes both the horizontal bands (that slowly travel upwards) from the movie and the slow flicker of the entire image.
@@ -231,7 +233,7 @@ class miniscope(experiment.experiment):
         mode = 'display'
         if saveMovie:
             mode = 'save'
-        misc_Functions.denoiseMovie(self.experiment['directory'], mode=mode)
+        misc_Functions.denoiseMovie(self.experiment['directory'], mode=mode) # TODO Currently doesn't save this info for later use
 
     def detrendCaFluorescence(self, saveMovie=True, detrendType='median', plotTrend=False):
         """Loads the calcium movie and detrends it based on the fluorescence of the entire movie.
@@ -260,28 +262,23 @@ class miniscope(experiment.experiment):
         if saveMovie:
             self.saveCaMovie(processingStep='_dFoverF')
 
-    def preprocessCaMovies(self, saveMovie=True, crop=False, denoise=True, detrend=True, dFoverF=True):
+    def preprocessCaMovies(self, saveMovie=True, crop=False, denoise=False, detrend=True, dFoverF=True):
         """Run all preprocessing steps in one method, using their default options."""
+        newFileName = ''
         if crop:
             self._crop(self.movie, GUI=True)
+            newFileName += '_cropped'
+        if denoise:
+            self.denoiseCaMovie(saveMovie=False)
+            newFileName += '_denoised'
+        if detrend:
+            self.detrendCaFluorescence(saveMovie=False)
+            newFileName += '_detrend'
+        if dFoverF:
+            self.computedFoverF(saveMovie=False)
+            newFileName += '_dFoverF'
         if saveMovie:
-            if denoise:
-                self.denoiseCaMovie()
-            if detrend and dFoverF:
-                self.detrendCaFluorescence(saveMovie=False)
-                self.computedFoverF(saveMovie=False)
-                self.saveCaMovie(processingStep='_detrended_dFoverF')
-            elif detrend:
-                self.detrendCaFluorescence(saveMovie=True)
-            elif dFoverF:
-                self.computedFoverF(saveMovie=True)
-        else:
-            if denoise:
-                self.denoiseCaMovie(saveMovie=False)
-            if detrend:
-                self.detrendCaFluorescence(saveMovie=False)
-            if dFoverF:
-                self.computedFoverF(saveMovie=False)
+            self.saveCaMovie(processingStep=newFileName)
 
     def processCaMovies(self, motionCorrect=True, saveMotionCorrect=True, inspectMotionCorrection=False,
                         inspectCorrPNR=False, downsampleForCorrPNR=1, runCNMFE=True, saveCNMFEFilename='',
