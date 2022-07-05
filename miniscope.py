@@ -653,7 +653,7 @@ class miniscope(experiment.experiment):
         Min = np.amin(self.movie, axis=0)
         Mean = np.mean(self.movie, axis=0)
         Med = np.median(self.movie, axis=0)
-        Range = self.Max - self.Min
+        Range = Max - Min
         self.projections = {"Max": Max, "Std": Std, "Min": Min, "Mean": Mean, "Med": Med, "Range": Range}
 
     def _cropMovie(self, crop_top=0, crop_bottom=0, crop_left=0, crop_right=0, crop_begin=0, crop_end=0) -> None:
