@@ -737,17 +737,17 @@ class miniscope(experiment.experiment):
         # adds projection to GUI
         pic_IObytes = io.BytesIO()
         if max:
-            plt.imsave(pic_IObytes, self.Max, format='png', cmap=cmap)
+            plt.imsave(pic_IObytes, self.projections['Max'], format='png', cmap=cmap)
         elif min:
-            plt.imsave(pic_IObytes, self.Min, format='png', cmap=cmap)
+            plt.imsave(pic_IObytes, self.projections['Min'], format='png', cmap=cmap)
         elif STD:
-            plt.imsave(pic_IObytes, self.Std, format='png', cmap=cmap)
+            plt.imsave(pic_IObytes, self.projections['Std'], format='png', cmap=cmap)
         elif mean:
-            plt.imsave(pic_IObytes, self.Mean, format='png', cmap=cmap)
+            plt.imsave(pic_IObytes, self.projections['Mean'], format='png', cmap=cmap)
         elif median:
-            plt.imsave(pic_IObytes, self.Med, format='png', cmap=cmap)
+            plt.imsave(pic_IObytes, self.projections['Med'], format='png', cmap=cmap)
         elif range:
-            plt.imsave(pic_IObytes, self.Range, format='png', cmap=cmap)
+            plt.imsave(pic_IObytes, self.projections['Range'], format='png', cmap=cmap)
         plt.close()
         pic_IObytes.seek(0)
         pic_hash = base64.b64encode(pic_IObytes.read())
