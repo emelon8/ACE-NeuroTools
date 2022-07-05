@@ -9,27 +9,12 @@ import csv
 import pickle
 import os.path
 import numpy
-import datetime
-import sys
-import misc_Functions
-import json
-import time
-#from misc_Functions import googleSheetsToCSV
 
 class experiment:
     """Base class for experiment analysis.
     LINENUM is the line number of the experiment on the csv file.
     FILENAME is the filename of the csv file."""
     def __init__(self, lineNum, filename='experiments.csv'):
-        #Download google sheet
-        self.lineNum = lineNum
-        if filename.find('.csv') == -1: # FIXME make this so it checks the folder and if it doesn't exist check google sheets
-            ##Likely best in a deconstructor
-            if os.path.exists('storage.json'):
-                os.remove('storage.json')
-            filename = misc_Functions.googleSheetsToCSV(filename)
-            
-            
         # Import the CSV file 
         experimentCSV = []
         with open(filename, newline='') as s:
