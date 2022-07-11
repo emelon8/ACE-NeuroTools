@@ -599,7 +599,15 @@ def _findStepIndex(conArray):
     x = np.diff(np.round(np.diff(conArray),3))
     index = np.asarray(np.where(abs(x)>1)[0]) + 1
     return index
-            
+
+def threshFunc(dataArray, threshVal):
+    dataArray = np.where(dataArray >= threshVal, 1, 0)
+    dataArray = np.argwhere(np.diff(dataArray) == 1)
+    addArr = np.zeros(np.shape(dataArray))
+    addArr[...,-1] = 1
+    dataArray = dataArray + addArr
+    
+    return dataArray            
                  
 
     
