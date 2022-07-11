@@ -202,7 +202,11 @@ class NeuralynxEEG(experiment.experiment):
    
     def filterEEG(n = "", wn = "", channel='CBvsPFCEEG', ftype = "", btype = ""):
         fdata = self.filteredEEG()
-        fdata.data = Misc_Functions.filterData(self.tEEG[channel], self.EEG[channel])
+        try:
+            fdata.data = misc_Functions.filterData(self.t[channel], self.data[channel])
+        except:
+            self.importEphysData(channels=channel)
+            fdata.data = misc_Functions.filterData(self.t[channel], self.data[channel])
         fdata.channel = channel
         fdata.cutoff = wn
         fdata.ftype = ftype
@@ -214,7 +218,7 @@ class NeuralynxEEG(experiment.experiment):
             
         except:
             self.fdata = []
-            
+            self.fdata.append(fdata)
             
             
 

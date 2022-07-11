@@ -639,7 +639,7 @@ def _findStepIndex(conArray):
     return index
             
 
-def Filterdata(tEEG, EEG, n = "", wn = "", channel='CBvsPFCEEG', ftype = "", btype = ""):
+def filterData( t, data, n = "", wn = "", channel='CBvsPFCEEG', ftype = "", btype = ""):
     
     """ Use ftype to indicate FIR or Butterworth filter.
     
@@ -654,17 +654,17 @@ def Filterdata(tEEG, EEG, n = "", wn = "", channel='CBvsPFCEEG', ftype = "", bty
     The default for n is n =5
     For a bandpass filter indicate the lowstop and the highstop by using an array. example: wn= ([10, 30])"""
    
-    dt =  tEEG[channel][1]-tEEG[channel][0]  # Define the sampling interval.
+    dt =  t[channel][1]-t[channel][0]  # Define the sampling interval.
     fNQ = 1 / dt / 2  # Determine the Nyquist frequency.
     cut = wn / fNQ  # ... and specify the cutoff frequency,
     
     if ftype == "FIR":
         b, a = firwin(n, cut, btype)  # ... build bandpass FIR filter,
-        filteredData = filtfilt(b, a, EEG)     # ... and zero-phase filter each trial
+        filteredData = filtfilt(b, a, data)     # ... and zero-phase filter each trial
         
     if ftype == "Butterworth":
         b, a = signal.butter(n, cut, btype)
-        filteredData = signal.filtfilt(b, a, EEG)
+        filteredData = signal.filtfilt(b, a, data)
         
     return filteredData             
 
