@@ -16,7 +16,8 @@ import os
 import pickle
 import cv2
 from tqdm import tqdm
-from scipy.signal import butter, freqz, filtfilt ##they imported lfilter, but never used it
+from scipy.signal import butter, freqz, filtfilt, firwin ##they imported lfilter, but never used it
+from scipy import signal
 from IPython.display import clear_output
 import os.path
 from os import path
@@ -607,19 +608,34 @@ def threshFunc(dataArray, threshVal):
     addArr[...,-1] = 1
     dataArray = dataArray + addArr
     
-    return dataArray            
-                 
+    return dataArray                
 
+def filterData( t, data, n = "", wn = "", channel='CBvsPFCEEG', ftype = "", btype = ""):
     
+    """ Use ftype to indicate FIR or Butterworth filter.
     
+    For the FIR filter indicate a LowPass, HighPass, or BandPass with btype = lowpass, highpass, or bandpass . 
+    n is the length of the filter (number of coefficients, i.e. the filter order + 1). numtaps must be odd if a passband includes the Nyquist frequency.
+    The default n vaulue is n = 101
+    Channel should be set to desired .ncs file
     
+    The Butterworth filters have a more linear phase response in the pass-band than other types and is able to provide better group delay performance, and also a lower level of overshoot.
+    Indicate the filter type by setting ftype = low, high, or band.
+    To set the cutoff frequency use wn= 
+    The default for n is n =5
+    For a bandpass filter indicate the lowstop and the highstop by using an array. example: wn= ([10, 30])"""
+   
+    dt =  t[channel][1]-t[channel][0]  # Define the sampling interval.
+    fNQ = 1 / dt / 2  # Determine the Nyquist frequency.
+    cut = wn / fNQ  # ... and specify the cutoff frequency,
     
-    
-    
-    
-    
-    
-    
-    
-    
+    if ftype == "FIR":
+        b, a = firwin(n, cut, btype)  # ... build bandpass FIR filter,
+        filteredData = filtfilt(b, a, data)     # ... and zero-phase filter each trial
+        
+    if ftype == "Butterworth":
+        b, a = signal.butter(n, cut, btype)
+        filteredData = signal.filtfilt(b, a, data)
+        
+    return filteredData             
     
