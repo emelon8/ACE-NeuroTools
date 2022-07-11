@@ -196,53 +196,29 @@ class NeuralynxEEG(experiment.experiment):
             plt.xlabel('Time(s)')
             plt.ylabel('Voltage(\u03BC'+'V)')
             
-            
-    def FIRfilt(self, tEEG, n = 101, channel='CBvsPFCEEG', plot=False, LowPass = 0, HiPass = 0, BndPass = np.array([0, 0])):
-        """ 
-        Indicate a LowPass, HighPass, or BandPass with LowPass = , HiPass = , or BndPass = . 
-        n is the length of the filter (number of coefficients, i.e. the filter order + 1). numtaps must be odd if a passband includes the Nyquist frequency.
-        The default n vaulue is n = 101
-        Channel should be set to desired .ncs file
-        """
+    class filteredEEG():
+       """This is an empty class in which to store filtering properties and filtered data."""
+       pass
+   
+    def filterEEG(n = "", wn = "", channel='CBvsPFCEEG', ftype = "", btype = ""):
+        fdata = self.filteredEEG()
         try:
-            EEG = self.EEG[channel]
+            fdata.data = misc_Functions.filterData(self.t[channel], self.data[channel])
         except:
             self.importEphysData(channels=channel)
-            EEG = self.EEG[channel]
+            fdata.data = misc_Functions.filterData(self.t[channel], self.data[channel])
+        fdata.channel = channel
+        fdata.cutoff = wn
+        fdata.ftype = ftype
+        fdata.btype = btype
+        fdata.order = n
         
-        if any(BndPass) > 0 :
+        try:
+            self.fdata.append(fdata)
             
-            dt =  self.tEEG[channel][1]-self.tEEG[channel][0]  # Define the sampling interval.
-            fNQ = 1 / dt / 2  # Determine the Nyquist frequency.
-            K = len(EEG)  # Determine no. of trials.
-            Wn = BndPass / fNQ  # ... and specify the cutoff frequency,
-            b = firwin(n, Wn, pass_zero="bandpass")  # ... build bandpass FIR filter,
-            self.EEG[channel] = filtfilt(b, 1, EEG)     # ... and zero-phase filter each trial
-        
-        if HiPass > 0:
+        except:
+            self.fdata = []
+            self.fdata.append(fdata)
             
-            dt = self.tEEG[channel][1]-self.tEEG[channel][0]  # Define the sampling interval.
-            fNQ = 1 / dt / 2  # Determine the Nyquist frequency.
-            K = len(EEG)  # Determine no. of trials.
-            Wn = HiPass / fNQ  # ... and specify the cutoff frequency,
-            b = firwin(n, Wn, pass_zero="highpass")  # ... build highpass FIR filter,
-            self.EEG[channel] = filtfilt(b, 1, EEG)           # ... and zero-phase filter each trial
             
-        if LowPass > 0:
-       
-            dt = self.tEEG[channel][1]-self.tEEG[channel][0]  # Define the sampling interval.
-            fNQ = 1 / dt / 2  # Determine the Nyquist frequency.
-            K = len(EEG)  # Determine no. of trials.
-            Wn = LowPass / fNQ  # ... and specify the cutoff frequency,
-            b = firwin(n, Wn, pass_zero="lowpass")  # ... build lowpass FIR filter,
-            self.EEG[channel] = filtfilt(b, 1, EEG)       #self.EEG[channel]    # ... and zero-phase filter each trial
-            
-        if plot:
-            print("Plotting...")
-            plt.plot(tEEG, self.EEG[channel], label = "filtered") # Plots the Filtered EEG
-            plt.xlabel('Time (s)')             # ... and label the axes.
-            plt.ylabel('Voltage (mV)')
-            plt.title('FIR Filter')
-            plt.legend()
-            plt.show()
-    
+
