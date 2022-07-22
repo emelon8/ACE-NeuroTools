@@ -214,20 +214,28 @@ class miniscope(experiment.experiment):
 
     def saveCaMovie(self, processingStep=''):
         """Saves the calcium movie that is currently in SELF.MOVIE."""
-        if 'movieFilePaths' in self.__dir__():
+        try:
             if type(self.movieFilePaths) is not list:
-                filename, filetype = os.path.splitext(self.movieFilePaths)
+                filepath, filename = os.path.split(self.movieFilePaths)
+                filename, filetype = os.path.splitext(filename)
                 filename += processingStep
-                self.movie.save(filename + filetype)
+                newFilename = filename + filetype
+                self.movie.save(newFilename)
             else:
-                filenameFirst, filetype = os.path.splitext(self.movieFilePaths[0])
-                filenameLast, _ = os.path.splitext(self.movieFilePaths[-1])
-                filenumFirstIdx = [f.isdecimal() for f in filenameFirst[-5:]]
-                filenumLastIdx = [f.isdecimal() for f in filenameLast[-5:]]
-                filenumFirst = filenameFirst[-5:][np.where(filenumFirstIdx)[0][0]:]
-                filenumLast = filenameLast[-5:][np.where(filenumLastIdx)[0][0]:]
+                filepath, filenameFirst = os.path.split(self.movieFilePaths[0])
+                filenameFirst, filetype = os.path.splitext(filenameFirst)
+                _, filenameLast = os.path.split(self.movieFilePaths[-1])
+                filenameLast, _ = os.path.splitext(filenameLast)
+                filenumFirstIdx = [f.isdecimal() for f in filenameFirst]
+                filenumLastIdx = [f.isdecimal() for f in filenameLast]
+                filenumFirst = filenameFirst[np.where(filenumFirstIdx)[0][0]:]
+                filenumLast = filenameLast[np.where(filenumLastIdx)[0][0]:]
                 filenumLast += processingStep
-                self.movie.save(filenumFirst + '_' + filenumLast + filetype)
+                newFilename = filepath + '/' + filenumFirst + '_' + filenumLast + filetype
+                self.movie.save(newFilename)
+            self.movieFilePaths = newFilename
+        except AttributeError:
+            print('No movies have been imported.')
 
     def denoiseCaMovie(self, saveMovie=True):
         """Loads a movie and removes both the horizontal bands (that slowly travel upwards) from the movie and the slow flicker of the entire image.
