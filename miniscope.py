@@ -267,8 +267,10 @@ class miniscope(experiment.experiment):
         if saveMovie:
             self.saveCaMovie(processingStep='_detrended')
 
-    def computedFoverF(self, saveMovie=True):  # TODO does nothing other than save the video with new name
+    def computedFoverF(self, saveMovie=True, secsWindow=5, quantilMin=8, method='delta_f_over_f', in_place=True):
         """"""
+        # adds ones to all pixel values because function does not take in non-positive values
+        cm.movie.computeDFF(self.movie+np.ones(np.shape(self.movie)), secsWindow, quantilMin, method, in_place)
         if saveMovie:
             self.saveCaMovie(processingStep='_dFoverF')
 
