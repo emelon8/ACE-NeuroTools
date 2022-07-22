@@ -24,6 +24,7 @@ from os import path
 from matplotlib import pyplot as plt
 import csv
 import sys
+from scipy import stats
 
 
 def _overlapBinning(data, windowLength, windowStep):
@@ -638,4 +639,36 @@ def filterData( t, data, n = "", wn = "", channel='CBvsPFCEEG', ftype = "", btyp
         filteredData = signal.filtfilt(b, a, data)
         
     return filteredData             
-    
+
+def spike_trig_avg(trig, signal, framesb, framesa):        
+    avgEventDict = {}
+    if signal.ndim == 1:
+        for event in trig:
+            if event[0]>=framesb and event[0]<=signal.size-framesa-1:
+                if 0 in avgEventDict.keys():
+                    avgEventDict[0] = np.add(avgEventDict[0], signal[int(event[0])-framesb:int(event[0])+framesa+1], dtype=object)
+                else:
+                    avgEventDict[0] = signal[int(event[0])-framesb:int(event[0])+framesa+1]
+        avgEventDict[0] /= len(trig)
+    else:
+        for event in trig:
+            if event[1]>=framesb and event[1]<=signal[0].size-framesa-1:
+                if event[0] in avgEventDict.keys():
+                    avgEventDict[int(event[0])] = np.add(avgEventDict[int(event[0])], signal[int(event[0])][int(event[1])-framesb:int(event[1])+framesa+1], dtype=object)
+                else:
+                    avgEventDict[int(event[0])] = signal[int(event[0])][int(event[1])-framesb:int(event[1])+framesa+1]
+        for component in range(0,len(signal)):
+            if component in avgEventDict.keys():
+                avgEventDict[component] /= len(np.argwhere(trig==component))
+    return avgEventDict
+
+def z_score(dataArray, frameWindow = 100):
+    zScoreArray = np.ndarray(np.shape(dataArray))
+    for i in range(0, int(dataArray[0].size/frameWindow)):
+        if i*frameWindow < dataArray[0].size - frameWindow:
+            zScoreArray[:][i*frameWindow:i*frameWindow+frameWindow] = stats.zscore(dataArray[:][i*frameWindow:i*frameWindow+frameWindow], axis=1)
+            
+        else:
+            zScoreArray[:][i*frameWindow:] = stats.zscore(dataArray[:][i*frameWindow:], axis=1)
+    zScoreArray = np.nan_to_num(zScoreArray)
+    return zScoreArray
