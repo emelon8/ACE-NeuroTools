@@ -15,10 +15,11 @@ import miniscope
 # program.importEphysData()
 
 program = miniscope.miniscope(lineNum=16)
-program.importCaMovies('D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0_4_cropped.avi')
+# program.importCaMovies('D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0_4_cropped.avi')
+program.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/50_50_cropped.avi'])#,'D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/1.avi'])
 
 # %% Analyze calcium movie
-# program.preprocessCaMovies(crop=True)
+# program.preprocessCaMovies(saveMovie=True, crop=True)
 program.processCaMovies(inspectMotionCorrection=True, runCNMFE=False)
 
 
