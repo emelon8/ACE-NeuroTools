@@ -657,11 +657,11 @@ def updateAnalysisParamsCell(data, columnTitle, rowNumber):
         csvData = []
         for row in reader:
             csvData.append(row)
-            if dict(row).get('rownumber') == rowNumber:
-                row[columnTitle] = data
+            if dict(row).get('rownumber') == str(rowNumber):
+                row[columnTitle] = str(data)
 
         with open('analysis_parameters.csv', 'w', newline='') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=reader.fieldnames)
             writer.writeheader()
-            for data in csvData:
-                writer.writerow(data)
+            for rowData in csvData:
+                writer.writerow(rowData)
