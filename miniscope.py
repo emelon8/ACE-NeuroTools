@@ -444,7 +444,7 @@ class miniscope(experiment.experiment):
                     if len(ax) > (3 * cnt + 3):
                         mappable = ax[3 * cnt + 3].imshow(np.mean(
                             np.sqrt(ld['flows'][:, :, :, 0] ** 2 + ld['flows'][:, :, :, 1] ** 2), 0), vmin=0, vmax=0.3)
-                        plt.colorbar(mappable=mappable, ax=ax[3 * cnt + 3])
+                        plt.colorbar(mappable=mappable, ax=ax[3 * cnt + 3]) #FIXME colorbar() is NOT an attribute of ax. It is of plt though
 
     def _corrPNR(self, inspectCorrPNR, downsampleForCorrPNR):
         """Create the correlation and peak-noise-ratio (PNR) images and, if desired, inspect them with an interactive plot to determine min_corr and min_pnr."""
@@ -568,7 +568,7 @@ class miniscope(experiment.experiment):
                         matrix.append(eulerAngles)
                     return matrix
         else:
-            print('!!! ERROR: File not found')
+            print('!!! ERROR: File not found') #FIXME
             return
 
     def graph_Movement(self, filename='headOrientationinEulerAngles.csv',
@@ -590,7 +590,7 @@ class miniscope(experiment.experiment):
                 next(f)  ##skip header line
                 for line in reader:
                     if len(line) != 4:
-                        print('!!! ERROR: Invalid file')
+                        print('!!! ERROR: Invalid file') #FIXME
                         return
                     eulerAngleSum = (float(line[1]) + float(line[2]) + float(
                         line[3])) / 3  # FIXME change to difference between angles instead of averaging the angles
@@ -616,7 +616,7 @@ class miniscope(experiment.experiment):
                 plt.show()
                 plt.savefig(plotName)
         else:
-            print('!!! ERROR: File not found')
+            print('!!! ERROR: File not found') #FIXME
             return
 
     def _metaDataConverter(
