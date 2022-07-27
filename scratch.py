@@ -7,19 +7,20 @@ Created on Fri Aug 14 11:25:19 2020
 
 # import miniscope_EEG
 # import EEG
-# import miniscope
+import miniscope
 
 # %% Import experiment and electrophysiological data
 # program = miniscope_EEG.miniscopeEEG(2, filename='experiments.csv', filenameMiniscope='test_recordings/example_miniscope_recording/settings_and_notes.dat')
 # program = EEG.NeuralynxEEG(11)
 # program.importEphysData()
 
-program = miniscope(lineNum=16)
-program.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/1.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/2.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/3.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/4.avi'])
+program = miniscope.miniscope(lineNum=16)
+# program.importCaMovies('D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0_4_cropped.avi')
+program.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/50_50_cropped.avi'])#,'D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/1.avi'])
 
 # %% Analyze calcium movie
-program.preprocessCaMovies(crop=True)
-# program.processCaMovies(inspectMotionCorrection=True, runCNMFE=False)
+# program.preprocessCaMovies(saveMovie=True, crop=True)
+program.processCaMovies(inspectMotionCorrection=True, runCNMFE=False)
 
 
 # # These lines are only useful for the practice dataset since the modified times are when they were downloaded.

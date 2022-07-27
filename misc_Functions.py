@@ -24,6 +24,7 @@ from os import path
 from matplotlib import pyplot as plt
 import csv
 import sys
+from scipy import stats
 
 
 def _overlapBinning(data, windowLength, windowStep):
@@ -664,4 +665,70 @@ def updateCSVCell(data, columnTitle, rowNumber, csvFile='analysis_parameters.csv
             writer = csv.DictWriter(writeFile, fieldnames=reader.fieldnames)
             writer.writeheader()
             for rowData in csvData:
-                writer.writerow(rowData)
+                writer.writerow(rowData)           
+
+def spike_trig_avg(eventArray, dataArray, framesb, framesa):       
+    """
+    Compute the average spike values starting 'framesb' before the event
+    and ending 'framesa' after the event.
+    
+    Args:
+        eventArray: A numpy array of when and/or where events occur. Can either
+                    be in the format of [[component, frame],...] or
+                    [[frame],...]
+        dataArray: A numpy array of the signal values at each frame
+        framesb, framesa: the number of frames before and after the event that
+                          that are to be included in the average spike
+    Returns:
+        avgEventDict: a dictionary dictionary where the keys represent the
+                      component number from the dataArray and the value is
+                      a numpy array of the average values at each frame
+                      of the designated window around the event
+        
+    """
+    avgEventDict = {}
+    if dataArray.ndim == 1:
+        for event in eventArray:
+            if event[0]>=framesb and event[0]<=dataArray.size-framesa-1:
+                if 0 in avgEventDict.keys():
+                    avgEventDict[0] = np.add(avgEventDict[0], dataArray[int(event[0])-framesb:int(event[0])+framesa+1], dtype=object)
+                else:
+                    avgEventDict[0] = dataArray[int(event[0])-framesb:int(event[0])+framesa+1]
+        avgEventDict[0] /= len(eventArray)
+    else:
+        for event in eventArray:
+            if event[1]>=framesb and event[1]<=dataArray[0].size-framesa-1:
+                if event[0] in avgEventDict.keys():
+                    avgEventDict[int(event[0])] = np.add(avgEventDict[int(event[0])], dataArray[int(event[0])][int(event[1])-framesb:int(event[1])+framesa+1], dtype=object)
+                else:
+                    avgEventDict[int(event[0])] = dataArray[int(event[0])][int(event[1])-framesb:int(event[1])+framesa+1]
+        for component in range(0,len(dataArray)):
+            if component in avgEventDict.keys():
+                avgEventDict[component] /= len(np.argwhere(eventArray==component))
+    return avgEventDict
+
+def z_score(dataArray, frameWindow = 1000):
+    """
+    Compute the z-score of the data array values every designated frame window
+    length based on the values within that frame window
+    
+    Args:
+        dataArray: A numpy array of values where the row represents the component
+                   and the column represents the frame number
+        frameWindow: An integer value that determines the length of the window
+                     which the function z-scores across. Defaults to 1000 frames
+    
+    Returns:
+        zScoreArray: A numpy array of the same shape as dataArray containing the 
+                     z-score values of each frame
+    """
+    
+    zScoreArray = np.ndarray(np.shape(dataArray))
+    for i in range(0, int(dataArray[0].size/frameWindow)):
+        if i*frameWindow < dataArray[0].size - frameWindow:
+            zScoreArray[:][i*frameWindow:i*frameWindow+frameWindow] = stats.zscore(dataArray[:][i*frameWindow:i*frameWindow+frameWindow], axis=1)
+            
+        else:
+            zScoreArray[:][i*frameWindow:] = stats.zscore(dataArray[:][i*frameWindow:], axis=1)
+    zScoreArray = np.nan_to_num(zScoreArray)
+    return zScoreArray
