@@ -1,0 +1,19 @@
+rownumber,id,date,directory,rat weight (kg),systemic drug,systemic dose (% or mg/kg/min),systemic drug concentration (mg/mL),total systemic time (min),zero time (s),event rows,emg channel,events filename,LFP and EEG CSCs,Baseline Period (min),comments
+1,R191014,200116,D:\Dropbox\Documents\Brown_Lab\data_analysis_code\miniscopes_EEG\test_recordings\R191014_R191016_200116_syst_ketamine_CNO,0.63,ketamine,4,6,15,2172.211633,,EMG.ncs,Events.nev,CBvsPFCEEG;EMG;PCvsCBEEG;PFCvsPCEEG,[1 2],"CNO was given at 1:41 pm, ~1 hr before the start of the ketamine infusion. No clave; used luer-lock cap. Ketamine dilution was made by putting 2.4 mL of 100 mg/mL ketamine in 37.6 mL saline. Heating pad was already started before recording."
+2,Rtest,200803,D:\Dropbox\Documents\Brown_Lab\data_analysis_code\miniscopes_EEG\test_recordings\Rtest_200803,NA,NA,NA,NA,NA,0,,EMG.ncs,Events.nev,CBvsPFCEEG;EMG;PCvsCBEEG;PFCvsPCEEG,[1 2],
+3,Rtest,200914,D:\Dropbox\Documents\Brown_Lab\data_analysis_code\miniscopes_EEG\test_recordings\Rtest_200914,NA,NA,NA,NA,NA,0,,EMG.ncs,Events.nev,CBvsPFCEEG;EMG;PCvsCBEEG;PFCvsPCEEG,[1 2],
+4,R201209,210111,D:\Dropbox\Documents\Brown_Lab\experimental_data\miniscope_data\R201209\2021_01_11\10_32_24,,NA,NA,NA,NA,0,,,,,,
+5,R210413,210510,D:\Dropbox\Documents\Brown_Lab\experimental_data\miniscope_data\R210413\2021_05_10\13_45_03\Miniscope,,NA,NA,NA,NA,0,,,,,,
+6,R210721,,D:\Dropbox\Documents\Brown_Lab\experimental_data\miniscope_data\surgery\R210721\2021_10_12\19_05_58\Miniscope,,NA,NA,NA,NA,0,,,,,,
+7,R211013,,D:\Dropbox\Documents\Brown_Lab\experimental_data\miniscope_data\test\R211013\2021_11_02\10_39_21\Miniscope,,NA,NA,NA,NA,0,,,,,,
+8,R211022,,D:\Dropbox\Documents\Brown_Lab\experimental_data\miniscope_data\test\R211022\2021_11_02\10_58_59\Miniscope,,NA,NA,NA,NA,0,,,,,,
+9,R211022,,D:\Dropbox\Documents\Brown_Lab\experimental_data\miniscope_data\test\R211013\2021_11_16\10_12_56\Miniscope,,NA,NA,NA,NA,0,,,,,,
+10,R211022,,D:\Dropbox\Documents\Brown_Lab\experimental_data\miniscope_data\test\R211013\2021_11_16\10_14_43\Miniscope,,NA,NA,NA,NA,0,,,,,,
+11,Rtest,,D:\Dropbox\Documents\Brown_Lab\experimental_data\Neuralynx_data\test_miniscope_noise\2021-12-10_14-29-31,,NA,NA,NA,NA,0,,,Events.nev,PFCvsCBEEG,,
+12,test,220216,D:\Dropbox\Documents\Brown_Lab\experimental_data\Neuralynx_data\test_miniscope_noise\2022-02-16_15-18-20,,NA,NA,NA,NA,0,,,Events.nev,PFCvsCBEEG,,
+13,test,220309,D:\Dropbox\Documents\Brown_Lab\experimental_data\Neuralynx_data\test_miniscope_noise\2022-03-09_14-21-05,,NA,NA,NA,NA,0,,,Events.nev,PFCvsCBEEG,,
+14,test,220309,D:\Dropbox\Documents\Brown_Lab\experimental_data\Neuralynx_data\test_miniscope_noise\2022-03-09_14-35-44,,NA,NA,NA,NA,0,,,Events.nev,PFCvsCBEEG,,
+15,test,220309,D:\Dropbox\Documents\Brown_Lab\experimental_data\Neuralynx_data\test_miniscope_noise\2022-03-09_14-21-05,,NA,NA,NA,NA,0,,,Events.nev,filtered_PFCvsCBEEG,,
+16,R220606,220721,D:\Dropbox\Documents\Brown_Lab\experimental_data\miniscope_data\test\R220606\2022_07_21\14_40_42,,NA,NA,NA,NA,0,,,,,,
+,,,,,,,,,,,,,,,
+,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
