@@ -568,7 +568,7 @@ class miniscope(experiment.experiment):
                         matrix.append(eulerAngles)
                     return matrix
         else:
-            print('!!! ERROR: File not found')  # FIXME
+            print('!!! ERROR: File not found') #FIXME
             return
 
     def graph_Movement(self, filename='headOrientationinEulerAngles.csv',
@@ -590,7 +590,7 @@ class miniscope(experiment.experiment):
                 next(f)  ##skip header line
                 for line in reader:
                     if len(line) != 4:
-                        print('!!! ERROR: Invalid file')  # FIXME
+                        print('!!! ERROR: Invalid file') #FIXME
                         return
                     eulerAngleSum = (float(line[1]) + float(line[2]) + float(
                         line[3])) / 3  # FIXME change to difference between angles instead of averaging the angles
@@ -616,7 +616,7 @@ class miniscope(experiment.experiment):
                 plt.show()
                 plt.savefig(plotName)
         else:
-            print('!!! ERROR: File not found')  # FIXME
+            print('!!! ERROR: File not found') #FIXME
             return
 
     def _metaDataConverter(
@@ -684,9 +684,9 @@ class miniscope(experiment.experiment):
             "x1": self._analysisParamsDict['crop'][2],
             "y1": self._analysisParamsDict['crop'][3]
         }
+
         if GUI:
             self._cropWindow(movie)
-            #TODO write code to automatically store the coordinates in the analysis_params.csv file
 
         croppedMovie = None
         if self.cropCoordinates['x1'] and self.cropCoordinates['x0'] and self.cropCoordinates['y1'] and self.cropCoordinates['y0'] != 0:
@@ -728,7 +728,15 @@ class miniscope(experiment.experiment):
         #protects against no cropping
         if croppedMovie is not None:
             self.movie = croppedMovie
-        self.movie.play()  # FIXME probably comment out at some point
+            if GUI:
+                # update analysis params to reflect new movie size
+                misc_Functions.updateCSVCell(data=f'({self.movie.shape[1]} ,{self.movie.shape[2]})', columnTitle="dims",
+                                                        rowNumber=self.lineNum)
+
+                # update analysis params to have new crop coords
+                misc_Functions.updateCSVCell(
+                    data=f'({self.cropCoordinates["x0"]},{self.cropCoordinates["y0"]}, {self.cropCoordinates["x1"]},{self.cropCoordinates["y1"]})',
+                    columnTitle="crop", rowNumber=self.lineNum)
 
     def _updateCoords(self, window, x0, y0, x1, y1):
         """
