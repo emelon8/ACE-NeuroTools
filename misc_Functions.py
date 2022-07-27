@@ -650,9 +650,9 @@ def filterData(t, data, n="", wn="", channel='CBvsPFCEEG', ftype="", btype=""):
     return filteredData
 
 
-def updateAnalysisParamsCell(data, columnTitle, rowNumber):
+def updateCSVCell(data, columnTitle, rowNumber, csvFile='analysis_parameters.csv'):
     # get the corrrect column
-    with open("analysis_parameters.csv") as file:
+    with open(csvFile) as file:
         reader = csv.DictReader(file)
         csvData = []
         for row in reader:
@@ -660,8 +660,8 @@ def updateAnalysisParamsCell(data, columnTitle, rowNumber):
             if dict(row).get('rownumber') == str(rowNumber):
                 row[columnTitle] = str(data)
 
-        with open('analysis_parameters.csv', 'w', newline='') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=reader.fieldnames)
+        with open(csvFile, 'w', newline='') as writeFile:
+            writer = csv.DictWriter(writeFile, fieldnames=reader.fieldnames)
             writer.writeheader()
             for rowData in csvData:
                 writer.writerow(rowData)

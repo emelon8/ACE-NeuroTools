@@ -720,11 +720,11 @@ class miniscope(experiment.experiment):
             self.movie = croppedMovie
             if GUI:
                 # update analysis params to reflect new movie size
-                misc_Functions.updateAnalysisParamsCell(data=f'({self.movie.shape[1]} ,{self.movie.shape[2]})', columnTitle="dims",
+                misc_Functions.updateCSVCell(data=f'({self.movie.shape[1]} ,{self.movie.shape[2]})', columnTitle="dims",
                                                         rowNumber=self.lineNum)
 
                 # update analysis params to have new crop coords
-                misc_Functions.updateAnalysisParamsCell(
+                misc_Functions.updateCSVCell(
                     data=f'({self.cropCoordinates["x0"]},{self.cropCoordinates["y0"]}, {self.cropCoordinates["x1"]},{self.cropCoordinates["y1"]})',
                     columnTitle="crop", rowNumber=self.lineNum)
 
