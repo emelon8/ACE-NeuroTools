@@ -8,6 +8,8 @@ Created on Mon Oct 19 08:43:50 2020
 import csv
 import io
 import os.path
+import warnings
+
 import experiment
 import numpy as np
 from scipy.signal import detrend
@@ -47,7 +49,7 @@ class miniscope(experiment.experiment):
         else:
             self.experiment = {}
 
-        # Import the meta data files and add to the experiment dictionary
+        # Import the metadata files and add to the experiment dictionary
 
         try:
             metaDataPaths = misc_Functions._findFilePaths(self.experiment['directory'], fileExtensions='.json',
@@ -56,13 +58,15 @@ class miniscope(experiment.experiment):
                 with open(path) as m:
                     data = json.loads(m.read())
                     for key in data:
-                        self.experiment[key] = data[key]  # FIXME might be setting the key twice 1 as string 2 as float
                         if key == 'frameRate':
                             try:
                                 self.experiment[key] = float(data[key])
                             except ValueError:
-                                self.experiment[key] = float(data[key].replace('FPS',
-                                                                               ''))  # FIXME print error/warning to console saying "this rat from this date has no framerate"
+                                print(f"{self.experiment['id']} from {self.experiment['date']} has no framerate")
+                                self.experiment[key] = float(data[key].replace('FPS',''))
+                        else:
+                            self.experiment[key] = data[key]
+
                     m.close()
         except AttributeError:
             pass
@@ -130,11 +134,11 @@ class miniscope(experiment.experiment):
                         if c.isnumeric():
                             convertParamTuple.append(int(c))
                     self._analysisParamsDict[columnTitle] = tuple(convertParamTuple)
-                elif self._analysisParamsDict[
-                    columnTitle].isdecimal():  # FIXME this never reaches the next line if the number is actually a float
+                elif self._analysisParamsDict[columnTitle].isdecimal():
                     self._analysisParamsDict[columnTitle] = int(self._analysisParamsDict[columnTitle])
-                elif ('.' in self._analysisParamsDict[columnTitle]) and (
-                self._analysisParamsDict[columnTitle].split('.')[0].isdecimal()):
+                elif ('.' in self._analysisParamsDict[columnTitle]) and ( self._analysisParamsDict[columnTitle].split('.')[0] == "" and
+                self._analysisParamsDict[columnTitle].split('.')[1].isdecimal()) or (( self._analysisParamsDict[columnTitle].split('.')[0] != "" and
+                self._analysisParamsDict[columnTitle].split('.')[0].isdecimal()) and ( not self._analysisParamsDict[columnTitle].split('.')[1].isalpha())):
                     self._analysisParamsDict[columnTitle] = float(self._analysisParamsDict[columnTitle])
 
     def miniscopeImportEvents(self):
@@ -653,7 +657,9 @@ class miniscope(experiment.experiment):
                         n.close()
                         
     def _projections(self):
-
+        """
+        Calculates the projections of self.movie and saves the data into self.projections
+        """
         Max = np.amax(self.movie, axis=0)
         Std = np.std(self.movie, axis=0)
         Min = np.amin(self.movie, axis=0)
@@ -675,6 +681,11 @@ class miniscope(experiment.experiment):
         return tempArray
 
     def _crop(self, movie, GUI=False):
+        """
+        Takes previously save coords from analysis params.csv and optionally displays a GUI to allow the user to select
+        new ones or crop at the previously saved site. This function then saves the new cropping coords and writes them
+        back into analysis params and also the new size of self.movie
+        """
         # Get all projections
         self._projections()
         # Grab saved crop coords from .csv file that has been read
@@ -740,7 +751,7 @@ class miniscope(experiment.experiment):
 
     def _updateCoords(self, window, x0, y0, x1, y1):
         """
-        Update rectangle information
+        Update cropping rectangle information
         """
         if x0 is not None:
             self.cropCoordinates['x0'] = x0
@@ -755,6 +766,9 @@ class miniscope(experiment.experiment):
         window['-BOX-'].update(f'Box: ({abs(x1 - x0 + 1)}, {abs(y1 - y0 + 1)})')
 
     def _updateImage(self, graph, max=False, min=False, STD=False, mean=False, median=False, range=False, cmap='viridis'):
+        """
+        Redraws the desired projection(image) to the pysimplegui graph object
+        """
         # adds projection to GUI
         pic_IObytes = io.BytesIO()
         if max:
@@ -775,7 +789,10 @@ class miniscope(experiment.experiment):
         # Draw image in graph
         graph.draw_image(data=pic_hash, location=(0, self.movie.shape[1]))
 
-    def _cropWindow(self, movie, filename=None):
+    def _cropWindow(self, movie):
+        """
+        Creates and handles all events for the pysimplegui cropping application
+        """
         # define the window layout
         cmapOptions = ['viridis', 'jet', 'plasma', 'inferno', 'magma', 'cividis', 'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
                       'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu',
