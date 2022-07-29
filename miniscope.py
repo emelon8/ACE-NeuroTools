@@ -62,8 +62,9 @@ class miniscope(experiment.experiment):
                             try:
                                 self.experiment[key] = float(data[key])
                             except ValueError:
-                                print(f"{self.experiment['id']} from {self.experiment['date']} has no framerate")
-                                self.experiment[key] = float(data[key].replace('FPS',''))
+                                self.experiment[key] = float(data[key].replace('FPS', ''))
+                                if not self.experiment[key].isdecimal():
+                                    raise ValueError(f"{self.experiment['id']} from {self.experiment['date']} has no framerate")
                         else:
                             self.experiment[key] = data[key]
 
