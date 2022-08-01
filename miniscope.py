@@ -988,8 +988,9 @@ class miniscope(experiment.experiment):
                             auto_size_text=True, enable_events=True)],
                   [sg.Text("CMAP:"), sg.Combo(cmapOptions, key='-CMAP-', default_value='viridis', readonly=True,
                                               auto_size_text=True, enable_events=True)],
+                  [sg.Text("Select to accept: ")],
+                  [sg.Listbox(values=[1, 2, 3], size=(3, 3), key='-LISTCOMP-', select_mode='multiple', background_color="pink", highlight_background_color="green")], # FIXME values= will be changed to self.estimates.idx_componenets
                   [sg.Button('Cancel', key="-CANCEL-"), sg.Button('Submit', key="-SUBMIT-")]]
-
         # create the form and show it without the plot
         window = sg.Window('Components', layout, finalize=True, resizable=True,
                            element_justification='center', font='Helvetica 18')
