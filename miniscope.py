@@ -936,6 +936,109 @@ class miniscope(experiment.experiment):
 
         window.close()
 
+    def _componentImage(self, graph, max=False, min=False, STD=False, mean=False, median=False, range=False,
+                     cmap='viridis'):
+        # adds projection to GUI
+        pic_IObytes = io.BytesIO()
+        if max:
+            plt.imsave(pic_IObytes, self.projections['Max'], format='png', cmap=cmap)
+            #FIXME These will need to be changed to show the plot contour version of the image
+        elif min:
+            plt.imsave(pic_IObytes, self.projections['Min'], format='png', cmap=cmap)
+        elif STD:
+            plt.imsave(pic_IObytes, self.projections['Std'], format='png', cmap=cmap)
+        elif mean:
+            plt.imsave(pic_IObytes, self.projections['Mean'], format='png', cmap=cmap)
+        elif median:
+            plt.imsave(pic_IObytes, self.projections['Med'], format='png', cmap=cmap)
+        elif range:
+            plt.imsave(pic_IObytes, self.projections['Range'], format='png', cmap=cmap)
+        plt.close()
+        pic_IObytes.seek(0)
+        pic_hash = base64.b64encode(pic_IObytes.read())
+        # Draw image in graph
+        graph.draw_image(data=pic_hash, location=(0, self.movie.shape[1]))
+
+    def _componentGUI(self):
+
+        # Get all projections
+        self._projections()
+
+        # define the window layout
+        cmapOptions = ['viridis', 'jet', 'plasma', 'inferno', 'magma', 'cividis', 'Greys', 'Purples', 'Blues', 'Greens',
+                       'Oranges', 'Reds',
+                       'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu',
+                       'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn', 'binary', 'gist_yarg', 'gist_gray', 'gray',
+                       'bone',
+                       'pink', 'spring', 'summer', 'autumn', 'winter', 'cool',
+                       'Wistia', 'hot', 'afmhot', 'gist_heat', 'copper', 'PiYG', 'PRGn', 'BrBG', 'PuOr', 'RdGy', 'RdBu',
+                       'RdYlBu',
+                       'RdYlGn', 'Spectral', 'coolwarm', 'bwr', 'seismic', 'Pastel1', 'Pastel2', 'Paired', 'Accent',
+                       'Dark2',
+                       'Set1', 'Set2', 'Set3', 'tab10', 'tab20', 'tab20b',
+                       'tab20c']
+
+
+        layout = [[sg.Text('Components', key='-TITLE-')],
+                  [sg.Graph((self.movie.shape[2], self.movie.shape[1]), (0, 0), (self.movie.shape[1], self.movie.shape[2]), key='-GRAPH-',
+                            enable_events=True)],
+                  [sg.Text("Projection Type:"),
+                   sg.Combo(['Max', 'Min', 'Mean', 'Median', 'STD', "Range"], key='-OPTION-', default_value='Max',
+                            readonly=True,
+                            auto_size_text=True, enable_events=True)],
+                  [sg.Text("CMAP:"), sg.Combo(cmapOptions, key='-CMAP-', default_value='viridis', readonly=True,
+                                              auto_size_text=True, enable_events=True)],
+                  [sg.Button('Cancel', key="-CANCEL-"), sg.Button('Submit', key="-SUBMIT-")]]
+
+        # create the form and show it without the plot
+        window = sg.Window('Components', layout, finalize=True, resizable=True,
+                           element_justification='center', font='Helvetica 18')
+
+        # adds image to window
+        graph = window['-GRAPH-']
+        self._updateImage(graph, max=True) #FIXME will need to be changed to componentImage()
+
+        while True:
+            # controls events to update window
+            event, values = window.read(timeout=100)
+
+            if event == sg.WINDOW_CLOSED or event in '-CANCEL-':
+                break
+
+            # Type of image options
+            elif event in '-OPTION-':
+                if values['-OPTION-'] == 'Max':
+                    self._componentImage(graph, max=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'Min':
+                    self._componentImage(graph, min=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'STD':
+                    self._componentImage(graph, STD=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'Mean':
+                    self._componentImage(graph, mean=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'Median':
+                    self._componentImage(graph, median=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'Range':
+                    self._componentImage(graph, range=True, cmap=values['-CMAP-'])
+
+            # CMAP of image
+            elif event in '-CMAP-':
+                if values['-OPTION-'] == 'Max':
+                    self._componentImage(graph, max=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'Min':
+                    self._componentImage(graph, min=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'STD':
+                    self._componentImage(graph, STD=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'Mean':
+                    self._componentImage(graph, mean=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'Median':
+                    self._componentImage(graph, median=True, cmap=values['-CMAP-'])
+                elif values['-OPTION-'] == 'Range':
+                    self._componentImage(graph, range=True, cmap=values['-CMAP-'])
+
+            elif event in '-SUBMIT-':
+                break
+
+        window.close()
 
 
 if __name__ == "__main__":
