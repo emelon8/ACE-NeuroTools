@@ -751,7 +751,6 @@ def z_score(dataArray, frameWindow = 1000):
             zScoreArray[:][i*frameWindow:] = stats.zscore(dataArray[:][i*frameWindow:], axis=1)
     zScoreArray = np.nan_to_num(zScoreArray)
     return zScoreArray
-<<<<<<< HEAD
 
 def findSameNeurons(sessionList, templateList, FOVdims, background = None, plotResults=False):
     '''
@@ -794,5 +793,4 @@ def findSameNeurons(sessionList, templateList, FOVdims, background = None, plotR
         return cm.base.rois.register_multisession(sessionList, FOVdims, templates=templateList)
     else:
         return cm.base.rois.register_ROIs(sessionList[0], sessionList[1], FOVdims, template1=templateList[0], template2=templateList[1], Cn=background, plot_results=plotResults)
-=======
->>>>>>> 18cc175854b90b9bc9bda163fb5970aa1b84a3d8
+
