@@ -25,6 +25,7 @@ from matplotlib import pyplot as plt
 import csv
 import sys
 from scipy import stats
+import caiman as cm
 
 
 def _overlapBinning(data, windowLength, windowStep):
@@ -652,7 +653,7 @@ def filterData(t, data, n="", wn="", channel='CBvsPFCEEG', ftype="", btype=""):
 
 
 def updateCSVCell(data, columnTitle, rowNumber, csvFile='analysis_parameters.csv'):
-    # get the corrrect column
+    # get the correct column
     with open(csvFile) as file:
         reader = csv.DictReader(file)
         csvData = []
@@ -665,7 +666,25 @@ def updateCSVCell(data, columnTitle, rowNumber, csvFile='analysis_parameters.csv
             writer = csv.DictWriter(writeFile, fieldnames=reader.fieldnames)
             writer.writeheader()
             for rowData in csvData:
-                writer.writerow(rowData)           
+                writer.writerow(rowData)
+
+def appendRowCSV(data, filename="neuron_phase.csv"):
+    """
+    appends a new row to a CSV file
+    Defaults to neuron_phase.csv
+
+    Args:
+        data: Dictionary of data to be added to the csv file
+    """
+    if not os.path.exists(filename):
+        with open(filename, 'a', newline="") as file:
+            writer = csv.DictWriter(file, dict(data).keys())
+            writer.writeheader()
+            writer.writerow(dict(data))
+    else:
+        with open(filename, 'a', newline="") as file:
+            writer = csv.DictWriter(file, dict(data).keys())
+            writer.writerow(dict(data))
 
 def spike_trig_avg(eventArray, dataArray, framesb, framesa):       
     """
@@ -732,3 +751,46 @@ def z_score(dataArray, frameWindow = 1000):
             zScoreArray[:][i*frameWindow:] = stats.zscore(dataArray[:][i*frameWindow:], axis=1)
     zScoreArray = np.nan_to_num(zScoreArray)
     return zScoreArray
+
+def findSameNeurons(sessionList, templateList, FOVdims, background = None, plotResults=False):
+    '''
+    Tracks ROIs across multiple imaging sessions
+    
+    Args:
+        sessionList: A numpy array of spacial footprints (estimates.A) from each session
+        templateList: A numpy array of one frame from each session's movie
+        FOVdims: Dimensions of the field of view as a tuple
+        background: If there are only two sessions being compared and plotResults is true,
+                    this is the background that results will be plotted over.
+        plotResults: If only two sessions are being compared, set true if you want the results to be plotted
+        
+    Returns:
+        If only 2 sessions:
+            matched_ROIs1: list
+                indices of matched ROIs from session 1
+            matched_ROIs2: list
+                indices of matched ROIs from session 2
+            non_matched1: list
+                indices of non-matched ROIs from session 1
+            non_matched2: list
+                indices of non-matched ROIs from session 2
+            performance:  list
+                (precision, recall, accuracy, f_1 score) with A1 taken as ground truth
+            A2: csc_matrix  # pixels x # of components
+                ROIs from session 2 aligned to session 1
+                
+        If more than 2 sessions:
+            A_union: csc_matrix # pixels x # of total distinct components
+                union of all kept ROIs 
+            assignments: ndarray int of size # of total distinct components x # sessions
+                element [i,j] = k if component k from session j is mapped to component
+                i in the A_union matrix. If there is no much the value is NaN
+            matchings: list of lists
+                matchings[i][j] = k means that component j from session i is represented
+                by component k in A_union
+    '''
+    if sessionList.size > 2:
+        return cm.base.rois.register_multisession(sessionList, FOVdims, templates=templateList)
+    else:
+        return cm.base.rois.register_ROIs(sessionList[0], sessionList[1], FOVdims, template1=templateList[0], template2=templateList[1], Cn=background, plot_results=plotResults)
+
