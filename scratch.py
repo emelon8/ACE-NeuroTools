@@ -20,7 +20,7 @@ program.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/minisc
 
 # %% Analyze calcium movie
 # program.preprocessCaMovies(saveMovie=True, crop=True)
-program.processCaMovies(inspectMotionCorrection=True, runCNMFE=False)
+# program.processCaMovies(inspectMotionCorrection=False, runCNMFE=False)
 
 
 # # These lines are only useful for the practice dataset since the modified times are when they were downloaded.
