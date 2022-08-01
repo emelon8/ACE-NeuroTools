@@ -26,14 +26,16 @@ class miniscope(experiment.experiment):
 
     @staticmethod
     def main():
-        program = miniscope(lineNum=2, filenameMiniscope='/Miniscope/metaData.json')
+        program = miniscope(lineNum=16)
         #program.findMovieFilePaths()
-        cutFile = []
+        # cutFile = []
         #for file in program.movieFilePaths:
          #   cutFile.append(int(file[114:-4]))
         #sortIdx = np.argsort(np.array(cutFile))
         #program.movieFilePaths = list(np.array(program.movieFilePaths)[sortIdx])
-        program.processCaMovies(inspectMotionCorrection=True, inspectCorrPNR=True, saveProcessedData=True)
+        program.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/1.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/2.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/3.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/4.avi'])
+        program.preprocessCaMovies(crop=True)
+        # program.processCaMovies(inspectMotionCorrection=True, runCNMFE=False)
 
     """This is the class definition for handling miniscopes (1-photon calcium imaging) data."""
 
@@ -159,12 +161,12 @@ class miniscope(experiment.experiment):
         self.movieFilePaths = misc_Functions._findFilePaths(directory, fileExtensions, fileStartsWith,
                                                             removeFile, printPath, fileAndDirectory)
 
-    def importCaMovies(self, filenames=None, fileExtenstions='.avi'):
+    def importCaMovies(self, filenames=None, fileExtensions='.avi'):
         """Import calcium imaging data. Not necessary if using processCaMovies().
         FILENAMES can be a single movie file or a list of movie files (in the order that you want them).
         SYNCTOEEGCHANNEL is the string representing the channel to which the timing of the movie frames will be synced."""
         if filenames == None:
-            self.findMovieFilePaths(fileExtenstions)
+            self.findMovieFilePaths(fileExtensions=fileExtensions)
             filenames = self.movieFilePaths
         else:
             self.movieFilePaths = filenames
@@ -212,20 +214,28 @@ class miniscope(experiment.experiment):
 
     def saveCaMovie(self, processingStep=''):
         """Saves the calcium movie that is currently in SELF.MOVIE."""
-        if 'movieFilePaths' in self.__dir__():
+        try:
             if type(self.movieFilePaths) is not list:
-                filename, filetype = os.path.splitext(self.movieFilePaths)
+                filepath, filename = os.path.split(self.movieFilePaths)
+                filename, filetype = os.path.splitext(filename)
                 filename += processingStep
-                self.movie.save(filename + filetype)
+                newFilename = filename + filetype
+                self.movie.save(newFilename)
             else:
-                filenameFirst, filetype = os.path.splitext(self.movieFilePaths[0])
-                filenameLast, _ = os.path.splitext(self.movieFilePaths[-1])
-                filenumFirstIdx = [f.isdecimal() for f in filenameFirst[-5:]]
-                filenumLastIdx = [f.isdecimal() for f in filenameLast[-5:]]
+                filepath, filenameFirst = os.path.split(self.movieFilePaths[0])
+                filenameFirst, filetype = os.path.splitext(filenameFirst)
+                _, filenameLast = os.path.split(self.movieFilePaths[-1])
+                filenameLast, _ = os.path.splitext(filenameLast)
+                filenumFirstIdx = [f.isdecimal() for f in filenameFirst]
+                filenumLastIdx = [f.isdecimal() for f in filenameLast]
                 filenumFirst = filenameFirst[np.where(filenumFirstIdx)[0][0]:]
                 filenumLast = filenameLast[np.where(filenumLastIdx)[0][0]:]
                 filenumLast += processingStep
-                self.movie.save(filenumFirst + '_' + filenumLast + filetype)
+                newFilename = filepath + '/' + filenumFirst + '_' + filenumLast + filetype
+                self.movie.save(newFilename)
+            self.movieFilePaths = newFilename
+        except AttributeError:
+            print('No movies have been imported.')
 
     def denoiseCaMovie(self, saveMovie=True):
         """Loads a movie and removes both the horizontal bands (that slowly travel upwards) from the movie and the slow flicker of the entire image.
@@ -274,7 +284,7 @@ class miniscope(experiment.experiment):
         if saveMovie:
             self.saveCaMovie(processingStep='_dFoverF')
 
-    def preprocessCaMovies(self, saveMovie=True, crop=False, denoise=False, detrend=True, dFoverF=True):
+    def preprocessCaMovies(self, saveMovie=True, crop=False, denoise=False, detrend=False, dFoverF=False):
         """Run all preprocessing steps in one method, using their default options."""
         newFileName = ''
         if crop:
@@ -568,7 +578,7 @@ class miniscope(experiment.experiment):
                         matrix.append(eulerAngles)
                     return matrix
         else:
-            print('!!! ERROR: File not found')  # FIXME
+            print('!!! ERROR: File not found') #FIXME
             return
 
     def graph_Movement(self, filename='headOrientationinEulerAngles.csv',
@@ -590,7 +600,7 @@ class miniscope(experiment.experiment):
                 next(f)  ##skip header line
                 for line in reader:
                     if len(line) != 4:
-                        print('!!! ERROR: Invalid file')  # FIXME
+                        print('!!! ERROR: Invalid file') #FIXME
                         return
                     eulerAngleSum = (float(line[1]) + float(line[2]) + float(
                         line[3])) / 3  # FIXME change to difference between angles instead of averaging the angles
@@ -616,7 +626,7 @@ class miniscope(experiment.experiment):
                 plt.show()
                 plt.savefig(plotName)
         else:
-            print('!!! ERROR: File not found')  # FIXME
+            print('!!! ERROR: File not found') #FIXME
             return
 
     def _metaDataConverter(
@@ -684,6 +694,7 @@ class miniscope(experiment.experiment):
             "x1": self._analysisParamsDict['crop'][2],
             "y1": self._analysisParamsDict['crop'][3]
         }
+
         if GUI:
             self._cropWindow(movie)
 
@@ -727,7 +738,15 @@ class miniscope(experiment.experiment):
         #protects against no cropping
         if croppedMovie is not None:
             self.movie = croppedMovie
-        self.movie.play()  # FIXME probably comment out at some point
+            if GUI:
+                # update analysis params to reflect new movie size
+                misc_Functions.updateCSVCell(data=f'({self.movie.shape[1]} ,{self.movie.shape[2]})', columnTitle="dims",
+                                                        rowNumber=self.lineNum)
+
+                # update analysis params to have new crop coords
+                misc_Functions.updateCSVCell(
+                    data=f'({self.cropCoordinates["x0"]},{self.cropCoordinates["y0"]}, {self.cropCoordinates["x1"]},{self.cropCoordinates["y1"]})',
+                    columnTitle="crop", rowNumber=self.lineNum)
 
     def _updateCoords(self, window, x0, y0, x1, y1):
         """

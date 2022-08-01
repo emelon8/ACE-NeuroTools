@@ -7,16 +7,16 @@ Miscellaneous functions
 @author: eric
 """
 
-
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+
 plt.rcParams['svg.fonttype'] = 'none'
 import os
 import pickle
 import cv2
 from tqdm import tqdm
-from scipy.signal import butter, freqz, filtfilt, firwin ##they imported lfilter, but never used it
+from scipy.signal import butter, freqz, filtfilt, firwin  ##they imported lfilter, but never used it
 from scipy import signal
 from IPython.display import clear_output
 import os.path
@@ -29,14 +29,14 @@ import caiman as cm
 
 
 def _overlapBinning(data, windowLength, windowStep):
-   #Prepare signal for miniscopeEEG.computeSpectrogram(). Developed with code mostly from Morgan Siegmann. Takes a 1D array and bins it into segments that overlap and then forms into a matrix. windowLength and windowStep units are samples
+    # Prepare signal for miniscopeEEG.computeSpectrogram(). Developed with code mostly from Morgan Siegmann. Takes a 1D array and bins it into segments that overlap and then forms into a matrix. windowLength and windowStep units are samples
     startInds = np.arange(0, len(data), windowStep)
     # check to see if the last row is full window length
     incompleteRows = (len(data) - startInds) < windowLength
-    outDims = np.array([len(startInds)-sum(incompleteRows), windowLength], dtype=np.int64)
+    outDims = np.array([len(startInds) - sum(incompleteRows), windowLength], dtype=np.int64)
     outMat = np.zeros(outDims)
     for k in np.arange(0, outDims[0]):
-        outMat[k,:] = data[startInds[k]:(startInds[k] + windowLength)]
+        outMat[k, :] = data[startInds[k]:(startInds[k] + windowLength)]
     return outMat
 
 
@@ -52,10 +52,10 @@ def _prepAxes(title='', xLabel='', yLabel='', subPlots=None):
     if isinstance(xLabel, list) and isinstance(yLabel, list):
         if len(xLabel) > len(yLabel):
             while len(xLabel) is not len(yLabel):
-               yLabel.append('')
+                yLabel.append('')
         if len(yLabel) > len(xLabel):
             while len(xLabel) is not len(yLabel):
-               xLabel.append('')
+                xLabel.append('')
     elif isinstance(xLabel, list) and isinstance(yLabel, str):
         yLabel.append('')
         while len(xLabel) is not len(yLabel):
@@ -74,13 +74,13 @@ def _prepAxes(title='', xLabel='', yLabel='', subPlots=None):
     else:
         ax = []
         if type(title) is str:
-            title = [title] * (subPlots[0]*subPlots[1])
+            title = [title] * (subPlots[0] * subPlots[1])
         if type(xLabel) is str:
-            xLabel = [xLabel] * (subPlots[0]*subPlots[1])
+            xLabel = [xLabel] * (subPlots[0] * subPlots[1])
         if type(yLabel) is str:
-            yLabel = [yLabel] * (subPlots[0]*subPlots[1])
-        for k in range(subPlots[0]*subPlots[1]):
-            ax.append(h.add_subplot(subPlots[0], subPlots[1], k+1))
+            yLabel = [yLabel] * (subPlots[0] * subPlots[1])
+        for k in range(subPlots[0] * subPlots[1]):
+            ax.append(h.add_subplot(subPlots[0], subPlots[1], k + 1))
             if k <= len(title):
                 ax[k].set_title(title[k])
             if k <= len(xLabel):
@@ -91,7 +91,8 @@ def _prepAxes(title='', xLabel='', yLabel='', subPlots=None):
     return h, ax
 
 
-def spectrogram(tVec, freqVec, specData, cBarPercentLims=[5.,95.], xLabel='Time (s)', yLabel='Frequency (Hz)', cLabel='Power (dB)'):
+def spectrogram(tVec, freqVec, specData, cBarPercentLims=[5., 95.], xLabel='Time (s)', yLabel='Frequency (Hz)',
+                cLabel='Power (dB)'):
     """
     Plots a spectrogram that has already been computed.
     TVEC is a vector of the x-axis time points or a time vector consisting of just [min, max].
@@ -102,34 +103,35 @@ def spectrogram(tVec, freqVec, specData, cBarPercentLims=[5.,95.], xLabel='Time 
     h, ax = _prepAxes(xLabel=xLabel, yLabel=yLabel)
     cBarMin = np.percentile(specData, cBarPercentLims[0])
     cBarMax = np.percentile(specData, cBarPercentLims[1])
-    spectrogramPlot = ax.imshow(specData, interpolation='none', extent=[tVec[0],tVec[-1],freqVec[0],freqVec[-1]], aspect='auto', vmin=cBarMin, vmax=cBarMax, origin='lower')
+    spectrogramPlot = ax.imshow(specData, interpolation='none', extent=[tVec[0], tVec[-1], freqVec[0], freqVec[-1]],
+                                aspect='auto', vmin=cBarMin, vmax=cBarMax, origin='lower')
     cbar = h.colorbar(spectrogramPlot, ax=ax)
     cbar.set_label(cLabel)
     return h, ax
 
 
 def markEvents(axisHandle, eventTimes):
-   ##Mark Neuralynx events on a given plot
+    ##Mark Neuralynx events on a given plot
     yLimits = axisHandle.get_ylim()
     xLimits = axisHandle.get_xlim()
     lineLength = np.diff(yLimits)
     lineOffset = yLimits[0] + (lineLength / 2)
     axisHandle.eventplot(eventTimes, lineoffsets=lineOffset, linelengths=lineLength, colors='k')
     axisHandle.axis([xLimits[0], xLimits[1], yLimits[0], yLimits[1]])
-    
 
-def _findFilePaths(directory=None,fileExtensions=None,fileStartsWith=None,
-                   removeFile=False,printPath=False,fileAndDirectory=False):
+
+def _findFilePaths(directory=None, fileExtensions=None, fileStartsWith=None,
+                   removeFile=False, printPath=False, fileAndDirectory=False):
     '''
     Makes a list of the full paths of all files of type FILEEXTENSIONS in DIRECTORY, sorted by the time they were last modified.
     FILEEXTENSIONS is a string of the file extension or a list or tuple with multiple file extensions.
     removeFile = returns path of folder containing the files you want
     
     '''
-    
-    if(fileExtensions==None and fileStartsWith==None):
+
+    if (fileExtensions == None and fileStartsWith == None):
         raise AttributeError('Not enough information to determine path')
-        
+
     if printPath:
         print('Finding file path...')
         print('directory=' + str(directory))
@@ -158,34 +160,34 @@ def _findFilePaths(directory=None,fileExtensions=None,fileStartsWith=None,
                         if removeFile:
                             filePaths.append(os.path.join(root))
                         elif fileAndDirectory:
-                            filePaths.append(os.path.join(root,file1))
+                            filePaths.append(os.path.join(root, file1))
                             fileDirectory.append(os.path.join(root))
                         else:
-                            filePaths.append(os.path.join(root,file1))
+                            filePaths.append(os.path.join(root, file1))
                     elif file1.startswith(fileStartsWith):
                         if removeFile:
                             filePaths.append(os.path.join(root))
                         elif fileAndDirectory:
-                            filePaths.append(os.path.join(root,file1))
+                            filePaths.append(os.path.join(root, file1))
                             fileDirectory.append(os.path.join(root))
                         else:
-                            filePaths.append(os.path.join(root,file1))
+                            filePaths.append(os.path.join(root, file1))
             else:
                 if file1.startswith(fileStartsWith):
                     if removeFile:
                         filePaths.append(os.path.join(root))
                     elif fileAndDirectory:
-                        filePaths.append(os.path.join(root,file1))
+                        filePaths.append(os.path.join(root, file1))
                         fileDirectory.append(os.path.join(root))
                     else:
-                        filePaths.append(os.path.join(root,file1))
-                
+                        filePaths.append(os.path.join(root, file1))
+
     if filePaths == []:
         raise AttributeError('No path found')
     if printPath:
         print('filePaths=' + str(filePaths))
     if fileAndDirectory:
-        return (sorted(set(filePaths), key=os.path.getmtime),sorted(set(fileDirectory), key=os.path.getmtime))
+        return (sorted(set(filePaths), key=os.path.getmtime), sorted(set(fileDirectory), key=os.path.getmtime))
     else:
         return sorted(set(filePaths), key=os.path.getmtime)
 
@@ -200,7 +202,7 @@ def loadObj(filename):
 
 def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
                  framesPerFile=1000, fs=30, frameStep=10, goodRadius=2000,
-                 notchHalfWidth=3, centerHalfHeightToLeave=90, cutoff=3.0, 
+                 notchHalfWidth=3, centerHalfHeightToLeave=90, cutoff=3.0,
                  butterOrder=6, mode='display', compressionCodec='FFV1'):
     '''
     Loads a movie and removes both the horizontal bands (that slowly travel upwards) from the movie and the slow flicker of the entire image. Code largely stolen from Daniel Aharoni's python notebook (https://github.com/Aharoni-Lab/Miniscope-v4/tree/master/Miniscope-v4-Denoising-Notebook).
@@ -220,100 +222,100 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
     COMPRESSIONCODEC determines the compression codec to use. Options are 'FFV1' or 'GREY'.
     Makes sure path ends with '/'
     '''
-    difVideos =[]
-       
-    dataDir =_findFilePaths(directory=dataDir,fileExtensions='.avi',
-                            fileStartsWith=None,removeFile=True,printPath=False)
+    difVideos = []
+
+    dataDir = _findFilePaths(directory=dataDir, fileExtensions='.avi',
+                             fileStartsWith=None, removeFile=True, printPath=False)
 
     for filePath in dataDir:
-                
-        if (filePath+'\Denoised') in dataDir:
+
+        if (filePath + '\Denoised') in dataDir:
             print('already denoised')
-            print('skip='+filePath)
+            print('skip=' + filePath)
             continue
-        
+
         if 'Denoised' in filePath:
-            print('skip='+filePath)
+            print('skip=' + filePath)
             continue
-        
+
         # Makes sure path ends with '/'
-        
+
         if filePath[-1] is not "/":
             filePath = filePath + "/"
-        print('filePath='+filePath)
-            
-    # -------------------------------
-    # Run through avi files and generate mean fft
-    
+        print('filePath=' + filePath)
+
+        # -------------------------------
+        # Run through avi files and generate mean fft
+
         rows = 0
-        cols =0
+        cols = 0
         # -----------------------
-        
+
         fileNum = startingFileNum
         sumFFT = None
         applyVignette = True
         vignetteCreated = False
         running = True
-        
+
         while (path.exists(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum)) and running is True):
             cap = cv2.VideoCapture(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum))
             fileNum = fileNum + 1
             frameNum = 0
-            for frameNum in tqdm(range(0,framesPerFile, frameStep), total = framesPerFile/frameStep, desc ="Running file {:.0f}.avi".format(fileNum - 1)):
+            for frameNum in tqdm(range(0, framesPerFile, frameStep), total=framesPerFile / frameStep,
+                                 desc="Running file {:.0f}.avi".format(fileNum - 1)):
                 cap.set(cv2.CAP_PROP_POS_FRAMES, frameNum)
                 ret, frame = cap.read()
-        
+
                 if (vignetteCreated is False):
-                    rows, cols = frame.shape[:2] 
-                    X_resultant_kernel = cv2.getGaussianKernel(cols,cols/4) 
-                    Y_resultant_kernel = cv2.getGaussianKernel(rows,rows/4) 
-                    resultant_kernel = Y_resultant_kernel * X_resultant_kernel.T 
+                    rows, cols = frame.shape[:2]
+                    X_resultant_kernel = cv2.getGaussianKernel(cols, cols / 4)
+                    Y_resultant_kernel = cv2.getGaussianKernel(rows, rows / 4)
+                    resultant_kernel = Y_resultant_kernel * X_resultant_kernel.T
                     mask = 255 * resultant_kernel / np.linalg.norm(resultant_kernel)
                     vignetteCreated = True
-        
+
                 if applyVignette is False:
                     mask = 1
-                
+
                 if (ret is False):
                     break
                 else:
-                    frame = frame[:,:,1] * mask
-                    
-                    dft = cv2.dft(np.float32(frame),flags = cv2.DFT_COMPLEX_OUTPUT)
+                    frame = frame[:, :, 1] * mask
+
+                    dft = cv2.dft(np.float32(frame), flags=cv2.DFT_COMPLEX_OUTPUT)
                     dft_shift = np.fft.fftshift(dft)
-                     
+
                     try:
-                        sumFFT = sumFFT + cv2.magnitude(dft_shift[:,:,0],dft_shift[:,:,1])
+                        sumFFT = sumFFT + cv2.magnitude(dft_shift[:, :, 0], dft_shift[:, :, 1])
                     except:
-                        sumFFT = cv2.magnitude(dft_shift[:,:,0],dft_shift[:,:,1])
-        
+                        sumFFT = cv2.magnitude(dft_shift[:, :, 0], dft_shift[:, :, 1])
+
                     if (showVideo is True):
-                        cv2.imshow("Vid", frame/255)
+                        cv2.imshow("Vid", frame / 255)
                         if cv2.waitKey(10) & 0xFF == ord('q'):
                             running = False
                             break
         cv2.destroyAllWindows()
-        
-        #%% Modify FFT using a circle mask around center
-        
+
+        # %% Modify FFT using a circle mask around center
+
         # -----------------------
-        
-        crow,ccol = int(rows/2) , int(cols/2)
-        
-        maskFFT = np.zeros((rows,cols,2), np.float32)
-        cv2.circle(maskFFT,(crow,ccol),goodRadius,1,thickness=-1)
-        
+
+        crow, ccol = int(rows / 2), int(cols / 2)
+
+        maskFFT = np.zeros((rows, cols, 2), np.float32)
+        cv2.circle(maskFFT, (crow, ccol), goodRadius, 1, thickness=-1)
+
         # for i in cutFreq:
         #     maskFFT[(i + crow-notchHalfWidth):(i+crow+notchHalfWidth),(ccol-notchHalfWidth):(ccol+notchHalfWidth),0] = 0
         #     maskFFT[(-i + crow-notchHalfWidth):(-i+crow+notchHalfWidth),(ccol-notchHalfWidth):(ccol+notchHalfWidth),0] = 0
-        maskFFT[(crow+centerHalfHeightToLeave):,(ccol-notchHalfWidth):(ccol+notchHalfWidth),0] = 0
-        maskFFT[:(crow-centerHalfHeightToLeave),(ccol-notchHalfWidth):(ccol+notchHalfWidth),0] = 0
-        
-        maskFFT[:,:,1] = maskFFT[:,:,0]
-        
-        
-        modifiedFFT = sumFFT * maskFFT[:,:,0]
-        
+        maskFFT[(crow + centerHalfHeightToLeave):, (ccol - notchHalfWidth):(ccol + notchHalfWidth), 0] = 0
+        maskFFT[:(crow - centerHalfHeightToLeave), (ccol - notchHalfWidth):(ccol + notchHalfWidth), 0] = 0
+
+        maskFFT[:, :, 1] = maskFFT[:, :, 0]
+
+        modifiedFFT = sumFFT * maskFFT[:, :, 0]
+
         """
         # Plot original and modified FFT
         plt.figure()
@@ -322,100 +324,102 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
         plt.subplot(122),plt.imshow(np.log(modifiedFFT), cmap = 'gray')
         plt.title('Filtered FFT')
         """
-        
-        #%% Display filtered vs original videos
-        
+
+        # %% Display filtered vs original videos
+
         # -----------------------
         if showVideo:
             fileNum = startingFileNum
             sumFFT = None
             running = True
-            
+
             while (path.exists(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum)) and running is True):
                 cap = cv2.VideoCapture(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum))
                 fileNum = fileNum + 1
-                for frameNum in tqdm(range(0,framesPerFile, frameStep), total = framesPerFile/frameStep, desc ="Running file {:.0f}.avi".format(fileNum - 1)):
+                for frameNum in tqdm(range(0, framesPerFile, frameStep), total=framesPerFile / frameStep,
+                                     desc="Running file {:.0f}.avi".format(fileNum - 1)):
                     cap.set(cv2.CAP_PROP_POS_FRAMES, frameNum)
                     ret, frame = cap.read()
-                    
+
                     if (ret is False):
                         break
                     else:
-                        frame = frame[:,:,1]
-                        dft = cv2.dft(np.float32(frame),flags = cv2.DFT_COMPLEX_OUTPUT|cv2.DFT_SCALE)
+                        frame = frame[:, :, 1]
+                        dft = cv2.dft(np.float32(frame), flags=cv2.DFT_COMPLEX_OUTPUT | cv2.DFT_SCALE)
                         dft_shift = np.fft.fftshift(dft)
-                         
+
                         fshift = dft_shift * maskFFT
                         f_ishift = np.fft.ifftshift(fshift)
                         img_back = cv2.idft(f_ishift)
-                        img_back = cv2.magnitude(img_back[:,:,0],img_back[:,:,1])
-                        
-                        img_back[img_back >255] = 255
+                        img_back = cv2.magnitude(img_back[:, :, 0], img_back[:, :, 1])
+
+                        img_back[img_back > 255] = 255
                         img_back = np.uint8(img_back)
-            
-                        im_diff = (128 + (frame - img_back)*2)
+
+                        im_diff = (128 + (frame - img_back) * 2)
                         im_v = cv2.hconcat([frame, img_back, im_diff])
-                        cv2.imshow("Raw, Filtered, Difference", im_v/255)
-            
+                        cv2.imshow("Raw, Filtered, Difference", im_v / 255)
+
                         try:
-                            sumFFT = sumFFT + cv2.magnitude(dft_shift[:,:,0],dft_shift[:,:,1])
+                            sumFFT = sumFFT + cv2.magnitude(dft_shift[:, :, 0], dft_shift[:, :, 1])
                         except:
-                            sumFFT = cv2.magnitude(dft_shift[:,:,0],dft_shift[:,:,1])
-            
+                            sumFFT = cv2.magnitude(dft_shift[:, :, 0], dft_shift[:, :, 1])
+
                         if cv2.waitKey(10) & 0xFF == ord('q'):
                             running = False
                             break
-            
+
             cv2.destroyAllWindows()
-        
-        #%% Calculate mean fluorescence per frame
-        
+
+        # %% Calculate mean fluorescence per frame
+
         # Users shouldn't change anything here
-        frameStep = 1 # Should stay as 1
+        frameStep = 1  # Should stay as 1
         fileNum = startingFileNum
         sumFFT = None
         meanFrameList = []
         while (path.exists(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum))):
             cap = cv2.VideoCapture(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum))
             fileNum = fileNum + 1
-            for frameNum in tqdm(range(0,framesPerFile, frameStep), total = framesPerFile/frameStep, desc ="Running file {:.0f}.avi".format(fileNum - 1)):
+            for frameNum in tqdm(range(0, framesPerFile, frameStep), total=framesPerFile / frameStep,
+                                 desc="Running file {:.0f}.avi".format(fileNum - 1)):
                 cap.set(cv2.CAP_PROP_POS_FRAMES, frameNum)
                 ret, frame = cap.read()
                 if (ret is False):
                     break
                 else:
-                    frame = frame[:,:,1]
-                    dft = cv2.dft(np.float32(frame),flags = cv2.DFT_COMPLEX_OUTPUT|cv2.DFT_SCALE)
+                    frame = frame[:, :, 1]
+                    dft = cv2.dft(np.float32(frame), flags=cv2.DFT_COMPLEX_OUTPUT | cv2.DFT_SCALE)
                     dft_shift = np.fft.fftshift(dft)
-                     
+
                     fshift = dft_shift * maskFFT
                     f_ishift = np.fft.ifftshift(fshift)
                     img_back = cv2.idft(f_ishift)
-                    img_back = cv2.magnitude(img_back[:,:,0],img_back[:,:,1])
+                    img_back = cv2.magnitude(img_back[:, :, 0], img_back[:, :, 1])
                     meanFrameList.append(img_back.mean())
-                    
+
                     # clear_output(wait=True)
-        
+
                     # plt.subplot(121),plt.imshow(frame, cmap = 'gray')
                     # plt.title('Input Image'), plt.xticks([]), plt.yticks([])
                     # plt.subplot(122),plt.imshow(img_back, cmap = 'gray')
                     # plt.title('Magnitude Spectrum'), plt.xticks([]), plt.yticks([])
-        
+
                     # plt.show()
-        
+
         meanFrame = np.array(meanFrameList)
-        
+
         # Create a lowpass filter
         # Sample rate and desired cutoff frequencies (in Hz).
-        
+
         # -----------------------
-        
+
         plt.figure()
         for order in [3, 6, 9]:
-            b, a = butter(order, cutoff/(0.5 * fs), btype='low', analog = False)
+            b, a = butter(order, cutoff / (0.5 * fs), btype='low', analog=False)
             w, h = freqz(b, a, worN=2000)
-            #plt.plot((fs * 0.5 / np.pi) * w, abs(h), label="order = %d" % order)
-        
+            # plt.plot((fs * 0.5 / np.pi) * w, abs(h), label="order = %d" % order)
+
         """
         plt.plot([0, 0.5 * fs], [np.sqrt(0.5), np.sqrt(0.5)],
                      '--', label='sqrt(0.5)')
@@ -427,14 +431,14 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
         # Plot Mean Frame Resuls
         # plt.figure(figsize=(8,4))
         # plt.plot(meanFrame)
-        
+
         # Plot effect of filtering
-        
+
         # -----------------------
-        
-        b,a=butter(butterOrder,cutoff/(0.5 * fs),btype='low',analog=False)
+
+        b, a = butter(butterOrder, cutoff / (0.5 * fs), btype='low', analog=False)
         try:
-            meanFiltered = filtfilt(b,a,meanFrame)
+            meanFiltered = filtfilt(b, a, meanFrame)
         except:
             print("ERROR:" + filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum))
             difVideos.append(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum))
@@ -452,79 +456,80 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
         plt.legend(loc='upper left')
         '''
         # meanFrame[3000]
-        
+
         # Apply FFT spatial filtering and lowpass filtering to data and has the option of saving as new videos
-    
+
         if mode == 'save':
             frameStep = 1
-    
+
         # --------------------
-        
+
         fileNum = startingFileNum
         sumFFT = None
         frameCount = 0
         running = True
-    
-        codec = cv2.VideoWriter_fourcc(compressionCodec[0],compressionCodec[1],compressionCodec[2],compressionCodec[3])
-        
+
+        codec = cv2.VideoWriter_fourcc(compressionCodec[0], compressionCodec[1], compressionCodec[2],
+                                       compressionCodec[3])
+
         if mode is "save" and not path.exists(filePath + "Denoised"):
             os.mkdir(filePath + "Denoised")
-        
+
         while not (not path.exists(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum)) or not (running is True)):
             cap = cv2.VideoCapture(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum))
-        
+
             if mode is "save":
-                writeFile = cv2.VideoWriter(filePath + "Denoised/" + dataFilePrefix + "denoised{:.0f}.avi".format(fileNum),  
-                                    codec, 60, (cols,rows), isColor=False) 
-        
+                writeFile = cv2.VideoWriter(
+                    filePath + "Denoised/" + dataFilePrefix + "denoised{:.0f}.avi".format(fileNum),
+                    codec, 60, (cols, rows), isColor=False)
+
             fileNum = fileNum + 1
             # frameNum = 0
-            for frameNum in tqdm(range(0,framesPerFile, frameStep), total = framesPerFile/frameStep, desc ="Running file {:.0f}.avi".format(fileNum - 1)):
+            for frameNum in tqdm(range(0, framesPerFile, frameStep), total=framesPerFile / frameStep,
+                                 desc="Running file {:.0f}.avi".format(fileNum - 1)):
                 cap.set(cv2.CAP_PROP_POS_FRAMES, frameNum)
                 ret, frame = cap.read()
                 # frameNum = frameNum + frameStep 
-                
+
                 # print(frameCount)
-                
+
                 if (ret is False):
                     break
                 else:
-                    frame = frame[:,:,1]
-                    dft = cv2.dft(np.float32(frame),flags = cv2.DFT_COMPLEX_OUTPUT|cv2.DFT_SCALE)
+                    frame = frame[:, :, 1]
+                    dft = cv2.dft(np.float32(frame), flags=cv2.DFT_COMPLEX_OUTPUT | cv2.DFT_SCALE)
                     dft_shift = np.fft.fftshift(dft)
-                     
+
                     fshift = dft_shift * maskFFT
                     f_ishift = np.fft.ifftshift(fshift)
                     img_back = cv2.idft(f_ishift)
-                    img_back = cv2.magnitude(img_back[:,:,0],img_back[:,:,1])
-        
+                    img_back = cv2.magnitude(img_back[:, :, 0], img_back[:, :, 1])
+
                     meanF = img_back.mean()
-                    img_back = img_back * (1 + (meanFiltered[frameCount] - meanF)/meanF)
-                    img_back[img_back >255] = 255
+                    img_back = img_back * (1 + (meanFiltered[frameCount] - meanF) / meanF)
+                    img_back[img_back > 255] = 255
                     img_back = np.uint8(img_back)
-        
-                    
-                    
+
                     if mode is "save":
                         writeFile.write(img_back)
-        
+
                     if mode is "display":
-                        im_diff = (128 + (frame - img_back)*2)
+                        im_diff = (128 + (frame - img_back) * 2)
                         im_v = cv2.hconcat([frame, img_back])
                         im_v = cv2.hconcat([im_v, im_diff])
-        
+
                         im_v = cv2.hconcat([frame, img_back, im_diff])
-                        cv2.imshow("Cleaned video", im_v/255)
+                        cv2.imshow("Cleaned video", im_v / 255)
                         if cv2.waitKey(1) & 0xFF == ord('q'):
                             running = False
                             cap.release()
                             break
-        
+
                     frameCount = frameCount + 1
-        
+
             if mode is "save":
                 writeFile.release()
-        
+
         cv2.destroyAllWindows()
     if len(difVideos) != 0:
         print('ERRORS with: ' + str(difVideos))
@@ -542,7 +547,7 @@ def importVideoAsNumpyArray(filename, frames='all', displayFrame=False, frameToD
     buf = np.empty((frameCount, frameHeight, frameWidth, 3), np.dtype('uint8'))
     fc = 0
     ret = True
-    while (fc < frameCount  and ret):
+    while (fc < frameCount and ret):
         ret, buf[fc] = cap.read()
         fc += 1
     cap.release()
@@ -551,69 +556,74 @@ def importVideoAsNumpyArray(filename, frames='all', displayFrame=False, frameToD
         cv2.imshow('frame ' + str(frameToDisplay), buf[frameToDisplay - 1])
     return buf
 
-def quat_to_euler(qw,qx,qy,qz,degrees=False):
-    m00 = 1.0 - 2.0*qy*qy - 2.0*qz*qz
-    m01 = 2.0*qx*qy + 2.0*qz*qw
-    m02 = 2.0*qx*qz - 2.0*qy*qw
-    m10 = 2.0*qx*qy - 2.0*qz*qw
-    m11 = 1 - 2.0*qx*qx - 2.0*qz*qz
-    m12 = 2.0*qy*qz + 2.0*qx*qw
-    m20 = 2.0*qx*qz + 2.0*qy*qw
-    m21 = 2.0*qy*qz - 2.0*qx*qw
-    m22 = 1.0 - 2.0*qx*qx - 2.0*qy*qy
-    
+
+def quat_to_euler(qw, qx, qy, qz, degrees=False):
+    m00 = 1.0 - 2.0 * qy * qy - 2.0 * qz * qz
+    m01 = 2.0 * qx * qy + 2.0 * qz * qw
+    m02 = 2.0 * qx * qz - 2.0 * qy * qw
+    m10 = 2.0 * qx * qy - 2.0 * qz * qw
+    m11 = 1 - 2.0 * qx * qx - 2.0 * qz * qz
+    m12 = 2.0 * qy * qz + 2.0 * qx * qw
+    m20 = 2.0 * qx * qz + 2.0 * qy * qw
+    m21 = 2.0 * qy * qz - 2.0 * qx * qw
+    m22 = 1.0 - 2.0 * qx * qx - 2.0 * qy * qy
+
     eulerAngles = []
-    
-    R = np.arctan2(m12, m22) ##Roll
+
+    R = np.arctan2(m12, m22)  ##Roll
     eulerAngles.append(R)
-    c2 = np.sqrt(m00*m00 + m01*m01)
-    P = np.arctan2(-m02, c2)##Pitch
+    c2 = np.sqrt(m00 * m00 + m01 * m01)
+    P = np.arctan2(-m02, c2)  ##Pitch
     eulerAngles.append(P)
     s1 = np.sin(R)
     c1 = np.cos(R)
-    Y = np.arctan2(s1*m20 - c1*m10, c1*m11-s1*m21) ##Yaw
+    Y = np.arctan2(s1 * m20 - c1 * m10, c1 * m11 - s1 * m21)  ##Yaw
     eulerAngles.append(Y)
     if degrees == True:
-        eulerAngles = [math.degrees(R),math.degrees(P),math.degrees(Y)]
+        eulerAngles = [math.degrees(R), math.degrees(P), math.degrees(Y)]
     return eulerAngles
 
+
 def _conv_quat_to_euler(line):
-            if len(line) != 5:
-                print ('!!! ERROR: Invalid file') # FIXME
-                return
-            time = line[0]
-            qw = line[1]
-            qx = line[2]
-            qy = line[3]
-            qz = line[4]
-            eulerAngles = list(quat_to_euler(qw,qx,qy,qz, degrees=False))
-            eulerAngles.insert(0, time) ##time in matrix?
-            return eulerAngles
+    if len(line) != 5:
+        print('!!! ERROR: Invalid file')  # FIXME
+        return
+    time = line[0]
+    qw = line[1]
+    qx = line[2]
+    qy = line[3]
+    qz = line[4]
+    eulerAngles = list(quat_to_euler(qw, qx, qy, qz, degrees=False))
+    eulerAngles.insert(0, time)  ##time in matrix?
+    return eulerAngles
+
 
 def _calcNumMinusMean(num, mean):
-    return(num - mean)
+    return (num - mean)
 
 
 def _compVThresh(num, VThresh):
     x = int(abs(num) >= abs(VThresh))
     return x
 
+
 def _findStepIndex(conArray):
-    x = np.diff(np.round(np.diff(conArray),3))
-    index = np.asarray(np.where(abs(x)>1)[0]) + 1
+    x = np.diff(np.round(np.diff(conArray), 3))
+    index = np.asarray(np.where(abs(x) > 1)[0]) + 1
     return index
+
 
 def threshFunc(dataArray, threshVal):
     dataArray = np.where(dataArray >= threshVal, 1, 0)
     dataArray = np.argwhere(np.diff(dataArray) == 1)
     addArr = np.zeros(np.shape(dataArray))
-    addArr[...,-1] = 1
+    addArr[..., -1] = 1
     dataArray = dataArray + addArr
-    
-    return dataArray                
 
-def filterData( t, data, n = "", wn = "", channel='CBvsPFCEEG', ftype = "", btype = ""):
-    
+    return dataArray
+
+
+def filterData(t, data, n="", wn="", channel='CBvsPFCEEG', ftype="", btype=""):
     """ Use ftype to indicate FIR or Butterworth filter.
     
     For the FIR filter indicate a LowPass, HighPass, or BandPass with btype = lowpass, highpass, or bandpass . 
@@ -626,20 +636,37 @@ def filterData( t, data, n = "", wn = "", channel='CBvsPFCEEG', ftype = "", btyp
     To set the cutoff frequency use wn= 
     The default for n is n =5
     For a bandpass filter indicate the lowstop and the highstop by using an array. example: wn= ([10, 30])"""
-   
-    dt =  t[channel][1]-t[channel][0]  # Define the sampling interval.
+
+    dt = t[channel][1] - t[channel][0]  # Define the sampling interval.
     fNQ = 1 / dt / 2  # Determine the Nyquist frequency.
     cut = wn / fNQ  # ... and specify the cutoff frequency,
-    
+
     if ftype == "FIR":
         b, a = firwin(n, cut, btype)  # ... build bandpass FIR filter,
-        filteredData = filtfilt(b, a, data)     # ... and zero-phase filter each trial
-        
+        filteredData = filtfilt(b, a, data)  # ... and zero-phase filter each trial
+
     if ftype == "Butterworth":
         b, a = signal.butter(n, cut, btype)
         filteredData = signal.filtfilt(b, a, data)
-        
-    return filteredData             
+
+    return filteredData
+
+
+def updateCSVCell(data, columnTitle, rowNumber, csvFile='analysis_parameters.csv'):
+    # get the corrrect column
+    with open(csvFile) as file:
+        reader = csv.DictReader(file)
+        csvData = []
+        for row in reader:
+            csvData.append(row)
+            if dict(row).get('rownumber') == str(rowNumber):
+                row[columnTitle] = str(data)
+
+        with open(csvFile, 'w', newline='') as writeFile:
+            writer = csv.DictWriter(writeFile, fieldnames=reader.fieldnames)
+            writer.writeheader()
+            for rowData in csvData:
+                writer.writerow(rowData)           
 
 def spike_trig_avg(eventArray, dataArray, framesb, framesa):       
     """
@@ -706,6 +733,7 @@ def z_score(dataArray, frameWindow = 1000):
             zScoreArray[:][i*frameWindow:] = stats.zscore(dataArray[:][i*frameWindow:], axis=1)
     zScoreArray = np.nan_to_num(zScoreArray)
     return zScoreArray
+<<<<<<< HEAD
 
 def findSameNeurons(sessionList, templateList, FOVdims, background = None, plotResults=False):
     '''
@@ -748,3 +776,5 @@ def findSameNeurons(sessionList, templateList, FOVdims, background = None, plotR
         return cm.base.rois.register_multisession(sessionList, FOVdims, templates=templateList)
     else:
         return cm.base.rois.register_ROIs(sessionList[0], sessionList[1], FOVdims, template1=templateList[0], template2=templateList[1], Cn=background, plot_results=plotResults)
+=======
+>>>>>>> 18cc175854b90b9bc9bda163fb5970aa1b84a3d8
