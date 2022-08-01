@@ -267,10 +267,20 @@ class miniscope(experiment.experiment):
         if saveMovie:
             self.saveCaMovie(processingStep='_detrended')
 
-    def computedFoverF(self, saveMovie=True, secsWindow=5, quantilMin=8, method='delta_f_over_f', in_place=True):
-        """"""
-        # adds ones to all pixel values because function does not take in non-positive values
-        self.movie, self.baselineMovie = cm.movie.computeDFF(self.movie+np.ones(np.shape(self.movie)), secsWindow, quantilMin, method, in_place)
+    def computedFoverF(self, saveMovie=True, secsWindow=5, quantilMin=8, method='delta_f_over_sqrt_f'):
+        """
+        compute the dF/F or dF/sqrt(F) of the movie, or removes the baseline
+        
+        Args:
+            secsWindow: length of the windows used to compute the quantile
+            quantilMin : value of the quantile used to compute the movie baseline
+            method='only_baseline','delta_f_over_f','delta_f_over_sqrt_f'
+        Raises: 
+            Exception 'Unknown method' if inputed method is not one of the
+            three accepted methods
+        """
+        # adds ones to all pixel values because function does not take in non-positive values (including zero)
+        self.movie, _ = cm.movie.computeDFF(self.movie+np.ones(np.shape(self.movie)), secsWindow, quantilMin, method)
         if saveMovie:
             self.saveCaMovie(processingStep='_dFoverF')
 
