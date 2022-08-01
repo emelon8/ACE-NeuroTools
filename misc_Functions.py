@@ -652,7 +652,7 @@ def filterData(t, data, n="", wn="", channel='CBvsPFCEEG', ftype="", btype=""):
 
 
 def updateCSVCell(data, columnTitle, rowNumber, csvFile='analysis_parameters.csv'):
-    # get the corrrect column
+    # get the correct column
     with open(csvFile) as file:
         reader = csv.DictReader(file)
         csvData = []
@@ -665,7 +665,25 @@ def updateCSVCell(data, columnTitle, rowNumber, csvFile='analysis_parameters.csv
             writer = csv.DictWriter(writeFile, fieldnames=reader.fieldnames)
             writer.writeheader()
             for rowData in csvData:
-                writer.writerow(rowData)           
+                writer.writerow(rowData)
+
+def appendRowCSV(data, filename="neuron_phase.csv"):
+    """
+    appends a new row to a CSV file
+    Defaults to neuron_phase.csv
+
+    Args:
+        data: Dictionary of data to be added to the csv file
+    """
+    if not os.path.exists(filename):
+        with open(filename, 'a', newline="") as file:
+            writer = csv.DictWriter(file, dict(data).keys())
+            writer.writeheader()
+            writer.writerow(dict(data))
+    else:
+        with open(filename, 'a', newline="") as file:
+            writer = csv.DictWriter(file, dict(data).keys())
+            writer.writerow(dict(data))
 
 def spike_trig_avg(eventArray, dataArray, framesb, framesa):       
     """
