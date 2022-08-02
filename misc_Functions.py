@@ -622,7 +622,7 @@ def threshFunc(dataArray, threshVal):
     return dataArray
 
 
-def filterData(t, data, n="", wn="", channel='CBvsPFCEEG', ftype="", btype=""):
+def filterData(t, data, n=5, wn=[0.5,4], ftype='Butterworth', btype='band'):
     """ Use ftype to indicate FIR or Butterworth filter.
     
     For the FIR filter indicate a LowPass, HighPass, or BandPass with btype = lowpass, highpass, or bandpass . 
@@ -631,28 +631,28 @@ def filterData(t, data, n="", wn="", channel='CBvsPFCEEG', ftype="", btype=""):
     Channel should be set to desired .ncs file
     
     The Butterworth filters have a more linear phase response in the pass-band than other types and is able to provide better group delay performance, and also a lower level of overshoot.
-    Indicate the filter type by setting ftype = low, high, or band.
+    Indicate the filter type by setting btype = low, high, or band.
     To set the cutoff frequency use wn= 
-    The default for n is n =5
+    The default for n is n = 5
     For a bandpass filter indicate the lowstop and the highstop by using an array. example: wn= ([10, 30])"""
 
-    dt = t[channel][1] - t[channel][0]  # Define the sampling interval.
+    dt = t[1] - t[0]  # Define the sampling interval.
     fNQ = 1 / dt / 2  # Determine the Nyquist frequency.
     cut = wn / fNQ  # ... and specify the cutoff frequency,
 
     if ftype == "FIR":
-        b, a = firwin(n, cut, btype)  # ... build bandpass FIR filter,
+        b, a = firwin(n, cut, pass_zero=btype)  # ... build bandpass FIR filter,
         filteredData = filtfilt(b, a, data)  # ... and zero-phase filter each trial
 
     if ftype == "Butterworth":
-        b, a = signal.butter(n, cut, btype)
+        b, a = signal.butter(n, cut, btype=btype)
         filteredData = signal.filtfilt(b, a, data)
 
     return filteredData
 
 
 def updateCSVCell(data, columnTitle, rowNumber, csvFile='analysis_parameters.csv'):
-    # get the corrrect column
+    # get the correct column
     with open(csvFile) as file:
         reader = csv.DictReader(file)
         csvData = []
@@ -665,7 +665,25 @@ def updateCSVCell(data, columnTitle, rowNumber, csvFile='analysis_parameters.csv
             writer = csv.DictWriter(writeFile, fieldnames=reader.fieldnames)
             writer.writeheader()
             for rowData in csvData:
-                writer.writerow(rowData)           
+                writer.writerow(rowData)
+
+def appendRowCSV(data, filename="neuron_phase.csv"):
+    """
+    appends a new row to a CSV file
+    Defaults to neuron_phase.csv
+
+    Args:
+        data: Dictionary of data to be added to the csv file
+    """
+    if not os.path.exists(filename):
+        with open(filename, 'a', newline="") as file:
+            writer = csv.DictWriter(file, dict(data).keys())
+            writer.writeheader()
+            writer.writerow(dict(data))
+    else:
+        with open(filename, 'a', newline="") as file:
+            writer = csv.DictWriter(file, dict(data).keys())
+            writer.writerow(dict(data))
 
 def spike_trig_avg(eventArray, dataArray, framesb, framesa):       
     """

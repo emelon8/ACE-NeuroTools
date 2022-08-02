@@ -8,6 +8,8 @@ Created on Mon Oct 19 08:43:50 2020
 import csv
 import io
 import os.path
+import warnings
+
 import experiment
 import numpy as np
 from scipy.signal import detrend
@@ -24,18 +26,18 @@ import PySimpleGUI as sg
 
 class miniscope(experiment.experiment):
 
-    @staticmethod
-    def main():
-        program = miniscope(lineNum=16)
-        #program.findMovieFilePaths()
-        # cutFile = []
-        #for file in program.movieFilePaths:
-         #   cutFile.append(int(file[114:-4]))
-        #sortIdx = np.argsort(np.array(cutFile))
-        #program.movieFilePaths = list(np.array(program.movieFilePaths)[sortIdx])
-        program.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/1.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/2.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/3.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/4.avi'])
-        program.preprocessCaMovies(crop=True)
-        # program.processCaMovies(inspectMotionCorrection=True, runCNMFE=False)
+    # @staticmethod
+    # def main():
+    #     program = miniscope(lineNum=16)
+    #     #program.findMovieFilePaths()
+    #     # cutFile = []
+    #     #for file in program.movieFilePaths:
+    #      #   cutFile.append(int(file[114:-4]))
+    #     #sortIdx = np.argsort(np.array(cutFile))
+    #     #program.movieFilePaths = list(np.array(program.movieFilePaths)[sortIdx])
+    #     program.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/1.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/2.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/3.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/4.avi'])
+    #     program.preprocessCaMovies(crop=True)
+    #     # program.processCaMovies(inspectMotionCorrection=True, runCNMFE=False)
 
     """This is the class definition for handling miniscopes (1-photon calcium imaging) data."""
 
@@ -47,7 +49,7 @@ class miniscope(experiment.experiment):
         else:
             self.experiment = {}
 
-        # Import the meta data files and add to the experiment dictionary
+        # Import the metadata files and add to the experiment dictionary
 
         try:
             metaDataPaths = misc_Functions._findFilePaths(self.experiment['directory'], fileExtensions='.json',
@@ -56,13 +58,16 @@ class miniscope(experiment.experiment):
                 with open(path) as m:
                     data = json.loads(m.read())
                     for key in data:
-                        self.experiment[key] = data[key]  # FIXME might be setting the key twice 1 as string 2 as float
                         if key == 'frameRate':
                             try:
                                 self.experiment[key] = float(data[key])
                             except ValueError:
-                                self.experiment[key] = float(data[key].replace('FPS',
-                                                                               ''))  # FIXME print error/warning to console saying "this rat from this date has no framerate"
+                                self.experiment[key] = float(data[key].replace('FPS', ''))
+                                if not self.experiment[key].isdecimal():
+                                    raise ValueError(f"{self.experiment['id']} from {self.experiment['date']} has no framerate")
+                        else:
+                            self.experiment[key] = data[key]
+
                     m.close()
         except AttributeError:
             pass
@@ -130,11 +135,11 @@ class miniscope(experiment.experiment):
                         if c.isnumeric():
                             convertParamTuple.append(int(c))
                     self._analysisParamsDict[columnTitle] = tuple(convertParamTuple)
-                elif self._analysisParamsDict[
-                    columnTitle].isdecimal():  # FIXME this never reaches the next line if the number is actually a float
+                elif self._analysisParamsDict[columnTitle].isdecimal():
                     self._analysisParamsDict[columnTitle] = int(self._analysisParamsDict[columnTitle])
-                elif ('.' in self._analysisParamsDict[columnTitle]) and (
-                self._analysisParamsDict[columnTitle].split('.')[0].isdecimal()):
+                elif ('.' in self._analysisParamsDict[columnTitle]) and ( self._analysisParamsDict[columnTitle].split('.')[0] == "" and
+                self._analysisParamsDict[columnTitle].split('.')[1].isdecimal()) or (( self._analysisParamsDict[columnTitle].split('.')[0] != "" and
+                self._analysisParamsDict[columnTitle].split('.')[0].isdecimal()) and ( not self._analysisParamsDict[columnTitle].split('.')[1].isalpha())):
                     self._analysisParamsDict[columnTitle] = float(self._analysisParamsDict[columnTitle])
 
     def miniscopeImportEvents(self):
@@ -267,10 +272,20 @@ class miniscope(experiment.experiment):
         if saveMovie:
             self.saveCaMovie(processingStep='_detrended')
 
-    def computedFoverF(self, saveMovie=True, secsWindow=5, quantilMin=8, method='delta_f_over_f', in_place=True):
-        """"""
-        # adds ones to all pixel values because function does not take in non-positive values
-        self.movie, self.baselineMovie = cm.movie.computeDFF(self.movie+np.ones(np.shape(self.movie)), secsWindow, quantilMin, method, in_place)
+    def computedFoverF(self, saveMovie=True, secsWindow=5, quantilMin=8, method='delta_f_over_sqrt_f'):
+        """
+        compute the dF/F or dF/sqrt(F) of the movie, or removes the baseline
+        
+        Args:
+            secsWindow: length of the windows used to compute the quantile
+            quantilMin : value of the quantile used to compute the movie baseline
+            method='only_baseline','delta_f_over_f','delta_f_over_sqrt_f'
+        Raises: 
+            Exception 'Unknown method' if inputed method is not one of the
+            three accepted methods
+        """
+        # adds ones to all pixel values because function does not take in non-positive values (including zero)
+        self.movie, _ = cm.movie.computeDFF(self.movie+np.ones(np.shape(self.movie)), secsWindow, quantilMin, method)
         if saveMovie:
             self.saveCaMovie(processingStep='_dFoverF')
 
@@ -653,7 +668,9 @@ class miniscope(experiment.experiment):
                         n.close()
                         
     def _projections(self):
-
+        """
+        Calculates the projections of self.movie and saves the data into self.projections
+        """
         Max = np.amax(self.movie, axis=0)
         Std = np.std(self.movie, axis=0)
         Min = np.amin(self.movie, axis=0)
@@ -664,7 +681,7 @@ class miniscope(experiment.experiment):
 
     def _cropMovie(self, crop_top=0, crop_bottom=0, crop_left=0, crop_right=0, crop_begin=0, crop_end=0) -> None:
         """
-        Crop movie (inline)
+        Crop movie (inline). Code altered from caiman.movie.crop https://github.com/flatironinstitute/CaImAn/blob/dev/caiman/base/movies.py, which throws an error when it is run.
         Args:
             crop_top/crop_bottom/crop_left,crop_right: Distance from edge of frame in pixels
 
@@ -675,6 +692,11 @@ class miniscope(experiment.experiment):
         return tempArray
 
     def _crop(self, movie, GUI=False):
+        """
+        Takes previously save coords from analysis params.csv and optionally displays a GUI to allow the user to select
+        new ones or crop at the previously saved site. This function then saves the new cropping coords and writes them
+        back into analysis params and also the new size of self.movie
+        """
         # Get all projections
         self._projections()
         # Grab saved crop coords from .csv file that has been read
@@ -740,7 +762,7 @@ class miniscope(experiment.experiment):
 
     def _updateCoords(self, window, x0, y0, x1, y1):
         """
-        Update rectangle information
+        Update cropping rectangle information
         """
         if x0 is not None:
             self.cropCoordinates['x0'] = x0
@@ -755,6 +777,9 @@ class miniscope(experiment.experiment):
         window['-BOX-'].update(f'Box: ({abs(x1 - x0 + 1)}, {abs(y1 - y0 + 1)})')
 
     def _updateImage(self, graph, max=False, min=False, STD=False, mean=False, median=False, range=False, cmap='viridis'):
+        """
+        Redraws the desired projection(image) to the pysimplegui graph object
+        """
         # adds projection to GUI
         pic_IObytes = io.BytesIO()
         if max:
@@ -775,7 +800,10 @@ class miniscope(experiment.experiment):
         # Draw image in graph
         graph.draw_image(data=pic_hash, location=(0, self.movie.shape[1]))
 
-    def _cropWindow(self, movie, filename=None):
+    def _cropWindow(self, movie):
+        """
+        Creates and handles all events for the pysimplegui cropping application
+        """
         # define the window layout
         cmapOptions = ['viridis', 'jet', 'plasma', 'inferno', 'magma', 'cividis', 'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
                       'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu',
@@ -1044,7 +1072,48 @@ class miniscope(experiment.experiment):
 
         window.close()
 
+def findSameNeurons(sessionList, templateList, FOVdims, background=None, plotResults=False):
+    '''
+    Tracks ROIs across multiple imaging sessions
+    
+    Args:
+        sessionList: A numpy array of spacial footprints (estimates.A) from each session
+        templateList: A numpy array of one frame from each session's movie
+        FOVdims: Dimensions of the field of view as a tuple
+        background: If there are only two sessions being compared and plotResults is true,
+                    this is the background that results will be plotted over.
+        plotResults: If only two sessions are being compared, set true if you want the results to be plotted
+        
+    Returns:
+        If only 2 sessions:
+            matched_ROIs1: list
+                indices of matched ROIs from session 1
+            matched_ROIs2: list
+                indices of matched ROIs from session 2
+            non_matched1: list
+                indices of non-matched ROIs from session 1
+            non_matched2: list
+                indices of non-matched ROIs from session 2
+            performance:  list
+                (precision, recall, accuracy, f_1 score) with A1 taken as ground truth
+            A2: csc_matrix  # pixels x # of components
+                ROIs from session 2 aligned to session 1
+                
+        If more than 2 sessions:
+            A_union: csc_matrix # pixels x # of total distinct components
+                union of all kept ROIs 
+            assignments: ndarray int of size # of total distinct components x # sessions
+                element [i,j] = k if component k from session j is mapped to component
+                i in the A_union matrix. If there is no much the value is NaN
+            matchings: list of lists
+                matchings[i][j] = k means that component j from session i is represented
+                by component k in A_union
+    '''
+    if sessionList.size > 2:
+        return cm.base.rois.register_multisession(sessionList, FOVdims, templates=templateList)
+    else:
+        return cm.base.rois.register_ROIs(sessionList[0], sessionList[1], FOVdims, template1=templateList[0], template2=templateList[1], Cn=background, plot_results=plotResults)
 
-if __name__ == "__main__":
-    program = miniscope
-    program.main()
+# if __name__ == "__main__":
+#     program = miniscope
+#     program.main()
