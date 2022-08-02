@@ -26,18 +26,18 @@ import PySimpleGUI as sg
 
 class miniscope(experiment.experiment):
 
-    @staticmethod
-    def main():
-        program = miniscope(lineNum=16)
-        #program.findMovieFilePaths()
-        # cutFile = []
-        #for file in program.movieFilePaths:
-         #   cutFile.append(int(file[114:-4]))
-        #sortIdx = np.argsort(np.array(cutFile))
-        #program.movieFilePaths = list(np.array(program.movieFilePaths)[sortIdx])
-        program.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/1.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/2.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/3.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/4.avi'])
-        program.preprocessCaMovies(crop=True)
-        # program.processCaMovies(inspectMotionCorrection=True, runCNMFE=False)
+    # @staticmethod
+    # def main():
+    #     program = miniscope(lineNum=16)
+    #     #program.findMovieFilePaths()
+    #     # cutFile = []
+    #     #for file in program.movieFilePaths:
+    #      #   cutFile.append(int(file[114:-4]))
+    #     #sortIdx = np.argsort(np.array(cutFile))
+    #     #program.movieFilePaths = list(np.array(program.movieFilePaths)[sortIdx])
+    #     program.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/1.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/2.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/3.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/4.avi'])
+    #     program.preprocessCaMovies(crop=True)
+    #     # program.processCaMovies(inspectMotionCorrection=True, runCNMFE=False)
 
     """This is the class definition for handling miniscopes (1-photon calcium imaging) data."""
 
@@ -964,8 +964,48 @@ class miniscope(experiment.experiment):
 
         window.close()
 
+def findSameNeurons(sessionList, templateList, FOVdims, background=None, plotResults=False):
+    '''
+    Tracks ROIs across multiple imaging sessions
+    
+    Args:
+        sessionList: A numpy array of spacial footprints (estimates.A) from each session
+        templateList: A numpy array of one frame from each session's movie
+        FOVdims: Dimensions of the field of view as a tuple
+        background: If there are only two sessions being compared and plotResults is true,
+                    this is the background that results will be plotted over.
+        plotResults: If only two sessions are being compared, set true if you want the results to be plotted
+        
+    Returns:
+        If only 2 sessions:
+            matched_ROIs1: list
+                indices of matched ROIs from session 1
+            matched_ROIs2: list
+                indices of matched ROIs from session 2
+            non_matched1: list
+                indices of non-matched ROIs from session 1
+            non_matched2: list
+                indices of non-matched ROIs from session 2
+            performance:  list
+                (precision, recall, accuracy, f_1 score) with A1 taken as ground truth
+            A2: csc_matrix  # pixels x # of components
+                ROIs from session 2 aligned to session 1
+                
+        If more than 2 sessions:
+            A_union: csc_matrix # pixels x # of total distinct components
+                union of all kept ROIs 
+            assignments: ndarray int of size # of total distinct components x # sessions
+                element [i,j] = k if component k from session j is mapped to component
+                i in the A_union matrix. If there is no much the value is NaN
+            matchings: list of lists
+                matchings[i][j] = k means that component j from session i is represented
+                by component k in A_union
+    '''
+    if sessionList.size > 2:
+        return cm.base.rois.register_multisession(sessionList, FOVdims, templates=templateList)
+    else:
+        return cm.base.rois.register_ROIs(sessionList[0], sessionList[1], FOVdims, template1=templateList[0], template2=templateList[1], Cn=background, plot_results=plotResults)
 
-
-if __name__ == "__main__":
-    program = miniscope
-    program.main()
+# if __name__ == "__main__":
+#     program = miniscope
+#     program.main()
