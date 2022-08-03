@@ -112,14 +112,17 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
             pOUC.append(str(f"{round(tCaIm[idx],4):08}") + '-' + str(f"{round(tCaIm[end[k]],4):08}")) #FIXME
         return(nT, pOUC)
     
-    def _phaseCaEvents(self, channel, neuron, syncToEEGChannel):
+    def _phaseCaEvents(self, channel, neuron='all'):
         """Compare calcium events to the phase extracted from a specified EEG channel."""
         self._syncCaMovieTimes(channel)
         phaseEEG = self.computePhase(channel)
+        neurons = self.thresholdedEvents #FIXME to be the output of the thresholding function
         if neuron == 'all':
-            self.CaEventsPhases = phaseEEG[:]#########FILL IN LATER
+            self.CaEventsPhases = phaseEEG[:] #FIXME to work with actual data
+            self.CaEventsNeurons = neurons[:] #FIXME to work with actual data
         elif type(neuron) == int:
-            self.CaEventsPhases = phaseEEG[:]#########FILL IN LATER
+            self.CaEventsPhases = phaseEEG[:] #FIXME to work with actual data
+            self.CaEventsNeurons = neurons[:] #FIXME to work with actual data
 
 
     def phaseCaEventsHistogram(self, channel='CBvsPFCEEG', neuron='all', bins=18, plotHistogram=False):
