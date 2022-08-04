@@ -1046,7 +1046,7 @@ class miniscope(experiment.experiment):
         elif mean:
             self._createContourFig(self.estimates.A, self.projections['Mean'], current_selected, cmap=cmap).figure.savefig(pic_IObytes, format='png', bbox_inches='tight', pad_inches = 0)
         elif median:
-            self._createContourFig(self.estimates.A, self.projections['Median'], current_selected, cmap=cmap).figure.savefig(pic_IObytes, format='png', bbox_inches='tight', pad_inches = 0)
+            self._createContourFig(self.estimates.A, self.projections['Med'], current_selected, cmap=cmap).figure.savefig(pic_IObytes, format='png', bbox_inches='tight', pad_inches = 0)
         elif range:
             self._createContourFig(self.estimates.A, self.projections['Range'], current_selected, cmap=cmap).figure.savefig(pic_IObytes, format='png', bbox_inches='tight', pad_inches = 0)
         plt.close()
