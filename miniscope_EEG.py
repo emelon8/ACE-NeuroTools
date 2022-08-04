@@ -12,6 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 plt.rcParams['svg.fonttype'] = 'none'
 import misc_Functions
+import experiment
 import sys
 import csv
 from math import sqrt
@@ -20,6 +21,7 @@ import scipy.signal
 import scipy.interpolate
 from rdp import rdp
 import time
+import pandas as pd
 
 class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
     """This is the class definition for handling miniscopes and simultaneous EEG data."""
@@ -143,14 +145,21 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
         """"""
         pass
     
-    def save_data(self, filename, ID = self.experiment['id']):
+    def save_data(self):
         
-        filename = "miniscope_EEG_rats.csv"
-        with open(filename, "r") as read:
-            defibulate = csv.reader(read)
-            for row["id"] == ID:
-                print(row["id"])
-        list_data={ "", "Phase":self.CaEventsPhases, 'NeuronID':self.CaEventsNeurons, 'RatID':[ID * len(self.CaEventsPhases)], 'Sex':, 'Condition':self.experiment["systemic drug"] * len(self.CaEventsPhases)} 
+        df = pd.read_csv("miniscope_EEG_rats.csv", encoding="ISO-8859-1" )  #reading csv file
+
+        for index, row in df.iterrows():   # filtering the rows where job is Govt
+        	if self.experiment['id'] in row['Rat ID']:
+        		sex = row['Sex']
+        else:
+            print("No such variable found")
+                
+        length = len(self.CaEventsPhases)
+      
+        list_data = {"Phase":self.CaEventsPhases, 'NeuronID':self.CaEventsNeurons, 'RatID':[self.experiment['id']] * length, 'Sex': [sex] * length, 'Condition':[self.experiment["systemic drug"]] * length} 
+    
+    
     
     
     def correctTimeStamps(self,channel='CBvsPFCEEG', plot=False):
