@@ -143,6 +143,15 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
         """"""
         pass
     
+    def save_data(self, filename, ID = self.experiment['id']):
+        
+        filename = "miniscope_EEG_rats.csv"
+        with open(filename, "r") as read:
+            defibulate = csv.reader(read)
+            for row["id"] == ID:
+                print(row["id"])
+        list_data={ "", "Phase":self.CaEventsPhases, 'NeuronID':self.CaEventsNeurons, 'RatID':[ID * len(self.CaEventsPhases)], 'Sex':, 'Condition':self.experiment["systemic drug"] * len(self.CaEventsPhases)} 
+    
     
     def correctTimeStamps(self,channel='CBvsPFCEEG', plot=False):
         print('Correcting time stamps...')
