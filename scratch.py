@@ -16,11 +16,12 @@ import miniscope
 
 program = miniscope.miniscope(lineNum=16)
 # program.importCaMovies('D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0_4_cropped.avi')
-program.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/50_50_cropped.avi'])#,'D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/1.avi'])
-
+# program.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/50_50_cropped.avi'])#,'D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/1.avi'])
+# program.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/50_50_cropped_els__d1_390_d2_388_d3_1_order_F_frames_1000_.mmap'])
+program.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/90.avi'])
 # %% Analyze calcium movie
 # program.preprocessCaMovies(saveMovie=True, crop=True)
-# program.processCaMovies(inspectMotionCorrection=False, runCNMFE=False)
+# program.processCaMovies(saveCNMFEFilename='50_estimates')
 
 
 # # These lines are only useful for the practice dataset since the modified times are when they were downloaded.

@@ -651,21 +651,21 @@ def filterData(t, data, n=5, wn=[0.5,4], ftype='Butterworth', btype='band'):
     return filteredData
 
 
-def updateCSVCell(data, columnTitle, rowNumber, csvFile='analysis_parameters.csv'):
+def updateCSVCell(data, columnTitle, lineNum, csvFile='analysis_parameters.csv'):
     # get the correct column
     with open(csvFile) as file:
         reader = csv.DictReader(file)
         csvData = []
         for row in reader:
             csvData.append(row)
-            if dict(row).get('rownumber') == str(rowNumber):
+            if dict(row).get('line number') == str(lineNum):
                 row[columnTitle] = str(data)
 
         with open(csvFile, 'w', newline='') as writeFile:
             writer = csv.DictWriter(writeFile, fieldnames=reader.fieldnames)
             writer.writeheader()
-            for rowData in csvData:
-                writer.writerow(rowData)
+            for lineData in csvData:
+                writer.writerow(lineData)
 
 def appendRowCSV(data, filename="neuron_phase.csv"):
     """
