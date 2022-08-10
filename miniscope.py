@@ -307,8 +307,8 @@ class miniscope(experiment.experiment):
         if saveMovie:
             self.saveCaMovie(processingStep=newFileName)
 
-    def processCaMovies(self, motionCorrect=True, saveMotionCorrect=True, inspectMotionCorrection=False,
-                        inspectCorrPNR=False, downsampleForCorrPNR=1, runCNMFE=True, saveCNMFEFilename='',
+    def processCaMovies(self, parallel=True, motionCorrect=True, saveMotionCorrect=True, inspectMotionCorrection=False,
+                        inspectCorrPNR=False, downsampleForCorrPNR=1, runCNMFE=True, saveCNMFEFilename='estimates.hdf5',
                         editComponents=True, deconvolve=False, saveProcessedData=False):
         """Preprocess calcium imaging data."""
         print('processing movie...')
@@ -316,7 +316,11 @@ class miniscope(experiment.experiment):
             self.findMovieFilePaths()
         self._analysisParamsDict['fnames'] = self.movieFilePaths
         self.optsCaImAn = cm.source_extraction.cnmf.params.CNMFParams(params_dict=self._analysisParamsDict)
-        c, dview, nProcesses = cm.cluster.setup_cluster(backend='local', n_processes=24, single_thread=False)
+        if parallel:
+            c, dview, nProcesses = cm.cluster.setup_cluster(backend='local', n_processes=24, single_thread=False)
+        else:
+            dview = None
+            nProcesses = 1
         if motionCorrect:
             self._motionCorrection(dview, saveMotionCorrect, inspectMotionCorrection)
         else:
@@ -333,7 +337,7 @@ class miniscope(experiment.experiment):
             if inspectCorrPNR:
                 self._corrPNR(inspectCorrPNR, downsampleForCorrPNR)
             if runCNMFE:
-                self._CNMFE(nProcesses, dview, saveCNMFEFilename)
+                self._CNMFE(nProcesses, dview=dview, saveCNMFEFilename=saveCNMFEFilename)
                 if editComponents:
                     pass #FIXME point to the edit components GUI? Or maybe the removeComponents method?
 
@@ -343,7 +347,9 @@ class miniscope(experiment.experiment):
         if saveProcessedData:
             self.saveObj(ratID=True, timeStamp=True)
 
-        cm.stop_server(dview=dview)
+        cm.stop_server(dview=dview) #FIXME will this throw an error if it's not parallel? if so, uncomment the next two lines
+        # if parallel:
+        #     cm.stop_server(dview=dview)
 
     def _motionCorrection(self, dview=None, saveMotionCorrect=True, inspectMotionCorrection=True):
         """Use motion correction to correct for movement during the calcium movies."""
@@ -471,7 +477,7 @@ class miniscope(experiment.experiment):
         if inspectCorrPNR:
             cm.utils.visualization.inspect_correlation_pnr(self.cn_filter, self.pnr)
 
-    def _CNMFE(self, nProcesses, dview, saveCNMFEFilename):
+    def _CNMFE(self, nProcesses, dview=None, saveCNMFEFilename='estimates.h5'):
         """Segments neurons, demixes spatially overlapping neurons, and denoises the calcium activity from calcium movies. See paper describing the method: https://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3"""
         cnm = cm.source_extraction.cnmf.CNMF(n_processes=nProcesses, dview=dview, Ain=None, params=self.optsCaImAn)
         cnm.fit(self.images)
