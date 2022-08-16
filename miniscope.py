@@ -225,7 +225,7 @@ class miniscope(experiment.experiment):
                 filename, filetype = os.path.splitext(filename)
                 filename += processingStep
                 newFilename = filename + filetype
-                self.movie.save(newFilename)
+                self.movie.save(newFilename, compress=9)
             else:
                 filepath, filenameFirst = os.path.split(self.movieFilePaths[0])
                 filenameFirst, filetype = os.path.splitext(filenameFirst)
@@ -237,7 +237,7 @@ class miniscope(experiment.experiment):
                 filenumLast = filenameLast[np.where(filenumLastIdx)[0][0]:]
                 filenumLast += processingStep
                 newFilename = filepath + '/' + filenumFirst + '_' + filenumLast + filetype
-                self.movie.save(newFilename)
+                self.movie.save(newFilename, compress=9)
             self.movieFilePaths = newFilename
         except AttributeError:
             print('No movies have been imported.')
