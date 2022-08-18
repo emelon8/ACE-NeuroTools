@@ -1008,7 +1008,7 @@ class miniscope(experiment.experiment):
                 thr = maxthr
         else:
             thr_method = 'nrg'
-    
+        plt.figure(1)
         ax = plt.gca()
         fig = plt.imshow(background, interpolation=None, cmap=cmap)
         if coordinates is None:
@@ -1056,16 +1056,24 @@ class miniscope(experiment.experiment):
         graph.draw_image(data=pic_hash, location=(0, self.movie.shape[1]))
     
         
-    def _componentGUI(self):
+    def _componentGUI(self, auto_eval = False):
         
-        self.selectCoordinates = {
-            "x0": self._analysisParamsDict['crop'][0],
-            "y0": self._analysisParamsDict['crop'][1],
-            "x1": self._analysisParamsDict['crop'][2],
-            "y1": self._analysisParamsDict['crop'][3]
-        }
+        
         # Get all projections
-        self._projections()
+        try: 
+            a = self.projections
+        except:
+            self._projections()
+        
+        if self.estimates.idx_components_bad is None:
+            self.estimates.idx_components = []
+            self.estimates.idx_components_bad = []
+        
+        if auto_eval:
+            # preselect rejected components using evaluate_component
+            self.evaluate_components()
+            self.estimates.idx_components += np.ones(self.estimates.idx_components.shape, dtype=self.estimates.idx_components.dtype)
+            self.estimates.idx_components_bad += np.ones(self.estimates.idx_components_bad.shape, dtype=self.estimates.idx_components_bad.dtype)
         
         # define the window layout
         cmapOptions = ['viridis', 'jet', 'plasma', 'inferno', 'magma', 'cividis', 'Greys', 'Purples', 'Blues', 'Greens',
@@ -1092,7 +1100,7 @@ class miniscope(experiment.experiment):
                   [sg.Text("CMAP:"), sg.Combo(cmapOptions, key='-CMAP-', default_value='viridis', readonly=True,
                                               auto_size_text=True, enable_events=True)],
                   [sg.Text("Select to accept: ")],
-                  [sg.Listbox(values=range(1, len(self.estimates.C)+1), size=(3, 3), key='-LISTCOMP-', select_mode='multiple', background_color="white", highlight_background_color="red", enable_events = True)],
+                  [sg.Listbox(values=range(1, len(self.estimates.C)+1), default_values=self.estimates.idx_components_bad, size=(3, 3), key='-LISTCOMP-', select_mode='multiple', background_color="white", highlight_background_color="red", enable_events = True)],
                   [sg.Button('Cancel', key="-CANCEL-"), sg.Button('Submit', key="-SUBMIT-")]]
         # create the form and show it without the plot
         window = sg.Window('Components', layout, finalize=True, resizable=True,
@@ -1100,13 +1108,18 @@ class miniscope(experiment.experiment):
 
         # adds image to window
         graph = window['-GRAPH-']
-        self._componentImage(graph, [], max=True)
+        self._componentImage(graph, self.estimates.idx_components_bad, max=True)
         
-
+        # calls view_components to view temporal data
+        plt.figure(2)
+        self.estimates.view_components(img = self.projections['Range'])
+        plt.close(2)
+        
         while True:
             # controls events to update window
             event, values = window.read(timeout=100)
 
+            
             if event == sg.WINDOW_CLOSED or event in '-CANCEL-':
                 break
 
@@ -1166,9 +1179,18 @@ class miniscope(experiment.experiment):
             
         
             
-            
+        plt.close()
         window.close()
+        
+    def evaluate_components(self, min_SNR=3, r_values_min=0.85):
 
+        Yr, dims, T = cm.load_memmap(self.optsCaImAn.get('data', 'fnames')[0])
+        images = Yr.T.reshape((T,) + dims, order='F')
+
+        self.optsCaImAn.set('quality', {'min_SNR': min_SNR, 'rval_thr': r_values_min, 'use_cnn': False})
+        self.estimates.evaluate_components(images, self.optsCaImAn)
+        
+        
 def findSameNeurons(sessionList, templateList, FOVdims, background=None, plotResults=False):
     '''
     Tracks ROIs across multiple imaging sessions
@@ -1210,6 +1232,7 @@ def findSameNeurons(sessionList, templateList, FOVdims, background=None, plotRes
         return cm.base.rois.register_multisession(sessionList, FOVdims, templates=templateList)
     else:
         return cm.base.rois.register_ROIs(sessionList[0], sessionList[1], FOVdims, template1=templateList[0], template2=templateList[1], Cn=background, plot_results=plotResults)
+
 
 # if __name__ == "__main__":
 #     program = miniscope
