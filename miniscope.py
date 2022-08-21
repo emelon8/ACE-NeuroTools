@@ -325,7 +325,12 @@ class miniscope(experiment.experiment):
             self._motionCorrection(dview, saveMotionCorrect, inspectMotionCorrection)
         else:
             if saveMotionCorrect:
-                fname_new = cm.save_memmap(self.optsCaImAn.get('data', 'fnames'), base_name='memmap_', order='C',
+                fileName = ''
+                if type(self.movieFilePaths) is str:
+                    fileName = os.path.splitext(self.movieFilePaths)[0] + '_'
+                else:
+                    for file in self.movieFilePaths: fileName += os.path.splitext(file)[0]+'_' #Changed so that the first part of memmap file is the filename rather than 'memmap'
+                fname_new = cm.save_memmap(self.optsCaImAn.get('data', 'fnames'), base_name=fileName, order='C',
                                            border_to_0=0,
                                            dview=dview)  # if no motion correction just memory map the file
                 self.optsCaImAn.change_params({'fnames': fname_new})
@@ -368,7 +373,12 @@ class miniscope(experiment.experiment):
         self.optsCaImAn.change_params({'border_pix': bord_px})
 
         if saveMotionCorrect:
-            fname_new = cm.save_memmap(mc.mmap_file, base_name='memmap_', order='C', border_to_0=bord_px)
+            fileName = ''
+            if type(self.movieFilePaths) is str:
+                fileName = os.path.splitext(self.movieFilePaths)[0] + '_'
+            else:
+                for file in self.movieFilePaths: fileName += os.path.splitext(file)[0]+'_' #Changed so that the first part of memmap file is the filename rather than 'memmap'
+            fname_new = cm.save_memmap(mc.mmap_file, base_name=fileName, order='C', border_to_0=bord_px)
             self.optsCaImAn.change_params({'fnames': fname_new})
 
     def _inspectMotionCorrection(self, mc, plotRigidMotionCorrection=True, plotShifts=True, playConcatenatedMovies=True,
@@ -1069,7 +1079,7 @@ class miniscope(experiment.experiment):
         
         # Get all projections
         try: 
-            a = self.projections
+            a = self.projections['Range']
         except:
             self._projections()
         
@@ -1199,7 +1209,7 @@ class miniscope(experiment.experiment):
         self.estimates.evaluate_components(images, self.optsCaImAn)
         
         
-def findSameNeurons(sessionList, templateList, FOVdims, background=None, plotResults=False):
+def findSameNeurons(sessionList, FOVdims, templateList = None, background=None, plotResults=False):
     '''
     Tracks ROIs across multiple imaging sessions
     
@@ -1239,8 +1249,10 @@ def findSameNeurons(sessionList, templateList, FOVdims, background=None, plotRes
     if sessionList.size > 2:
         return cm.base.rois.register_multisession(sessionList, FOVdims, templates=templateList)
     else:
-        return cm.base.rois.register_ROIs(sessionList[0], sessionList[1], FOVdims, template1=templateList[0], template2=templateList[1], Cn=background, plot_results=plotResults)
-
+        if templateList is not None:
+            return cm.base.rois.register_ROIs(sessionList[0], sessionList[1], FOVdims, template1=templateList[0], template2=templateList[1], Cn=background, plot_results=plotResults)
+        else:
+            return cm.base.rois.register_ROIs(sessionList[0], sessionList[1], FOVdims, Cn=background, plot_results=plotResults)
 
 # if __name__ == "__main__":
 #     program = miniscope
