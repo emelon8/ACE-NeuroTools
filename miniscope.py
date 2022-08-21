@@ -321,8 +321,12 @@ class miniscope(experiment.experiment):
             self._motionCorrection(dview, saveMotionCorrect, inspectMotionCorrection)
         else:
             if saveMotionCorrect:
-                fileName = self.movieFilePaths[0:len(self.movieFilePaths)-4] #Changed so that the first part of memmap file is the filename rather than 'memmap'
-                fname_new = cm.save_memmap(self.optsCaImAn.get('data', 'fnames'), base_name=fileName+'_', order='C',
+                fileName = ''
+                if type(self.movieFilePaths) is str:
+                    fileName = os.path.splitext(self.movieFilePaths)[0] + '_'
+                else:
+                    for file in self.movieFilePaths: fileName += os.path.splitext(file)[0]+'_' #Changed so that the first part of memmap file is the filename rather than 'memmap'
+                fname_new = cm.save_memmap(self.optsCaImAn.get('data', 'fnames'), base_name=fileName, order='C',
                                            border_to_0=0,
                                            dview=dview)  # if no motion correction just memory map the file
                 self.optsCaImAn.change_params({'fnames': fname_new})
@@ -361,8 +365,12 @@ class miniscope(experiment.experiment):
         self.optsCaImAn.change_params({'border_pix': bord_px})
 
         if saveMotionCorrect:
-            fileName = self.movieFilePaths[0:len(self.movieFilePaths)-4] #Changed so that the first part of memmap file is the filename rather than 'memmap'
-            fname_new = cm.save_memmap(mc.mmap_file, base_name=fileName+'_', order='C', border_to_0=bord_px)
+            fileName = ''
+            if type(self.movieFilePaths) is str:
+                fileName = os.path.splitext(self.movieFilePaths)[0] + '_'
+            else:
+                for file in self.movieFilePaths: fileName += os.path.splitext(file)[0]+'_' #Changed so that the first part of memmap file is the filename rather than 'memmap'
+            fname_new = cm.save_memmap(mc.mmap_file, base_name=fileName, order='C', border_to_0=bord_px)
             self.optsCaImAn.change_params({'fnames': fname_new})
 
     def _inspectMotionCorrection(self, mc, plotRigidMotionCorrection=True, plotShifts=True, playConcatenatedMovies=True,
