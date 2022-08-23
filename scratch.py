@@ -23,9 +23,9 @@ program.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/minisc
 # program.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_26/14_34_38/Miniscope/0_0_cropped.avi'])
 
 # %% Analyze calcium movie
-print(program.movie.shape)
-program.movie.crop(crop_top=10, crop_bottom=40, crop_left=10, crop_right=30)
-print(program.movie.shape)
+# print(program.movie.shape)
+# program.movie.crop(crop_top=10, crop_bottom=40, crop_left=10, crop_right=30)
+# print(program.movie.shape)
 # program.preprocessCaMovies(saveMovie=True, crop=False)
 # program.processCaMovies(parallel=False, motionCorrect=False, saveMotionCorrect=True, runCNMFE=True, editComponents=False)#saveCNMFEFilename='50_estimates')
 

@@ -307,7 +307,7 @@ class miniscope(experiment.experiment):
         if saveMovie:
             self.saveCaMovie(processingStep=newFileName)
 
-    def processCaMovies(self, parallel=True, motionCorrect=True, saveMotionCorrect=True, inspectMotionCorrection=False,
+    def processCaMovies(self, parallel=True, n_processes=24, motionCorrect=True, saveMotionCorrect=True, inspectMotionCorrection=False,
                         inspectCorrPNR=False, downsampleForCorrPNR=1, runCNMFE=True, saveCNMFEFilename='estimates.hdf5',
                         editComponents=True, deconvolve=False, saveProcessedData=False):
         """Preprocess calcium imaging data."""
@@ -317,7 +317,7 @@ class miniscope(experiment.experiment):
         self._analysisParamsDict['fnames'] = self.movieFilePaths
         self.optsCaImAn = cm.source_extraction.cnmf.params.CNMFParams(params_dict=self._analysisParamsDict)
         if parallel:
-            c, dview, nProcesses = cm.cluster.setup_cluster(backend='local', n_processes=24, single_thread=False)
+            c, dview, nProcesses = cm.cluster.setup_cluster(backend='local', n_processes=n_processes, single_thread=False)
         else:
             dview = None
             nProcesses = 1
