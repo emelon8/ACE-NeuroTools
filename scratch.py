@@ -9,38 +9,35 @@ Created on Fri Aug 14 11:25:19 2020
 # import EEG
 import miniscope
 import os
-os.chdir('/PHShome/em609/data_analysis_code/experiment_analysis')
+# os.chdir('/PHSHome/em609/data_analysis_code/experiment_analysis') # uncomment for running on ERISTwo
 
 # %% Import experiment and electrophysiological data
-# program = miniscope_EEG.miniscopeEEG(2, filename='experiments.csv', filenameMiniscope='test_recordings/example_miniscope_recording/settings_and_notes.dat')
-# program = EEG.NeuralynxEEG(11)
-# program.importEphysData()
+# obj = miniscope_EEG.miniscopeEEG(2, filename='experiments.csv', filenameMiniscope='test_recordings/example_miniscope_recording/settings_and_notes.dat')
+# obj = EEG.NeuralynxEEG(11)
+# obj.importEphysData()
 
-program = miniscope.miniscope(lineNum=16)
-# program.importCaMovies('D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0_4_cropped.avi')
-# program.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/50_50_cropped.avi'])#,'D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/1.avi'])
-# program.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/memmap__d1_390_d2_388_d3_1_order_C_frames_1000_.mmap'])
-program.importCaMovies('../../experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0.avi')
-# program.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/90.avi'])
-# program.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_26/14_34_38/Miniscope/0_0_cropped.avi'])
+obj = miniscope.miniscope(lineNum=16)
+# obj.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/memmap__d1_390_d2_388_d3_1_order_C_frames_1000_.mmap'])
+obj.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0.avi'])
+# obj.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/90.avi'])
 
 # %% Analyze calcium movie
-print(program.movie.shape)
-program.preprocessCaMovies(saveMovie=True, crop=True)
-print(program.movie.shape)
-# program.processCaMovies(parallel=True, n_processes=12, motionCorrect=False, saveMotionCorrect=True, runCNMFE=True, editComponents=False)#saveCNMFEFilename='50_estimates')
+print(obj.movie.shape)
+obj.preprocessCaMovies(saveMovie=True, crop=True, cropGUI=False)
+print(obj.movie.shape)
+# obj.processCaMovies(parallel=False, n_processes=12, motionCorrect=False, saveMotionCorrect=True, runCNMFE=True, editComponents=False)#saveCNMFEFilename='_estimates')
 
 
 # # These lines are only useful for the practice dataset since the modified times are when they were downloaded.
-# program.findMovieFilePaths()
+# obj.findMovieFilePaths()
 # import numpy as np
 # cutFile = []
-# for file in program.movieFilePaths:
+# for file in obj.movieFilePaths:
 #     cutFile.append(int(file[114:-4]))
 # sortIdx = np.argsort(np.array(cutFile))
-# program.movieFilePaths = list(np.array(program.movieFilePaths)[sortIdx])
+# obj.movieFilePaths = list(np.array(obj.movieFilePaths)[sortIdx])
 
-# program.processCaMovies(visualizeMotionCorrection=True, inspectCorrPNR=True)
+# obj.processCaMovies(visualizeMotionCorrection=True, inspectCorrPNR=True)
 
 # %% Plot spectrogram
-# program.computeSpectrogram(plotSpectrogram=True, plotEvents=False)
+# obj.computeSpectrogram(plotSpectrogram=True, plotEvents=False)

@@ -289,11 +289,11 @@ class miniscope(experiment.experiment):
         if saveMovie:
             self.saveCaMovie(processingStep='_dFoverF')
 
-    def preprocessCaMovies(self, saveMovie=True, crop=False, denoise=False, detrend=False, dFoverF=False):
+    def preprocessCaMovies(self, saveMovie=True, crop=False, cropGUI=False, denoise=False, detrend=False, dFoverF=False):
         """Run all preprocessing steps in one method, using their default options."""
         newFileName = ''
         if crop:
-            self._crop(self.movie, GUI=False)
+            self._crop(self.movie, GUI=cropGUI)
             newFileName += '_cropped'
         if denoise:
             self.denoiseCaMovie(saveMovie=False)
