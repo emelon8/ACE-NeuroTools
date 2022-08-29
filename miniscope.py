@@ -293,7 +293,7 @@ class miniscope(experiment.experiment):
         """Run all preprocessing steps in one method, using their default options."""
         newFileName = ''
         if crop:
-            self._crop(self.movie, GUI=True)
+            self._crop(self.movie, GUI=False)
             newFileName += '_cropped'
         if denoise:
             self.denoiseCaMovie(saveMovie=False)
