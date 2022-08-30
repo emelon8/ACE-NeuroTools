@@ -9,7 +9,7 @@ Created on Fri Aug 14 11:25:19 2020
 # import EEG
 import miniscope
 import os
-# os.chdir('/PHShome/em609/data_analysis_code/experiment_analysis') # uncomment for running on ERISTwo
+os.chdir('/PHShome/em609/data_analysis_code/experiment_analysis') # uncomment for running on ERISTwo
 
 # %% Import experiment and electrophysiological data
 # obj = miniscope_EEG.miniscopeEEG(2, filename='experiments.csv', filenameMiniscope='test_recordings/example_miniscope_recording/settings_and_notes.dat')
