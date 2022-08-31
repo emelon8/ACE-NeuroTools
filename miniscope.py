@@ -88,7 +88,7 @@ class miniscope(experiment.experiment):
         else:
             self._analysisParamsDict = {}
 
-        timeStampsFilename = misc_Functions._findFilePaths(self.experiment['directory'], '.csv', 'timeStamps', False, False, False)
+        timeStampsFilename = misc_Functions._findFilePaths(self.experiment['directory'], '.csv', 'timeStamps', removeFile=False, printPath=False, fileAndDirectory=False)
 
         if len(timeStampsFilename) == 1:
             timeStampsFilename = timeStampsFilename[0]
@@ -220,11 +220,13 @@ class miniscope(experiment.experiment):
     def saveCaMovie(self, processingStep=''):
         """Saves the calcium movie that is currently in SELF.MOVIE."""
         try:
-            if type(self.movieFilePaths) is not list:
+            if (type(self.movieFilePaths) is not list) or ((type(self.movieFilePaths) is list) and (len(self.movieFilePaths)==1)):
+                if type(self.movieFilePaths) is list:
+                    self.movieFilePaths = self.movieFilePaths[0]
                 filepath, filename = os.path.split(self.movieFilePaths)
                 filename, filetype = os.path.splitext(filename)
                 filename += processingStep
-                newFilename = filename + filetype
+                newFilename = filepath + '/' + filename + filetype
                 self.movie.save(newFilename, compress=9)
             else:
                 filepath, filenameFirst = os.path.split(self.movieFilePaths[0])

@@ -17,15 +17,15 @@ os.chdir('/PHShome/em609/data_analysis_code/experiment_analysis') # uncomment fo
 # obj.importEphysData()
 
 obj = miniscope.miniscope(lineNum=16)
-# obj.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/memmap__d1_390_d2_388_d3_1_order_C_frames_1000_.mmap'])
-obj.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0.avi'])
-# obj.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/90.avi'])
 
-# %% Analyze calcium movie
-print(obj.movie.shape)
-obj.preprocessCaMovies(saveMovie=True, crop=True, cropGUI=False)
-print(obj.movie.shape)
-# obj.processCaMovies(parallel=False, n_processes=12, motionCorrect=False, saveMotionCorrect=True, runCNMFE=True, editComponents=False)#saveCNMFEFilename='_estimates')
+for vidnum in range(91):
+    # obj.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/memmap__d1_390_d2_388_d3_1_order_C_frames_1000_.mmap'])
+    obj.importCaMovies(['../../experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/' + str(vidnum) + '.avi'])
+    # obj.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/90.avi'])
+
+    # %% Analyze calcium movie
+    obj.preprocessCaMovies(saveMovie=True, crop=True, cropGUI=False)
+    # obj.processCaMovies(parallel=False, n_processes=12, motionCorrect=False, saveMotionCorrect=True, runCNMFE=True, editComponents=False)#saveCNMFEFilename='_estimates')
 
 
 # # These lines are only useful for the practice dataset since the modified times are when they were downloaded.
