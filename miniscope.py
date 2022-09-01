@@ -24,7 +24,7 @@ import base64
 import PySimpleGUI as sg
 
 
-class miniscope(experiment.experiment):
+class miniscope(experiment.experiment): #FIXME put double spaces between methods
 
     # @staticmethod
     # def main():
@@ -309,9 +309,9 @@ class miniscope(experiment.experiment):
         if saveMovie:
             self.saveCaMovie(processingStep=newFileName)
 
-    def processCaMovies(self, parallel=True, n_processes=24, motionCorrect=True, saveMotionCorrect=True, inspectMotionCorrection=False,
+    def processCaMovies(self, parallel=True, n_processes=12, motionCorrect=True, saveMotionCorrect=True, inspectMotionCorrection=False,
                         inspectCorrPNR=False, downsampleForCorrPNR=1, runCNMFE=True, saveCNMFEFilename='estimates.hdf5',
-                        editComponents=True, deconvolve=False, saveProcessedData=False):
+                        editComponents=False, deconvolve=False, saveProcessedData=False):
         """Preprocess calcium imaging data."""
         print('processing movie...')
         if 'movieFilePaths' not in dir(self):
@@ -326,12 +326,14 @@ class miniscope(experiment.experiment):
         if motionCorrect:
             self._motionCorrection(dview, saveMotionCorrect, inspectMotionCorrection)
         else:
-            if saveMotionCorrect:
+            if saveMotionCorrect: #FIXME I'm not sure if the naming here works as expected...
                 fileName = ''
                 if type(self.movieFilePaths) is str:
                     fileName = os.path.splitext(self.movieFilePaths)[0] + '_'
                 else:
-                    for file in self.movieFilePaths: fileName += os.path.splitext(file)[0]+'_' #Changed so that the first part of memmap file is the filename rather than 'memmap'
+                    for file in self.movieFilePaths:
+                        fileName += os.path.splitext(file)[0] + '_' #Changed so that the first part of memmap file is the filename rather than 'memmap'
+                print('Saving memmapped file...')
                 fname_new = cm.save_memmap(self.optsCaImAn.get('data', 'fnames'), base_name=fileName, order='C',
                                            border_to_0=0,
                                            dview=dview)  # if no motion correction just memory map the file
@@ -358,6 +360,7 @@ class miniscope(experiment.experiment):
         # if parallel:
         #     cm.stop_server(dview=dview)
 
+
     def _motionCorrection(self, dview=None, saveMotionCorrect=True, inspectMotionCorrection=True):
         """Use motion correction to correct for movement during the calcium movies."""
         mc = cm.motion_correction.MotionCorrect(self.optsCaImAn.get('data', 'fnames'), dview=dview,
@@ -377,11 +380,16 @@ class miniscope(experiment.experiment):
         if saveMotionCorrect:
             fileName = ''
             if type(self.movieFilePaths) is str:
-                fileName = os.path.splitext(self.movieFilePaths)[0] + '_'
+                fileNameTemp = os.path.split(self.movieFilePaths)[1]
+                fileName = os.path.splitext(fileNameTemp)[0]
             else:
-                for file in self.movieFilePaths: fileName += os.path.splitext(file)[0]+'_' #Changed so that the first part of memmap file is the filename rather than 'memmap'
+                for file in self.movieFilePaths:
+                    fileNameTemp = os.path.split(file)[1]
+                    fileName += os.path.splitext(fileNameTemp)[0] + '_' #Changed so that the first part of memmap file is the filename rather than 'memmap'
+            print(mc.mmap_file)#####
             fname_new = cm.save_memmap(mc.mmap_file, base_name=fileName, order='C', border_to_0=bord_px)
             self.optsCaImAn.change_params({'fnames': fname_new})
+
 
     def _inspectMotionCorrection(self, mc, plotRigidMotionCorrection=True, plotShifts=True, playConcatenatedMovies=True,
                                  downsampleRatio=0.2, plotCorrelation=True, plotAdvancedMCInspection=True):
@@ -481,6 +489,7 @@ class miniscope(experiment.experiment):
                             np.sqrt(ld['flows'][:, :, :, 0] ** 2 + ld['flows'][:, :, :, 1] ** 2), 0), vmin=0, vmax=0.3)
                         plt.colorbar(mappable=mappable, ax=ax[3 * cnt + 3]) #FIXME colorbar() is NOT an attribute of ax. It is of plt though
 
+
     def _corrPNR(self, inspectCorrPNR, downsampleForCorrPNR):
         """Create the correlation and peak-noise-ratio (PNR) images and, if desired, inspect them with an interactive plot to determine min_corr and min_pnr."""
         self.cn_filter, self.pnr = cm.summary_images.correlation_pnr(self.images[::downsampleForCorrPNR],
@@ -488,6 +497,7 @@ class miniscope(experiment.experiment):
                                                                      swap_dim=False)
         if inspectCorrPNR:
             cm.utils.visualization.inspect_correlation_pnr(self.cn_filter, self.pnr)
+
 
     def _CNMFE(self, nProcesses, dview=None, saveCNMFEFilename='estimates.h5'):
         """Segments neurons, demixes spatially overlapping neurons, and denoises the calcium activity from calcium movies. See paper describing the method: https://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3"""
@@ -498,26 +508,28 @@ class miniscope(experiment.experiment):
             self.CNMFEFilename = os.path.join(self.experiment['directory'], saveCNMFEFilename)
             cnm.save(self.CNMFEFilename)
 
-    def removeComponents(self, idxToRemove, filename=None, saveNewCNMFE=True):
+
+    def removeComponents(self, idxToRemove, filename=None, saveNewCNMFE=True): #FIXME compare this to evaluate_components and the components GUI to see if there's overlap
         """Remove or merge components extracted using the CNMF-E algorithm.
         IDXTOREMOVE are the indices of components to remove.
         FILENAME is the name of the HDF5 file where the output of the CNMF-E algorithm is stored. This file must be created prior to running this method.
         SAVENEWCNMFE determines whether to save the output with the removed components as a new HDF5 file."""
         if filename == None:
             filename = self.CNMFEFilename
-        cnmObj = cm.source_extraction.cnmf.cnmf.load_CNMF(filename)
+        cnmObj = cm.source_extraction.cnmf.cnmf.load_CNMF(filename) #FIXME use try/except to check if self.estimates already exists
         cnmObj.remove_components(idxToRemove)
         if saveNewCNMFE:
             filenameParts = os.path.splitext(filename)
             self.CNMFEFilename = os.path.join(filenameParts[0] + '_components_removed' + filenameParts[1])
             cnmObj.save(self.CNMFEFilename)
 
+
     def _deconvolve(self, p=None, method_deconvolution=None, bas_nonneg=None,
                     noise_method=None, optimize_g=0, s_min=None, **kwargs):
         """Performs deconvolution on already extracted traces using
         constrained foopsi.
         """
-        pass
+        pass #FIXME see if this method works or not, and delete this if it does
 
         p = (self.params.get('preprocess', 'p')
              if p is None else p)
@@ -571,9 +583,11 @@ class miniscope(experiment.experiment):
         self.estimates.YrA = F - self.estimates.C
         return self
 
-    def multiSessionRegistration(self):
+
+    def multiSessionRegistration(self): #FIXME think about if there's any reason to have this within the object, and delete it if not
         """Register components (neurons) between different recording sessions."""
         pass
+
 
     def _quatFile_to_eulerFile(self, filename='headOrientation.csv', nf='True'):  ##returns newfilename
         newfilename = filename.replace('.csv', 'inEulerAngles.csv')
@@ -605,6 +619,7 @@ class miniscope(experiment.experiment):
         else:
             print('!!! ERROR: File not found') #FIXME
             return
+
 
     def graph_Movement(self, filename='headOrientationinEulerAngles.csv',
                        plotName='movementPlot.png'):  ##eulerAngle file
@@ -654,6 +669,7 @@ class miniscope(experiment.experiment):
             print('!!! ERROR: File not found') #FIXME
             return
 
+
     def _metaDataConverter(
             self):  # Suggestion: it might be good to start combining the metaDatas and marking them with the animalID or some experiment identifier (not sure how this program will work if you have a lot of different videos/metaData)
         directory = self.experiment['directory']
@@ -687,6 +703,7 @@ class miniscope(experiment.experiment):
                         n.write(jsonFile)
                         n.close()
                         
+
     def _projections(self):
         """
         Calculates the projections of self.movie and saves the data into self.projections
@@ -698,6 +715,7 @@ class miniscope(experiment.experiment):
         Med = np.median(self.movie, axis=0)
         Range = Max - Min
         self.projections = {"Max": Max, "Std": Std, "Min": Min, "Mean": Mean, "Med": Med, "Range": Range}
+
 
     def _cropMovie(self, crop_top=0, crop_bottom=0, crop_left=0, crop_right=0, crop_begin=0, crop_end=0) -> None:
         """
@@ -1052,7 +1070,7 @@ class miniscope(experiment.experiment):
         plt.axis('off')
         return fig
     
-    
+#FIXME put new cell markers (#%%) to divide up the different sections in the code, including grouping the methods that apply to the different GUIs
     def _componentImage(self, graph, current_selected,  max=False, min=False, STD=False, mean=False, median=False, range=False,
                      cmap='viridis'):
         # adds projection to GUI

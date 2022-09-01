@@ -3,6 +3,8 @@
 Created on Fri Aug 14 11:25:19 2020
 
 @author: Eric
+
+Before submitting a job to run this code on the cluster, you must activate your conda environment, since the environment is installed in my user directory!
 """
 
 # import miniscope_EEG
@@ -18,26 +20,18 @@ os.chdir('/PHShome/em609/data_analysis_code/experiment_analysis') # uncomment fo
 
 obj = miniscope.miniscope(lineNum=16)
 
-for vidnum in range(91):
-    # obj.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/memmap__d1_390_d2_388_d3_1_order_C_frames_1000_.mmap'])
-    obj.importCaMovies(['../../experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/' + str(vidnum) + '.avi'])
-    # obj.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/90.avi'])
+# %% Crop and re-save the videos
+# for vidnum in range(92): # The number in range() should be the total number of .avi movies in the recording
+#     obj.importCaMovies(['../../experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/' + str(vidnum) + '.avi'])
+#     obj.preprocessCaMovies(saveMovie=True, crop=True, cropGUI=False)
 
-    # %% Analyze calcium movie
-    obj.preprocessCaMovies(saveMovie=True, crop=True, cropGUI=False)
-    # obj.processCaMovies(parallel=False, n_processes=12, motionCorrect=False, saveMotionCorrect=True, runCNMFE=True, editComponents=False)#saveCNMFEFilename='_estimates')
+# %% Import videos
+obj.importCaMovies(['../../experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0_cropped.avi', '../../experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/1_cropped.avi', '../../experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/2_cropped.avi'])
+# obj.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/90.avi'])
+# obj.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/memmap__d1_390_d2_388_d3_1_order_C_frames_1000_.mmap'])
 
-
-# # These lines are only useful for the practice dataset since the modified times are when they were downloaded.
-# obj.findMovieFilePaths()
-# import numpy as np
-# cutFile = []
-# for file in obj.movieFilePaths:
-#     cutFile.append(int(file[114:-4]))
-# sortIdx = np.argsort(np.array(cutFile))
-# obj.movieFilePaths = list(np.array(obj.movieFilePaths)[sortIdx])
-
-# obj.processCaMovies(visualizeMotionCorrection=True, inspectCorrPNR=True)
+# %% Run motion correction and CNMF-E and save the estimates object
+obj.processCaMovies(parallel=False, n_processes=8)
 
 # %% Plot spectrogram
 # obj.computeSpectrogram(plotSpectrogram=True, plotEvents=False)
