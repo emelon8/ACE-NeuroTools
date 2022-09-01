@@ -378,16 +378,15 @@ class miniscope(experiment.experiment): #FIXME put double spaces between methods
         self.optsCaImAn.change_params({'border_pix': bord_px})
 
         if saveMotionCorrect:
-            fileName = ''
-            if type(self.movieFilePaths) is str:
-                fileNameTemp = os.path.split(self.movieFilePaths)[1]
-                fileName = os.path.splitext(fileNameTemp)[0]
-            else:
-                for file in self.movieFilePaths:
-                    fileNameTemp = os.path.split(file)[1]
-                    fileName += os.path.splitext(fileNameTemp)[0] + '_' #Changed so that the first part of memmap file is the filename rather than 'memmap'
-            print(mc.mmap_file)#####
-            fname_new = cm.save_memmap(mc.mmap_file, base_name=fileName, order='C', border_to_0=bord_px)
+            # fileName = ''
+            # if type(self.movieFilePaths) is str:
+            #     fileNameTemp = os.path.split(self.movieFilePaths)[1]
+            #     fileName = os.path.splitext(fileNameTemp)[0]
+            # else:
+            #     for file in self.movieFilePaths:
+            #         fileNameTemp = os.path.split(file)[1]
+            #         fileName += os.path.splitext(fileNameTemp)[0] + '_' #Changed so that the first part of memmap file is the filename rather than 'memmap'
+            fname_new = cm.save_memmap(mc.mmap_file, order='C', border_to_0=bord_px) # If you uncomment all of the code after "if saveMotionCorrect:" and put "base_name=fileName" as an argument in cm.save_memmap, it will append the concatenated filenames (with underscores in between) of all the videos you're analyzing to the front of the C-order memmap files (both individual ones and the overall one).
             self.optsCaImAn.change_params({'fnames': fname_new})
 
 
