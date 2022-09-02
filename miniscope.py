@@ -1136,7 +1136,7 @@ class miniscope(experiment.experiment): #FIXME put double spaces between methods
                             auto_size_text=True, enable_events=True)],
                   [sg.Text("CMAP:"), sg.Combo(cmapOptions, key='-CMAP-', default_value='viridis', readonly=True,
                                               auto_size_text=True, enable_events=True)],
-                  [sg.Text("Select to accept: ")],
+                  [sg.Text("Select to reject: ")],
                   [sg.Listbox(values=range(1, len(self.estimates.C)+1), default_values=self.estimates.idx_components_bad, size=(3, 3), key='-LISTCOMP-', select_mode='multiple', background_color="white", highlight_background_color="red", enable_events = True)],
                   [sg.Button('Cancel', key="-CANCEL-"), sg.Button('Submit', key="-SUBMIT-")]]
         # create the form and show it without the plot
