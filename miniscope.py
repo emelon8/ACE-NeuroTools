@@ -24,7 +24,9 @@ import base64
 import PySimpleGUI as sg
 
 
-class miniscope(experiment.experiment): #FIXME put double spaces between methods
+class UCLAminiscope(experiment.experiment):
+    """This is the class definition for handling data from the UCLA Miniscope V4 (1-photon calcium imaging).
+    Used with version 1.11 of the DAQ software released by the UCLA Miniscope group."""
 
     # @staticmethod
     # def main():
@@ -38,9 +40,8 @@ class miniscope(experiment.experiment): #FIXME put double spaces between methods
     #     program.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/1.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/2.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/3.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/4.avi'])
     #     program.preprocessCaMovies(crop=True)
     #     # program.processCaMovies(inspectMotionCorrection=True, runCNMFE=False)
-
-    """This is the class definition for handling miniscopes (1-photon calcium imaging) data."""
-
+    
+#%% Methods for importing experiment info, metadata, events, and analysis parameters
     def __init__(self, filenameMiniscope='metaData.json', lineNum=None,
                  filename='experiments.csv', analysisFilename='analysis_parameters.csv'):
         self.lineNum = lineNum
@@ -104,6 +105,22 @@ class miniscope(experiment.experiment): #FIXME put double spaces between methods
                 self.timeStamps.append(float(row[1]))
         self.timeStamps = np.divide((np.asarray(self.timeStamps) - self.timeStamps[0]), 1000)  # converts from ms to s
 
+
+    def miniscopeImportEvents(self):
+        """Import calcium imaging experiment events."""
+        self.miniscopeEvents = {}
+        # Make a dictionary with each of the columns in the DAT file
+        for k, columnTitle in enumerate(self._miniscopeExperimentDAT[
+                                            3]):  # self._miniscopeExperimentDAT was previously imported in __init__, but the format of this file ('settings_and_notes.dat') changed.
+            self.miniscopeEvents[columnTitle] = []
+            for h in range(4, len(self._miniscopeExperimentDAT)):
+                self.miniscopeEvents[columnTitle].append(self._miniscopeExperimentDAT[h][k])
+        timestamps = list(self.miniscopeEvents.keys())[0]
+        labels = list(self.miniscopeEvents.keys())[1]
+        self.miniscopeEvents['timestamps'] = np.array(self.miniscopeEvents[timestamps], dtype=int)
+        self.miniscopeEvents['labels'] = np.array(self.miniscopeEvents[labels])
+
+
     def miniscopeImportAnalysisParams(self, lineNum, filename):
         """Import parameters for calcium movie analysis using CaImAn."""
         analysisParamsCSV = []
@@ -142,20 +159,8 @@ class miniscope(experiment.experiment): #FIXME put double spaces between methods
                 self._analysisParamsDict[columnTitle].split('.')[0].isdecimal()) and ( not self._analysisParamsDict[columnTitle].split('.')[1].isalpha())):
                     self._analysisParamsDict[columnTitle] = float(self._analysisParamsDict[columnTitle])
 
-    def miniscopeImportEvents(self):
-        """Import calcium imaging experiment events."""
-        self.miniscopeEvents = {}
-        # Make a dictionary with each of the columns in the DAT file
-        for k, columnTitle in enumerate(self._miniscopeExperimentDAT[
-                                            3]):  # self._miniscopeExperimentDAT was previously imported in __init__, but the format of this file ('settings_and_notes.dat') changed.
-            self.miniscopeEvents[columnTitle] = []
-            for h in range(4, len(self._miniscopeExperimentDAT)):
-                self.miniscopeEvents[columnTitle].append(self._miniscopeExperimentDAT[h][k])
-        timestamps = list(self.miniscopeEvents.keys())[0]
-        labels = list(self.miniscopeEvents.keys())[1]
-        self.miniscopeEvents['timestamps'] = np.array(self.miniscopeEvents[timestamps], dtype=int)
-        self.miniscopeEvents['labels'] = np.array(self.miniscopeEvents[labels])
 
+#%% Methods for importing and saving calcium movies
     def findMovieFilePaths(self, directory=None, fileExtensions='.avi',
                            fileStartsWith='', removeFile=False, printPath=False,
                            fileAndDirectory=False):
@@ -165,6 +170,7 @@ class miniscope(experiment.experiment): #FIXME put double spaces between methods
             directory = self.experiment['directory']
         self.movieFilePaths = misc_Functions._findFilePaths(directory, fileExtensions, fileStartsWith,
                                                             removeFile, printPath, fileAndDirectory)
+
 
     def importCaMovies(self, filenames=None, fileExtensions='.avi'):
         """Import calcium imaging data. Not necessary if using processCaMovies().
@@ -180,6 +186,7 @@ class miniscope(experiment.experiment): #FIXME put double spaces between methods
         else:
             self.movie = cm.load_movie_chain(filenames)
 
+
     def convertCaMovies(self, filenames=None, newFileType='.tif', joinMovies=False, metaDataConvert=True):
         """Convert calcium movies from one type to another. File types must be supported by CaImAn.
         The new filename(s) is the same as the first filename in FILENAMES, with NEWFILETYPE appended to the end.
@@ -187,9 +194,9 @@ class miniscope(experiment.experiment): #FIXME put double spaces between methods
         print('Converting movies...')
         filenamesArg = filenames
         difVideos = []
-        if (filenames == None) and ('movie' in self.__dir__()):
-            filenames = self._importCaMoviesFilenames
-        elif filenames == None:
+        if (filenames == None):
+            if 'movie' in self.__dir__():
+                print('self.movie exists, but there are no filenames associated with it. Loading filenames from self.experiment[\'directory\']')
             self.findMovieFilePaths()
             filenames = self.movieFilePaths
         if type(filenames) is not list:
@@ -216,457 +223,6 @@ class miniscope(experiment.experiment): #FIXME put double spaces between methods
         if len(difVideos) != 0:
             print('ERRORS with: ' + str(difVideos))
             print('Consider investigating')
-
-    def saveCaMovie(self, processingStep=''):
-        """Saves the calcium movie that is currently in SELF.MOVIE."""
-        try:
-            if (type(self.movieFilePaths) is not list) or ((type(self.movieFilePaths) is list) and (len(self.movieFilePaths)==1)):
-                if type(self.movieFilePaths) is list:
-                    self.movieFilePaths = self.movieFilePaths[0]
-                filepath, filename = os.path.split(self.movieFilePaths)
-                filename, filetype = os.path.splitext(filename)
-                filename += processingStep
-                newFilename = filepath + '/' + filename + filetype
-                self.movie.save(newFilename, compress=9)
-            else:
-                filepath, filenameFirst = os.path.split(self.movieFilePaths[0])
-                filenameFirst, filetype = os.path.splitext(filenameFirst)
-                _, filenameLast = os.path.split(self.movieFilePaths[-1])
-                filenameLast, _ = os.path.splitext(filenameLast)
-                filenumFirstIdx = [f.isdecimal() for f in filenameFirst]
-                filenumLastIdx = [f.isdecimal() for f in filenameLast]
-                filenumFirst = filenameFirst[np.where(filenumFirstIdx)[0][0]:]
-                filenumLast = filenameLast[np.where(filenumLastIdx)[0][0]:]
-                filenumLast += processingStep
-                newFilename = filepath + '/' + filenumFirst + '_' + filenumLast + filetype
-                self.movie.save(newFilename, compress=9)
-            self.movieFilePaths = newFilename
-        except AttributeError:
-            print('No movies have been imported.')
-
-    def denoiseCaMovie(self, saveMovie=True):
-        """Loads a movie and removes both the horizontal bands (that slowly travel upwards) from the movie and the slow flicker of the entire image.
-        SAVEMOVIE determines whether to save the filtered movie (with '_denoised' appended to the filename)."""
-        mode = 'display'
-        if saveMovie:
-            mode = 'save'
-        misc_Functions.denoiseMovie(self.experiment['directory'], mode=mode) # TODO Currently doesn't save this info for later use
-
-    def detrendCaFluorescence(self, saveMovie=True, detrendType='median', plotTrend=False):
-        """Loads the calcium movie and detrends it based on the fluorescence of the entire movie.
-        SAVEMOVE determines whether to save the debleached movie (with '_detrended' appended to the filename).
-        DETRENDTYPE determines which method is used for detrending. 'median' debleaches by fitting a model to the median intensity.
-        'linear' debleaches by linearly detrending the mean fluorescence, and includes subtracting the mean of the fluorescence over time."""
-        if 'movie' not in self.__dir__():
-            self.importCaMovies()
-        if plotTrend:
-            h, ax = misc_Functions._prepAxes(xLabel='Frames', yLabel='Mean Fluorescence')
-            ax.plot(np.mean(np.mean(self.movie, axis=1), axis=1), label='Original Data')
-        if detrendType == 'linear':
-            detrend(self.movie, axis=0, overwrite_data=True)
-        elif detrendType == 'median':
-            self.movie.debleach()
-        else:
-            print('detrendType is not a supported detrending method.')
-        if plotTrend:
-            ax.plot(np.mean(np.mean(self.movie, axis=1), axis=1), label='Detrended Data')
-            ax.legend()
-        if saveMovie:
-            self.saveCaMovie(processingStep='_detrended')
-
-    def computedFoverF(self, saveMovie=True, secsWindow=5, quantilMin=8, method='delta_f_over_sqrt_f'):
-        """
-        compute the dF/F or dF/sqrt(F) of the movie, or removes the baseline
-        
-        Args:
-            secsWindow: length of the windows used to compute the quantile
-            quantilMin : value of the quantile used to compute the movie baseline
-            method='only_baseline','delta_f_over_f','delta_f_over_sqrt_f'
-        Raises: 
-            Exception 'Unknown method' if inputed method is not one of the
-            three accepted methods
-        """
-        # adds ones to all pixel values because function does not take in non-positive values (including zero)
-        self.movie, _ = cm.movie.computeDFF(self.movie+np.ones(np.shape(self.movie)), secsWindow, quantilMin, method)
-        if saveMovie:
-            self.saveCaMovie(processingStep='_dFoverF')
-
-    def preprocessCaMovies(self, saveMovie=True, crop=False, cropGUI=False, denoise=False, detrend=False, dFoverF=False):
-        """Run all preprocessing steps in one method, using their default options."""
-        newFileName = ''
-        if crop:
-            self._crop(self.movie, GUI=cropGUI)
-            newFileName += '_cropped'
-        if denoise:
-            self.denoiseCaMovie(saveMovie=False)
-            newFileName += '_denoised'
-        if detrend:
-            self.detrendCaFluorescence(saveMovie=False)
-            newFileName += '_detrend'
-        if dFoverF:
-            self.computedFoverF(saveMovie=False)
-            newFileName += '_dFoverF'
-        if saveMovie:
-            self.saveCaMovie(processingStep=newFileName)
-
-    def processCaMovies(self, parallel=True, n_processes=12, motionCorrect=True, saveMotionCorrect=True, inspectMotionCorrection=False,
-                        inspectCorrPNR=False, downsampleForCorrPNR=1, runCNMFE=True, saveCNMFEFilename='estimates.hdf5',
-                        editComponents=False, deconvolve=False, saveProcessedData=False):
-        """Preprocess calcium imaging data."""
-        print('processing movie...')
-        if 'movieFilePaths' not in dir(self):
-            self.findMovieFilePaths()
-        self._analysisParamsDict['fnames'] = self.movieFilePaths
-        self.optsCaImAn = cm.source_extraction.cnmf.params.CNMFParams(params_dict=self._analysisParamsDict)
-        if parallel:
-            c, dview, nProcesses = cm.cluster.setup_cluster(backend='local', n_processes=n_processes, single_thread=False)
-        else:
-            dview = None
-            nProcesses = 1
-        if motionCorrect:
-            self._motionCorrection(dview, saveMotionCorrect, inspectMotionCorrection)
-        else:
-            if saveMotionCorrect: #FIXME I'm not sure if the naming here works as expected...
-                fileName = ''
-                if type(self.movieFilePaths) is str:
-                    fileName = os.path.splitext(self.movieFilePaths)[0] + '_'
-                else:
-                    for file in self.movieFilePaths:
-                        fileName += os.path.splitext(file)[0] + '_' #Changed so that the first part of memmap file is the filename rather than 'memmap'
-                print('Saving memmapped file...')
-                fname_new = cm.save_memmap(self.optsCaImAn.get('data', 'fnames'), base_name=fileName, order='C',
-                                           border_to_0=0,
-                                           dview=dview)  # if no motion correction just memory map the file
-                self.optsCaImAn.change_params({'fnames': fname_new})
-
-        if inspectCorrPNR or runCNMFE:
-            Yr, dims_new, T = cm.load_memmap(self.optsCaImAn.get('data', 'fnames')[0])
-            self.optsCaImAn.change_params({'dims': dims_new})
-            self.images = Yr.T.reshape((T,) + dims_new, order='F')
-            if inspectCorrPNR:
-                self._corrPNR(inspectCorrPNR, downsampleForCorrPNR)
-            if runCNMFE:
-                self._CNMFE(nProcesses, dview=dview, saveCNMFEFilename=saveCNMFEFilename)
-                if editComponents:
-                    pass #FIXME point to the edit components GUI? Or maybe the removeComponents method?
-
-        if deconvolve:
-            self._deconvolve()
-
-        if saveProcessedData:
-            self.saveObj(ratID=True, timeStamp=True)
-
-        cm.stop_server(dview=dview) #FIXME will this throw an error if it's not parallel? if so, uncomment the next two lines
-        # if parallel:
-        #     cm.stop_server(dview=dview)
-
-
-    def _motionCorrection(self, dview=None, saveMotionCorrect=True, inspectMotionCorrection=True):
-        """Use motion correction to correct for movement during the calcium movies."""
-        mc = cm.motion_correction.MotionCorrect(self.optsCaImAn.get('data', 'fnames'), dview=dview,
-                                                **self.optsCaImAn.get_group('motion'))
-        mc.motion_correct(save_movie=saveMotionCorrect)
-        if self.optsCaImAn.get('motion', 'pw_rigid'):
-            bord_px = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)), np.max(np.abs(mc.y_shifts_els)))).astype(int)
-        else:
-            bord_px = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(int)
-
-        if inspectMotionCorrection:
-            self._inspectMotionCorrection(mc)
-
-        bord_px = 0 if self.optsCaImAn.get('motion', 'border_nan') == 'copy' else bord_px
-        self.optsCaImAn.change_params({'border_pix': bord_px})
-
-        if saveMotionCorrect:
-            # fileName = ''
-            # if type(self.movieFilePaths) is str:
-            #     fileNameTemp = os.path.split(self.movieFilePaths)[1]
-            #     fileName = os.path.splitext(fileNameTemp)[0]
-            # else:
-            #     for file in self.movieFilePaths:
-            #         fileNameTemp = os.path.split(file)[1]
-            #         fileName += os.path.splitext(fileNameTemp)[0] + '_' #Changed so that the first part of memmap file is the filename rather than 'memmap'
-            fname_new = cm.save_memmap(mc.mmap_file, order='C', border_to_0=bord_px) # If you uncomment all of the code after "if saveMotionCorrect:" and put "base_name=fileName" as an argument in cm.save_memmap, it will append the concatenated filenames (with underscores in between) of all the videos you're analyzing to the front of the C-order memmap files (both individual ones and the overall one).
-            self.optsCaImAn.change_params({'fnames': fname_new})
-
-
-    def _inspectMotionCorrection(self, mc, plotRigidMotionCorrection=True, plotShifts=True, playConcatenatedMovies=True,
-                                 downsampleRatio=0.2, plotCorrelation=True, plotAdvancedMCInspection=True):
-        """Various plots and movies to help with the inspection of motion correction effectiveness.
-        MC is the motion correction object obtained from SELF._MOTIONCORRECTION().
-        PLOTRIGIDMOTIONCORRECTION is a boolean that determines whether rigid motion correction is plotted.
-        PLAYCONCATENATEDMOVIES is a boolean that determines whether the original and motion-corrected movies are plotted side-by-side.
-        DOWNSAMPLERATIO is a float that determines the factor by which to shrink the duration of the playback (helpful for making the motion more obvious).
-        PLOTSHIFTS is a boolean that determines whether to plot the x and y pixel shifts over time.
-        PLOTCORRELATION is a boolean that determines whether to plot the correlation images for the original and motion-corrected movies side-by-side.
-        """
-        if plotRigidMotionCorrection:
-            h, ax = misc_Functions._prepAxes(xLabel=['', 'Frames'], yLabel=['', 'Pixels'], subPlots=[1, 2])
-            ax[0].imshow(mc.total_template_rig)  # % plot template
-            ax[1].plot(mc.shifts_rig)  # % plot rigid shifts
-            ax[1].legend(['X Shifts', 'Y Shifts'])
-
-        if plotShifts:
-            if self.optsCaImAn.get('motion', 'pw_rigid'):
-                h, ax = misc_Functions._prepAxes(xLabel='Frames', yLabel='Pixels')
-                ax.plot(mc.shifts_rig)
-                ax.legend(['X Shifts', 'Y Shifts'])
-            else:
-                h, ax = misc_Functions._prepAxes(xLabel=['', 'Frames'],
-                                                 yLabel=['X Shifts (Pixels)', 'Y Shifts (Pixels)'], subPlots=[2, 1])
-                ax[0].plot(mc.x_shifts_els)
-                ax[1].plot(mc.y_shifts_els)
-
-        if playConcatenatedMovies or plotCorrelation:
-            if 'movie' not in self.__dir__():
-                self.importCaMovies(filenames=self.movieFilePaths)
-            mcMovie = cm.load(mc.mmap_file)
-            if playConcatenatedMovies:
-                cm.concatenate([self.movie.resize(1, 1, downsampleRatio) - mc.min_mov * mc.nonneg_movie,
-                                mcMovie.resize(1, 1, downsampleRatio)], axis=2).play(fr=self._analysisParamsDict['fr'],
-                                                                                     q_max=99.5, magnification=2,
-                                                                                     bord_px=self.optsCaImAn.get(
-                                                                                         'patch', 'border_pix'))
-            if plotCorrelation:
-                h, ax = misc_Functions._prepAxes(xLabel=['', 'Frames'], yLabel=['', 'Pixels'], subPlots=[1, 2])
-                ax[0].imshow(self.movie.local_correlations(eight_neighbours=True, swap_dim=False))
-                ax[1].imshow(mcMovie.local_correlations(eight_neighbours=True, swap_dim=False))
-
-        if plotAdvancedMCInspection:
-            final_size = np.subtract(self.optsCaImAn.get('data', 'dims'),
-                                     2 * mc.border_to_0)  # remove pixels in the boundaries
-            winsize = 100
-            swap_dim = False
-            resize_fact_flow = .2  # downsample for computing ROF
-
-            tmpl_orig, correlations_orig, flows_orig, norms_orig, crispness_orig = cm.motion_correction.compute_metrics_motion_correction(
-                mc.fname[0], final_size[0], final_size[1], swap_dim, winsize=winsize, play_flow=False,
-                resize_fact_flow=resize_fact_flow)
-
-            tmpl_mc, correlations_mc, flows_mc, norms_mc, crispness_mc = cm.motion_correction.compute_metrics_motion_correction(
-                mc.mmap_file[0], final_size[0], final_size[1],
-                swap_dim, winsize=winsize, play_flow=False, resize_fact_flow=resize_fact_flow)
-
-            h, ax = misc_Functions._prepAxes(xLabel=['Frame', 'Original'], yLabel=['Correlation', 'Motion Corrected'],
-                                             subPlots=[2, 1])
-            ax[0].plot(correlations_orig)
-            ax[0].plot(correlations_mc)
-            plt.legend(['Original', 'Motion Corrected'])
-            ax[1].scatter(correlations_orig, correlations_mc)
-            ax[1].plot([0, 1], [0, 1], 'r--')
-            ax[1].axis('square')
-
-            # print crispness values
-            print('Crispness original: ' + str(int(crispness_orig)))
-            print('Crispness motion corrected: ' + str(int(crispness_mc)))
-
-            # plot the results of Residual Optical Flow
-            fls = [mc.fname[0][:-4] + '_metrics.npz', mc.mmap_file[0][:-4] + '_metrics.npz']
-
-            h, ax = misc_Functions._prepAxes(title=['Mean', 'Corr Image', 'Mean Optical Flow', '', '', ''],
-                                             xLabel=['Original', '', '', 'Motion Corrected', '', ''], yLabel=['', '', '', '', '', ''],
-                                             subPlots=[2, 3])
-
-            for cnt, fl in zip(range(len(fls)), fls):
-                with np.load(fl) as ld:
-                    print(str(np.mean(ld['norms'])) + '+/-' + str(np.std(ld['norms'])) +
-                          '; ' + str(ld['smoothness']) + '; ' + str(ld['smoothness_corr']))
-
-                    if cnt == 0:
-                        mean_img = np.mean(cm.load(mc.fname[0]), 0)[12:-12, 12:-12]
-                    else:
-                        mean_img = np.mean(cm.load(mc.mmap_file[0]), 0)[12:-12, 12:-12]
-
-                    lq, hq = np.nanpercentile(mean_img, [0.5, 99.5])
-                    ax[3 * cnt + 1].imshow(mean_img, vmin=lq, vmax=hq)
-                    ax[3 * cnt + 2].imshow(ld['img_corr'], vmin=0, vmax=0.35)
-                    # ax[3 * cnt + 3].plot(ld['norms'])
-                    # ax[3 * cnt + 3].xlabel('frame')
-                    # ax[3 * cnt + 3].ylabel('norm opt flow')
-                    if len(ax) > (3 * cnt + 3):
-                        mappable = ax[3 * cnt + 3].imshow(np.mean(
-                            np.sqrt(ld['flows'][:, :, :, 0] ** 2 + ld['flows'][:, :, :, 1] ** 2), 0), vmin=0, vmax=0.3)
-                        plt.colorbar(mappable=mappable, ax=ax[3 * cnt + 3]) #FIXME colorbar() is NOT an attribute of ax. It is of plt though
-
-
-    def _corrPNR(self, inspectCorrPNR, downsampleForCorrPNR):
-        """Create the correlation and peak-noise-ratio (PNR) images and, if desired, inspect them with an interactive plot to determine min_corr and min_pnr."""
-        self.cn_filter, self.pnr = cm.summary_images.correlation_pnr(self.images[::downsampleForCorrPNR],
-                                                                     gSig=self.optsCaImAn.get('init', 'gSig')[0],
-                                                                     swap_dim=False)
-        if inspectCorrPNR:
-            cm.utils.visualization.inspect_correlation_pnr(self.cn_filter, self.pnr)
-
-
-    def _CNMFE(self, nProcesses, dview=None, saveCNMFEFilename='estimates.h5'):
-        """Segments neurons, demixes spatially overlapping neurons, and denoises the calcium activity from calcium movies. See paper describing the method: https://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3"""
-        cnm = cm.source_extraction.cnmf.CNMF(n_processes=nProcesses, dview=dview, Ain=None, params=self.optsCaImAn)
-        cnm.fit(self.images)
-        self.estimates = cnm.estimates
-        if saveCNMFEFilename:
-            self.CNMFEFilename = os.path.join(self.experiment['directory'], saveCNMFEFilename)
-            cnm.save(self.CNMFEFilename)
-
-
-    def removeComponents(self, idxToRemove, filename=None, saveNewCNMFE=True): #FIXME compare this to evaluate_components and the components GUI to see if there's overlap
-        """Remove or merge components extracted using the CNMF-E algorithm.
-        IDXTOREMOVE are the indices of components to remove.
-        FILENAME is the name of the HDF5 file where the output of the CNMF-E algorithm is stored. This file must be created prior to running this method.
-        SAVENEWCNMFE determines whether to save the output with the removed components as a new HDF5 file."""
-        if filename == None:
-            filename = self.CNMFEFilename
-        cnmObj = cm.source_extraction.cnmf.cnmf.load_CNMF(filename) #FIXME use try/except to check if self.estimates already exists
-        cnmObj.remove_components(idxToRemove)
-        if saveNewCNMFE:
-            filenameParts = os.path.splitext(filename)
-            self.CNMFEFilename = os.path.join(filenameParts[0] + '_components_removed' + filenameParts[1])
-            cnmObj.save(self.CNMFEFilename)
-
-
-    def _deconvolve(self, p=None, method_deconvolution=None, bas_nonneg=None,
-                    noise_method=None, optimize_g=0, s_min=None, **kwargs):
-        """Performs deconvolution on already extracted traces using
-        constrained foopsi.
-        """
-        pass #FIXME see if this method works or not, and delete this if it does
-
-        p = (self.params.get('preprocess', 'p')
-             if p is None else p)
-        method_deconvolution = (self.params.get('temporal', 'method_deconvolution')
-                                if method_deconvolution is None else method_deconvolution)
-        bas_nonneg = (self.params.get('temporal', 'bas_nonneg')
-                      if bas_nonneg is None else bas_nonneg)
-        noise_method = (self.params.get('temporal', 'noise_method')
-                        if noise_method is None else noise_method)
-        s_min = self.params.get('temporal', 's_min') if s_min is None else s_min
-
-        F = self.estimates.C + self.estimates.YrA
-        args = dict()
-        args['p'] = p
-        args['method_deconvolution'] = method_deconvolution
-        args['bas_nonneg'] = bas_nonneg
-        args['noise_method'] = noise_method
-        args['s_min'] = s_min
-        args['optimize_g'] = optimize_g
-        args['noise_range'] = self.params.get('temporal', 'noise_range')
-        args['fudge_factor'] = self.params.get('temporal', 'fudge_factor')
-
-        args_in = [(F[jj], None, jj, None, None, None, None,
-                    args) for jj in range(F.shape[0])]
-
-        if 'multiprocessing' in str(type(self.dview)):
-            fluor = self.optsCaImAn
-            results = self.dview.map_async(cm.deconvolve.constrained_foopsi(fluor, p=p,
-                                                                            method_deconvolution=method_deconvolution,
-                                                                            noise_method=noise_method,
-                                                                            optimize_g=optimize_g,
-                                                                            s_min=s_min), args_in).get(4294967)
-        elif self.dview is not None:
-            results = self.dview.map_sync(cm.deconvolve.constrained_foopsi_parallel(), args_in)
-        else:
-            results = list(map(cm.deconvolve.constrained_foopsi_parallel(), args_in))
-
-        if sys.version_info >= (3, 0):
-            results = list(zip(*results))
-        else:  # python 2
-            results = zip(*results)
-
-        order = list(results[7])
-        self.estimates.C = np.stack([results[0][i] for i in order])
-        self.estimates.S = np.stack([results[1][i] for i in order])
-        self.estimates.bl = [results[3][i] for i in order]
-        self.estimates.c1 = [results[4][i] for i in order]
-        self.estimates.g = [results[6][i] for i in order]
-        self.estimates.neurons_sn = [results[5][i] for i in order]
-        self.estimates.lam = [results[8][i] for i in order]
-        self.estimates.YrA = F - self.estimates.C
-        return self
-
-
-    def multiSessionRegistration(self): #FIXME think about if there's any reason to have this within the object, and delete it if not
-        """Register components (neurons) between different recording sessions."""
-        pass
-
-
-    def _quatFile_to_eulerFile(self, filename='headOrientation.csv', nf='True'):  ##returns newfilename
-        newfilename = filename.replace('.csv', 'inEulerAngles.csv')
-        if os.path.exists(filename):
-            print('File exists')
-            with open(filename, newline='') as f:
-                reader = csv.reader(f)
-                if nf == 'True':  # do you want to create a new file
-                    with open(newfilename, 'w', newline='') as nf:
-                        writer = csv.writer(nf)
-                        header = []
-                        header.append('Time Stamp (ms)')
-                        header.append('x')
-                        header.append('y')
-                        header.append('z')
-                        writer.writerow(header)
-                        next(f)
-                        for line in reader:
-                            eulerAngles = misc_Functions.conv_quat_to_euler(line)
-                            writer.writerow(eulerAngles)
-                    return newfilename
-                else:
-                    matrix = []
-                    next(f)
-                    for line in reader:
-                        eulerAngles = misc_Functions.conv_quat_to_euler(line)
-                        matrix.append(eulerAngles)
-                    return matrix
-        else:
-            print('!!! ERROR: File not found') #FIXME
-            return
-
-
-    def graph_Movement(self, filename='headOrientationinEulerAngles.csv',
-                       plotName='movementPlot.png'):  ##eulerAngle file
-
-        if 'inEulerAngles.csv' not in filename and '.csv' in filename:
-            filename = self._quatFile_to_eulerFile(filename)
-        elif '.csv' not in filename:
-            print('!!! ERROR: Invalid file')
-            return
-
-        if os.path.exists(filename):
-            print('File exists')
-            with open(filename, newline='') as f:
-                reader = csv.reader(f)
-                y = []
-                avgAngle = []
-                time = []
-                next(f)  ##skip header line
-                for line in reader:
-                    if len(line) != 4:
-                        print('!!! ERROR: Invalid file') #FIXME
-                        return
-                    eulerAngleSum = (float(line[1]) + float(line[2]) + float(
-                        line[3])) / 3  # FIXME change to difference between angles instead of averaging the angles
-                    avgAngle.append(eulerAngleSum)
-                    time.append(float(line[0]))
-                count = 1  ##skips first line
-                while count < len(avgAngle):
-                    deltaAngle = abs((avgAngle[count]) - avgAngle[count - 1])
-                    deltaTime = abs(time[count] - avgAngle[count - 1])
-                    y.append(deltaAngle / deltaTime)
-                    count += 1
-                '''
-                FIXME
-                make an array and take the diff between the rows so you have three columns
-                figure out how you want to represent them as one value and graph
-                '''
-                x = list(time[1:])  ##skips first time
-                y = list(y)
-                plt.plot(x, y)
-                plt.xlabel('time(ms)')
-                plt.ylabel('angle change over time (rad/s)')
-                plt.title('movement over time')
-                plt.show()
-                plt.savefig(plotName)
-        else:
-            print('!!! ERROR: File not found') #FIXME
-            return
 
 
     def _metaDataConverter(
@@ -701,19 +257,79 @@ class miniscope(experiment.experiment): #FIXME put double spaces between methods
                         n = open(newFileName, 'w')
                         n.write(jsonFile)
                         n.close()
-                        
 
-    def _projections(self):
+
+    def saveCaMovie(self, processingStep=''):
+        """Saves the calcium movie that is currently in SELF.MOVIE."""
+        try:
+            if (type(self.movieFilePaths) is not list) or ((type(self.movieFilePaths) is list) and (len(self.movieFilePaths)==1)):
+                if type(self.movieFilePaths) is list:
+                    self.movieFilePaths = self.movieFilePaths[0]
+                filepath, filename = os.path.split(self.movieFilePaths)
+                filename, filetype = os.path.splitext(filename)
+                filename += processingStep
+                newFilename = filepath + '/' + filename + filetype
+                self.movie.save(newFilename, compress=9)
+            else:
+                filepath, filenameFirst = os.path.split(self.movieFilePaths[0])
+                filenameFirst, filetype = os.path.splitext(filenameFirst)
+                _, filenameLast = os.path.split(self.movieFilePaths[-1])
+                filenameLast, _ = os.path.splitext(filenameLast)
+                filenumFirstIdx = [f.isdecimal() for f in filenameFirst]
+                filenumLastIdx = [f.isdecimal() for f in filenameLast]
+                filenumFirst = filenameFirst[np.where(filenumFirstIdx)[0][0]:]
+                filenumLast = filenameLast[np.where(filenumLastIdx)[0][0]:]
+                filenumLast += processingStep
+                newFilename = filepath + '/' + filenumFirst + '_' + filenumLast + filetype
+                self.movie.save(newFilename, compress=9)
+            self.movieFilePaths = newFilename
+        except AttributeError:
+            print('No movies have been imported.')
+
+
+#%% Methods for preprocessing calcium movies, including computing the projections, cropping, denoising, detrending, and computing dF/F
+    def computeProjections(self):
         """
         Calculates the projections of self.movie and saves the data into self.projections
         """
-        Max = np.amax(self.movie, axis=0)
-        Std = np.std(self.movie, axis=0)
-        Min = np.amin(self.movie, axis=0)
-        Mean = np.mean(self.movie, axis=0)
-        Med = np.median(self.movie, axis=0)
-        Range = Max - Min
-        self.projections = {"Max": Max, "Std": Std, "Min": Min, "Mean": Mean, "Med": Med, "Range": Range}
+        try:
+            Max = np.amax(self.movie, axis=0)
+            Std = np.std(self.movie, axis=0)
+            Min = np.amin(self.movie, axis=0)
+            Mean = np.mean(self.movie, axis=0)
+            Med = np.median(self.movie, axis=0)
+            Range = Max - Min
+            self.projections = {"Max": Max, "Std": Std, "Min": Min, "Mean": Mean, "Med": Med, "Range": Range}
+        except:
+            print('Projection cannot be done, as no movie has been loaded. Loading movie from self.movieFilePaths and proceeding with projection...')
+            
+            Max = np.amax(self.movie, axis=0)
+            Std = np.std(self.movie, axis=0)
+            Min = np.amin(self.movie, axis=0)
+            Mean = np.mean(self.movie, axis=0)
+            Med = np.median(self.movie, axis=0)
+            Range = Max - Min
+            self.projections = {"Max": Max, "Std": Std, "Min": Min, "Mean": Mean, "Med": Med, "Range": Range}
+
+
+    def preprocessCaMovies(self, saveMovie=True, crop=False, cropGUI=False, denoise=False, detrend=False, dFoverF=False):
+        """Run all preprocessing steps in one method, using their default options."""
+        newFileName = ''
+        if crop:
+            self._crop(self.movie, GUI=cropGUI)
+            newFileName += '_cropped'
+        if denoise:
+            self.denoiseCaMovie(saveMovie=False)
+            newFileName += '_denoised'
+        if detrend:
+            self.detrendCaFluorescence(saveMovie=False)
+            newFileName += '_detrend'
+        if dFoverF:
+            self.computedFoverF(saveMovie=False)
+            newFileName += '_dFoverF'
+        if saveMovie:
+            self.saveCaMovie(processingStep=newFileName)
+
 
 
     def _cropMovie(self, crop_top=0, crop_bottom=0, crop_left=0, crop_right=0, crop_begin=0, crop_end=0) -> None:
@@ -728,6 +344,7 @@ class miniscope(experiment.experiment): #FIXME put double spaces between methods
         tempArray = self.movie[crop_begin:t - crop_end, crop_top:h - crop_bottom, crop_left:w - crop_right]
         return tempArray
 
+
     def _crop(self, movie, GUI=False):
         """
         Takes previously save coords from analysis params.csv and optionally displays a GUI to allow the user to select
@@ -735,7 +352,7 @@ class miniscope(experiment.experiment): #FIXME put double spaces between methods
         back into analysis params and also the new size of self.movie
         """
         # Get all projections
-        self._projections()
+        self.computeProjections()
         # Grab saved crop coords from .csv file that has been read
         self.cropCoordinates = {
             "x0": self._analysisParamsDict['crop'][0],
@@ -797,6 +414,7 @@ class miniscope(experiment.experiment): #FIXME put double spaces between methods
                     data=f'({self.cropCoordinates["x0"]},{self.cropCoordinates["y0"]}, {self.cropCoordinates["x1"]},{self.cropCoordinates["y1"]})',
                     columnTitle="crop", lineNum=self.lineNum)
 
+
     def _updateCoords(self, window, x0, y0, x1, y1):
         """
         Update cropping rectangle information
@@ -812,6 +430,7 @@ class miniscope(experiment.experiment): #FIXME put double spaces between methods
         window['-START-'].update(f'Start: ({x0}, {y0})')
         window['-STOP-'].update(f'Stop: ({x1}, {y1})')
         window['-BOX-'].update(f'Box: ({abs(x1 - x0 + 1)}, {abs(y1 - y0 + 1)})')
+
 
     def _updateImage(self, graph, max=False, min=False, STD=False, mean=False, median=False, range=False, cmap='viridis'):
         """
@@ -836,6 +455,7 @@ class miniscope(experiment.experiment): #FIXME put double spaces between methods
         pic_hash = base64.b64encode(pic_IObytes.read())
         # Draw image in graph
         graph.draw_image(data=pic_hash, location=(0, self.movie.shape[1]))
+
 
     def _cropWindow(self, movie):
         """
@@ -1000,7 +620,335 @@ class miniscope(experiment.experiment): #FIXME put double spaces between methods
                  x0, y0 = None, None
 
         window.close()
+
+
+    def denoiseCaMovie(self, saveMovie=True):
+        """Loads a movie and removes both the horizontal bands (that slowly travel upwards) from the movie and the slow flicker of the entire image.
+        SAVEMOVIE determines whether to save the filtered movie (with '_denoised' appended to the filename)."""
+        mode = 'display'
+        if saveMovie:
+            mode = 'save'
+        misc_Functions.denoiseMovie(self.experiment['directory'], mode=mode) # TODO Currently doesn't save this info for later use
+
+
+    def detrendCaFluorescence(self, saveMovie=True, detrendType='median', plotTrend=False):
+        """Loads the calcium movie and detrends it based on the fluorescence of the entire movie.
+        SAVEMOVE determines whether to save the debleached movie (with '_detrended' appended to the filename).
+        DETRENDTYPE determines which method is used for detrending. 'median' debleaches by fitting a model to the median intensity.
+        'linear' debleaches by linearly detrending the mean fluorescence, and includes subtracting the mean of the fluorescence over time."""
+        if 'movie' not in self.__dir__():
+            self.importCaMovies()
+        if plotTrend:
+            h, ax = misc_Functions._prepAxes(xLabel='Frames', yLabel='Mean Fluorescence')
+            ax.plot(np.mean(np.mean(self.movie, axis=1), axis=1), label='Original Data')
+        if detrendType == 'linear':
+            detrend(self.movie, axis=0, overwrite_data=True)
+        elif detrendType == 'median':
+            self.movie.debleach()
+        else:
+            print('detrendType is not a supported detrending method.')
+        if plotTrend:
+            ax.plot(np.mean(np.mean(self.movie, axis=1), axis=1), label='Detrended Data')
+            ax.legend()
+        if saveMovie:
+            self.saveCaMovie(processingStep='_detrended')
+
+
+    def computedFoverF(self, saveMovie=True, secsWindow=5, quantilMin=8, method='delta_f_over_sqrt_f'):
+        """
+        compute the dF/F or dF/sqrt(F) of the movie, or removes the baseline
         
+        Args:
+            secsWindow: length of the windows used to compute the quantile
+            quantilMin : value of the quantile used to compute the movie baseline
+            method='only_baseline','delta_f_over_f','delta_f_over_sqrt_f'
+        Raises: 
+            Exception 'Unknown method' if inputed method is not one of the
+            three accepted methods
+        """
+        # adds ones to all pixel values because function does not take in non-positive values (including zero)
+        self.movie, _ = cm.movie.computeDFF(self.movie+np.ones(np.shape(self.movie)), secsWindow, quantilMin, method)
+        if saveMovie:
+            self.saveCaMovie(processingStep='_dFoverF')
+
+
+#%% Methods for processing calcium movies, including motion correction, CNMF-E, and deconvolution
+    def processCaMovies(self, parallel=True, n_processes=12, motionCorrect=True, saveMotionCorrect=True, inspectMotionCorrection=False,
+                        inspectCorrPNR=False, downsampleForCorrPNR=1, runCNMFE=True, saveCNMFEFilename='estimates.hdf5',
+                        editComponents=False, deconvolve=False, saveProcessedData=False):
+        """Preprocess calcium imaging data."""
+        print('processing movie...')
+        if 'movieFilePaths' not in dir(self):
+            self.findMovieFilePaths()
+        self._analysisParamsDict['fnames'] = self.movieFilePaths
+        self.optsCaImAn = cm.source_extraction.cnmf.params.CNMFParams(params_dict=self._analysisParamsDict)
+        if parallel:
+            c, dview, nProcesses = cm.cluster.setup_cluster(backend='local', n_processes=n_processes, single_thread=False)
+        else:
+            dview = None
+            nProcesses = 1
+        if motionCorrect:
+            self._motionCorrection(dview, saveMotionCorrect, inspectMotionCorrection)
+        else:
+            if saveMotionCorrect: #FIXME I'm not sure if the naming here works as expected...
+                fileName = ''
+                if type(self.movieFilePaths) is str:
+                    fileName = os.path.splitext(self.movieFilePaths)[0] + '_'
+                else:
+                    for file in self.movieFilePaths:
+                        fileName += os.path.splitext(file)[0] + '_' #Changed so that the first part of memmap file is the filename rather than 'memmap'
+                print('Saving memmapped file...')
+                fname_new = cm.save_memmap(self.optsCaImAn.get('data', 'fnames'), base_name=fileName, order='C',
+                                           border_to_0=0,
+                                           dview=dview)  # if no motion correction just memory map the file
+                self.optsCaImAn.change_params({'fnames': fname_new})
+
+        if inspectCorrPNR or runCNMFE:
+            Yr, dims_new, T = cm.load_memmap(self.optsCaImAn.get('data', 'fnames')[0])
+            self.optsCaImAn.change_params({'dims': dims_new})
+            self.images = Yr.T.reshape((T,) + dims_new, order='F')
+            if inspectCorrPNR:
+                self._corrPNR(inspectCorrPNR, downsampleForCorrPNR)
+            if runCNMFE:
+                self._CNMFE(nProcesses, dview=dview, saveCNMFEFilename=saveCNMFEFilename)
+                if editComponents:
+                    pass #FIXME point to the edit components GUI? Or maybe the removeComponents method?
+
+        if deconvolve:
+            self._deconvolve()
+
+        if saveProcessedData:
+            self.saveObj(ratID=True, timeStamp=True)
+
+        cm.stop_server(dview=dview) #FIXME will this throw an error if it's not parallel? if so, uncomment the next two lines
+        # if parallel:
+        #     cm.stop_server(dview=dview)
+
+
+    def _motionCorrection(self, dview=None, saveMotionCorrect=True, inspectMotionCorrection=True):
+        """Use motion correction to correct for movement during the calcium movies."""
+        mc = cm.motion_correction.MotionCorrect(self.optsCaImAn.get('data', 'fnames'), dview=dview,
+                                                **self.optsCaImAn.get_group('motion'))
+        mc.motion_correct(save_movie=saveMotionCorrect)
+        if self.optsCaImAn.get('motion', 'pw_rigid'):
+            bord_px = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)), np.max(np.abs(mc.y_shifts_els)))).astype(int)
+        else:
+            bord_px = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(int)
+
+        if inspectMotionCorrection:
+            self._inspectMotionCorrection(mc)
+
+        bord_px = 0 if self.optsCaImAn.get('motion', 'border_nan') == 'copy' else bord_px
+        self.optsCaImAn.change_params({'border_pix': bord_px})
+
+        if saveMotionCorrect:
+            # fileName = ''
+            # if type(self.movieFilePaths) is str:
+            #     fileNameTemp = os.path.split(self.movieFilePaths)[1]
+            #     fileName = os.path.splitext(fileNameTemp)[0]
+            # else:
+            #     for file in self.movieFilePaths:
+            #         fileNameTemp = os.path.split(file)[1]
+            #         fileName += os.path.splitext(fileNameTemp)[0] + '_' #Changed so that the first part of memmap file is the filename rather than 'memmap'
+            fname_new = cm.save_memmap(mc.mmap_file, order='C', border_to_0=bord_px) # If you uncomment all of the code after "if saveMotionCorrect:" and put "base_name=fileName" as an argument in cm.save_memmap, it will append the concatenated filenames (with underscores in between) of all the videos you're analyzing to the front of the C-order memmap files (both individual ones and the overall one).
+            self.optsCaImAn.change_params({'fnames': fname_new})
+
+
+    def _CNMFE(self, nProcesses, dview=None, saveCNMFEFilename='estimates.h5'):
+        """Segments neurons, demixes spatially overlapping neurons, and denoises the calcium activity from calcium movies.
+        See paper describing the method: https://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3"""
+        cnm = cm.source_extraction.cnmf.CNMF(n_processes=nProcesses, dview=dview, Ain=None, params=self.optsCaImAn)
+        cnm.fit(self.images)
+        self.estimates = cnm.estimates
+        if saveCNMFEFilename:
+            self.CNMFEFilename = os.path.join(self.experiment['directory'], saveCNMFEFilename)
+            cnm.save(self.CNMFEFilename)
+
+
+    def _deconvolve(self, p=None, method_deconvolution=None, bas_nonneg=None,
+                    noise_method=None, optimize_g=0, s_min=None, **kwargs):
+        """Performs deconvolution on already extracted traces using
+        constrained foopsi.
+        """
+
+        p = (self.optsCaImAn.get('preprocess', 'p')
+             if p is None else p)
+        method_deconvolution = (self.optsCaImAn.get('temporal', 'method_deconvolution')
+                                if method_deconvolution is None else method_deconvolution)
+        bas_nonneg = (self.optsCaImAn.get('temporal', 'bas_nonneg')
+                      if bas_nonneg is None else bas_nonneg)
+        noise_method = (self.optsCaImAn.get('temporal', 'noise_method')
+                        if noise_method is None else noise_method)
+        s_min = self.optsCaImAn.get('temporal', 's_min') if s_min is None else s_min
+
+        F = self.estimates.C + self.estimates.YrA
+        args = dict()
+        args['p'] = p
+        args['method_deconvolution'] = method_deconvolution
+        args['bas_nonneg'] = bas_nonneg
+        args['noise_method'] = noise_method
+        args['s_min'] = s_min
+        args['optimize_g'] = optimize_g
+        args['noise_range'] = self.optsCaImAn.get('temporal', 'noise_range')
+        args['fudge_factor'] = self.optsCaImAn.get('temporal', 'fudge_factor')
+
+        args_in = [(F[jj], None, jj, None, None, None, None,
+                    args) for jj in range(F.shape[0])]
+
+        if 'multiprocessing' in str(type(self.dview)):
+            fluor = self.optsCaImAn
+            results = self.dview.map_async(cm.deconvolve.constrained_foopsi(fluor, p=p,
+                                                                            method_deconvolution=method_deconvolution,
+                                                                            noise_method=noise_method,
+                                                                            optimize_g=optimize_g,
+                                                                            s_min=s_min), args_in).get(4294967)
+        elif self.dview is not None:
+            results = self.dview.map_sync(cm.deconvolve.constrained_foopsi_parallel(), args_in)
+        else:
+            results = list(map(cm.deconvolve.constrained_foopsi_parallel(), args_in))
+
+        if sys.version_info >= (3, 0):
+            results = list(zip(*results))
+        else:  # python 2
+            results = zip(*results)
+
+        order = list(results[7])
+        self.estimates.C = np.stack([results[0][i] for i in order])
+        self.estimates.S = np.stack([results[1][i] for i in order])
+        self.estimates.bl = [results[3][i] for i in order]
+        self.estimates.c1 = [results[4][i] for i in order]
+        self.estimates.g = [results[6][i] for i in order]
+        self.estimates.neurons_sn = [results[5][i] for i in order]
+        self.estimates.lam = [results[8][i] for i in order]
+        self.estimates.YrA = F - self.estimates.C
+        return self
+
+
+#%% Methods for evaluating motion correction and CNMF-E
+    def _inspectMotionCorrection(self, mc, plotRigidMotionCorrection=True, plotShifts=True, playConcatenatedMovies=True,
+                                 downsampleRatio=0.2, plotCorrelation=True, plotAdvancedMCInspection=True):
+        """Various plots and movies to help with the inspection of motion correction effectiveness.
+        MC is the motion correction object obtained from SELF._MOTIONCORRECTION().
+        PLOTRIGIDMOTIONCORRECTION is a boolean that determines whether rigid motion correction is plotted.
+        PLAYCONCATENATEDMOVIES is a boolean that determines whether the original and motion-corrected movies are plotted side-by-side.
+        DOWNSAMPLERATIO is a float that determines the factor by which to shrink the duration of the playback (helpful for making the motion more obvious).
+        PLOTSHIFTS is a boolean that determines whether to plot the x and y pixel shifts over time.
+        PLOTCORRELATION is a boolean that determines whether to plot the correlation images for the original and motion-corrected movies side-by-side.
+        """
+        if plotRigidMotionCorrection:
+            h, ax = misc_Functions._prepAxes(xLabel=['', 'Frames'], yLabel=['', 'Pixels'], subPlots=[1, 2])
+            ax[0].imshow(mc.total_template_rig)  # % plot template
+            ax[1].plot(mc.shifts_rig)  # % plot rigid shifts
+            ax[1].legend(['X Shifts', 'Y Shifts'])
+
+        if plotShifts:
+            if self.optsCaImAn.get('motion', 'pw_rigid'):
+                h, ax = misc_Functions._prepAxes(xLabel='Frames', yLabel='Pixels')
+                ax.plot(mc.shifts_rig)
+                ax.legend(['X Shifts', 'Y Shifts'])
+            else:
+                h, ax = misc_Functions._prepAxes(xLabel=['', 'Frames'],
+                                                 yLabel=['X Shifts (Pixels)', 'Y Shifts (Pixels)'], subPlots=[2, 1])
+                ax[0].plot(mc.x_shifts_els)
+                ax[1].plot(mc.y_shifts_els)
+
+        if playConcatenatedMovies or plotCorrelation:
+            if 'movie' not in self.__dir__():
+                self.importCaMovies(filenames=self.movieFilePaths)
+            mcMovie = cm.load(mc.mmap_file)
+            if playConcatenatedMovies:
+                cm.concatenate([self.movie.resize(1, 1, downsampleRatio) - mc.min_mov * mc.nonneg_movie,
+                                mcMovie.resize(1, 1, downsampleRatio)], axis=2).play(fr=self._analysisParamsDict['fr'],
+                                                                                     q_max=99.5, magnification=2,
+                                                                                     bord_px=self.optsCaImAn.get(
+                                                                                         'patch', 'border_pix'))
+            if plotCorrelation:
+                h, ax = misc_Functions._prepAxes(xLabel=['', 'Frames'], yLabel=['', 'Pixels'], subPlots=[1, 2])
+                ax[0].imshow(self.movie.local_correlations(eight_neighbours=True, swap_dim=False))
+                ax[1].imshow(mcMovie.local_correlations(eight_neighbours=True, swap_dim=False))
+
+        if plotAdvancedMCInspection:
+            final_size = np.subtract(self.optsCaImAn.get('data', 'dims'),
+                                     2 * mc.border_to_0)  # remove pixels in the boundaries
+            winsize = 100
+            swap_dim = False
+            resize_fact_flow = .2  # downsample for computing ROF
+
+            tmpl_orig, correlations_orig, flows_orig, norms_orig, crispness_orig = cm.motion_correction.compute_metrics_motion_correction(
+                mc.fname[0], final_size[0], final_size[1], swap_dim, winsize=winsize, play_flow=False,
+                resize_fact_flow=resize_fact_flow)
+
+            tmpl_mc, correlations_mc, flows_mc, norms_mc, crispness_mc = cm.motion_correction.compute_metrics_motion_correction(
+                mc.mmap_file[0], final_size[0], final_size[1],
+                swap_dim, winsize=winsize, play_flow=False, resize_fact_flow=resize_fact_flow)
+
+            h, ax = misc_Functions._prepAxes(xLabel=['Frame', 'Original'], yLabel=['Correlation', 'Motion Corrected'],
+                                             subPlots=[2, 1])
+            ax[0].plot(correlations_orig)
+            ax[0].plot(correlations_mc)
+            plt.legend(['Original', 'Motion Corrected'])
+            ax[1].scatter(correlations_orig, correlations_mc)
+            ax[1].plot([0, 1], [0, 1], 'r--')
+            ax[1].axis('square')
+
+            # print crispness values
+            print('Crispness original: ' + str(int(crispness_orig)))
+            print('Crispness motion corrected: ' + str(int(crispness_mc)))
+
+            # plot the results of Residual Optical Flow
+            fls = [mc.fname[0][:-4] + '_metrics.npz', mc.mmap_file[0][:-4] + '_metrics.npz']
+
+            h, ax = misc_Functions._prepAxes(title=['Mean', 'Corr Image', 'Mean Optical Flow', '', '', ''],
+                                             xLabel=['Original', '', '', 'Motion Corrected', '', ''], yLabel=['', '', '', '', '', ''],
+                                             subPlots=[2, 3])
+
+            for cnt, fl in zip(range(len(fls)), fls):
+                with np.load(fl) as ld:
+                    print(str(np.mean(ld['norms'])) + '+/-' + str(np.std(ld['norms'])) +
+                          '; ' + str(ld['smoothness']) + '; ' + str(ld['smoothness_corr']))
+
+                    if cnt == 0:
+                        mean_img = np.mean(cm.load(mc.fname[0]), 0)[12:-12, 12:-12]
+                    else:
+                        mean_img = np.mean(cm.load(mc.mmap_file[0]), 0)[12:-12, 12:-12]
+
+                    lq, hq = np.nanpercentile(mean_img, [0.5, 99.5])
+                    ax[3 * cnt + 1].imshow(mean_img, vmin=lq, vmax=hq)
+                    ax[3 * cnt + 2].imshow(ld['img_corr'], vmin=0, vmax=0.35)
+                    # ax[3 * cnt + 3].plot(ld['norms'])
+                    # ax[3 * cnt + 3].xlabel('frame')
+                    # ax[3 * cnt + 3].ylabel('norm opt flow')
+                    if len(ax) > (3 * cnt + 3):
+                        mappable = ax[3 * cnt + 3].imshow(np.mean(
+                            np.sqrt(ld['flows'][:, :, :, 0] ** 2 + ld['flows'][:, :, :, 1] ** 2), 0), vmin=0, vmax=0.3)
+                        plt.colorbar(mappable=mappable, ax=ax[3 * cnt + 3]) #FIXME colorbar() is NOT an attribute of ax. It is of plt though
+
+
+    def _corrPNR(self, inspectCorrPNR, downsampleForCorrPNR):
+        """Create the correlation and peak-noise-ratio (PNR) images and, if desired, inspect them with an interactive plot to determine min_corr and min_pnr."""
+        self.cn_filter, self.pnr = cm.summary_images.correlation_pnr(self.images[::downsampleForCorrPNR],
+                                                                     gSig=self.optsCaImAn.get('init', 'gSig')[0],
+                                                                     swap_dim=False)
+        if inspectCorrPNR:
+            cm.utils.visualization.inspect_correlation_pnr(self.cn_filter, self.pnr)
+
+
+#%% Methods for manipulating components after CNMF-E is run
+    def removeComponents(self, idxToRemove, filename=None, saveNewCNMFE=True): #FIXME compare this to evaluate_components and the components GUI to see if there's overlap
+        """Remove or merge components extracted using the CNMF-E algorithm.
+        IDXTOREMOVE are the indices of components to remove.
+        FILENAME is the name of the HDF5 file where the output of the CNMF-E algorithm is stored. This file must be created prior to running this method.
+        SAVENEWCNMFE determines whether to save the output with the removed components as a new HDF5 file."""
+        if filename == None:
+            filename = self.CNMFEFilename
+        cnmObj = cm.source_extraction.cnmf.cnmf.load_CNMF(filename) #FIXME use try/except to check if self.estimates already exists
+        cnmObj.remove_components(idxToRemove)
+        if saveNewCNMFE:
+            filenameParts = os.path.splitext(filename)
+            self.CNMFEFilename = os.path.join(filenameParts[0] + '_components_removed' + filenameParts[1])
+            cnmObj.save(self.CNMFEFilename)
+
+
     def _createContourFig(self, sfootprints, background, current_selected, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, display_numbers=True, max_number=None,
                       cmap=None, unselectcolor='w', selectcolor='r', coordinates=None,
                       contour_args={}, number_args={}):
@@ -1068,11 +1016,11 @@ class miniscope(experiment.experiment): #FIXME put double spaces between methods
                 ax.text(comp[i, 1], comp[i, 0], str(i + 1), color=unselectcolor, **number_args)
         plt.axis('off')
         return fig
-    
-#FIXME put new cell markers (#%%) to divide up the different sections in the code, including grouping the methods that apply to the different GUIs
+
+
     def _componentImage(self, graph, current_selected,  max=False, min=False, STD=False, mean=False, median=False, range=False,
                      cmap='viridis'):
-        # adds projection to GUI
+        """Adds projection to GUI."""
         pic_IObytes = io.BytesIO()
         if max:
             self._createContourFig(self.estimates.A, self.projections['Max'], current_selected, cmap=cmap).figure.savefig(pic_IObytes, format='png', bbox_inches='tight', pad_inches = 0)
@@ -1094,13 +1042,12 @@ class miniscope(experiment.experiment): #FIXME put double spaces between methods
     
         
     def _componentGUI(self, auto_eval = False):
-        
-        
+        """"""
         # Get all projections
         try: 
             a = self.projections['Range']
         except:
-            self._projections()
+            self.computeProjections()
         
         if self.estimates.idx_components_bad is None:
             self.estimates.idx_components = []
@@ -1108,7 +1055,7 @@ class miniscope(experiment.experiment): #FIXME put double spaces between methods
         
         if auto_eval:
             # preselect rejected components using evaluate_component
-            self.evaluate_components()
+            self.evaluateComponents()
             self.estimates.idx_components += np.ones(self.estimates.idx_components.shape, dtype=self.estimates.idx_components.dtype)
             self.estimates.idx_components_bad += np.ones(self.estimates.idx_components_bad.shape, dtype=self.estimates.idx_components_bad.dtype)
         
@@ -1175,7 +1122,6 @@ class miniscope(experiment.experiment): #FIXME put double spaces between methods
                 elif values['-OPTION-'] == 'Range':
                     self._componentImage(graph, values['-LISTCOMP-'], range=True, cmap=values['-CMAP-'])
 
-                
             # CMAP of image
             elif event in '-CMAP-':
                 if values['-OPTION-'] == 'Max':
@@ -1191,7 +1137,6 @@ class miniscope(experiment.experiment): #FIXME put double spaces between methods
                 elif values['-OPTION-'] == 'Range':
                     self._componentImage(graph, values['-LISTCOMP-'], range=True, cmap=values['-CMAP-'])
 
-                
             #Update colors of selected components
             elif event in '-LISTCOMP-':
                 if values['-OPTION-'] == 'Max':
@@ -1207,27 +1152,108 @@ class miniscope(experiment.experiment): #FIXME put double spaces between methods
                 elif values['-OPTION-'] == 'Range':
                     self._componentImage(graph, values['-LISTCOMP-'], range=True, cmap=values['-CMAP-'])
 
-                
             elif event in '-SUBMIT-':
                 selected = np.arange(0, len(self.estimates.C))
                 selected = [idx for idx in selected if idx not in (np.array(values['-LISTCOMP-'], dtype=int)- np.ones(len(values['-LISTCOMP-']), dtype=int))]
                 self.estimates.select_components(idx_components = selected)
                 break
-            
-        
-            
+
         plt.close()
         window.close()
-        
-    def evaluate_components(self, min_SNR=3, r_values_min=0.85):
 
+
+    def evaluateComponents(self, min_SNR=3, r_values_min=0.85):
+        """"""
         Yr, dims, T = cm.load_memmap(self.optsCaImAn.get('data', 'fnames')[0])
         images = Yr.T.reshape((T,) + dims, order='F')
 
         self.optsCaImAn.set('quality', {'min_SNR': min_SNR, 'rval_thr': r_values_min, 'use_cnn': False})
         self.estimates.evaluate_components(images, self.optsCaImAn)
-        
-        
+
+
+#%% Methods for computing and plotting head direction data
+    def _quatFileToEulerFile(self, filename='headOrientation.csv', nf='True'):  ##returns newfilename
+        newfilename = filename.replace('.csv', 'inEulerAngles.csv')
+        if os.path.exists(filename):
+            print('File exists')
+            with open(filename, newline='') as f:
+                reader = csv.reader(f)
+                if nf == 'True':  # do you want to create a new file
+                    with open(newfilename, 'w', newline='') as nf:
+                        writer = csv.writer(nf)
+                        header = []
+                        header.append('Time Stamp (ms)')
+                        header.append('x')
+                        header.append('y')
+                        header.append('z')
+                        writer.writerow(header)
+                        next(f)
+                        for line in reader:
+                            eulerAngles = misc_Functions.conv_quat_to_euler(line)
+                            writer.writerow(eulerAngles)
+                    return newfilename
+                else:
+                    matrix = []
+                    next(f)
+                    for line in reader:
+                        eulerAngles = misc_Functions.conv_quat_to_euler(line)
+                        matrix.append(eulerAngles)
+                    return matrix
+        else:
+            print('!!! ERROR: File not found') #FIXME
+            return
+
+
+    def graphMovement(self, filename='headOrientationinEulerAngles.csv',
+                       plotName='movementPlot.png'):  ##eulerAngle file
+
+        if 'inEulerAngles.csv' not in filename and '.csv' in filename:
+            filename = self._quatFileToEulerFile(filename)
+        elif '.csv' not in filename:
+            print('!!! ERROR: Invalid file')
+            return
+
+        if os.path.exists(filename):
+            print('File exists')
+            with open(filename, newline='') as f:
+                reader = csv.reader(f)
+                y = []
+                avgAngle = []
+                time = []
+                next(f)  ##skip header line
+                for line in reader:
+                    if len(line) != 4:
+                        print('!!! ERROR: Invalid file') #FIXME
+                        return
+                    eulerAngleSum = (float(line[1]) + float(line[2]) + float(
+                        line[3])) / 3  # FIXME change to difference between angles instead of averaging the angles
+                    avgAngle.append(eulerAngleSum)
+                    time.append(float(line[0]))
+                count = 1  ##skips first line
+                while count < len(avgAngle):
+                    deltaAngle = abs((avgAngle[count]) - avgAngle[count - 1])
+                    deltaTime = abs(time[count] - avgAngle[count - 1])
+                    y.append(deltaAngle / deltaTime)
+                    count += 1
+                '''
+                FIXME
+                make an array and take the diff between the rows so you have three columns
+                figure out how you want to represent them as one value and graph
+                '''
+                x = list(time[1:])  ##skips first time
+                y = list(y)
+                plt.plot(x, y)
+                plt.xlabel('time(ms)')
+                plt.ylabel('angle change over time (rad/s)')
+                plt.title('movement over time')
+                plt.show()
+                plt.savefig(plotName)
+        else:
+            print('!!! ERROR: File not found') #FIXME
+            return
+
+
+#%% Functions that don't apply to a single experiment
 def findSameNeurons(sessionList, FOVdims, templateList = None, background=None, plotResults=False):
     '''
     Tracks ROIs across multiple imaging sessions

@@ -20,7 +20,7 @@ import miniscope
 # obj = EEG.NeuralynxEEG(11)
 # obj.importEphysData()
 
-obj = miniscope.miniscope(lineNum=16)
+obj = miniscope.UCLAminiscope(lineNum=16)
 
 # %% Crop and re-save the videos
 # for vidnum in range(92): # The number in range() should be the total number of .avi movies in the recording

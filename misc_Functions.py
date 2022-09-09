@@ -536,7 +536,7 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
 
 
 def importVideoAsNumpyArray(filename, frames='all', displayFrame=False, frameToDisplay=10):
-    ##Code stolen from https://stackoverflow.com/questions/42163058/how-to-turn-a-video-into-numpy-array and edited
+    """Code stolen from https://stackoverflow.com/questions/42163058/how-to-turn-a-video-into-numpy-array and edited."""
     cap = cv2.VideoCapture(filename)
     frameCount = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     frameWidth = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -556,7 +556,7 @@ def importVideoAsNumpyArray(filename, frames='all', displayFrame=False, frameToD
     return buf
 
 
-def quat_to_euler(qw, qx, qy, qz, degrees=False):
+def quatToEuler(qw, qx, qy, qz, degrees=False):
     m00 = 1.0 - 2.0 * qy * qy - 2.0 * qz * qz
     m01 = 2.0 * qx * qy + 2.0 * qz * qw
     m02 = 2.0 * qx * qz - 2.0 * qy * qw
@@ -583,7 +583,7 @@ def quat_to_euler(qw, qx, qy, qz, degrees=False):
     return eulerAngles
 
 
-def _conv_quat_to_euler(line):
+def _convQuatToEuler(line):
     if len(line) != 5:
         print('!!! ERROR: Invalid file')  # FIXME
         return
@@ -592,7 +592,7 @@ def _conv_quat_to_euler(line):
     qx = line[2]
     qy = line[3]
     qz = line[4]
-    eulerAngles = list(quat_to_euler(qw, qx, qy, qz, degrees=False))
+    eulerAngles = list(quatToEuler(qw, qx, qy, qz, degrees=False))
     eulerAngles.insert(0, time)  ##time in matrix?
     return eulerAngles
 
@@ -618,7 +618,6 @@ def threshFunc(dataArray, threshVal):
     addArr = np.zeros(np.shape(dataArray))
     addArr[..., -1] = 1
     dataArray = dataArray + addArr
-
     return dataArray
 
 
@@ -667,6 +666,7 @@ def updateCSVCell(data, columnTitle, lineNum, csvFile='analysis_parameters.csv')
             for lineData in csvData:
                 writer.writerow(lineData)
 
+
 def appendRowCSV(data, filename="neuron_phase.csv"):
     """
     appends a new row to a CSV file
@@ -685,7 +685,8 @@ def appendRowCSV(data, filename="neuron_phase.csv"):
             writer = csv.DictWriter(file, dict(data).keys())
             writer.writerow(dict(data))
 
-def spike_trig_avg(eventArray, dataArray, framesb, framesa):       
+
+def spikeTrigAvg(eventArray, dataArray, framesb, framesa):       
     """
     Compute the average spike values starting 'framesb' before the event
     and ending 'framesa' after the event.
@@ -702,7 +703,6 @@ def spike_trig_avg(eventArray, dataArray, framesb, framesa):
                       component number from the dataArray and the value is
                       a numpy array of the average values at each frame
                       of the designated window around the event
-        
     """
     avgEventDict = {}
     if dataArray.ndim == 1:
@@ -725,7 +725,8 @@ def spike_trig_avg(eventArray, dataArray, framesb, framesa):
                 avgEventDict[component] /= len(np.argwhere(eventArray==component))
     return avgEventDict
 
-def z_score(dataArray, frameWindow = 1000):
+
+def zScore(dataArray, frameWindow = 1000):
     """
     Compute the z-score of the data array values every designated frame window
     length based on the values within that frame window

@@ -23,7 +23,7 @@ from rdp import rdp
 import time
 import pandas as pd
 
-class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
+class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAminiscope):
     """This is the class definition for handling miniscopes and simultaneous EEG data."""
     def __init__(self, lineNum, filename='experiments.csv', filenameMiniscope='metaData.json'):
         self.lineNum = lineNum
@@ -83,7 +83,8 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
                         line.append(k)
                         line.append(ti)
                         writer.writerow(line)
-            
+
+
     def _correcttCaIm(self, tCaIm):
         dtCaIm = np.diff(tCaIm)
         frameRate = self.experiment['frameRate']
@@ -113,7 +114,8 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
         for k, idx in enumerate(start):
             pOUC.append(str(f"{round(tCaIm[idx],4):08}") + '-' + str(f"{round(tCaIm[end[k]],4):08}")) #FIXME
         return(nT, pOUC)
-    
+
+
     def _phaseCaEvents(self, channel, neuron='all'):
         """Compare calcium events to the phase extracted from a specified EEG channel."""
         self._syncCaMovieTimes(channel)
@@ -144,24 +146,20 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
     def phaseCaEventsPolarPlot(self, channel='CBvsPFCEEG', neuron='all', bins=18, plotMeanVector=True):
         """"""
         pass
-    
-    def save_data(self):
-        
-        df = pd.read_csv("miniscope_EEG_rats.csv", encoding="ISO-8859-1" )  #reading csv file
 
+
+    def saveData(self):
+        """Saves extracted phases of calcium events, along with neuron and rat IDs and other info, to a CSV file for further processing."""
+        df = pd.read_csv("miniscope_EEG_rats.csv", encoding="ISO-8859-1" )  #reading csv file
         for index, row in df.iterrows():   # filtering the rows where job is Govt
         	if self.experiment['id'] in row['Rat ID']:
         		sex = row['Sex']
         else:
             print("No such variable found")
-                
         length = len(self.CaEventsPhases)
-      
-        list_data = {"Phase":self.CaEventsPhases, 'NeuronID':self.CaEventsNeurons, 'RatID':[self.experiment['id']] * length, 'Sex': [sex] * length, 'Condition':[self.experiment["systemic drug"]] * length} 
-    
-    
-    
-    
+        list_data = {"Phase":self.CaEventsPhases, 'NeuronID':self.CaEventsNeurons, 'RatID':[self.experiment['id']] * length, 'Sex': [sex] * length, 'Condition':[self.experiment["systemic drug"]] * length}
+
+
     def correctTimeStamps(self,channel='CBvsPFCEEG', plot=False):
         print('Correcting time stamps...')
         start_time = time.time()
@@ -249,7 +247,8 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
                     raise ValueError('Number deleted frames is incorrect')
                 print(self.pOUC)
         print("--- %s seconds ---" % (time.time() - start_time))
-                
+
+
     def _turningPoints(self,timeStamps,numDroppedFrames,plot=False):
         # step detection algorithm borrowed from https://stackoverflow.com/questions/48000663/step-detection-in-one-dimensional-data
         self.clockTime = self.tCaIm - self.tCaIm[0] # FIXME make not self throughout function
@@ -261,8 +260,8 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
         endInd = self._stepID(self.clockDiffEnd,plot) + len(timeStamps)
         self.inds = np.concatenate((startInd,endInd))
         return(self.inds)
-        
-        
+
+
     def _angle(self,directions):
         """Return the angle between vectors
         """
@@ -273,8 +272,8 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
         norm2 = np.sqrt((vec2 ** 2).sum(axis=1))
         cos = (vec1 * vec2).sum(axis=1) / (norm1 * norm2)   
         return np.arccos(cos)
-    
-    
+
+
     def _stepID(self,clockDiff,plot):
         d = clockDiff
         dary = np.array([*map(float, d)])
@@ -314,7 +313,8 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.miniscope):
             plt.plot(dary_step/(epsilon))
             plt.show()
         return(sx[idx]) 
-        
+
+
     def _findtIdxCaIm(self,k,caImEvent,lastIndex,channel,endPoint):
         if k == 0:
             _tIdxCaIm = np.abs(self.tEEG[channel][lastIndex:]-caImEvent).argmin()+lastIndex
