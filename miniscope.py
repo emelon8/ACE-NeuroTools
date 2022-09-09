@@ -289,9 +289,7 @@ class UCLAminiscope(experiment.experiment):
 
 #%% Methods for preprocessing calcium movies, including computing the projections, cropping, denoising, detrending, and computing dF/F
     def computeProjections(self):
-        """
-        Calculates the projections of self.movie and saves the data into self.projections
-        """
+        """Calculates the projections of self.movie and saves the data into self.projections."""
         try:
             Max = np.amax(self.movie, axis=0)
             Std = np.std(self.movie, axis=0)
@@ -302,7 +300,8 @@ class UCLAminiscope(experiment.experiment):
             self.projections = {"Max": Max, "Std": Std, "Min": Min, "Mean": Mean, "Med": Med, "Range": Range}
         except:
             print('Projection cannot be done, as no movie has been loaded. Loading movie from self.movieFilePaths and proceeding with projection...')
-            
+            if 'movie' not in self.__dir__():
+                self.importCaMovies()
             Max = np.amax(self.movie, axis=0)
             Std = np.std(self.movie, axis=0)
             Min = np.amin(self.movie, axis=0)
@@ -329,7 +328,6 @@ class UCLAminiscope(experiment.experiment):
             newFileName += '_dFoverF'
         if saveMovie:
             self.saveCaMovie(processingStep=newFileName)
-
 
 
     def _cropMovie(self, crop_top=0, crop_bottom=0, crop_left=0, crop_right=0, crop_begin=0, crop_end=0) -> None:
