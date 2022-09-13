@@ -4,7 +4,6 @@ Created on Fri Aug 14 11:25:19 2020
 
 @author: Eric
 
-Before submitting a job to run this code on the cluster, you must activate your conda environment, since the environment is installed in my user directory!
 """
 
 import os
