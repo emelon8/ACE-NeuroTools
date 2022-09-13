@@ -202,7 +202,7 @@ def loadObj(filename):
 def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
                  framesPerFile=1000, fs=30, frameStep=10, goodRadius=2000,
                  notchHalfWidth=3, centerHalfHeightToLeave=90, cutoff=3.0,
-                 butterOrder=6, mode='display', compressionCodec='FFV1'):
+                 butterOrder=6, mode='display', compressionCodec='FFV1', jobID=''):
     '''
     Loads a movie and removes both the horizontal bands (that slowly travel upwards) from the movie and the slow flicker of the entire image. Code largely stolen from Daniel Aharoni's python notebook (https://github.com/Aharoni-Lab/Miniscope-v4/tree/master/Miniscope-v4-Denoising-Notebook).
     DATADIR is the directory that contains the movie files to be denoised.
@@ -296,10 +296,8 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
                             break
         cv2.destroyAllWindows()
 
-        # %% Modify FFT using a circle mask around center
-
+        # Modify FFT using a circle mask around center
         # -----------------------
-
         crow, ccol = int(rows / 2), int(cols / 2)
 
         maskFFT = np.zeros((rows, cols, 2), np.float32)
@@ -324,8 +322,7 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
         plt.title('Filtered FFT')
         """
 
-        # %% Display filtered vs original videos
-
+        # Display filtered vs original videos
         # -----------------------
         if showVideo:
             fileNum = startingFileNum
@@ -370,8 +367,7 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
 
             cv2.destroyAllWindows()
 
-        # %% Calculate mean fluorescence per frame
-
+        # Calculate mean fluorescence per frame
         # Users shouldn't change anything here
         frameStep = 1  # Should stay as 1
         fileNum = startingFileNum
@@ -479,7 +475,7 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
 
             if mode is "save":
                 writeFile = cv2.VideoWriter(
-                    filePath + "Denoised/" + dataFilePrefix + "denoised{:.0f}.avi".format(fileNum),
+                    filePath + "Denoised/" + jobID + dataFilePrefix + "denoised{:.0f}.avi".format(fileNum),
                     codec, 60, (cols, rows), isColor=False)
 
             fileNum = fileNum + 1

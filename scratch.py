@@ -6,20 +6,24 @@ Created on Fri Aug 14 11:25:19 2020
 
 """
 
-import os
-os.chdir('/PHShome/em609/data_analysis_code/experiment_analysis') # for running on ERISTwo
+# import os
 # import glob
 
 # import miniscope_EEG
 # import EEG
 import miniscope
 
+import sys
+jobID = ''
+if len(sys.argv) > 1:
+    jobID = sys.argv[1] + '_'
+
 # %% Import experiment and electrophysiological data
 # obj = miniscope_EEG.miniscopeEEG(2, filename='experiments.csv', filenameMiniscope='test_recordings/example_miniscope_recording/settings_and_notes.dat')
 # obj = EEG.NeuralynxEEG(11)
 # obj.importEphysData()
 
-obj = miniscope.UCLAminiscope(lineNum=16)
+obj = miniscope.UCLAminiscope(lineNum=16, jobID=jobID)
 
 # %% Crop and re-save the videos
 # for vidnum in range(92): # The number in range() should be the total number of .avi movies in the recording

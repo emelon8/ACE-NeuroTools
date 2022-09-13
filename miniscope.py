@@ -42,8 +42,7 @@ class UCLAminiscope(experiment.experiment):
     #     # program.processCaMovies(inspectMotionCorrection=True, runCNMFE=False)
     
 #%% Methods for importing experiment info, metadata, events, and analysis parameters
-    def __init__(self, filenameMiniscope='metaData.json', lineNum=None,
-                 filename='experiments.csv', analysisFilename='analysis_parameters.csv'):
+    def __init__(self, lineNum=None, filename='experiments.csv', filenameMiniscope='metaData.json', analysisFilename='analysis_parameters.csv', jobID=''):
         self.lineNum = lineNum
         if lineNum != None:
             super().__init__(lineNum, filename=filename)
@@ -104,6 +103,8 @@ class UCLAminiscope(experiment.experiment):
                 self.frameNum.append(int(row[0]))
                 self.timeStamps.append(float(row[1]))
         self.timeStamps = np.divide((np.asarray(self.timeStamps) - self.timeStamps[0]), 1000)  # converts from ms to s
+        
+        self.jobID = jobID # used for naming output files
 
 
     def miniscopeImportEvents(self):
@@ -215,7 +216,7 @@ class UCLAminiscope(experiment.experiment):
                     try:
                         movie = cm.load(filenames[k])
                         movie.save(os.path.splitext(filenames[k])[
-                                       0] + newFileType)  ###########maybe use the saveCaMovie method here and elsewhere in this method?
+                                       0] + newFileType)  ###########FIXME maybe use the saveCaMovie method here and elsewhere in this method?
                     except:
                         difVideos.append(filenames[k])
         if metaDataConvert:
@@ -268,7 +269,7 @@ class UCLAminiscope(experiment.experiment):
                 filepath, filename = os.path.split(self.movieFilePaths)
                 filename, filetype = os.path.splitext(filename)
                 filename += processingStep
-                newFilename = filepath + '/' + filename + filetype
+                newFilename = filepath + '/' + self.jobID + filename + filetype
                 self.movie.save(newFilename, compress=9)
             else:
                 filepath, filenameFirst = os.path.split(self.movieFilePaths[0])
@@ -280,7 +281,7 @@ class UCLAminiscope(experiment.experiment):
                 filenumFirst = filenameFirst[np.where(filenumFirstIdx)[0][0]:]
                 filenumLast = filenameLast[np.where(filenumLastIdx)[0][0]:]
                 filenumLast += processingStep
-                newFilename = filepath + '/' + filenumFirst + '_' + filenumLast + filetype
+                newFilename = filepath + '/' + self.jobID + filenumFirst + '_' + filenumLast + filetype
                 self.movie.save(newFilename, compress=9)
             self.movieFilePaths = newFilename
         except AttributeError:
@@ -289,7 +290,7 @@ class UCLAminiscope(experiment.experiment):
 
 #%% Methods for preprocessing calcium movies, including computing the projections, cropping, denoising, detrending, and computing dF/F
     def computeProjections(self):
-        """Calculates the projections of self.movie and saves the data into self.projections."""
+        """Calculates the projections of self.movie and stores the result in self.projections."""
         try:
             Max = np.amax(self.movie, axis=0)
             Std = np.std(self.movie, axis=0)
@@ -345,7 +346,7 @@ class UCLAminiscope(experiment.experiment):
 
     def _crop(self, movie, GUI=False):
         """
-        Takes previously save coords from analysis params.csv and optionally displays a GUI to allow the user to select
+        Takes previously save coordinates from analysis params.csv and optionally displays a GUI to allow the user to select
         new ones or crop at the previously saved site. This function then saves the new cropping coords and writes them
         back into analysis params and also the new size of self.movie
         """
@@ -626,7 +627,7 @@ class UCLAminiscope(experiment.experiment):
         mode = 'display'
         if saveMovie:
             mode = 'save'
-        misc_Functions.denoiseMovie(self.experiment['directory'], mode=mode) # TODO Currently doesn't save this info for later use
+        misc_Functions.denoiseMovie(self.experiment['directory'], mode=mode, jobID=self.jobID) # TODO Currently doesn't save this info for later use
 
 
     def detrendCaFluorescence(self, saveMovie=True, detrendType='median', plotTrend=False):
@@ -689,9 +690,9 @@ class UCLAminiscope(experiment.experiment):
             self._motionCorrection(dview, saveMotionCorrect, inspectMotionCorrection)
         else:
             if saveMotionCorrect: #FIXME I'm not sure if the naming here works as expected...
-                fileName = ''
+                fileName = self.jobID
                 if type(self.movieFilePaths) is str:
-                    fileName = os.path.splitext(self.movieFilePaths)[0] + '_'
+                    fileName += os.path.splitext(self.movieFilePaths)[0] + '_'
                 else:
                     for file in self.movieFilePaths:
                         fileName += os.path.splitext(file)[0] + '_' #Changed so that the first part of memmap file is the filename rather than 'memmap'
@@ -716,7 +717,7 @@ class UCLAminiscope(experiment.experiment):
             self._deconvolve()
 
         if saveProcessedData:
-            self.saveObj(ratID=True, timeStamp=True)
+            self.saveObj(includeSubjectID=True, includeTimeStamp=True, jobID=self.jobID)
 
         cm.stop_server(dview=dview) #FIXME will this throw an error if it's not parallel? if so, uncomment the next two lines
         # if parallel:
@@ -748,7 +749,7 @@ class UCLAminiscope(experiment.experiment):
             #     for file in self.movieFilePaths:
             #         fileNameTemp = os.path.split(file)[1]
             #         fileName += os.path.splitext(fileNameTemp)[0] + '_' #Changed so that the first part of memmap file is the filename rather than 'memmap'
-            fname_new = cm.save_memmap(mc.mmap_file, order='C', border_to_0=bord_px) # If you uncomment all of the code after "if saveMotionCorrect:" and put "base_name=fileName" as an argument in cm.save_memmap, it will append the concatenated filenames (with underscores in between) of all the videos you're analyzing to the front of the C-order memmap files (both individual ones and the overall one).
+            fname_new = cm.save_memmap(mc.mmap_file, base_name=self.jobID + 'Yr', order='C', border_to_0=bord_px) # If you uncomment all of the code after "if saveMotionCorrect:" and put "base_name=fileName" as an argument in cm.save_memmap, it will append the concatenated filenames (with underscores in between) of all the videos you're analyzing to the front of the C-order memmap files (both individual ones and the overall one).
             self.optsCaImAn.change_params({'fnames': fname_new})
 
 
@@ -759,7 +760,7 @@ class UCLAminiscope(experiment.experiment):
         cnm.fit(self.images)
         self.estimates = cnm.estimates
         if saveCNMFEFilename:
-            self.CNMFEFilename = os.path.join(self.experiment['directory'], saveCNMFEFilename)
+            self.CNMFEFilename = os.path.join(self.experiment['directory'], self.jobID + saveCNMFEFilename)
             cnm.save(self.CNMFEFilename)
 
 
@@ -942,8 +943,9 @@ class UCLAminiscope(experiment.experiment):
         cnmObj = cm.source_extraction.cnmf.cnmf.load_CNMF(filename) #FIXME use try/except to check if self.estimates already exists
         cnmObj.remove_components(idxToRemove)
         if saveNewCNMFE:
+            directory, filename = os.path.split(filename)
             filenameParts = os.path.splitext(filename)
-            self.CNMFEFilename = os.path.join(filenameParts[0] + '_components_removed' + filenameParts[1])
+            self.CNMFEFilename = os.path.join(directory, self.jobID + filenameParts[0] + '_components_removed' + filenameParts[1])
             cnmObj.save(self.CNMFEFilename)
 
 
@@ -1171,7 +1173,7 @@ class UCLAminiscope(experiment.experiment):
 
 #%% Methods for computing and plotting head direction data
     def _quatFileToEulerFile(self, filename='headOrientation.csv', nf='True'):  ##returns newfilename
-        newfilename = filename.replace('.csv', 'inEulerAngles.csv')
+        newfilename =  self.jobID + filename.replace('.csv', 'inEulerAngles.csv')
         if os.path.exists(filename):
             print('File exists')
             with open(filename, newline='') as f:
@@ -1245,7 +1247,7 @@ class UCLAminiscope(experiment.experiment):
                 plt.ylabel('angle change over time (rad/s)')
                 plt.title('movement over time')
                 plt.show()
-                plt.savefig(plotName)
+                plt.savefig(self.jobID + plotName)
         else:
             print('!!! ERROR: File not found') #FIXME
             return

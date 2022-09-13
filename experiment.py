@@ -35,17 +35,17 @@ class experiment:
             self.experiment['zero time (s)'] = 0
 
             
-    def saveObj(self, filename=None, ratID=False, timeStamp=False):
+    def saveObj(self, filename=None, includeSubjectID=False, includeTimeStamp=False, jobID=''):
         """Save the class instance to a pickled file.
         FILENAME is the name of the pickled file the data is saved to."""
         if filename == None:
-            id = ''
+            subjectID = ''
             time = ''
-            if ratID:
-                id = self.experiment['id']
-            if timeStamp:
+            if includeSubjectID:
+                subjectID = self.experiment['id']
+            if includeTimeStamp:
                 time = str(numpy.datetime64('now')).replace(":","-")
-            fileToStore = open(id + "_" + os.path.splitext(str(self.__class__)[:-2])[-1][1:] + "_" + time + '.pickle', 'wb')
+            fileToStore = open(jobID + subjectID + "_" + os.path.splitext(str(self.__class__)[:-2])[-1][1:] + "_" + time + '.pickle', 'wb')
         else:
             fileToStore = open(filename, 'wb')
         pickle.dump(self, fileToStore)

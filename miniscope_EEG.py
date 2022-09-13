@@ -25,11 +25,9 @@ import pandas as pd
 
 class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAminiscope):
     """This is the class definition for handling miniscopes and simultaneous EEG data."""
-    def __init__(self, lineNum, filename='experiments.csv', filenameMiniscope='metaData.json'):
+    def __init__(self, lineNum=None, filename='experiments.csv', filenameMiniscope='metaData.json', analysisFilename='analysis_parameters.csv', jobID=''):
         self.lineNum = lineNum
-        
-        super().__init__(filenameMiniscope=filenameMiniscope, lineNum=lineNum, filename=filename)
-
+        super().__init__(lineNum=lineNum, filename=filename, filenameMiniscope=filenameMiniscope, analysisFilename=analysisFilename, jobID=jobID)
 
     def importEvents(self, channel='CBvsPFCEEG', writeFile=False, ttl=False,plot=False):
         """Translate the events imported from self.experiment['Miniscope settings filename']
@@ -158,6 +156,7 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAminiscope):
             print("No such variable found")
         length = len(self.CaEventsPhases)
         list_data = {"Phase":self.CaEventsPhases, 'NeuronID':self.CaEventsNeurons, 'RatID':[self.experiment['id']] * length, 'Sex': [sex] * length, 'Condition':[self.experiment["systemic drug"]] * length}
+        #FIXME There needs to be code here to write this array back to the CSV file. Call Isaac's code in misc_Functions to do so.
 
 
     def correctTimeStamps(self,channel='CBvsPFCEEG', plot=False):
