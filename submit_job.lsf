@@ -2,6 +2,7 @@
 #BSUB -J data_analysis
 #BSUB -o output/%J.out
 #BSUB -e output/%J.err
+#BSUB -N
 
 # This is a sample script with specific resource requirements for the
 # **bigmemory** queue with 64GB memory requirement and memory
@@ -55,4 +56,4 @@ echo $TMPDIR
 
 # conda activate miniscope_EEG
 # python --version
-python ~/data_analysis_code/experiment_analysis/ERISTwo_script.py %J
+python ~/data_analysis_code/experiment_analysis/ERISTwo_script.py
