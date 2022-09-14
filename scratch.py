@@ -23,7 +23,7 @@ if len(sys.argv) > 1:
 # obj = EEG.NeuralynxEEG(11)
 # obj.importEphysData()
 
-obj = miniscope.UCLAminiscope(lineNum=16, jobID=jobID)
+obj = miniscope.UCLAMiniscope(lineNum=16, jobID=jobID)
 
 # %% Crop and re-save the videos
 # for vidnum in range(92): # The number in range() should be the total number of .avi movies in the recording

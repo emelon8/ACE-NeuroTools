@@ -24,7 +24,7 @@ import base64
 import PySimpleGUI as sg
 
 
-class UCLAminiscope(experiment.experiment):
+class UCLAMiniscope(experiment.experiment):
     """This is the class definition for handling data from the UCLA Miniscope V4 (1-photon calcium imaging).
     Used with version 1.11 of the DAQ software released by the UCLA Miniscope group."""
 
@@ -43,9 +43,8 @@ class UCLAminiscope(experiment.experiment):
     
 #%% Methods for importing experiment info, metadata, events, and analysis parameters
     def __init__(self, lineNum=None, filename='experiments.csv', filenameMiniscope='metaData.json', analysisFilename='analysis_parameters.csv', jobID=''):
-        self.lineNum = lineNum
         if lineNum != None:
-            super().__init__(lineNum, filename=filename)
+            super().__init__(lineNum=lineNum, filename=filename, jobID=jobID)
         else:
             self.experiment = {}
 
@@ -84,7 +83,7 @@ class UCLAminiscope(experiment.experiment):
             self.experiment['directory'] = os.path.abspath(os.path.dirname(filenameMiniscope))
 
         if lineNum != None:
-            self.miniscopeImportAnalysisParams(lineNum, analysisFilename)
+            self.importAnalysisParams(lineNum, analysisFilename)
         else:
             self._analysisParamsDict = {}
 
@@ -103,8 +102,6 @@ class UCLAminiscope(experiment.experiment):
                 self.frameNum.append(int(row[0]))
                 self.timeStamps.append(float(row[1]))
         self.timeStamps = np.divide((np.asarray(self.timeStamps) - self.timeStamps[0]), 1000)  # converts from ms to s
-        
-        self.jobID = jobID # used for naming output files
 
 
     def miniscopeImportEvents(self):
@@ -120,45 +117,6 @@ class UCLAminiscope(experiment.experiment):
         labels = list(self.miniscopeEvents.keys())[1]
         self.miniscopeEvents['timestamps'] = np.array(self.miniscopeEvents[timestamps], dtype=int)
         self.miniscopeEvents['labels'] = np.array(self.miniscopeEvents[labels])
-
-
-    def miniscopeImportAnalysisParams(self, lineNum, filename):
-        """Import parameters for calcium movie analysis using CaImAn."""
-        analysisParamsCSV = []
-        with open(filename, newline='') as s:
-            reader = csv.reader(s)
-            for row in reader:
-                analysisParamsCSV.append(row)
-
-        # Make a dictionary with each of the columns in the CSV file
-        self._analysisParamsDict = {}
-        for k, columnTitle in enumerate(analysisParamsCSV[0]):
-            try:
-                self._analysisParamsDict[columnTitle] = analysisParamsCSV[lineNum][k]
-            except IndexError:
-                self._analysisParamsDict[columnTitle] = None
-            else:
-                # Fix the types of different parameters if they're not supposed to be strings
-                if (self._analysisParamsDict[columnTitle] == 'False') or (
-                        self._analysisParamsDict[columnTitle] == 'True'):
-                    self._analysisParamsDict[columnTitle] = bool(self._analysisParamsDict[columnTitle])
-                elif (self._analysisParamsDict[columnTitle] == 'None') or (not self._analysisParamsDict[columnTitle]):
-                    self._analysisParamsDict[columnTitle] = None
-                elif (self._analysisParamsDict[columnTitle][0] == '('):
-                    convertParamTuple = []
-                    for k, c in enumerate(
-                            self._analysisParamsDict[columnTitle].replace('(', '').replace(')', '').replace(' ',
-                                                                                                            '').split(
-                                    ',')):
-                        if c.isnumeric():
-                            convertParamTuple.append(int(c))
-                    self._analysisParamsDict[columnTitle] = tuple(convertParamTuple)
-                elif self._analysisParamsDict[columnTitle].isdecimal():
-                    self._analysisParamsDict[columnTitle] = int(self._analysisParamsDict[columnTitle])
-                elif ('.' in self._analysisParamsDict[columnTitle]) and ( self._analysisParamsDict[columnTitle].split('.')[0] == "" and
-                self._analysisParamsDict[columnTitle].split('.')[1].isdecimal()) or (( self._analysisParamsDict[columnTitle].split('.')[0] != "" and
-                self._analysisParamsDict[columnTitle].split('.')[0].isdecimal()) and ( not self._analysisParamsDict[columnTitle].split('.')[1].isalpha())):
-                    self._analysisParamsDict[columnTitle] = float(self._analysisParamsDict[columnTitle])
 
 
 #%% Methods for importing and saving calcium movies
@@ -676,12 +634,13 @@ class UCLAminiscope(experiment.experiment):
                         inspectCorrPNR=False, downsampleForCorrPNR=1, runCNMFE=True, saveCNMFEFilename='estimates.hdf5',
                         editComponents=False, deconvolve=False, saveProcessedData=False):
         """Preprocess calcium imaging data."""
-        print('processing movie...')
+        print('Processing movie...')
         if 'movieFilePaths' not in dir(self):
             self.findMovieFilePaths()
         self._analysisParamsDict['fnames'] = self.movieFilePaths
         self.optsCaImAn = cm.source_extraction.cnmf.params.CNMFParams(params_dict=self._analysisParamsDict)
         if parallel:
+            print('Setting up cluster...')
             c, dview, nProcesses = cm.cluster.setup_cluster(backend='local', n_processes=n_processes, single_thread=False)
         else:
             dview = None
@@ -717,7 +676,7 @@ class UCLAminiscope(experiment.experiment):
             self._deconvolve()
 
         if saveProcessedData:
-            self.saveObj(includeSubjectID=True, includeTimeStamp=True, jobID=self.jobID)
+            self.saveObj(includejobID=True, includeSubjectID=True, includeTimeStamp=True)
 
         cm.stop_server(dview=dview) #FIXME will this throw an error if it's not parallel? if so, uncomment the next two lines
         # if parallel:
@@ -726,8 +685,10 @@ class UCLAminiscope(experiment.experiment):
 
     def _motionCorrection(self, dview=None, saveMotionCorrect=True, inspectMotionCorrection=True):
         """Use motion correction to correct for movement during the calcium movies."""
+        print('Setting up motion correction object...')
         mc = cm.motion_correction.MotionCorrect(self.optsCaImAn.get('data', 'fnames'), dview=dview,
                                                 **self.optsCaImAn.get_group('motion'))
+        print('Motion correcting...')
         mc.motion_correct(save_movie=saveMotionCorrect)
         if self.optsCaImAn.get('motion', 'pw_rigid'):
             bord_px = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)), np.max(np.abs(mc.y_shifts_els)))).astype(int)
@@ -741,6 +702,7 @@ class UCLAminiscope(experiment.experiment):
         self.optsCaImAn.change_params({'border_pix': bord_px})
 
         if saveMotionCorrect:
+            print('Saving motion corrected movies...')
             # fileName = ''
             # if type(self.movieFilePaths) is str:
             #     fileNameTemp = os.path.split(self.movieFilePaths)[1]
@@ -756,11 +718,14 @@ class UCLAminiscope(experiment.experiment):
     def _CNMFE(self, nProcesses, dview=None, saveCNMFEFilename='estimates.h5'):
         """Segments neurons, demixes spatially overlapping neurons, and denoises the calcium activity from calcium movies.
         See paper describing the method: https://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3"""
+        print('Setting up CNMF-E object...')
         cnm = cm.source_extraction.cnmf.CNMF(n_processes=nProcesses, dview=dview, Ain=None, params=self.optsCaImAn)
+        print('Running CNMF-E...')
         cnm.fit(self.images)
         self.estimates = cnm.estimates
         if saveCNMFEFilename:
             self.CNMFEFilename = os.path.join(self.experiment['directory'], self.jobID + saveCNMFEFilename)
+            print('Saving CNMF-E estimates in ' + self.CNMFEFilename)
             cnm.save(self.CNMFEFilename)
 
 
@@ -769,7 +734,7 @@ class UCLAminiscope(experiment.experiment):
         """Performs deconvolution on already extracted traces using
         constrained foopsi.
         """
-
+        print('Setting up for deconvolution...')
         p = (self.optsCaImAn.get('preprocess', 'p')
              if p is None else p)
         method_deconvolution = (self.optsCaImAn.get('temporal', 'method_deconvolution')
@@ -794,6 +759,7 @@ class UCLAminiscope(experiment.experiment):
         args_in = [(F[jj], None, jj, None, None, None, None,
                     args) for jj in range(F.shape[0])]
 
+        print('Deconvolving...')
         if 'multiprocessing' in str(type(self.dview)):
             fluor = self.optsCaImAn
             results = self.dview.map_async(cm.deconvolve.constrained_foopsi(fluor, p=p,
@@ -820,7 +786,7 @@ class UCLAminiscope(experiment.experiment):
         self.estimates.neurons_sn = [results[5][i] for i in order]
         self.estimates.lam = [results[8][i] for i in order]
         self.estimates.YrA = F - self.estimates.C
-        return self
+        return self #FIXME Do we really need to return self?
 
 
 #%% Methods for evaluating motion correction and CNMF-E
@@ -834,6 +800,7 @@ class UCLAminiscope(experiment.experiment):
         PLOTSHIFTS is a boolean that determines whether to plot the x and y pixel shifts over time.
         PLOTCORRELATION is a boolean that determines whether to plot the correlation images for the original and motion-corrected movies side-by-side.
         """
+        print('Inspecting motion correction...')
         if plotRigidMotionCorrection:
             h, ax = misc_Functions._prepAxes(xLabel=['', 'Frames'], yLabel=['', 'Pixels'], subPlots=[1, 2])
             ax[0].imshow(mc.total_template_rig)  # % plot template
@@ -925,6 +892,7 @@ class UCLAminiscope(experiment.experiment):
 
     def _corrPNR(self, inspectCorrPNR, downsampleForCorrPNR):
         """Create the correlation and peak-noise-ratio (PNR) images and, if desired, inspect them with an interactive plot to determine min_corr and min_pnr."""
+        print('Creating correlation and peak-noise-ratio images...')
         self.cn_filter, self.pnr = cm.summary_images.correlation_pnr(self.images[::downsampleForCorrPNR],
                                                                      gSig=self.optsCaImAn.get('init', 'gSig')[0],
                                                                      swap_dim=False)
@@ -938,14 +906,17 @@ class UCLAminiscope(experiment.experiment):
         IDXTOREMOVE are the indices of components to remove.
         FILENAME is the name of the HDF5 file where the output of the CNMF-E algorithm is stored. This file must be created prior to running this method.
         SAVENEWCNMFE determines whether to save the output with the removed components as a new HDF5 file."""
+        print('Loading the CNMF-E estimates object...')
         if filename == None:
             filename = self.CNMFEFilename
         cnmObj = cm.source_extraction.cnmf.cnmf.load_CNMF(filename) #FIXME use try/except to check if self.estimates already exists
+        print('Removing components from the CNMF-E estimates object...')
         cnmObj.remove_components(idxToRemove)
         if saveNewCNMFE:
             directory, filename = os.path.split(filename)
             filenameParts = os.path.splitext(filename)
             self.CNMFEFilename = os.path.join(directory, self.jobID + filenameParts[0] + '_components_removed' + filenameParts[1])
+            print('Saving new CNMF-E estimates object as ' + self.CNMFEFilename)
             cnmObj.save(self.CNMFEFilename)
 
 
@@ -1291,6 +1262,7 @@ def findSameNeurons(sessionList, FOVdims, templateList = None, background=None, 
                 matchings[i][j] = k means that component j from session i is represented
                 by component k in A_union
     '''
+    print('Finding common neurons between recordings...')
     if sessionList.size > 2:
         return cm.base.rois.register_multisession(sessionList, FOVdims, templates=templateList)
     else:

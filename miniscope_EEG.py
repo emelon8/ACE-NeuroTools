@@ -23,11 +23,10 @@ from rdp import rdp
 import time
 import pandas as pd
 
-class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAminiscope):
+class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAMiniscope):
     """This is the class definition for handling miniscopes and simultaneous EEG data."""
     def __init__(self, lineNum=None, filename='experiments.csv', filenameMiniscope='metaData.json', analysisFilename='analysis_parameters.csv', jobID=''):
-        self.lineNum = lineNum
-        super().__init__(lineNum=lineNum, filename=filename, filenameMiniscope=filenameMiniscope, analysisFilename=analysisFilename, jobID=jobID)
+        super().__init__(lineNum=lineNum, filename=filename, filenameMiniscope=filenameMiniscope, analysisFilename=analysisFilename, jobID=jobID) #FIXME Does this init statment need to be here? Will it inherit from EEG or miniscope if it's not?
 
     def importEvents(self, channel='CBvsPFCEEG', writeFile=False, ttl=False,plot=False):
         """Translate the events imported from self.experiment['Miniscope settings filename']
