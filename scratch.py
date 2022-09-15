@@ -31,7 +31,7 @@ obj = miniscope.UCLAMiniscope(lineNum=16, jobID=jobID)
 #     obj.preprocessCaMovies(saveMovie=True, crop=True, cropGUI=False)
 
 # %% Import videos
-obj.importCaMovies(['../../experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0_cropped.avi', '../../experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/1_cropped.avi', '../../experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/2_cropped.avi'])
+obj.importCaMovies(['../../experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0_cropped.avi'])#, '../../experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/1_cropped.avi', '../../experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/2_cropped.avi'])
 # obj.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0.avi','D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/90.avi'])
 # obj.importCaMovies(['D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/memmap__d1_390_d2_388_d3_1_order_C_frames_1000_.mmap'])
 

@@ -1,28 +1,15 @@
 #!/bin/bash
-#BSUB -J data_analysis
-#BSUB -o output/%J.out
-#BSUB -e output/%J.err
-#BSUB -N
+# To run this script, type 'bsub < submit_job.lsf' in the terminal.
+# Then look in the output folder for the logs that matches the job ID number
 
-# This is a sample script with specific resource requirements for the
-# **bigmemory** queue with 64GB memory requirement and memory
-# limit settings, which are both needed for reservations of 
-# more than 40GB. 
-# Copy this script and then submit job as follows:
-# ---
-# cd ~/lsf
-# cp templates/bsub/example_8CPU_bigmulti_64GB.lsf .
-# bsub < example_bigmulti_8CPU_64GB.lsf
-# ---
-# Then look in the ~/lsf/output folder for the script log
-# that matches the job ID number
-
-# Please make a copy of this script for your own modifications
-
-#BSUB -q normal # bigmem
-#BSUB -n 8
-#BSUB -M 32000 # 128000
-#BSUB -R rusage[mem=32000] # 128000
+#BSUB -J data_analysis # This is the name of the job
+#BSUB -o output/%J.out # This is the name of the file where print statements are sent
+#BSUB -e output/%J.err # This is the name of the file where error messages are sent
+# #BSUB -N # Commented out because it removes the report from the output file when email notifications are sent.
+#BSUB -q normal # bigmem This is the name of the queue to request
+#BSUB -n 8 # Number of tasks (CPUs?) to request
+#BSUB -M 32000 # 128000 This is the amount of RAM to request
+#BSUB -R rusage[mem=32000] # 128000 The part in the brackets determines how much memory to use per node and how much swap to use (if specified, e.g. by '[mem=32000:swap=100000]')
 
 # Some important variables to check (Can be removed later)
 echo '---PROCESS RESOURCE LIMITS---'
@@ -54,6 +41,7 @@ echo $TMPDIR
 
 # Add your job command here
 
-# conda activate miniscope_EEG
-# python --version
-python ~/data_analysis_code/experiment_analysis/ERISTwo_script.py
+# conda activate miniscope_EEG # This command should be run before submitting the script!
+# python --version # This can help confirm that the previous command has been run, because otherwise the command below will start Python 2.
+
+python ~/data_analysis_code/experiment_analysis/ERISTwo_script.py $LSB_JOBID
