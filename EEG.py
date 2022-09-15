@@ -29,7 +29,7 @@ class NeuralynxEEG(experiment.experiment):
         """Import Neuralynx continuously sampled channel data and associated events.
         CHANNELS can be 'all', 'none' (if you just want to import the events),
         or a string or list of strings."""
-        print('Importing Ephys Data...')
+        print('Importing ephys data...')
         start_time = time.time()
         self.filePath = misc_Functions._findFilePaths(self.experiment['directory'], fileExtensions='.nev', fileStartsWith='Events', removeFile=True)[0]
         self._recording = NeuralynxIO(self.filePath)
@@ -66,7 +66,7 @@ class NeuralynxEEG(experiment.experiment):
                                              TThreshold=TThreshold,plot=plot,hannNum=hannNum)
         if importEvents:
             self.NeuralynxImportEvents(analogSignalImported=True)
-        print("--- %s seconds ---" % (time.time() - start_time))
+        print('--- %s seconds ---' % (time.time() - start_time))
     
     def _makeEEGarrays(self, chNum):
         """Method for concatenating EEG data and interpolating data between timestamp jumps.
@@ -88,6 +88,7 @@ class NeuralynxEEG(experiment.experiment):
 
     def NeuralynxImportEvents(self, analogSignalImported=False):
         """Method for importing Neuralynx events."""
+        print('Importing ephys events...')
         if not analogSignalImported:
             self.filePath = misc_Functions._findFilePaths(self.experiment['directory'], fileExtensions='.nev', fileStartsWith='Events', removeFile=True)[0]
             self._recording = NeuralynxIO(self.filePath)
@@ -111,7 +112,8 @@ class NeuralynxEEG(experiment.experiment):
     def computeSpectrogram(self, channel='CBvsPFCEEG', windowLength=30, 
                            windowStep=3, freqLims=[0,50], bandwidth=2, 
                            plotSpectrogram=False, plotEvents=True):
-        """Estimate (and plot) the multi-taper spectrogram of a specified EEG channel. Developed with code mostly from Morgan Siegmann."""
+        """Estimate (and plot) the multi-taper spectrogram of a specified ephys channel. Developed with code mostly from Morgan Siegmann."""
+        print('Computing spectrogram...')
         fs = int(self.samplingRate[channel])
         windowLengthSamples = windowLength * fs
         windowStepSamples = windowStep * fs
@@ -129,7 +131,8 @@ class NeuralynxEEG(experiment.experiment):
 
 
     def computePhase(self, channel):
-        """Compute the instantaneous phase of a specified EEG channel."""
+        """Compute the instantaneous phase of a specified ephys channel."""
+        print('Computing instantaneous phase...')
         analyticSignalEEG = hilbert(self.EEG[channel])
         self.instantaneousPhaseEEG = np.unwrap(np.angle(analyticSignalEEG))
     
@@ -140,9 +143,7 @@ class NeuralynxEEG(experiment.experiment):
         (in seconds) that shoulb be removed from the raw signal.
         VThreshold= voltage threshold
         TThreshold= time threshold, in (s) if the gap time between threshold crossing is less than TThresh, all the voltage in between them will also be converted to 0"""
-        
         print("Removing artifacts...")
-        
         try:
             EEG = self.EEG[channel]
         except:
@@ -189,7 +190,7 @@ class NeuralynxEEG(experiment.experiment):
         
         self.EEG[channel]=EEG
         if plot:
-            print("Plotting...")
+            print('Plotting ' + channel + '...')
             plt.figure()
             plt.plot(EEG)
             plt.title('{0}'.format(channel))
@@ -197,16 +198,18 @@ class NeuralynxEEG(experiment.experiment):
             plt.ylabel('Voltage(\u03BC'+'V)')
             
     class filteredEEG():
-       """This is an empty class in which to store filtering properties and filtered data."""
-       pass
+        """This is an empty class in which to store filtering properties and filtered data."""
+        pass
    
-    def filterEEG(n = "", wn = "", channel='CBvsPFCEEG', ftype = "", btype = ""):
+    def filterEEG(n=5, wn=[0.5,4], channel='CBvsPFCEEG', ftype = 'Butterworth', btype = 'band'):
+        """Method for filtering the ephys channel of choice with either a Butterworth or FIR filter."""
+        print('Filtering ' + channel + ' with a(n) ' + ftype + ' filter ...')
         fdata = self.filteredEEG()
         try:
-            fdata.data = misc_Functions.filterData(self.tEEG[channel], self.EEG[channel])
+            fdata.data = misc_Functions.filterData(self.tEEG[channel], self.EEG[channel], n=n, wn=wn, ftype=ftype, btype=btype)
         except:
             self.importEphysData(channels=channel)
-            fdata.data = misc_Functions.filterData(self.tEEG[channel], self.EEG[channel])
+            fdata.data = misc_Functions.filterData(self.tEEG[channel], self.EEG[channel], n=n, wn=wn, ftype=ftype, btype=btype)
         fdata.channel = channel
         fdata.cutoff = wn
         fdata.ftype = ftype
@@ -219,6 +222,3 @@ class NeuralynxEEG(experiment.experiment):
         except:
             self.fdata = []
             self.fdata.append(fdata)
-            
-            
-
