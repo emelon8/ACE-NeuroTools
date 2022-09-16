@@ -37,9 +37,9 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAMiniscope):
         self.correctTimeStamps(channel,plot)
 
 
-    def _syncCaMovieTimes(self, channel, writeFile=False, ttl=False):
+    def _syncCaMovieTimes(self, channel, writeFile=False, ttl=False): #FIXME Verify that this code is working properly.
         """Create time vector for calcium movies from TTL events in Neuralynx."""
-        print('Syncing Calcium Movie Times...')
+        print('Syncing calcium movie times...')
         try:
             self.tCaIm = []
             file = misc_Functions._findFilePaths(directory=self.experiment['directory'],fileStartsWith='syncCaMovieTimes')[0]
@@ -83,6 +83,7 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAMiniscope):
 
 
     def _correcttCaIm(self, tCaIm):
+        print('Correcting the timing of calcium movie frames...')
         dtCaIm = np.diff(tCaIm)
         frameRate = self.experiment['frameRate']
         lTTLaI = np.where(dtCaIm > .040)[0] # long TTL array index
@@ -118,6 +119,7 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAMiniscope):
         self._syncCaMovieTimes(channel)
         phaseEEG = self.computePhase(channel)
         neurons = self.thresholdedEvents #FIXME to be the output of the thresholding function
+        print('Comparing the calcium events to the corresponding phase of ' + channel + '...')
         if neuron == 'all':
             self.CaEventsPhases = phaseEEG[:] #FIXME to work with actual data
             self.CaEventsNeurons = neurons[:] #FIXME to work with actual data
@@ -131,6 +133,7 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAMiniscope):
         CHANNEL is the channel to compare the timing of calcium events to.
         NEURON is a list of the neuron indexes to compare. All neurons can be selected with 'all'.
         PLOTHISTOGRAM chooses whether or not to plot the computed histogram."""
+        print('Creating a histogram of the phases of ' + channel + ' relative to the calcium events...')
         self._phaseCaEvents(channel, neuron)
         if plotHistogram:
             plt.figure()
@@ -145,7 +148,7 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAMiniscope):
         pass
 
 
-    def saveData(self):
+    def saveData(self, filename='neuron_phase.csv'):
         """Saves extracted phases of calcium events, along with neuron and rat IDs and other info, to a CSV file for further processing."""
         df = pd.read_csv("miniscope_EEG_rats.csv", encoding="ISO-8859-1" )  #reading csv file
         for index, row in df.iterrows():   # filtering the rows where job is Govt
@@ -155,7 +158,8 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAMiniscope):
             print("No such variable found")
         length = len(self.CaEventsPhases)
         list_data = {"Phase":self.CaEventsPhases, 'NeuronID':self.CaEventsNeurons, 'RatID':[self.experiment['id']] * length, 'Sex': [sex] * length, 'Condition':[self.experiment["systemic drug"]] * length}
-        #FIXME There needs to be code here to write this array back to the CSV file. Call Isaac's code in misc_Functions to do so.
+        print('Saving calcium event phases and other attributes to ' + filename)
+        misc_Functions.appendRowCSV(list_data, filename=filename) #FIXME I haven't tested this yet.
 
 
     def correctTimeStamps(self,channel='CBvsPFCEEG', plot=False):
@@ -248,21 +252,20 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAMiniscope):
 
 
     def _turningPoints(self,timeStamps,numDroppedFrames,plot=False):
-        # step detection algorithm borrowed from https://stackoverflow.com/questions/48000663/step-detection-in-one-dimensional-data
+        """Step detection algorithm borrowed from https://stackoverflow.com/questions/48000663/step-detection-in-one-dimensional-data."""
         self.clockTime = self.tCaIm - self.tCaIm[0] # FIXME make not self throughout function
         self.clockDiffStart = self.timeStamps - self.clockTime[:len(timeStamps)] 
         self.clockDiffEnd = self.timeStamps[len(timeStamps)-numDroppedFrames:] - self.clockTime[len(timeStamps):] # FIXME consider if you need to add number of dropped frames so this is right
-        #check the beginning
+        # Check the beginning
         startInd = self._stepID(self.clockDiffStart,plot)
-        #check the end
+        # Check the end
         endInd = self._stepID(self.clockDiffEnd,plot) + len(timeStamps)
         self.inds = np.concatenate((startInd,endInd))
         return(self.inds)
 
 
     def _angle(self,directions):
-        """Return the angle between vectors
-        """
+        """Return the angle between vectors."""
         vec2 = directions[1:]
         vec1 = directions[:-1]
     
@@ -273,13 +276,14 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAMiniscope):
 
 
     def _stepID(self,clockDiff,plot):
+        """"""
         d = clockDiff
         dary = np.array([*map(float, d)])
         dary -= np.average(dary)
         step = np.hstack((np.ones(len(dary)), -1*np.ones(len(dary))))
         dary_step = np.convolve(dary, step, mode='valid')
         
-        # using RDP algorithm borrowed from https://www.gakhov.com/articles/find-turning-points-for-a-trajectory-in-python.html
+        # Using RDP algorithm borrowed from https://www.gakhov.com/articles/find-turning-points-for-a-trajectory-in-python.html
         var = np.empty(len(dary_step)*2)
         for k,val in enumerate(dary_step):
             var[2*k] = k
@@ -314,6 +318,7 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAMiniscope):
 
 
     def _findtIdxCaIm(self,k,caImEvent,lastIndex,channel,endPoint):
+        """Finds the index of a calcium event in the Neuralynx timespace."""
         if k == 0:
             _tIdxCaIm = np.abs(self.tEEG[channel][lastIndex:]-caImEvent).argmin()+lastIndex
         elif (len(self.tEEG[channel][lastIndex:]) - endPoint < 0):

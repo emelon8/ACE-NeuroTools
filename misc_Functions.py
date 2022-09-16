@@ -663,21 +663,19 @@ def updateCSVCell(data, columnTitle, lineNum, csvFile='analysis_parameters.csv')
                 writer.writerow(lineData)
 
 
-def appendRowCSV(data, filename="neuron_phase.csv"):
-    """
-    appends a new row to a CSV file
-    Defaults to neuron_phase.csv
-
+def appendRowCSV(data, filename):
+    """Appends a new row to a CSV file.
     Args:
         data: Dictionary of data to be added to the csv file
+        filename: Name of the CSV file to write to.
     """
     if not os.path.exists(filename):
-        with open(filename, 'a', newline="") as file:
+        with open(filename, 'a', newline='') as file:
             writer = csv.DictWriter(file, dict(data).keys())
             writer.writeheader()
             writer.writerow(dict(data))
     else:
-        with open(filename, 'a', newline="") as file:
+        with open(filename, 'a', newline='') as file:
             writer = csv.DictWriter(file, dict(data).keys())
             writer.writerow(dict(data))
 
