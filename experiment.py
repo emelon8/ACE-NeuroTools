@@ -8,7 +8,7 @@ Created on Mon Oct 19 09:36:36 2020
 import csv
 import pickle
 import os.path
-import numpy
+import numpy as np
 
 class experiment:
     """Base class for experiment analysis.
@@ -88,7 +88,7 @@ class experiment:
             if includeSubjectID:
                 subjectID = self.experiment['id']
             if includeTimeStamp:
-                time = str(numpy.datetime64('now')).replace(":","-")
+                time = str(np.datetime64('now')).replace(":","-")
             fileToStore = open(jobID + subjectID + "_" + os.path.splitext(str(self.__class__)[:-2])[-1][1:] + "_" + time + '.pickle', 'wb')
         else:
             fileToStore = open(filename, 'wb')
