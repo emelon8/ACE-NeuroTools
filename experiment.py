@@ -40,7 +40,8 @@ class experiment:
     def importAnalysisParams(self, lineNum, filename):
         """Import parameters for calcium movie analysis using CaImAn."""
         analysisParamsCSV = []
-        with open(filename, newline='') as s:
+        self.analysisParamsFilename = filename
+        with open(self.analysisParamsFilename, newline='') as s:
             reader = csv.reader(s)
             for row in reader:
                 analysisParamsCSV.append(row)

@@ -364,12 +364,12 @@ class UCLAMiniscope(experiment.experiment):
             if GUI:
                 # update analysis params to reflect new movie size
                 misc_Functions.updateCSVCell(data=f'({self.movie.shape[1]} ,{self.movie.shape[2]})', columnTitle="dims",
-                                                        lineNum=self.lineNum)
+                                                        lineNum=self.lineNum, csvFile=self.analysisParamsFilename)
 
                 # update analysis params to have new crop coords
                 misc_Functions.updateCSVCell(
                     data=f'({self.cropCoordinates["x0"]},{self.cropCoordinates["y0"]}, {self.cropCoordinates["x1"]},{self.cropCoordinates["y1"]})',
-                    columnTitle="crop", lineNum=self.lineNum)
+                    columnTitle="crop", lineNum=self.lineNum, csvFile=self.analysisParamsFilename)
 
 
     def _updateCoords(self, window, x0, y0, x1, y1):
