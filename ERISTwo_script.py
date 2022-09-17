@@ -16,4 +16,5 @@ if len(sys.argv) > 1:
 
 import os
 os.chdir('/PHShome/em609/data_analysis_code/experiment_analysis') # for running on ERISTwo
-os.system('python ~/data_analysis_code/experiment_analysis/scratch.py ' + jobID)
+# os.system('python ~/data_analysis_code/experiment_analysis/scratch.py ' + jobID)
+os.system('python ~/data_analysis_code/experiment_analysis/projection_generation_script.py')
