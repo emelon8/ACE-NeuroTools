@@ -14,7 +14,7 @@ import miniscope
 
 obj = miniscope.UCLAMiniscope(lineNum=16)
 
-obj.importCaMovies('testing/cluster_testing/cropping_samples/cool.avi')
+obj.importCaMovies('testing/cluster_testing/parallel/with_parallel/0_cropped_els__d1_390_d2_388_d3_1_order_F_frames_1000_.mmap')
 
 obj.computeProjections()
 
