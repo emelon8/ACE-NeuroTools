@@ -7,6 +7,9 @@ Created on Fri Aug 14 11:25:19 2020
 For examining the spatial and temporal components of a calcium imaging movie.
 """
 
+import os
+os.chdir('..')
+
 import miniscope
 import caiman as cm
 

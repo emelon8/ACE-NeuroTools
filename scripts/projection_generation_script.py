@@ -6,9 +6,6 @@ Created on Fri Sep 16 16:40:07 2022
 
 Create projections of an entire miniscope recording.
 """
-import os
-os.chdir('..')
-
 import matplotlib.pyplot as plt
 import miniscope
 import numpy as np
@@ -17,7 +14,7 @@ obj = miniscope.UCLAMiniscope(lineNum=16)
 
 obj.importCaMovies()
 
-print(obj.movieFilePaths)
+print('obj.movieFilePaths = ' + str(obj.movieFilePaths))
 
 obj.computeProjections()
 
