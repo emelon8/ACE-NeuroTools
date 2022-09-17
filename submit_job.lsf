@@ -6,10 +6,10 @@
 #BSUB -o output/%J.out # This is the name of the file where print statements are sent
 #BSUB -e output/%J.err # This is the name of the file where error messages are sent
 # #BSUB -N # Commented out because it removes the report from the output file when email notifications are sent.
-#BSUB -q normal # bigmem This is the name of the queue to request
+#BSUB -q bigmem # normal This is the name of the queue to request
 #BSUB -n 8 # Number of tasks (CPUs?) to request
-#BSUB -M 32000 # 128000 This is the amount of RAM to request
-#BSUB -R rusage[mem=32000] # 128000 The part in the brackets determines how much memory to use per node and how much swap to use (if specified, e.g. by '[mem=32000:swap=100000]')
+#BSUB -M 64000 # 32000 128000 This is the amount of RAM to request
+#BSUB -R rusage[mem=64000] # 32000 128000 The part in the brackets determines how much memory to use per node and how much swap to use (if specified, e.g. by '[mem=32000:swap=100000]')
 
 # Some important variables to check (Can be removed later)
 echo '---PROCESS RESOURCE LIMITS---'
