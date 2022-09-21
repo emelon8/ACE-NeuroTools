@@ -10,6 +10,7 @@ import os
 os.chdir('..')
 # import glob
 import miniscope
+import numpy as np
 
 import sys
 jobID = ''
@@ -18,14 +19,25 @@ if len(sys.argv) > 1:
 
 obj = miniscope.UCLAMiniscope(lineNum=21, jobID=jobID)
 
-# %% Import videos
-obj.importCaMovies(['../../experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/0_cropped.avi'])#, '../../experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/1_cropped.avi', '../../experimental_data/miniscope_data/test/R220606/2022_07_21/14_40_42/Miniscope/2_cropped.avi'])
+# %% Import movies
+moviePath = '../../experimental_data/miniscope_data/test/R220607/2022_08_10/10_55_07/Miniscope/'
+movieFilenameAfterNum = '_cropped.avi'
+movieNums = np.arange(5)
+movieList = []
+for k in movieNums:
+    movieList.append(os.path.join(moviePath, str(k) + movieFilenameAfterNum))
+
+obj.importCaMovies(movieList)
 
 # %% Crop and re-save the videos
-obj.preprocessCaMovies(saveMovie=True, crop=True, cropGUI=True)
+# obj.preprocessCaMovies(saveMovie=False, crop=True, cropGUI=True)
+
+# for k in movieList:
+#     obj.importCaMovies(k)
+#     obj.preprocessCaMovies(saveMovie=True, crop=True, cropGUI=False)
 
 # %% Run motion correction and CNMF-E and save the estimates object
-# obj.processCaMovies(parallel=False, n_processes=8)
+obj.processCaMovies(parallel=False, n_processes=8)
 
 print('obj.movieFilePaths = ' + str(obj.movieFilePaths))
 

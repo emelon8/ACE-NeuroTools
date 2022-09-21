@@ -272,6 +272,12 @@ class UCLAMiniscope(experiment.experiment):
 
     def preprocessCaMovies(self, saveMovie=True, crop=False, cropGUI=False, denoise=False, detrend=False, dFoverF=False):
         """Run all preprocessing steps in one method, using their default options."""
+        try:
+            self.movie.shape
+        except:
+            print('Prepocessing cannot be done, as no movie has been loaded. Loading movie from self.movieFilePaths and proceeding with preprocessing...')
+            if 'movie' not in self.__dir__():
+                self.importCaMovies()
         newFileName = ''
         if crop:
             self._crop(self.movie, GUI=cropGUI)
