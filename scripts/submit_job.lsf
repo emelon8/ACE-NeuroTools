@@ -40,8 +40,9 @@ echo '---TEMPORARY SCRATCH FOLDER ($TMPDIR):---'
 echo $TMPDIR
 
 # Add your job command here
+# Before submitting a job to run this code on the cluster, you must activate your conda environment, since the environment is installed in my user directory!
+# I.e., This command should be run before submitting the script: conda activate miniscope_EEG
 
-# conda activate miniscope_EEG # This command should be run before submitting the script!
 # python --version # This can help confirm that the previous command has been run, because otherwise the command below will start Python 2.
 
-python ~/data_analysis_code/experiment_analysis/ERISTwo_script.py $LSB_JOBID
+python ~/data_analysis_code/experiment_analysis/scripts/projection_generation.py $LSB_JOBID
