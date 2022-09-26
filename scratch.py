@@ -7,12 +7,11 @@ Created on Fri Aug 14 11:25:19 2020
 """
 
 # import os
-# os.chdir('..')
 # import glob
 
 # import miniscope_EEG
 # import EEG
-from .miniscope import *
+import miniscope
 
 import sys
 jobID = ''
