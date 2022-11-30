@@ -24,15 +24,15 @@ from scipy.io import loadmat
 class NeuralynxEEG(experiment.experiment):
     """This is the class definition for handling Neuralynx EEG data."""
     
-    def importEphysData(self,channels='all',importEvents=True,removeArtifacts=False, 
+    def importEphysData(self,channels='all',importEvents=False,removeArtifacts=False, 
                         VThreshold=1500,TThreshold=60,plot=False,hannNum=75):
         """Import Neuralynx continuously sampled channel data and associated events.
         CHANNELS can be 'all', 'none' (if you just want to import the events),
         or a string or list of strings."""
         print('Importing ephys data...')
         start_time = time.time()
-        self.filePath = misc_Functions._findFilePaths(self.experiment['directory'], fileExtensions='.nev', fileStartsWith='Events', removeFile=True)[0]
-        self._recording = NeuralynxIO(self.filePath)
+        self.ephysFilePath = misc_Functions._findFilePaths(self.experiment['ephys directory'], fileExtensions='.nev', fileStartsWith='Events', removeFile=True)[0]
+        self._recording = NeuralynxIO(self.ephysFilePath)
         self._ephysData = self._recording.read_block(signal_group_mode='split-all')
         self.samplingRate = {}
         self.tEEG = {}
@@ -65,7 +65,7 @@ class NeuralynxEEG(experiment.experiment):
                         self.artifactRemoval(channel=c.name,VThreshold=VThreshold,
                                              TThreshold=TThreshold,plot=plot,hannNum=hannNum)
         if importEvents:
-            self.NeuralynxImportEvents(analogSignalImported=True)
+            self.importNeuralynxEvents(analogSignalImported=True)
         print('--- %s seconds ---' % (time.time() - start_time))
     
     def _makeEEGarrays(self, chNum):
@@ -86,12 +86,12 @@ class NeuralynxEEG(experiment.experiment):
             self.EEG[chName][startIdx:(startIdx+segSize)] = np.reshape(seg.analogsignals[chNum].magnitude, segSize)
 
 
-    def NeuralynxImportEvents(self, analogSignalImported=False):
+    def importNeuralynxEvents(self, analogSignalImported=False):
         """Method for importing Neuralynx events."""
         print('Importing ephys events...')
         if not analogSignalImported:
-            self.filePath = misc_Functions._findFilePaths(self.experiment['directory'], fileExtensions='.nev', fileStartsWith='Events', removeFile=True)[0]
-            self._recording = NeuralynxIO(self.filePath)
+            self.ephysFilePath = misc_Functions._findFilePaths(self.experiment['ephys directory'], fileExtensions='.nev', fileStartsWith='Events', removeFile=True)[0]
+            self._recording = NeuralynxIO(self.ephysFilePath)
             self._ephysData = self._recording.read_block(signal_group_mode='split-all')
         unsortedEventLabels = []
         unsortedEventTimestamps = []
@@ -201,7 +201,7 @@ class NeuralynxEEG(experiment.experiment):
         """This is an empty class in which to store filtering properties and filtered data."""
         pass
    
-    def filterEEG(n=5, wn=[0.5,4], channel='CBvsPFCEEG', ftype = 'Butterworth', btype = 'band'):
+    def filterEEG(self, n=5, wn=[0.5,4], channel='CBvsPFCEEG', ftype = 'Butterworth', btype = 'band'):
         """Method for filtering the ephys channel of choice with either a Butterworth or FIR filter."""
         print('Filtering ' + channel + ' with a(n) ' + ftype + ' filter ...')
         fdata = self.filteredEEG()

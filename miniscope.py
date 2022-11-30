@@ -51,7 +51,7 @@ class UCLAMiniscope(experiment.experiment):
         # Import the metadata files and add to the experiment dictionary
 
         try:
-            metaDataPaths = misc_Functions._findFilePaths(self.experiment['directory'], fileExtensions='.json',
+            metaDataPaths = misc_Functions._findFilePaths(self.experiment['calcium imaging directory'], fileExtensions='.json',
                                                           fileStartsWith='metaData')
             for path in metaDataPaths:
                 with open(path) as m:
@@ -79,15 +79,15 @@ class UCLAMiniscope(experiment.experiment):
         with open('Miniscope/' + settingsFilename[1]) as s: 
             self.experiment.update(load(s)) 
         '''
-        if 'directory' not in self.experiment:
-            self.experiment['directory'] = os.path.abspath(os.path.dirname(filenameMiniscope))
+        if 'calcium imaging directory' not in self.experiment:
+            self.experiment['calcium imaging directory'] = os.path.abspath(os.path.dirname(filenameMiniscope))
 
         if lineNum != None:
             self.importAnalysisParams(lineNum, analysisFilename)
         else:
             self._analysisParamsDict = {}
 
-        timeStampsFilename = misc_Functions._findFilePaths(self.experiment['directory'], '.csv', 'timeStamps', removeFile=False, printPath=False, fileAndDirectory=False)
+        timeStampsFilename = misc_Functions._findFilePaths(self.experiment['calcium imaging directory'], '.csv', 'timeStamps', removeFile=False, printPath=False, fileAndDirectory=False)
 
         if len(timeStampsFilename) == 1:
             timeStampsFilename = timeStampsFilename[0]
@@ -101,22 +101,29 @@ class UCLAMiniscope(experiment.experiment):
             for row in reader:
                 self.frameNum.append(int(row[0]))
                 self.timeStamps.append(float(row[1]))
-        self.timeStamps = np.divide((np.asarray(self.timeStamps) - self.timeStamps[0]), 1000)  # converts from ms to s
+        self.timeStamps = np.divide(np.asarray(self.timeStamps), 1000)  # convert from ms to s
+        # self.timeStamps = np.divide((np.asarray(self.timeStamps) - self.timeStamps[0]), 1000)  # start timestamps at 0 and convert from ms to s
 
 
-    def miniscopeImportEvents(self):
+    def importMiniscopeEvents(self):
         """Import calcium imaging experiment events."""
+        miniscopeEventsFilename = misc_Functions._findFilePaths(self.experiment['calcium imaging directory'], '.csv', 'notes', removeFile=False, printPath=False, fileAndDirectory=False)
+
+        if len(miniscopeEventsFilename) == 1:
+            miniscopeEventsFilename = miniscopeEventsFilename[0]
+        else:
+            raise ValueError('More than one notes files found')
+        
         self.miniscopeEvents = {}
-        # Make a dictionary with each of the columns in the DAT file
-        for k, columnTitle in enumerate(self._miniscopeExperimentDAT[
-                                            3]):  # self._miniscopeExperimentDAT was previously imported in __init__, but the format of this file ('settings_and_notes.dat') changed.
-            self.miniscopeEvents[columnTitle] = []
-            for h in range(4, len(self._miniscopeExperimentDAT)):
-                self.miniscopeEvents[columnTitle].append(self._miniscopeExperimentDAT[h][k])
-        timestamps = list(self.miniscopeEvents.keys())[0]
-        labels = list(self.miniscopeEvents.keys())[1]
-        self.miniscopeEvents['timestamps'] = np.array(self.miniscopeEvents[timestamps], dtype=int)
-        self.miniscopeEvents['labels'] = np.array(self.miniscopeEvents[labels])
+        self.miniscopeEvents['timestamps'] = []
+        self.miniscopeEvents['labels'] = []
+        with open(miniscopeEventsFilename, newline='') as t:
+            next(t)
+            reader = csv.reader(t)
+            for row in reader:
+                self.miniscopeEvents['timestamps'].append(int(row[0]))
+                self.miniscopeEvents['labels'].append(row[1])
+        self.miniscopeEvents['timestamps'] = np.divide(np.asarray(self.miniscopeEvents['timestamps']), 1000)  # converts from ms to s
 
 
 #%% Methods for importing and saving calcium movies
@@ -126,7 +133,7 @@ class UCLAMiniscope(experiment.experiment):
         """Makes a list of the full paths of all movie files in DIRECTORY.
         FILEEXTENSIONS is a string of the file extension or a list or tuple with multiple file extensions."""
         if directory == None:
-            directory = self.experiment['directory']
+            directory = self.experiment['calcium imaging directory']
         self.movieFilePaths = misc_Functions._findFilePaths(directory, fileExtensions, fileStartsWith,
                                                             removeFile, printPath, fileAndDirectory)
 
@@ -186,7 +193,7 @@ class UCLAMiniscope(experiment.experiment):
 
     def _metaDataConverter(
             self):  # Suggestion: it might be good to start combining the metaDatas and marking them with the animalID or some experiment identifier (not sure how this program will work if you have a lot of different videos/metaData)
-        directory = self.experiment['directory']
+        directory = self.experiment['calcium imaging directory']
         fpath = misc_Functions._findFilePaths(directory=directory, fileExtensions='.json', fileStartsWith='metaData')
         for fileExt in fpath:
             with open(fileExt) as f:
@@ -591,7 +598,7 @@ class UCLAMiniscope(experiment.experiment):
         mode = 'display'
         if saveMovie:
             mode = 'save'
-        misc_Functions.denoiseMovie(self.experiment['directory'], mode=mode, jobID=self.jobID) # TODO Currently doesn't save this info for later use
+        misc_Functions.denoiseMovie(self.experiment['calcium imaging directory'], mode=mode, jobID=self.jobID) # TODO Currently doesn't save this info for later use
 
 
     def detrendCaFluorescence(self, saveMovie=True, detrendType='median', plotTrend=False):
@@ -730,7 +737,7 @@ class UCLAMiniscope(experiment.experiment):
         cnm.fit(self.images)
         self.estimates = cnm.estimates
         if saveCNMFEFilename:
-            self.CNMFEFilename = os.path.join(self.experiment['directory'], self.jobID + saveCNMFEFilename)
+            self.CNMFEFilename = os.path.join(self.experiment['calcium imaging directory'], self.jobID + saveCNMFEFilename)
             print('Saving CNMF-E estimates in ' + self.CNMFEFilename)
             cnm.save(self.CNMFEFilename)
 

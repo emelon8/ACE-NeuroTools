@@ -10,8 +10,8 @@ Created on Fri Aug 14 11:25:19 2020
 # import glob
 
 # import miniscope_EEG
-# import EEG
-import miniscope
+import EEG
+# import miniscope
 
 import sys
 jobID = ''
@@ -20,10 +20,10 @@ if len(sys.argv) > 1:
 
 # %% Import experiment and electrophysiological data
 # obj = miniscope_EEG.miniscopeEEG(2, filename='experiments.csv', filenameMiniscope='test_recordings/example_miniscope_recording/settings_and_notes.dat')
-# obj = EEG.NeuralynxEEG(11)
-# obj.importEphysData()
+obj = EEG.NeuralynxEEG(23)
+obj.importEphysData(channels=['PFCEEGvsCBEEG','EMG'])
 
-obj = miniscope.UCLAMiniscope(lineNum=16, jobID=jobID)
+# obj = miniscope.UCLAMiniscope(lineNum=32, jobID=jobID)
 
 # %% Crop and re-save the videos
 # for vidnum in range(92): # The number in range() should be the total number of .avi movies in the recording

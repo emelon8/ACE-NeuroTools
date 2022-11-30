@@ -31,7 +31,7 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAMiniscope):
     def importEvents(self, channel='CBvsPFCEEG', writeFile=False, ttl=False,plot=False):
         """Translate the events imported from self.experiment['Miniscope settings filename']
         into a common time as the Neuralynx time format and combine the events from the two sources."""
-        self.NeuralynxImportEvents()
+        self.importNeuralynxEvents()
         self.importEphysData(channels=channel)
         self._syncCaMovieTimes(channel, writeFile, ttl)
         self.correctTimeStamps(channel,plot)
