@@ -7,7 +7,6 @@ Created on Fri Aug 14 11:25:19 2020
 """
 
 import os
-os.chdir('..')
 # import glob
 import miniscope
 import numpy as np
@@ -17,10 +16,10 @@ jobID = ''
 if len(sys.argv) > 1:
     jobID = sys.argv[1] + '_'
 
-obj = miniscope.UCLAMiniscope(lineNum=21, jobID=jobID)
+obj = miniscope.UCLAMiniscope(lineNum=35, jobID=jobID)
 
 # %% Import movies
-moviePath = '../../experimental_data/miniscope_data/test/R220607/2022_08_10/10_55_07/Miniscope/'
+moviePath = '../../experimental_data/miniscope_data/sleep/R220817B/2022_11_25/14_04_09/Miniscope/'
 movieFilenameAfterNum = '_cropped.avi'
 movieNums = np.arange(5)
 movieList = []
