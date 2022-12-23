@@ -6,33 +6,34 @@ Created on Fri Sep 16 16:40:07 2022
 
 Create projections of an entire miniscope recording.
 """
-import os
-os.chdir('..')
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import miniscope
 import numpy as np
 
-obj = miniscope.UCLAMiniscope(lineNum=16)
+lineNum = [35, 37, 38]
 
-obj.importCaMovies()
-
-print('obj.movieFilePaths = ' + str(obj.movieFilePaths))
-
-obj.computeProjections()
-
-maxpro = np.array(obj.projections['Max'])
-minpro = np.array(obj.projections['Min'])
-meanpro = np.array(obj.projections['Mean'])
-medpro = np.array(obj.projections['Med'])
-stdpro = np.array(obj.projections['Std'])
-rangepro = np.array(obj.projections['Range'])
-
-np.save('max.npy', maxpro)
-np.save('min.npy', minpro)
-np.save('mean.npy', meanpro)
-np.save('med.npy', medpro)
-np.save('std.npy', stdpro)
-np.save('range.npy', rangepro)
-
-# plt.imshow(obj.projections['Max'])
+for k in lineNum:
+    obj = miniscope.UCLAMiniscope(lineNum=k)
+    
+    obj.importCaMovies()
+    
+    print('obj.movieFilePaths = ' + str(obj.movieFilePaths))
+    
+    obj.computeProjections()
+    
+    maxpro = np.array(obj.projections['Max'])
+    minpro = np.array(obj.projections['Min'])
+    meanpro = np.array(obj.projections['Mean'])
+    medpro = np.array(obj.projections['Med'])
+    stdpro = np.array(obj.projections['Std'])
+    rangepro = np.array(obj.projections['Range'])
+    
+    np.save('max_' + str(k) + '.npy', maxpro)
+    np.save('min_' + str(k) + '.npy', minpro)
+    np.save('mean_' + str(k) + '.npy', meanpro)
+    np.save('med_' + str(k) + '.npy', medpro)
+    np.save('std_' + str(k) + '.npy', stdpro)
+    np.save('range_' + str(k) + '.npy', rangepro)
+    
+#     plt.imshow(obj.projections['Max'])

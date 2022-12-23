@@ -3,13 +3,13 @@
 # Then look in the output folder for the logs that matches the job ID number
 
 #BSUB -J data_analysis # This is the name of the job
-#BSUB -o ../output/%J.out # This is the name of the file where print statements are sent
-#BSUB -e ../output/%J.err # This is the name of the file where error messages are sent
+#BSUB -o output/%J.out # This is the name of the file where print statements are sent
+#BSUB -e output/%J.err # This is the name of the file where error messages are sent
 # #BSUB -N # Commented out because it removes the report from the output file when email notifications are sent.
-#BSUB -q normal #bigmem # normal This is the name of the queue to request
+#BSUB -q bigmem # normal bigmem This is the name of the queue to request
 #BSUB -n 8 # Number of tasks (CPUs?) to request
-#BSUB -M 32000 #64000 # 32000 128000 This is the amount of RAM to request
-#BSUB -R rusage[mem=32000] # 32000 128000 The part in the brackets determines how much memory to use per node and how much swap to use (if specified, e.g. by '[mem=32000:swap=100000]')
+#BSUB -M 64000 # 32000 64000 128000 This is the amount of RAM to request
+#BSUB -R rusage[mem=64000] # 32000 64000 128000 The part in the brackets determines how much memory to use per node and how much swap to use (if specified, e.g. by '[mem=32000:swap=100000]')
 
 # Some important variables to check (Can be removed later)
 echo '---PROCESS RESOURCE LIMITS---'
@@ -45,4 +45,4 @@ echo $TMPDIR
 
 # python --version # This can help confirm that the previous command has been run, because otherwise the command below will start Python 2.
 
-python ~/data_analysis_code/experiment_analysis/scripts/process_sample_miniscope_recordings.py $LSB_JOBID
+python ~/data_analysis_code/experiment_analysis/projection_generation.py $LSB_JOBID
