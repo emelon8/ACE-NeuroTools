@@ -45,4 +45,4 @@ echo $TMPDIR
 
 # python --version # This can help confirm that the previous command has been run, because otherwise the command below will start Python 2.
 
-python ~/data_analysis_code/experiment_analysis/scripts/projection_generation.py $LSB_JOBID
+python ~/data_analysis_code/experiment_analysis/scripts/process_sample_miniscope_recordings.py $LSB_JOBID
