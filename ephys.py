@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 # plt.rcParams['svg.fonttype'] = 'none'
 from mne.time_frequency import psd_array_multitaper
 from neo.io import NeuralynxIO
-import misc_Functions
+import misc_functions
 import math
 import sys
 import time
@@ -31,7 +31,7 @@ class NeuralynxEphys(experiment.experiment):
         or a string or list of strings."""
         print('Importing ephys data...')
         start_time = time.time()
-        self.ephysFilePath = misc_Functions._findFilePaths(self.experiment['ephys directory'], fileExtensions='.nev', fileStartsWith='Events', removeFile=True)[0]
+        self.ephysFilePath = misc_functions._findFilePaths(self.experiment['ephys directory'], fileExtensions='.nev', fileStartsWith='Events', removeFile=True)[0]
         self._recording = NeuralynxIO(self.ephysFilePath)
         self._ephysData = self._recording.read_block(signal_group_mode='split-all')
         self.samplingRate = {}
@@ -90,7 +90,7 @@ class NeuralynxEphys(experiment.experiment):
         """Method for importing Neuralynx events."""
         print('Importing ephys events...')
         if not analogSignalImported:
-            self.ephysFilePath = misc_Functions._findFilePaths(self.experiment['ephys directory'], fileExtensions='.nev', fileStartsWith='Events', removeFile=True)[0]
+            self.ephysFilePath = misc_functions._findFilePaths(self.experiment['ephys directory'], fileExtensions='.nev', fileStartsWith='Events', removeFile=True)[0]
             self._recording = NeuralynxIO(self.ephysFilePath)
             self._ephysData = self._recording.read_block(signal_group_mode='split-all')
         unsortedEventLabels = []
@@ -117,16 +117,16 @@ class NeuralynxEphys(experiment.experiment):
         fs = int(self.samplingRate[channel])
         windowLengthSamples = windowLength * fs
         windowStepSamples = windowStep * fs
-        ephysMat = misc_Functions._overlapBinning(self.ephys[channel], windowLengthSamples, windowStepSamples)
+        ephysMat = misc_functions._overlapBinning(self.ephys[channel], windowLengthSamples, windowStepSamples)
         # Make a time vector
-        tMat = misc_Functions._overlapBinning(self.tEphys[channel], windowLengthSamples, windowStepSamples)
+        tMat = misc_functions._overlapBinning(self.tEphys[channel], windowLengthSamples, windowStepSamples)
         self.tSpect = tMat[:,windowLengthSamples // 2]
         PSDSpect, self.freqsSpect = psd_array_multitaper(ephysMat, fs, fmin=freqLims[0], fmax=freqLims[1], bandwidth=bandwidth)
         self.pSpect = np.transpose(10 * np.log10(PSDSpect))
         if plotSpectrogram:
-            h, ax = misc_Functions.spectrogram(self.tSpect/60, self.freqsSpect, self.pSpect, xLabel='Time (min)')
+            h, ax = misc_functions.spectrogram(self.tSpect/60, self.freqsSpect, self.pSpect, xLabel='Time (min)')
             if plotEvents:
-                misc_Functions.markEvents(ax, self.NeuralynxEvents['timestamps']/60)
+                misc_functions.markEvents(ax, self.NeuralynxEvents['timestamps']/60)
             return h, ax
 
 
@@ -152,12 +152,12 @@ class NeuralynxEphys(experiment.experiment):
         
         dt = self.tEphys[channel][1]-self.tEphys[channel][0]
         mean = np.mean(ephys) 
-        meanCalcVect = np.vectorize(misc_Functions._calcNumMinusMean)
+        meanCalcVect = np.vectorize(misc_functions._calcNumMinusMean)
         ephys = meanCalcVect(ephys,mean)
 
         # implement thresholding
         
-        compVThreshVect = np.vectorize(misc_Functions._compVThresh)
+        compVThreshVect = np.vectorize(misc_functions._compVThresh)
         decimateMask = compVThreshVect(ephys,VThreshold)
     
         # find area with small gap in between threshold crossing
@@ -206,10 +206,10 @@ class NeuralynxEphys(experiment.experiment):
         print('Filtering ' + channel + ' with a(n) ' + ftype + ' filter ...')
         fdata = self.filteredEphys()
         try:
-            fdata.data = misc_Functions.filterData(self.tEphys[channel], self.ephys[channel], n=n, cut=cut, ftype=ftype, btype=btype, fs=self.samplingRate[channel])
+            fdata.data = misc_functions.filterData(self.tEphys[channel], self.ephys[channel], n=n, cut=cut, ftype=ftype, btype=btype, fs=self.samplingRate[channel])
         except:
             self.importEphysData(channels=channel)
-            fdata.data = misc_Functions.filterData(self.tEphys[channel], self.ephys[channel], n=n, cut=cut, ftype=ftype, btype=btype, fs=self.samplingRate[channel])
+            fdata.data = misc_functions.filterData(self.tEphys[channel], self.ephys[channel], n=n, cut=cut, ftype=ftype, btype=btype, fs=self.samplingRate[channel])
         fdata.channel = channel
         fdata.cutoff = cut
         fdata.ftype = ftype

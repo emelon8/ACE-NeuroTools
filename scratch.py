@@ -9,7 +9,7 @@ Created on Fri Aug 14 11:25:19 2020
 # import os
 # import glob
 
-import miniscope_Ephys
+import miniscope_ephys
 # import ephys
 # import miniscope
 import numpy as np
@@ -20,7 +20,7 @@ if len(sys.argv) > 1:
     jobID = sys.argv[1] + '_'
 
 # %% Import experiment and electrophysiological data
-obj = miniscope_Ephys.miniscopeEphys(53)
+obj = miniscope_ephys.miniscopeEphys(53)
 # obj = ephys.NeuralynxEphys(48)
 obj.importEphysData(channels=['PFCEEGvsCBEEG'])
 # obj.filterEphys(channel='PFCLFPvsCBEEG')#, ftype='FIR')

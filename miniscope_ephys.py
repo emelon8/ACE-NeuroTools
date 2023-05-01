@@ -11,7 +11,7 @@ import miniscope
 import numpy as np
 import matplotlib.pyplot as plt
 plt.rcParams['svg.fonttype'] = 'none'
-import misc_Functions
+import misc_functions
 import experiment
 import sys
 import csv
@@ -49,32 +49,35 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         self.tCaIm = self.NeuralynxEvents['timestamps'][frameAcqIdx]
         eventLabels = self.NeuralynxEvents['labels'][frameAcqIdx]
         
-        # return a bool of whether the TTL labels alternate between HIGH and LOW (True) or not (False)
+        # Print a message if the TTL event labels do not alternate between HIGH and LOW
         alternating = []
         for q in range(0,len(eventLabels)-2):
             alternating.append(np.char.equal(eventLabels[q+2], eventLabels[q]))
         alternating.append(np.char.not_equal(eventLabels[-1], eventLabels[-2]))
-        if sum(alternating) == (len(eventLabels) - 1):
-            return True
-        else:
-            return False
+        if sum(alternating) != (len(eventLabels) - 1):
+            print('TTL does not alternate!')
+        
+        # Check for gaps in the TTL event timestamps and insert a timestamp guess if needed
+        !!!!!!!
         
         # delete the TTL events that correspond to dropped frames in the saved calcium movie, specified in analysis_parameters.csv
         #TODO Add a method that plots the 3 figures of the timestamps for help in deciding which events to drop, then writes to analysis_parameters.csv and self._analysisParamsDict['indices of TTL events to delete'].
         self.tCaIm = np.delete(self.tCaIm, self._analysisParamsDict['indices of TTL events to delete'])
         
+        
+figure out how this works
         # find ephys timestamps that are closest to the timestamps in self.tCaIm
-        for k, caImEvent in self.tCaIm:
-            
-        
-        
         endPoint = round(int(self.samplingRate[channel]) * 2 / int(self.experiment['frameRate'])) 
         self._tIdxCaIm = np.empty(len(self.NeuralynxEvents['timestamps'][frameAcqIdx]),dtype=int)
         lastIndex = 0
-        for k, caImEvent in enumerate(self.NeuralynxEvents['timestamps'][frameAcqIdx]):
+        for k, caImEvent in enumerate(self.tCaIm):
             self._tIdxCaIm[k] = self._findtIdxCaIm(k,caImEvent,lastIndex,channel,endPoint)
             lastIndex = self._tIdxCaIm[k]
-        self.tCaIm, self.pOUC = self._correcttCaIm(self.tEphys[channel][self._tIdxCaIm])
+        
+        
+        
+        
+maybe put this line above the np.delet line where the exclamation points are        self.tCaIm, self.pOUC = self._correcttCaIm(self.tEphys[channel][self._tIdxCaIm])
         if writeFile:
             with open((self.filePath+'//syncCaMovieTimes.csv'), 'w', newline='') as nf:
                 writer = csv.writer(nf) 
@@ -94,7 +97,8 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                     writer.writerow(line)
 
 
-    def _findtIdxCaIm_OLD(self,k,caImEvent,lastIndex,channel,endPoint):
+figure out how these next two functions work
+    def _findtIdxCaIm(self,k,caImEvent,lastIndex,channel,endPoint):
         """Finds the index of a calcium event in the Neuralynx timespace."""
         if k == 0:
             _tIdxCaIm = np.abs(self.tEphys[channel][lastIndex:]-caImEvent).argmin()+lastIndex
@@ -105,12 +109,45 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         return(_tIdxCaIm)
 
 
+    def _correcttCaIm(self, tCaIm):
+        """This method finds missing TTL events and inserts them into the calcium imaging time vector."""
+        print('Correcting the timing of calcium movie frames...')
+        dtCaIm = np.diff(tCaIm)
+        frameRate = self.experiment['frameRate']
+        lTTLaI = np.where(dtCaIm > .040)[0] # long TTL array index
+        nAFPI = [] # number add frames per index
+        for i in lTTLaI:
+            nAFPI.append(round(dtCaIm[i]/(1/frameRate)))
+        nT = []
+        # aug = 0
+        start = []
+        end = []
+        pOUC = [] # period of uncertainty
+        for h, ti in enumerate(tCaIm):
+            if h in lTTLaI:
+                idx = int(np.where(lTTLaI==(h))[0])
+                nFD = nAFPI[idx] + 1
+                l = np.linspace(tCaIm[h], tCaIm[h+1], nFD)
+                start.append(h)
+                end.append(h+1)
+                for i, num in enumerate(l):
+                    if i != (len(l) - 1):
+                        nT.append(num)
+                # aug+=nFD
+            else:
+                nT.append(tCaIm[h])
+       
+        for k, idx in enumerate(start):
+            pOUC.append(str(f"{round(tCaIm[idx],4):08}") + '-' + str(f"{round(tCaIm[end[k]],4):08}")) #FIXME
+        return(nT, pOUC)
+
+
     def _syncNeuralynxMiniscopeTimestamps_OLD(self, channel, writeFile=False, ttl=False): #FIXME Verify that this code is working properly.
         """Create time vector for calcium movies from TTL events in Neuralynx."""
         print('Syncing calcium movie times...')
         try:
             self.tCaIm = []
-            file = misc_Functions._findFilePaths(directory=self.experiment['calcium imaging directory'],fileStartsWith='syncCaMovieTimes')[0]
+            file = misc_functions._findFilePaths(directory=self.experiment['calcium imaging directory'],fileStartsWith='syncCaMovieTimes')[0]
             with open(file, newline='') as f:
                 reader = csv.reader(f)
                 self.pOUC = list(reader[1])
@@ -158,39 +195,6 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                         writer.writerow(line)
 
 
-    # I THINK THIS METHOD FIXES ANY MISSING TTLS
-    def _correcttCaIm_OLD(self, tCaIm):
-        print('Correcting the timing of calcium movie frames...')
-        dtCaIm = np.diff(tCaIm)
-        frameRate = self.experiment['frameRate']
-        lTTLaI = np.where(dtCaIm > .040)[0] # long TTL array index
-        nAFPI = [] # number add frames per index
-        for i in lTTLaI:
-            nAFPI.append(round(dtCaIm[i]/(1/frameRate)))
-        nT = []
-        # aug = 0
-        start = []
-        end = []
-        pOUC = [] # period of uncertainty
-        for h, ti in enumerate(tCaIm):
-            if h in lTTLaI:
-                idx = int(np.where(lTTLaI==(h))[0])
-                nFD = nAFPI[idx] + 1
-                l = np.linspace(tCaIm[h], tCaIm[h+1], nFD)
-                start.append(h)
-                end.append(h+1)
-                for i, num in enumerate(l):
-                    if i != (len(l) - 1):
-                        nT.append(num)
-                # aug+=nFD
-            else:
-                nT.append(tCaIm[h])
-       
-        for k, idx in enumerate(start):
-            pOUC.append(str(f"{round(tCaIm[idx],4):08}") + '-' + str(f"{round(tCaIm[end[k]],4):08}")) #FIXME
-        return(nT, pOUC)
-
-
     def correctTimeStamps_OLD(self,channel='CBvsPFCEEG', plot=False):
         print('Correcting time stamps...')
         start_time = time.time()
@@ -209,7 +213,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         except AttributeError:
             try:
                 self.tCaIm = []
-                file = misc_Functions._findFilePaths(directory=self.experiment['calcium imaging directory'],fileStartsWith='syncCaMovieTimes')[0]
+                file = misc_functions._findFilePaths(directory=self.experiment['calcium imaging directory'],fileStartsWith='syncCaMovieTimes')[0]
                 with open(file, newline='') as f:
                     reader = csv.reader(f)
                     self.pOUC = list(reader[1])
@@ -370,7 +374,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         self._phaseCaEvents(channel, neuron)
         if plotHistogram:
             plt.figure()
-            ax = misc_Functions.prepAxes(xLabel='Phase (rad)', yLabel='Event Count')
+            ax = misc_functions.prepAxes(xLabel='Phase (rad)', yLabel='Event Count')
             self.hist, self.binEdges = ax.hist(self.CaEventsPhases, bins=bins)
         else:
             self.hist, self.binEdges = np.histogram(self.CaEventsPhases, bins=bins)
@@ -392,4 +396,4 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         length = len(self.CaEventsPhases)
         list_data = {"Phase":self.CaEventsPhases, 'NeuronID':self.CaEventsNeurons, 'RatID':[self.experiment['id']] * length, 'Sex': [sex] * length, 'Condition':[self.experiment["systemic drug"]] * length}
         print('Saving calcium event phases and other attributes to ' + filename)
-        misc_Functions.appendRowCSV(list_data, filename=filename) #FIXME I haven't tested this yet.
+        misc_functions.appendRowCSV(list_data, filename=filename) #FIXME I haven't tested this yet.

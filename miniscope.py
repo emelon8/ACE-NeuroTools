@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 plt.rcParams['svg.fonttype'] = 'none'
 import caiman as cm
-import misc_Functions
+import misc_functions
 import sys
 import json
 import base64
@@ -51,7 +51,7 @@ class UCLAMiniscope(experiment.experiment):
         # Import the metadata files and add to the experiment dictionary
 
         try:
-            metaDataPaths = misc_Functions._findFilePaths(self.experiment['calcium imaging directory'], fileExtensions='.json',
+            metaDataPaths = misc_functions._findFilePaths(self.experiment['calcium imaging directory'], fileExtensions='.json',
                                                           fileStartsWith='metaData')
             for path in metaDataPaths:
                 with open(path) as m:
@@ -87,7 +87,7 @@ class UCLAMiniscope(experiment.experiment):
         else:
             self._analysisParamsDict = {}
 
-        timeStampsFilename = misc_Functions._findFilePaths(self.experiment['calcium imaging directory'], '.csv', 'timeStamps', removeFile=False, printPath=False, fileAndDirectory=False)
+        timeStampsFilename = misc_functions._findFilePaths(self.experiment['calcium imaging directory'], '.csv', 'timeStamps', removeFile=False, printPath=False, fileAndDirectory=False)
 
         if len(timeStampsFilename) == 1:
             timeStampsFilename = timeStampsFilename[0]
@@ -107,7 +107,7 @@ class UCLAMiniscope(experiment.experiment):
 
     def importMiniscopeEvents(self):
         """Import calcium imaging experiment events."""
-        miniscopeEventsFilename = misc_Functions._findFilePaths(self.experiment['calcium imaging directory'], '.csv', 'notes', removeFile=False, printPath=False, fileAndDirectory=False)
+        miniscopeEventsFilename = misc_functions._findFilePaths(self.experiment['calcium imaging directory'], '.csv', 'notes', removeFile=False, printPath=False, fileAndDirectory=False)
 
         if len(miniscopeEventsFilename) == 1:
             miniscopeEventsFilename = miniscopeEventsFilename[0]
@@ -134,7 +134,7 @@ class UCLAMiniscope(experiment.experiment):
         FILEEXTENSIONS is a string of the file extension or a list or tuple with multiple file extensions."""
         if directory == None:
             directory = self.experiment['calcium imaging directory']
-        self.movieFilePaths = misc_Functions._findFilePaths(directory, fileExtensions, fileStartsWith,
+        self.movieFilePaths = misc_functions._findFilePaths(directory, fileExtensions, fileStartsWith,
                                                             removeFile, printPath, fileAndDirectory)
 
 
@@ -193,7 +193,7 @@ class UCLAMiniscope(experiment.experiment):
     def _metaDataConverter(
             self):  # Suggestion: it might be good to start combining the metaDatas and marking them with the animalID or some experiment identifier (not sure how this program will work if you have a lot of different videos/metaData)
         directory = self.experiment['calcium imaging directory']
-        fpath = misc_Functions._findFilePaths(directory=directory, fileExtensions='.json', fileStartsWith='metaData')
+        fpath = misc_functions._findFilePaths(directory=directory, fileExtensions='.json', fileStartsWith='metaData')
         for fileExt in fpath:
             with open(fileExt) as f:
                 data = json.loads(f.read())
@@ -378,11 +378,11 @@ class UCLAMiniscope(experiment.experiment):
             self.movie = croppedMovie
             if GUI:
                 # update analysis params to reflect new movie size
-                misc_Functions.updateCSVCell(data=f'({self.movie.shape[1]} ,{self.movie.shape[2]})', columnTitle="dims",
+                misc_functions.updateCSVCell(data=f'({self.movie.shape[1]} ,{self.movie.shape[2]})', columnTitle="dims",
                                                         lineNum=self.lineNum, csvFile=self.analysisParamsFilename)
 
                 # update analysis params to have new crop coords
-                misc_Functions.updateCSVCell(
+                misc_functions.updateCSVCell(
                     data=f'({self.cropCoordinates["x0"]},{self.cropCoordinates["y0"]}, {self.cropCoordinates["x1"]},{self.cropCoordinates["y1"]})',
                     columnTitle="crop", lineNum=self.lineNum, csvFile=self.analysisParamsFilename)
 
@@ -600,7 +600,7 @@ class UCLAMiniscope(experiment.experiment):
         mode = 'display'
         if saveMovie:
             mode = 'save'
-        misc_Functions.denoiseMovie(self.experiment['calcium imaging directory'], mode=mode, jobID=self.jobID) # TODO Currently doesn't save this info for later use
+        misc_functions.denoiseMovie(self.experiment['calcium imaging directory'], mode=mode, jobID=self.jobID) # TODO Currently doesn't save this info for later use
 
 
     def detrendCaFluorescence(self, saveMovie=True, detrendType='median', plotTrend=False):
@@ -611,7 +611,7 @@ class UCLAMiniscope(experiment.experiment):
         if 'movie' not in self.__dir__():
             self.importCaMovies()
         if plotTrend:
-            h, ax = misc_Functions._prepAxes(xLabel='Frames', yLabel='Mean Fluorescence')
+            h, ax = misc_functions._prepAxes(xLabel='Frames', yLabel='Mean Fluorescence')
             ax.plot(np.mean(np.mean(self.movie, axis=1), axis=1), label='Original Data')
         if detrendType == 'linear':
             detrend(self.movie, axis=0, overwrite_data=True)
@@ -817,18 +817,18 @@ class UCLAMiniscope(experiment.experiment):
         """
         print('Inspecting motion correction...')
         if plotRigidMotionCorrection:
-            h, ax = misc_Functions._prepAxes(xLabel=['', 'Frames'], yLabel=['', 'Pixels'], subPlots=[1, 2])
+            h, ax = misc_functions._prepAxes(xLabel=['', 'Frames'], yLabel=['', 'Pixels'], subPlots=[1, 2])
             ax[0].imshow(mc.total_template_rig)  # % plot template
             ax[1].plot(mc.shifts_rig)  # % plot rigid shifts
             ax[1].legend(['X Shifts', 'Y Shifts'])
 
         if plotShifts:
             if self.optsCaImAn.get('motion', 'pw_rigid'):
-                h, ax = misc_Functions._prepAxes(xLabel='Frames', yLabel='Pixels')
+                h, ax = misc_functions._prepAxes(xLabel='Frames', yLabel='Pixels')
                 ax.plot(mc.shifts_rig)
                 ax.legend(['X Shifts', 'Y Shifts'])
             else:
-                h, ax = misc_Functions._prepAxes(xLabel=['', 'Frames'],
+                h, ax = misc_functions._prepAxes(xLabel=['', 'Frames'],
                                                  yLabel=['X Shifts (Pixels)', 'Y Shifts (Pixels)'], subPlots=[2, 1])
                 ax[0].plot(mc.x_shifts_els)
                 ax[1].plot(mc.y_shifts_els)
@@ -844,7 +844,7 @@ class UCLAMiniscope(experiment.experiment):
                                                                                      bord_px=self.optsCaImAn.get(
                                                                                          'patch', 'border_pix'))
             if plotCorrelation:
-                h, ax = misc_Functions._prepAxes(xLabel=['', 'Frames'], yLabel=['', 'Pixels'], subPlots=[1, 2])
+                h, ax = misc_functions._prepAxes(xLabel=['', 'Frames'], yLabel=['', 'Pixels'], subPlots=[1, 2])
                 ax[0].imshow(self.movie.local_correlations(eight_neighbours=True, swap_dim=False))
                 ax[1].imshow(mcMovie.local_correlations(eight_neighbours=True, swap_dim=False))
 
@@ -863,7 +863,7 @@ class UCLAMiniscope(experiment.experiment):
                 mc.mmap_file[0], final_size[0], final_size[1],
                 swap_dim, winsize=winsize, play_flow=False, resize_fact_flow=resize_fact_flow)
 
-            h, ax = misc_Functions._prepAxes(xLabel=['Frame', 'Original'], yLabel=['Correlation', 'Motion Corrected'],
+            h, ax = misc_functions._prepAxes(xLabel=['Frame', 'Original'], yLabel=['Correlation', 'Motion Corrected'],
                                              subPlots=[2, 1])
             ax[0].plot(correlations_orig)
             ax[0].plot(correlations_mc)
@@ -879,7 +879,7 @@ class UCLAMiniscope(experiment.experiment):
             # plot the results of Residual Optical Flow
             fls = [mc.fname[0][:-4] + '_metrics.npz', mc.mmap_file[0][:-4] + '_metrics.npz']
 
-            h, ax = misc_Functions._prepAxes(title=['Mean', 'Corr Image', 'Mean Optical Flow', '', '', ''],
+            h, ax = misc_functions._prepAxes(title=['Mean', 'Corr Image', 'Mean Optical Flow', '', '', ''],
                                              xLabel=['Original', '', '', 'Motion Corrected', '', ''], yLabel=['', '', '', '', '', ''],
                                              subPlots=[2, 3])
 
@@ -1175,14 +1175,14 @@ class UCLAMiniscope(experiment.experiment):
                         writer.writerow(header)
                         next(f)
                         for line in reader:
-                            eulerAngles = misc_Functions.conv_quat_to_euler(line)
+                            eulerAngles = misc_functions.conv_quat_to_euler(line)
                             writer.writerow(eulerAngles)
                     return newfilename
                 else:
                     matrix = []
                     next(f)
                     for line in reader:
-                        eulerAngles = misc_Functions.conv_quat_to_euler(line)
+                        eulerAngles = misc_functions.conv_quat_to_euler(line)
                         matrix.append(eulerAngles)
                     return matrix
         else:
