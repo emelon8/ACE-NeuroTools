@@ -17,7 +17,6 @@ import pickle
 import cv2
 from tqdm import tqdm
 from scipy.signal import butter, freqz, filtfilt, firwin  ##they imported lfilter, but never used it
-from scipy import signal
 from IPython.display import clear_output
 import os.path
 from os import path
@@ -28,7 +27,7 @@ from scipy import stats
 
 
 def _overlapBinning(data, windowLength, windowStep):
-    # Prepare signal for miniscopeEEG.computeSpectrogram(). Developed with code mostly from Morgan Siegmann. Takes a 1D array and bins it into segments that overlap and then forms into a matrix. windowLength and windowStep units are samples
+    # Prepare signal for ephys.computeSpectrogram(). Developed with code mostly from Morgan Siegmann. Takes a 1D array and bins it into segments that overlap and then forms into a matrix. windowLength and windowStep units are samples
     startInds = np.arange(0, len(data), windowStep)
     # check to see if the last row is full window length
     incompleteRows = (len(data) - startInds) < windowLength
@@ -191,7 +190,7 @@ def _findFilePaths(directory=None, fileExtensions=None, fileStartsWith=None,
 
 
 def loadObj(filename):
-    ##Loads a pickled object into memory from FILENAME. Useful for loading a previously used instance of a class (e.g., miniscope_EEG.miniscopeEEG class).##
+    ##Loads a pickled object into memory from FILENAME. Useful for loading a previously used instance of a class (e.g., miniscope_Ephys.miniscopeEphys class).##
     fileToRead = open(filename, 'rb')
     loadedObject = pickle.load(fileToRead)
     fileToRead.close()
@@ -616,7 +615,7 @@ def threshFunc(dataArray, threshVal):
     return dataArray
 
 
-def filterData(t, data, n, wn, ftype, btype):
+def filterData(t, data, n, cut, ftype, btype, fs):
     """ Use ftype to indicate FIR or Butterworth filter.
     
     For the FIR filter indicate a LowPass, HighPass, or BandPass with btype = lowpass, highpass, or bandpass . 
@@ -629,18 +628,18 @@ def filterData(t, data, n, wn, ftype, btype):
     To set the cutoff frequency use wn= 
     The default for n is n = 5
     For a bandpass filter indicate the lowstop and the highstop by using an array. example: wn= ([10, 30])"""
-
+    
     dt = t[1] - t[0]  # Define the sampling interval.
     fNQ = 1 / dt / 2  # Determine the Nyquist frequency.
-    cut = wn / fNQ  # ... and specify the cutoff frequency,
+    wn = cut / fNQ  # ... and specify the cutoff frequency,
 
     if ftype == 'FIR':
         b, a = firwin(n, cut, pass_zero=btype)  # ... build bandpass FIR filter,
         filteredData = filtfilt(b, a, data)  # ... and zero-phase filter each trial
 
     if ftype == 'Butterworth':
-        b, a = signal.butter(n, cut, btype=btype)
-        filteredData = signal.filtfilt(b, a, data)
+        b, a = butter(n, wn, btype=btype, fs=fs)
+        filteredData = filtfilt(b, a, data)
 
     return filteredData
 

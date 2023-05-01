@@ -140,8 +140,7 @@ class UCLAMiniscope(experiment.experiment):
 
     def importCaMovies(self, filenames=None, fileExtensions='.avi'):
         """Import calcium imaging data. Not necessary if using processCaMovies().
-        FILENAMES can be a single movie file or a list of movie files (in the order that you want them).
-        SYNCTOEEGCHANNEL is the string representing the channel to which the timing of the movie frames will be synced."""
+        FILENAMES can be a single movie file or a list of movie files (in the order that you want them)."""
         if filenames == None:
             self.findMovieFilePaths(fileExtensions=fileExtensions)
             filenames = self.movieFilePaths
@@ -324,12 +323,15 @@ class UCLAMiniscope(experiment.experiment):
         # Get all projections
         self.computeProjections()
         # Grab saved crop coords from .csv file that has been read
-        self.cropCoordinates = {
-            "x0": self._analysisParamsDict['crop'][0],
-            "y0": self._analysisParamsDict['crop'][1],
-            "x1": self._analysisParamsDict['crop'][2],
-            "y1": self._analysisParamsDict['crop'][3]
-        }
+        if self._analysisParamsDict['crop'] is None:
+            self.cropCoordinates = {'x0': 0, 'x1': 0, 'y0': 0, 'y1': 0}
+        else:
+            self.cropCoordinates = {
+                'x0': self._analysisParamsDict['crop'][0],
+                'y0': self._analysisParamsDict['crop'][1],
+                'x1': self._analysisParamsDict['crop'][2],
+                'y1': self._analysisParamsDict['crop'][3]
+                }
 
         if GUI:
             self._cropWindow(movie)

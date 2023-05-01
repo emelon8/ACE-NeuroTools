@@ -6,7 +6,7 @@ Created on Fri Aug 14 19:54:58 2020
 """
 
 # import csv
-import EEG
+import ephys
 import miniscope
 import numpy as np
 import matplotlib.pyplot as plt
@@ -23,26 +23,94 @@ from rdp import rdp
 import time
 import pandas as pd
 
-class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAMiniscope):
-    """This is the class definition for handling miniscopes and simultaneous EEG data."""
+class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
+    """This is the class definition for handling miniscopes and simultaneous ephys data."""
+#%% Methods for importing experiment info, metadata, events, and analysis parameters
     def __init__(self, lineNum=None, filename='experiments.csv', filenameMiniscope='metaData.json', analysisFilename='analysis_parameters.csv', jobID=''):
-        super().__init__(lineNum=lineNum, filename=filename, filenameMiniscope=filenameMiniscope, analysisFilename=analysisFilename, jobID=jobID) #FIXME Does this init statment need to be here? Will it inherit from EEG or miniscope if it's not?
+        super().__init__(lineNum=lineNum, filename=filename, filenameMiniscope=filenameMiniscope, analysisFilename=analysisFilename, jobID=jobID) #FIXME Does this init statment need to be here? Will it inherit from ephys or miniscope if it's not?
+
 
     def importEvents(self, channel='CBvsPFCEEG', writeFile=False, ttl=False,plot=False):
         """Translate the events imported from self.experiment['Miniscope settings filename']
         into a common time as the Neuralynx time format and combine the events from the two sources."""
         self.importNeuralynxEvents()
         self.importEphysData(channels=channel)
-        self._syncCaMovieTimes(channel, writeFile, ttl)
+        self._syncNeuralynxMiniscopeTimestamps(channel, writeFile, ttl)
         self.correctTimeStamps(channel,plot)
 
 
-    def _syncCaMovieTimes(self, channel, writeFile=False, ttl=False): #FIXME Verify that this code is working properly.
+#%% Methods for extracting timing of calcium image acquisition, deleting timestamps of dropped frames, and matching timestamps with ephys timestamps
+    def _syncNeuralynxMiniscopeTimestamps(self, channel):
+        """Create time vector for calcium movies from TTL events in Neuralynx."""
+        print('Syncing calcium movie times...')
+        
+        # create the self.tCaIm, which is the array of labels and timestamps for the Neuralynx events that occur for each calcium image frame acquisition
+        frameAcqIdx = (self.NeuralynxEvents['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0000).') | (self.NeuralynxEvents['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0001).')
+        self.tCaIm = self.NeuralynxEvents['timestamps'][frameAcqIdx]
+        eventLabels = self.NeuralynxEvents['labels'][frameAcqIdx]
+        
+        # return a bool of whether the TTL labels alternate between HIGH and LOW (True) or not (False)
+        alternating = []
+        for q in range(0,len(eventLabels)-2):
+            alternating.append(np.char.equal(eventLabels[q+2], eventLabels[q]))
+        alternating.append(np.char.not_equal(eventLabels[-1], eventLabels[-2]))
+        if sum(alternating) == (len(eventLabels) - 1):
+            return True
+        else:
+            return False
+        
+        # delete the TTL events that correspond to dropped frames in the saved calcium movie, specified in analysis_parameters.csv
+        #TODO Add a method that plots the 3 figures of the timestamps for help in deciding which events to drop, then writes to analysis_parameters.csv and self._analysisParamsDict['indices of TTL events to delete'].
+        self.tCaIm = np.delete(self.tCaIm, self._analysisParamsDict['indices of TTL events to delete'])
+        
+        # find ephys timestamps that are closest to the timestamps in self.tCaIm
+        for k, caImEvent in self.tCaIm:
+            
+        
+        
+        endPoint = round(int(self.samplingRate[channel]) * 2 / int(self.experiment['frameRate'])) 
+        self._tIdxCaIm = np.empty(len(self.NeuralynxEvents['timestamps'][frameAcqIdx]),dtype=int)
+        lastIndex = 0
+        for k, caImEvent in enumerate(self.NeuralynxEvents['timestamps'][frameAcqIdx]):
+            self._tIdxCaIm[k] = self._findtIdxCaIm(k,caImEvent,lastIndex,channel,endPoint)
+            lastIndex = self._tIdxCaIm[k]
+        self.tCaIm, self.pOUC = self._correcttCaIm(self.tEphys[channel][self._tIdxCaIm])
+        if writeFile:
+            with open((self.filePath+'//syncCaMovieTimes.csv'), 'w', newline='') as nf:
+                writer = csv.writer(nf) 
+                pOUC = []
+                # pOUC.append('Period(s) of Uncertainty')
+                pOUC.append(self.pOUC)
+                # writer.writerow(pOUC)
+                header = []
+                header.append('Frame')
+                header.append('Time(s)')
+                writer.writerow(header)
+                lastIndex = 0
+                for k, ti in enumerate(self.tCaIm):
+                    line = []
+                    line.append(k)
+                    line.append(ti)
+                    writer.writerow(line)
+
+
+    def _findtIdxCaIm_OLD(self,k,caImEvent,lastIndex,channel,endPoint):
+        """Finds the index of a calcium event in the Neuralynx timespace."""
+        if k == 0:
+            _tIdxCaIm = np.abs(self.tEphys[channel][lastIndex:]-caImEvent).argmin()+lastIndex
+        elif (len(self.tEphys[channel][lastIndex:]) - endPoint < 0):
+            _tIdxCaIm = np.abs(self.tEphys[channel][lastIndex:]-caImEvent).argmin()+lastIndex
+        else:
+            _tIdxCaIm = np.abs(self.tEphys[channel][lastIndex:(lastIndex + endPoint)]-caImEvent).argmin()+lastIndex
+        return(_tIdxCaIm)
+
+
+    def _syncNeuralynxMiniscopeTimestamps_OLD(self, channel, writeFile=False, ttl=False): #FIXME Verify that this code is working properly.
         """Create time vector for calcium movies from TTL events in Neuralynx."""
         print('Syncing calcium movie times...')
         try:
             self.tCaIm = []
-            file = misc_Functions._findFilePaths(directory=self.experiment['directory'],fileStartsWith='syncCaMovieTimes')[0]
+            file = misc_Functions._findFilePaths(directory=self.experiment['calcium imaging directory'],fileStartsWith='syncCaMovieTimes')[0]
             with open(file, newline='') as f:
                 reader = csv.reader(f)
                 self.pOUC = list(reader[1])
@@ -53,16 +121,24 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAMiniscope):
             self.tCaIm = np.asarray(self.tCaIm)
         except AttributeError:
             frameAcqIdx = (self.NeuralynxEvents['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0000).') | (self.NeuralynxEvents['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0001).')
-            if ttl: 
+            if ttl: # creates the self.tCaIm and then returns a bool of whether the TTL labels alternate between HIGH and LOW (True) or not (False)
                 self.tCaIm = self.NeuralynxEvents['timestamps'][frameAcqIdx]
-                return
+                eventLabels = self.NeuralynxEvents['labels'][frameAcqIdx]
+                alternating = []
+                for q in range(0,len(eventLabels)-2):
+                    alternating.append(np.char.equal(eventLabels[q+2], eventLabels[q]))
+                alternating.append(np.char.not_equal(eventLabels[-1], eventLabels[-2]))
+                if sum(alternating) == (len(eventLabels) - 1):
+                    return True
+                else:
+                    return False
             endPoint = round(int(self.samplingRate[channel]) * 2 / int(self.experiment['frameRate'])) 
             self._tIdxCaIm = np.empty(len(self.NeuralynxEvents['timestamps'][frameAcqIdx]),dtype=int)
             lastIndex = 0
             for k, caImEvent in enumerate(self.NeuralynxEvents['timestamps'][frameAcqIdx]):
                 self._tIdxCaIm[k] = self._findtIdxCaIm(k,caImEvent,lastIndex,channel,endPoint)
                 lastIndex = self._tIdxCaIm[k]
-            self.tCaIm, self.pOUC = self._correcttCaIm(self.tEEG[channel][self._tIdxCaIm])
+            self.tCaIm, self.pOUC = self._correcttCaIm(self.tEphys[channel][self._tIdxCaIm])
             if writeFile:
                 with open((self.filePath+'//syncCaMovieTimes.csv'), 'w', newline='') as nf:
                     writer = csv.writer(nf) 
@@ -82,7 +158,8 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAMiniscope):
                         writer.writerow(line)
 
 
-    def _correcttCaIm(self, tCaIm):
+    # I THINK THIS METHOD FIXES ANY MISSING TTLS
+    def _correcttCaIm_OLD(self, tCaIm):
         print('Correcting the timing of calcium movie frames...')
         dtCaIm = np.diff(tCaIm)
         frameRate = self.experiment['frameRate']
@@ -114,55 +191,7 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAMiniscope):
         return(nT, pOUC)
 
 
-    def _phaseCaEvents(self, channel, neuron='all'):
-        """Compare calcium events to the phase extracted from a specified EEG channel."""
-        self._syncCaMovieTimes(channel)
-        phaseEEG = self.computePhase(channel)
-        neurons = self.thresholdedEvents #FIXME to be the output of the thresholding function
-        print('Comparing the calcium events to the corresponding phase of ' + channel + '...')
-        if neuron == 'all':
-            self.CaEventsPhases = phaseEEG[:] #FIXME to work with actual data
-            self.CaEventsNeurons = neurons[:] #FIXME to work with actual data
-        elif type(neuron) == int:
-            self.CaEventsPhases = phaseEEG[:] #FIXME to work with actual data
-            self.CaEventsNeurons = neurons[:] #FIXME to work with actual data
-
-
-    def phaseCaEventsHistogram(self, channel='CBvsPFCEEG', neuron='all', bins=18, plotHistogram=False):
-        """Compute the histogram of calcium events vs phase.
-        CHANNEL is the channel to compare the timing of calcium events to.
-        NEURON is a list of the neuron indexes to compare. All neurons can be selected with 'all'.
-        PLOTHISTOGRAM chooses whether or not to plot the computed histogram."""
-        print('Creating a histogram of the phases of ' + channel + ' relative to the calcium events...')
-        self._phaseCaEvents(channel, neuron)
-        if plotHistogram:
-            plt.figure()
-            ax = misc_Functions.prepAxes(xLabel='Phase (rad)', yLabel='Event Count')
-            self.hist, self.binEdges = ax.hist(self.CaEventsPhases, bins=bins)
-        else:
-            self.hist, self.binEdges = np.histogram(self.CaEventsPhases, bins=bins)
-
-
-    def phaseCaEventsPolarPlot(self, channel='CBvsPFCEEG', neuron='all', bins=18, plotMeanVector=True):
-        """"""
-        pass
-
-
-    def saveData(self, filename='neuron_phase.csv'):
-        """Saves extracted phases of calcium events, along with neuron and rat IDs and other info, to a CSV file for further processing."""
-        df = pd.read_csv("miniscope_EEG_rats.csv", encoding="ISO-8859-1" )  #reading csv file
-        for index, row in df.iterrows():   # filtering the rows where job is Govt
-        	if self.experiment['id'] in row['Rat ID']:
-        		sex = row['Sex']
-        else:
-            print("No such variable found")
-        length = len(self.CaEventsPhases)
-        list_data = {"Phase":self.CaEventsPhases, 'NeuronID':self.CaEventsNeurons, 'RatID':[self.experiment['id']] * length, 'Sex': [sex] * length, 'Condition':[self.experiment["systemic drug"]] * length}
-        print('Saving calcium event phases and other attributes to ' + filename)
-        misc_Functions.appendRowCSV(list_data, filename=filename) #FIXME I haven't tested this yet.
-
-
-    def correctTimeStamps(self,channel='CBvsPFCEEG', plot=False):
+    def correctTimeStamps_OLD(self,channel='CBvsPFCEEG', plot=False):
         print('Correcting time stamps...')
         start_time = time.time()
         
@@ -180,7 +209,7 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAMiniscope):
         except AttributeError:
             try:
                 self.tCaIm = []
-                file = misc_Functions._findFilePaths(directory=self.experiment['directory'],fileStartsWith='syncCaMovieTimes')[0]
+                file = misc_Functions._findFilePaths(directory=self.experiment['calcium imaging directory'],fileStartsWith='syncCaMovieTimes')[0]
                 with open(file, newline='') as f:
                     reader = csv.reader(f)
                     self.pOUC = list(reader[1])
@@ -251,7 +280,7 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAMiniscope):
         print("--- %s seconds ---" % (time.time() - start_time))
 
 
-    def _turningPoints(self,timeStamps,numDroppedFrames,plot=False):
+    def _turningPoints_OLD(self,timeStamps,numDroppedFrames,plot=False):
         """Step detection algorithm borrowed from https://stackoverflow.com/questions/48000663/step-detection-in-one-dimensional-data."""
         self.clockTime = self.tCaIm - self.tCaIm[0] # FIXME make not self throughout function
         self.clockDiffStart = self.timeStamps - self.clockTime[:len(timeStamps)] 
@@ -264,7 +293,7 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAMiniscope):
         return(self.inds)
 
 
-    def _angle(self,directions):
+    def _angle_OLD(self,directions):
         """Return the angle between vectors."""
         vec2 = directions[1:]
         vec1 = directions[:-1]
@@ -275,7 +304,7 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAMiniscope):
         return np.arccos(cos)
 
 
-    def _stepID(self,clockDiff,plot):
+    def _stepID_OLD(self,clockDiff,plot):
         """"""
         d = clockDiff
         dary = np.array([*map(float, d)])
@@ -314,15 +343,53 @@ class miniscopeEEG(EEG.NeuralynxEEG, miniscope.UCLAMiniscope):
             plt.plot(dary)
             plt.plot(dary_step/(epsilon))
             plt.show()
-        return(sx[idx]) 
+        return(sx[idx])
 
 
-    def _findtIdxCaIm(self,k,caImEvent,lastIndex,channel,endPoint):
-        """Finds the index of a calcium event in the Neuralynx timespace."""
-        if k == 0:
-            _tIdxCaIm = np.abs(self.tEEG[channel][lastIndex:]-caImEvent).argmin()+lastIndex
-        elif (len(self.tEEG[channel][lastIndex:]) - endPoint < 0):
-            _tIdxCaIm = np.abs(self.tEEG[channel][lastIndex:]-caImEvent).argmin()+lastIndex
+#%% Methods to extract the instantaneous phase of the ephys signal, determine the phases of the calcium events, and summarize and save the results
+    def _phaseCaEvents(self, channel, neuron='all'):
+        """Compare calcium events to the phase extracted from a specified ephys channel."""
+        self._syncNeuralynxMiniscopeTimestamps(channel)
+        phaseEphys = self.computePhase(channel)
+        neurons = self.thresholdedEvents #FIXME to be the output of the thresholding function
+        print('Comparing the calcium events to the corresponding phase of ' + channel + '...')
+        if neuron == 'all':
+            self.CaEventsPhases = phaseEphys[:] #FIXME to work with actual data
+            self.CaEventsNeurons = neurons[:] #FIXME to work with actual data
+        elif type(neuron) == int:
+            self.CaEventsPhases = phaseEphys[:] #FIXME to work with actual data
+            self.CaEventsNeurons = neurons[:] #FIXME to work with actual data
+
+
+    def phaseCaEventsHistogram(self, channel='CBvsPFCEEG', neuron='all', bins=18, plotHistogram=False):
+        """Compute the histogram of calcium events vs phase.
+        CHANNEL is the channel to compare the timing of calcium events to.
+        NEURON is a list of the neuron indexes to compare. All neurons can be selected with 'all'.
+        PLOTHISTOGRAM chooses whether or not to plot the computed histogram."""
+        print('Creating a histogram of the phases of ' + channel + ' relative to the calcium events...')
+        self._phaseCaEvents(channel, neuron)
+        if plotHistogram:
+            plt.figure()
+            ax = misc_Functions.prepAxes(xLabel='Phase (rad)', yLabel='Event Count')
+            self.hist, self.binEdges = ax.hist(self.CaEventsPhases, bins=bins)
         else:
-            _tIdxCaIm = np.abs(self.tEEG[channel][lastIndex:(lastIndex + endPoint)]-caImEvent).argmin()+lastIndex
-        return(_tIdxCaIm)
+            self.hist, self.binEdges = np.histogram(self.CaEventsPhases, bins=bins)
+
+
+    def phaseCaEventsPolarPlot(self, channel='CBvsPFCEEG', neuron='all', bins=18, plotMeanVector=True):
+        """"""
+        pass
+
+
+    def saveData(self, filename='neuron_phase.csv'):
+        """Saves extracted phases of calcium events, along with neuron and rat IDs and other info, to a CSV file for further processing."""
+        df = pd.read_csv("miniscope_Ephys_rats.csv", encoding="ISO-8859-1" )  #reading csv file
+        for index, row in df.iterrows():   # filtering the rows where job is Govt
+        	if self.experiment['id'] in row['Rat ID']:
+        		sex = row['Sex']
+        else:
+            print("No such variable found")
+        length = len(self.CaEventsPhases)
+        list_data = {"Phase":self.CaEventsPhases, 'NeuronID':self.CaEventsNeurons, 'RatID':[self.experiment['id']] * length, 'Sex': [sex] * length, 'Condition':[self.experiment["systemic drug"]] * length}
+        print('Saving calcium event phases and other attributes to ' + filename)
+        misc_Functions.appendRowCSV(list_data, filename=filename) #FIXME I haven't tested this yet.

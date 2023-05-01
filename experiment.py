@@ -9,6 +9,8 @@ import csv
 import pickle
 import os.path
 import numpy as np
+from json import loads
+from datetime import datetime
 
 class experiment:
     """Base class for experiment analysis.
@@ -30,10 +32,6 @@ class experiment:
                 self.experiment[columnTitle] = experimentCSV[lineNum][k]
             except:
                 break
-        try:
-            self.experiment['zero time (s)'] = float(self.experiment['zero time (s)'])
-        except:
-            self.experiment['zero time (s)'] = 0
         
         self.jobID = jobID # used for naming output files
     
@@ -55,26 +53,25 @@ class experiment:
                 self._analysisParamsDict[columnTitle] = None
             else:
                 # Fix the types of different parameters if they're not supposed to be strings
-                if (self._analysisParamsDict[columnTitle] == 'False') or (
-                        self._analysisParamsDict[columnTitle] == 'True'):
-                    self._analysisParamsDict[columnTitle] = bool(self._analysisParamsDict[columnTitle])
-                elif (self._analysisParamsDict[columnTitle] == 'None') or (not self._analysisParamsDict[columnTitle]):
-                    self._analysisParamsDict[columnTitle] = None
-                elif (self._analysisParamsDict[columnTitle][0] == '('):
-                    convertParamTuple = []
-                    for k, c in enumerate(
-                            self._analysisParamsDict[columnTitle].replace('(', '').replace(')', '').replace(' ',
-                                                                                                            '').split(
-                                    ',')):
-                        if c.isnumeric():
-                            convertParamTuple.append(int(c))
-                    self._analysisParamsDict[columnTitle] = tuple(convertParamTuple)
-                elif self._analysisParamsDict[columnTitle].isdecimal():
-                    self._analysisParamsDict[columnTitle] = int(self._analysisParamsDict[columnTitle])
-                elif ('.' in self._analysisParamsDict[columnTitle]) and ( self._analysisParamsDict[columnTitle].split('.')[0] == "" and
-                self._analysisParamsDict[columnTitle].split('.')[1].isdecimal()) or (( self._analysisParamsDict[columnTitle].split('.')[0] != "" and
-                self._analysisParamsDict[columnTitle].split('.')[0].isdecimal()) and ( not self._analysisParamsDict[columnTitle].split('.')[1].isalpha())):
-                    self._analysisParamsDict[columnTitle] = float(self._analysisParamsDict[columnTitle])
+                try:
+                    self._analysisParamsDict[columnTitle] = loads(self._analysisParamsDict[columnTitle])                                # string to an int, float, or list
+                    if columnTitle == 'date (YYMMDD)':
+                        self._analysisParamsDict[columnTitle] = datetime.strptime(str(self._analysisParamsDict[columnTitle]), '%y%m%d') # int to datetime
+                except:
+                    try:
+                        self._analysisParamsDict[columnTitle] = float(self._analysisParamsDict[columnTitle])                            # string to float if above fails
+                    except:
+                        if (self._analysisParamsDict[columnTitle] == 'False') or (self._analysisParamsDict[columnTitle] == 'True'):
+                            self._analysisParamsDict[columnTitle] = bool(self._analysisParamsDict[columnTitle] == 'True')               # string to boolean
+                        elif (self._analysisParamsDict[columnTitle] == 'None') or (not self._analysisParamsDict[columnTitle]):
+                            self._analysisParamsDict[columnTitle] = None                                                                # 'None' or empty cell to None
+                        elif (str(self._analysisParamsDict[columnTitle])[0] == '('):
+                            convertParamTuple = []
+                            for k, c in enumerate(self._analysisParamsDict[columnTitle].replace('(', '').replace(')', '').replace(' ','').split(',')):
+                                if c.isnumeric():
+                                    convertParamTuple.append(int(c))
+                            self._analysisParamsDict[columnTitle] = tuple(convertParamTuple)                                            # string to tuple
+                
 
 
     def saveObj(self, filename=None, includejobID=False, includeSubjectID=False, includeTimeStamp=False):

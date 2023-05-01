@@ -21,8 +21,8 @@ import time
 get_ipython().run_line_magic('matplotlib', 'inline')
 from scipy.io import loadmat
 
-class NeuralynxEEG(experiment.experiment):
-    """This is the class definition for handling Neuralynx EEG data."""
+class NeuralynxEphys(experiment.experiment):
+    """This is the class definition for handling Neuralynx ephys data."""
     
     def importEphysData(self,channels='all',importEvents=False,removeArtifacts=False, 
                         VThreshold=1500,TThreshold=60,plot=False,hannNum=75):
@@ -35,8 +35,8 @@ class NeuralynxEEG(experiment.experiment):
         self._recording = NeuralynxIO(self.ephysFilePath)
         self._ephysData = self._recording.read_block(signal_group_mode='split-all')
         self.samplingRate = {}
-        self.tEEG = {}
-        self.EEG = {}
+        self.tEphys = {}
+        self.ephys = {}
         if channels == 'all':
             channels = self.experiment['LFP and EEG CSCs'].split(';')
         if channels != 'none':
@@ -50,17 +50,17 @@ class NeuralynxEEG(experiment.experiment):
                     # evaluate whether there needs to be another time point at the end
                     # to accommodate the timing of the last segment (and not leave the
                     # last element stranded). The '=' in the '<=' is to account for the
-                    # fact that .argmin() in self._makeEEGarrays() looks for the first
+                    # fact that .argmin() in self._makeEphysArrays() looks for the first
                     # occurance of the minimum when there is more than one candidate.
                     if (tStop - tStart) % dt <= (dt / 2):
                         tStop -= 0.51 * dt # subtract just over half of a dt to bump it down a time point
-                    self.tEEG[c.name] = np.arange(tStart, tStop, dt)
-                    self._makeEEGarrays(k)
-                    # For each channel, after making the EEG arrays, find the element
+                    self.tEphys[c.name] = np.arange(tStart, tStop, dt)
+                    self._makeEphysArrays(k)
+                    # For each channel, after making the ephys arrays, find the element
                     # of the time vector closest to self.experiment['zero time (s)']
                     # and subtract the time at that element from the entire time array
-                    zeroIdx = (np.abs(self.tEEG[c.name] - self.experiment['zero time (s)'])).argmin()
-                    self.tEEG[c.name] -= self.tEEG[c.name][zeroIdx]
+                    zeroIdx = (np.abs(self.tEphys[c.name] - self._analysisParamsDict['zero time (s)'])).argmin()
+                    self.tEphys[c.name] -= self.tEphys[c.name][zeroIdx]
                     if removeArtifacts:
                         self.artifactRemoval(channel=c.name,VThreshold=VThreshold,
                                              TThreshold=TThreshold,plot=plot,hannNum=hannNum)
@@ -68,22 +68,22 @@ class NeuralynxEEG(experiment.experiment):
             self.importNeuralynxEvents(analogSignalImported=True)
         print('--- %s seconds ---' % (time.time() - start_time))
     
-    def _makeEEGarrays(self, chNum):
-        """Method for concatenating EEG data and interpolating data between timestamp jumps.
+    def _makeEphysArrays(self, chNum):
+        """Method for concatenating ephys data and interpolating data between timestamp jumps.
         CHNUM is the channel number"""
         # Make a vector of NaNs equal in length to the time vector
         chName = self._ephysData.segments[0].analogsignals[chNum].name
-        self.EEG[chName] = np.nan * np.ones(np.shape(self.tEEG[chName]))
+        self.ephys[chName] = np.nan * np.ones(np.shape(self.tEphys[chName]))
         for seg in self._ephysData.segments:
             segSize = seg.analogsignals[chNum].size
-            startIdx = (np.abs(self.tEEG[chName] - seg.t_start.magnitude)).argmin()
+            startIdx = (np.abs(self.tEphys[chName] - seg.t_start.magnitude)).argmin()
             # Interpolate the chunk between the last segment and the start of the current segment
             if seg.index > 0:
-                interpStartIdx = np.where(np.isnan(self.EEG[chName]))[0][0]
+                interpStartIdx = np.where(np.isnan(self.ephys[chName]))[0][0]
                 interpSegSize = startIdx-interpStartIdx
-                self.EEG[chName][interpStartIdx:startIdx] = np.reshape(np.linspace(self.EEG[chName][interpStartIdx-1], seg.analogsignals[chNum][0].magnitude, interpSegSize+2)[1:-1], interpSegSize)
+                self.ephys[chName][interpStartIdx:startIdx] = np.reshape(np.linspace(self.ephys[chName][interpStartIdx-1], seg.analogsignals[chNum][0].magnitude, interpSegSize+2)[1:-1], interpSegSize)
             # Add on the current segment
-            self.EEG[chName][startIdx:(startIdx+segSize)] = np.reshape(seg.analogsignals[chNum].magnitude, segSize)
+            self.ephys[chName][startIdx:(startIdx+segSize)] = np.reshape(seg.analogsignals[chNum].magnitude, segSize)
 
 
     def importNeuralynxEvents(self, analogSignalImported=False):
@@ -106,7 +106,7 @@ class NeuralynxEEG(experiment.experiment):
         npUnsortedEventTimestamps = np.array(unsortedEventTimestamps)
         evSortInds = np.argsort(npUnsortedEventTimestamps)
         self.NeuralynxEvents['labels'] = npUnsortedEventLabels[evSortInds]
-        self.NeuralynxEvents['timestamps'] = npUnsortedEventTimestamps[evSortInds] - self.experiment['zero time (s)']
+        self.NeuralynxEvents['timestamps'] = npUnsortedEventTimestamps[evSortInds] - self._analysisParamsDict['zero time (s)']
 
         
     def computeSpectrogram(self, channel='CBvsPFCEEG', windowLength=30, 
@@ -117,11 +117,11 @@ class NeuralynxEEG(experiment.experiment):
         fs = int(self.samplingRate[channel])
         windowLengthSamples = windowLength * fs
         windowStepSamples = windowStep * fs
-        EEGMat = misc_Functions._overlapBinning(self.EEG[channel], windowLengthSamples, windowStepSamples)
+        ephysMat = misc_Functions._overlapBinning(self.ephys[channel], windowLengthSamples, windowStepSamples)
         # Make a time vector
-        tMat = misc_Functions._overlapBinning(self.tEEG[channel], windowLengthSamples, windowStepSamples)
+        tMat = misc_Functions._overlapBinning(self.tEphys[channel], windowLengthSamples, windowStepSamples)
         self.tSpect = tMat[:,windowLengthSamples // 2]
-        PSDSpect, self.freqsSpect = psd_array_multitaper(EEGMat, fs, fmin=freqLims[0], fmax=freqLims[1], bandwidth=bandwidth)
+        PSDSpect, self.freqsSpect = psd_array_multitaper(ephysMat, fs, fmin=freqLims[0], fmax=freqLims[1], bandwidth=bandwidth)
         self.pSpect = np.transpose(10 * np.log10(PSDSpect))
         if plotSpectrogram:
             h, ax = misc_Functions.spectrogram(self.tSpect/60, self.freqsSpect, self.pSpect, xLabel='Time (min)')
@@ -133,8 +133,8 @@ class NeuralynxEEG(experiment.experiment):
     def computePhase(self, channel):
         """Compute the instantaneous phase of a specified ephys channel."""
         print('Computing instantaneous phase...')
-        analyticSignalEEG = hilbert(self.EEG[channel])
-        self.instantaneousPhaseEEG = np.unwrap(np.angle(analyticSignalEEG))
+        analyticSignalEphys = hilbert(self.ephys[channel])
+        self.instantaneousPhaseEphys = np.unwrap(np.angle(analyticSignalEphys))
     
     
     def artifactRemoval(self, channel='CBvsPFCEEG', VThreshold=1500, TThreshold=60, 
@@ -145,20 +145,20 @@ class NeuralynxEEG(experiment.experiment):
         TThreshold= time threshold, in (s) if the gap time between threshold crossing is less than TThresh, all the voltage in between them will also be converted to 0"""
         print("Removing artifacts...")
         try:
-            EEG = self.EEG[channel]
+            ephys = self.ephys[channel]
         except:
             self.importEphysData(channels=channel)
-            EEG = self.EEG[channel]
+            ephys = self.ephys[channel]
         
-        dt = self.tEEG[channel][1]-self.tEEG[channel][0]
-        mean = np.mean(EEG) 
+        dt = self.tEphys[channel][1]-self.tEphys[channel][0]
+        mean = np.mean(ephys) 
         meanCalcVect = np.vectorize(misc_Functions._calcNumMinusMean)
-        EEG = meanCalcVect(EEG,mean)
+        ephys = meanCalcVect(ephys,mean)
 
         # implement thresholding
         
         compVThreshVect = np.vectorize(misc_Functions._compVThresh)
-        decimateMask = compVThreshVect(EEG,VThreshold)
+        decimateMask = compVThreshVect(ephys,VThreshold)
     
         # find area with small gap in between threshold crossing
         
@@ -179,39 +179,39 @@ class NeuralynxEEG(experiment.experiment):
             plusH = ele + halfHan + 1
             minusH = ele - halfHan 
             
-            if np.size(EEG) >= plusH:
+            if np.size(ephys) >= plusH:
                 if minusH > 0:
-                    EEG[minusH: plusH] = np.multiply(EEG[minusH: plusH], invHan) 
+                    ephys[minusH: plusH] = np.multiply(ephys[minusH: plusH], invHan) 
                 else:
-                    EEG[0: plusH] = np.multiply(EEG[0: plusH], invHan[(halfHan - decLocs + 1):])
+                    ephys[0: plusH] = np.multiply(ephys[0: plusH], invHan[(halfHan - decLocs + 1):])
             else:
-                sizeEEGmod = np.size(EEG[minusH:])
-                EEG[minusH:] = np.multiply(EEG[minusH:], invHan[0: sizeEEGmod]) 
+                sizeEphysmod = np.size(ephys[minusH:])
+                ephys[minusH:] = np.multiply(ephys[minusH:], invHan[0: sizeEphysmod]) 
         
-        self.EEG[channel]=EEG
+        self.ephys[channel]=ephys
         if plot:
             print('Plotting ' + channel + '...')
             plt.figure()
-            plt.plot(EEG)
+            plt.plot(ephys)
             plt.title('{0}'.format(channel))
             plt.xlabel('Time(s)')
             plt.ylabel('Voltage(\u03BC'+'V)')
             
-    class filteredEEG():
+    class filteredEphys():
         """This is an empty class in which to store filtering properties and filtered data."""
         pass
    
-    def filterEEG(self, n=5, wn=[0.5,4], channel='CBvsPFCEEG', ftype = 'Butterworth', btype = 'band'):
+    def filterEphys(self, n=5, cut=[0.5,4], channel='PFCLFPvsCBEEG', ftype='Butterworth', btype='bandpass'):
         """Method for filtering the ephys channel of choice with either a Butterworth or FIR filter."""
         print('Filtering ' + channel + ' with a(n) ' + ftype + ' filter ...')
-        fdata = self.filteredEEG()
+        fdata = self.filteredEphys()
         try:
-            fdata.data = misc_Functions.filterData(self.tEEG[channel], self.EEG[channel], n=n, wn=wn, ftype=ftype, btype=btype)
+            fdata.data = misc_Functions.filterData(self.tEphys[channel], self.ephys[channel], n=n, cut=cut, ftype=ftype, btype=btype, fs=self.samplingRate[channel])
         except:
             self.importEphysData(channels=channel)
-            fdata.data = misc_Functions.filterData(self.tEEG[channel], self.EEG[channel], n=n, wn=wn, ftype=ftype, btype=btype)
+            fdata.data = misc_Functions.filterData(self.tEphys[channel], self.ephys[channel], n=n, cut=cut, ftype=ftype, btype=btype, fs=self.samplingRate[channel])
         fdata.channel = channel
-        fdata.cutoff = wn
+        fdata.cutoff = cut
         fdata.ftype = ftype
         fdata.btype = btype
         fdata.order = n
