@@ -58,7 +58,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
             print('TTL does not alternate!')
         
         # Check for gaps in the TTL event timestamps and insert a timestamp guess if needed
-        !!!!!!!
+        !!!self.tCaIm, self.pOUC = self._correcttCaIm(eventLabels)
         
         # delete the TTL events that correspond to dropped frames in the saved calcium movie, specified in analysis_parameters.csv
         #TODO Add a method that plots the 3 figures of the timestamps for help in deciding which events to drop, then writes to analysis_parameters.csv and self._analysisParamsDict['indices of TTL events to delete'].
@@ -77,7 +77,6 @@ figure out how this works
         
         
         
-maybe put this line above the np.delet line where the exclamation points are        self.tCaIm, self.pOUC = self._correcttCaIm(self.tEphys[channel][self._tIdxCaIm])
         if writeFile:
             with open((self.filePath+'//syncCaMovieTimes.csv'), 'w', newline='') as nf:
                 writer = csv.writer(nf) 
@@ -97,6 +96,38 @@ maybe put this line above the np.delet line where the exclamation points are    
                     writer.writerow(line)
 
 
+    def _correcttCaIm(self, eventLabels):
+        """This method finds missing TTL events and inserts them into the calcium imaging time vector."""
+        print('Checking  TTL events alternate and that there are no gaps...')
+        dtCaIm = np.diff(self.tCaIm)
+        lTTLaI = np.where(dtCaIm > 0.040)[0] # long TTL array index
+        nAFPI = [] # number add frames per index
+        for i in lTTLaI:
+            nAFPI.append(round(dtCaIm[i]/(1/self.experiment['frameRate']))) # Guesses how many time steps occur in the gap. E.g., a 30 Hz video with a gap of 67 ms will have 2 time steps in the gap.
+!!!     nT = []
+        # aug = 0
+        start = []
+        end = []
+        pOUC = [] # period of uncertainty
+        for h, ti in enumerate(self.tCaIm):
+            if h in lTTLaI:
+                idx = int(np.where(lTTLaI==(h))[0])
+                nFD = nAFPI[idx] + 1
+                l = np.linspace(self.tCaIm[h], self.tCaIm[h+1], nFD)
+                start.append(h)
+                end.append(h+1)
+                for i, num in enumerate(l):
+                    if i != (len(l) - 1):
+                        nT.append(num)
+                # aug+=nFD
+            else:
+                nT.append(self.tCaIm[h])
+       
+        for k, idx in enumerate(start):
+            pOUC.append(str(f"{round(self.tCaIm[idx],4):08}") + '-' + str(f"{round(self.tCaIm[end[k]],4):08}")) #FIXME
+        return(nT, pOUC)
+
+
 figure out how these next two functions work
     def _findtIdxCaIm(self,k,caImEvent,lastIndex,channel,endPoint):
         """Finds the index of a calcium event in the Neuralynx timespace."""
@@ -107,39 +138,6 @@ figure out how these next two functions work
         else:
             _tIdxCaIm = np.abs(self.tEphys[channel][lastIndex:(lastIndex + endPoint)]-caImEvent).argmin()+lastIndex
         return(_tIdxCaIm)
-
-
-    def _correcttCaIm(self, tCaIm):
-        """This method finds missing TTL events and inserts them into the calcium imaging time vector."""
-        print('Correcting the timing of calcium movie frames...')
-        dtCaIm = np.diff(tCaIm)
-        frameRate = self.experiment['frameRate']
-        lTTLaI = np.where(dtCaIm > .040)[0] # long TTL array index
-        nAFPI = [] # number add frames per index
-        for i in lTTLaI:
-            nAFPI.append(round(dtCaIm[i]/(1/frameRate)))
-        nT = []
-        # aug = 0
-        start = []
-        end = []
-        pOUC = [] # period of uncertainty
-        for h, ti in enumerate(tCaIm):
-            if h in lTTLaI:
-                idx = int(np.where(lTTLaI==(h))[0])
-                nFD = nAFPI[idx] + 1
-                l = np.linspace(tCaIm[h], tCaIm[h+1], nFD)
-                start.append(h)
-                end.append(h+1)
-                for i, num in enumerate(l):
-                    if i != (len(l) - 1):
-                        nT.append(num)
-                # aug+=nFD
-            else:
-                nT.append(tCaIm[h])
-       
-        for k, idx in enumerate(start):
-            pOUC.append(str(f"{round(tCaIm[idx],4):08}") + '-' + str(f"{round(tCaIm[end[k]],4):08}")) #FIXME
-        return(nT, pOUC)
 
 
     def _syncNeuralynxMiniscopeTimestamps_OLD(self, channel, writeFile=False, ttl=False): #FIXME Verify that this code is working properly.
