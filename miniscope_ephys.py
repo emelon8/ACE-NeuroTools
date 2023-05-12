@@ -47,8 +47,30 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         # create the self.tCaIm, which is the array of labels and timestamps for the Neuralynx events that occur for each calcium image frame acquisition
         frameAcqIdx = (self.NeuralynxEvents['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0000).') | (self.NeuralynxEvents['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0001).')
         self.tCaIm = self.NeuralynxEvents['timestamps'][frameAcqIdx]
-        eventLabels = self.NeuralynxEvents['labels'][frameAcqIdx]
         
+        # Check for gaps in the TTL event timestamps and insert a timestamp guess if needed
+        self.lowConfidencePeriods = np.array([])
+        self._correcttCaIm(self.NeuralynxEvents['labels'][frameAcqIdx])
+        
+        # delete the TTL events that correspond to dropped frames in the saved calcium movie, specified in analysis_parameters.csv. This currently assumes that any gaps in the TTL events have been corrected already.
+        #TODO Add a method that plots the 3 figures of the timestamps for help in deciding which events to drop, then writes to analysis_parameters.csv and self._analysisParamsDict['indices of TTL events to delete'].
+        self.tCaIm = np.delete(self.tCaIm, self._analysisParamsDict['indices of TTL events to delete'])
+        
+figure out how this works
+        # find ephys timestamps that are closest to the timestamps in self.tCaIm
+        endPoint = round(int(self.samplingRate[channel]) * 2 / int(self.experiment['frameRate'])) # 
+        self.tIdxCaIm = np.empty(len(self.NeuralynxEvents['timestamps'][frameAcqIdx]),dtype=int)
+        lastIndex = 0
+        for k, caImEvent in enumerate(self.tCaIm):
+            self.tIdxCaIm[k] = self._findtIdxCaIm(k,caImEvent,lastIndex,channel,endPoint)
+            lastIndex = self.tIdxCaIm[k]
+
+
+    def _correcttCaIm(self, eventLabels, threshold=0.040):
+        """This method finds missing TTL events and inserts them into the calcium imaging time vector.
+        EVENTLABELS is the array of imported Neuralynx event labels.
+        THRESHOLD is the time threshold, in seconds, for detecting gaps in the TTL events."""
+        print('Checking that TTL events alternate...')
         # Print a message if the TTL event labels do not alternate between HIGH and LOW
         alternating = []
         for q in range(0,len(eventLabels)-2):
@@ -56,81 +78,25 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         alternating.append(np.char.not_equal(eventLabels[-1], eventLabels[-2]))
         if sum(alternating) != (len(eventLabels) - 1):
             print('TTL does not alternate!')
+            sys.exit() # Exit program execution if this condition is reached.
         
-        # Check for gaps in the TTL event timestamps and insert a timestamp guess if needed
-        !!!self.tCaIm, self.pOUC = self._correcttCaIm(eventLabels)
-        
-        # delete the TTL events that correspond to dropped frames in the saved calcium movie, specified in analysis_parameters.csv
-        #TODO Add a method that plots the 3 figures of the timestamps for help in deciding which events to drop, then writes to analysis_parameters.csv and self._analysisParamsDict['indices of TTL events to delete'].
-        self.tCaIm = np.delete(self.tCaIm, self._analysisParamsDict['indices of TTL events to delete'])
-        
-        
-figure out how this works
-        # find ephys timestamps that are closest to the timestamps in self.tCaIm
-        endPoint = round(int(self.samplingRate[channel]) * 2 / int(self.experiment['frameRate'])) 
-        self._tIdxCaIm = np.empty(len(self.NeuralynxEvents['timestamps'][frameAcqIdx]),dtype=int)
-        lastIndex = 0
-        for k, caImEvent in enumerate(self.tCaIm):
-            self._tIdxCaIm[k] = self._findtIdxCaIm(k,caImEvent,lastIndex,channel,endPoint)
-            lastIndex = self._tIdxCaIm[k]
-        
-        
-        
-        
-        if writeFile:
-            with open((self.filePath+'//syncCaMovieTimes.csv'), 'w', newline='') as nf:
-                writer = csv.writer(nf) 
-                pOUC = []
-                # pOUC.append('Period(s) of Uncertainty')
-                pOUC.append(self.pOUC)
-                # writer.writerow(pOUC)
-                header = []
-                header.append('Frame')
-                header.append('Time(s)')
-                writer.writerow(header)
-                lastIndex = 0
-                for k, ti in enumerate(self.tCaIm):
-                    line = []
-                    line.append(k)
-                    line.append(ti)
-                    writer.writerow(line)
-
-
-    def _correcttCaIm(self, eventLabels):
-        """This method finds missing TTL events and inserts them into the calcium imaging time vector."""
-        print('Checking  TTL events alternate and that there are no gaps...')
+        print('Fixing any gaps in the TTL events...')
         dtCaIm = np.diff(self.tCaIm)
-        lTTLaI = np.where(dtCaIm > 0.040)[0] # long TTL array index
-        nAFPI = [] # number add frames per index
-        for i in lTTLaI:
-            nAFPI.append(round(dtCaIm[i]/(1/self.experiment['frameRate']))) # Guesses how many time steps occur in the gap. E.g., a 30 Hz video with a gap of 67 ms will have 2 time steps in the gap.
-!!!     nT = []
-        # aug = 0
-        start = []
-        end = []
-        pOUC = [] # period of uncertainty
-        for h, ti in enumerate(self.tCaIm):
-            if h in lTTLaI:
-                idx = int(np.where(lTTLaI==(h))[0])
-                nFD = nAFPI[idx] + 1
-                l = np.linspace(self.tCaIm[h], self.tCaIm[h+1], nFD)
-                start.append(h)
-                end.append(h+1)
-                for i, num in enumerate(l):
-                    if i != (len(l) - 1):
-                        nT.append(num)
-                # aug+=nFD
-            else:
-                nT.append(self.tCaIm[h])
-       
-        for k, idx in enumerate(start):
-            pOUC.append(str(f"{round(self.tCaIm[idx],4):08}") + '-' + str(f"{round(self.tCaIm[end[k]],4):08}")) #FIXME
-        return(nT, pOUC)
+        idxTTLGap = np.where(dtCaIm > threshold)[0] # indices of gaps in the TTL events
+        flippedIdxTTLGap = np.flip(idxTTLGap) # Reverse the order of idxTTLGap so that inserting TTLs in the loop doesn't affect the indices of the next iteration of the loop.
+        gapLength = [] # number dropped frames per index
+        for k, gapIdx in enumerate(flippedIdxTTLGap):
+            gapLength.append(round(dtCaIm[gapIdx]/(1/self.experiment['frameRate']))) # Guesses how many timesteps occur in the gap. E.g., a 30 Hz video with a gap of 67 ms will have 2 timesteps in the gap.
+            print(str(gapLength[k]-1) + ' TTL event(s) is/are missing between index numbers ' + str(gapIdx) + ' and ' + str(gapIdx + 1) + '.')
+            estimatedEventTimes = np.linspace(self.tCaIm[gapIdx], self.tCaIm[gapIdx+1], gapLength[k]+1) # Estimates the timing of the TTLs, beginning at the one before the gap and ending at the one after the gap.
+            self.tCaIm = np.insert(self.tCaIm, gapIdx, estimatedEventTimes[:-1])
+            self.lowConfidencePeriods = np.append(self.lowConfidencePeriods, [[gapIdx, gapIdx+gapLength[k]-1]], axis=0)
 
 
 figure out how these next two functions work
     def _findtIdxCaIm(self,k,caImEvent,lastIndex,channel,endPoint):
-        """Finds the index of a calcium event in the Neuralynx timespace."""
+        """Finds the index of a calcium event in the Neuralynx timespace.
+        LASTINDEX is the """
         if k == 0:
             _tIdxCaIm = np.abs(self.tEphys[channel][lastIndex:]-caImEvent).argmin()+lastIndex
         elif (len(self.tEphys[channel][lastIndex:]) - endPoint < 0):

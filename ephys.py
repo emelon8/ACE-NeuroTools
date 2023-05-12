@@ -134,7 +134,7 @@ class NeuralynxEphys(experiment.experiment):
         """Compute the instantaneous phase of a specified ephys channel."""
         print('Computing instantaneous phase...')
         analyticSignalEphys = hilbert(self.ephys[channel])
-        self.instantaneousPhaseEphys = np.unwrap(np.angle(analyticSignalEphys))
+        self.instantaneousPhaseEphys = np.angle(analyticSignalEphys)
     
     
     def artifactRemoval(self, channel='CBvsPFCEEG', VThreshold=1500, TThreshold=60, 
