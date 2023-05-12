@@ -55,18 +55,9 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         # delete the TTL events that correspond to dropped frames in the saved calcium movie, specified in analysis_parameters.csv. This currently assumes that any gaps in the TTL events have been corrected already.
         #TODO Add a method that plots the 3 figures of the timestamps for help in deciding which events to drop, then writes to analysis_parameters.csv and self._analysisParamsDict['indices of TTL events to delete'].
         self.tCaIm = np.delete(self.tCaIm, self._analysisParamsDict['indices of TTL events to delete'])
-        
-figure out how this works
-        # find ephys timestamps that are closest to the timestamps in self.tCaIm
-        endPoint = round(int(self.samplingRate[channel]) * 2 / int(self.experiment['frameRate'])) # 
-        self.tIdxCaIm = np.empty(len(self.NeuralynxEvents['timestamps'][frameAcqIdx]),dtype=int)
-        lastIndex = 0
-        for k, caImEvent in enumerate(self.tCaIm):
-            self.tIdxCaIm[k] = self._findtIdxCaIm(k,caImEvent,lastIndex,channel,endPoint)
-            lastIndex = self.tIdxCaIm[k]
 
 
-    def _correcttCaIm(self, eventLabels, threshold=0.040):
+    def _correcttCaIm(self, eventLabels, threshold=0.04):
         """This method finds missing TTL events and inserts them into the calcium imaging time vector.
         EVENTLABELS is the array of imported Neuralynx event labels.
         THRESHOLD is the time threshold, in seconds, for detecting gaps in the TTL events."""
@@ -91,72 +82,6 @@ figure out how this works
             estimatedEventTimes = np.linspace(self.tCaIm[gapIdx], self.tCaIm[gapIdx+1], gapLength[k]+1) # Estimates the timing of the TTLs, beginning at the one before the gap and ending at the one after the gap.
             self.tCaIm = np.insert(self.tCaIm, gapIdx, estimatedEventTimes[:-1])
             self.lowConfidencePeriods = np.append(self.lowConfidencePeriods, [[gapIdx, gapIdx+gapLength[k]-1]], axis=0)
-
-
-figure out how these next two functions work
-    def _findtIdxCaIm(self,k,caImEvent,lastIndex,channel,endPoint):
-        """Finds the index of a calcium event in the Neuralynx timespace.
-        LASTINDEX is the """
-        if k == 0:
-            _tIdxCaIm = np.abs(self.tEphys[channel][lastIndex:]-caImEvent).argmin()+lastIndex
-        elif (len(self.tEphys[channel][lastIndex:]) - endPoint < 0):
-            _tIdxCaIm = np.abs(self.tEphys[channel][lastIndex:]-caImEvent).argmin()+lastIndex
-        else:
-            _tIdxCaIm = np.abs(self.tEphys[channel][lastIndex:(lastIndex + endPoint)]-caImEvent).argmin()+lastIndex
-        return(_tIdxCaIm)
-
-
-    def _syncNeuralynxMiniscopeTimestamps_OLD(self, channel, writeFile=False, ttl=False): #FIXME Verify that this code is working properly.
-        """Create time vector for calcium movies from TTL events in Neuralynx."""
-        print('Syncing calcium movie times...')
-        try:
-            self.tCaIm = []
-            file = misc_functions._findFilePaths(directory=self.experiment['calcium imaging directory'],fileStartsWith='syncCaMovieTimes')[0]
-            with open(file, newline='') as f:
-                reader = csv.reader(f)
-                self.pOUC = list(reader[1])
-                next(f)
-                reader = csv.reader(f)
-                for row in reader:
-                    self.tCaIm.append(float(row[1]))
-            self.tCaIm = np.asarray(self.tCaIm)
-        except AttributeError:
-            frameAcqIdx = (self.NeuralynxEvents['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0000).') | (self.NeuralynxEvents['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0001).')
-            if ttl: # creates the self.tCaIm and then returns a bool of whether the TTL labels alternate between HIGH and LOW (True) or not (False)
-                self.tCaIm = self.NeuralynxEvents['timestamps'][frameAcqIdx]
-                eventLabels = self.NeuralynxEvents['labels'][frameAcqIdx]
-                alternating = []
-                for q in range(0,len(eventLabels)-2):
-                    alternating.append(np.char.equal(eventLabels[q+2], eventLabels[q]))
-                alternating.append(np.char.not_equal(eventLabels[-1], eventLabels[-2]))
-                if sum(alternating) == (len(eventLabels) - 1):
-                    return True
-                else:
-                    return False
-            endPoint = round(int(self.samplingRate[channel]) * 2 / int(self.experiment['frameRate'])) 
-            self._tIdxCaIm = np.empty(len(self.NeuralynxEvents['timestamps'][frameAcqIdx]),dtype=int)
-            lastIndex = 0
-            for k, caImEvent in enumerate(self.NeuralynxEvents['timestamps'][frameAcqIdx]):
-                self._tIdxCaIm[k] = self._findtIdxCaIm(k,caImEvent,lastIndex,channel,endPoint)
-                lastIndex = self._tIdxCaIm[k]
-            self.tCaIm, self.pOUC = self._correcttCaIm(self.tEphys[channel][self._tIdxCaIm])
-            if writeFile:
-                with open((self.filePath+'//syncCaMovieTimes.csv'), 'w', newline='') as nf:
-                    writer = csv.writer(nf) 
-                    pOUC = []
-                    # pOUC.append('Period(s) of Uncertainty')
-                    pOUC.append(self.pOUC)
-                    # writer.writerow(pOUC)
-                    header = []
-                    header.append('Frame')
-                    header.append('Time(s)')
-                    writer.writerow(header)
-                    lastIndex = 0
-                    for k, ti in enumerate(self.tCaIm):
-                        line = []
-                        line.append(k)
-                        line.append(ti)
-                        writer.writerow(line)
 
 
     def correctTimeStamps_OLD(self,channel='CBvsPFCEEG', plot=False):
@@ -312,6 +237,28 @@ figure out how these next two functions work
             plt.plot(dary_step/(epsilon))
             plt.show()
         return(sx[idx])
+
+
+    def _findIdxCaEvents(self,k,caImEvent,lastIndex,channel,endPoint):
+        """Finds the index of a calcium event in the Neuralynx timespace. #TODO If the miniscope class method to find the timing of calcium events has not been run yet, it runs this first.
+        LASTINDEX is the """
+#THE STUFF COMMENTED OUT WAS PREVIOUSLY PULLED FROM THE END OF _syncNeuralynxMiniscopeTimestamps()
+        # # find ephys timestamps that are closest to the timestamps in self.tCaIm
+        # endPoint = round(int(self.samplingRate[channel]) * 2 / int(self.experiment['frameRate'])) # 
+        # self.tIdxCaIm = np.empty(len(self.NeuralynxEvents['timestamps'][frameAcqIdx]),dtype=int)
+        # lastIndex = 0
+        # for k, caImEvent in enumerate(self.tCaIm):
+        #     self.tIdxCaIm[k] = self._findIdxCaEvents(k,caImEvent,lastIndex,channel,endPoint)
+        #     lastIndex = self.tIdxCaIm[k]
+        
+        
+        if k == 0:
+            _tIdxCaIm = np.abs(self.tEphys[channel][lastIndex:]-caImEvent).argmin()+lastIndex
+        elif (len(self.tEphys[channel][lastIndex:]) - endPoint < 0):
+            _tIdxCaIm = np.abs(self.tEphys[channel][lastIndex:]-caImEvent).argmin()+lastIndex
+        else:
+            _tIdxCaIm = np.abs(self.tEphys[channel][lastIndex:(lastIndex + endPoint)]-caImEvent).argmin()+lastIndex
+        return(_tIdxCaIm)
 
 
 #%% Methods to extract the instantaneous phase of the ephys signal, determine the phases of the calcium events, and summarize and save the results
