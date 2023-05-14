@@ -30,7 +30,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         super().__init__(lineNum=lineNum, filename=filename, filenameMiniscope=filenameMiniscope, analysisFilename=analysisFilename, jobID=jobID) #FIXME Does this init statment need to be here? Will it inherit from ephys or miniscope if it's not?
 
 
-    def importEvents(self, channel='CBvsPFCEEG', writeFile=False, ttl=False,plot=False):
+    def importEvents(self, channel='PFCLFPvsCBEEG', writeFile=False, ttl=False,plot=False):
         """Translate the events imported from self.experiment['Miniscope settings filename']
         into a common time as the Neuralynx time format and combine the events from the two sources."""
         self.importNeuralynxEvents()
@@ -58,7 +58,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
 
 
     def _correcttCaIm(self, eventLabels, threshold=0.04):
-        """This method finds missing TTL events and inserts them into the calcium imaging time vector.
+        """This method first confirms that the TTL events alternate and then checks for missing TTL events. If there are any, the method guesses their timing and inserts them into the calcium imaging time vector.
         EVENTLABELS is the array of imported Neuralynx event labels.
         THRESHOLD is the time threshold, in seconds, for detecting gaps in the TTL events."""
         print('Checking that TTL events alternate...')
@@ -84,7 +84,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
             self.lowConfidencePeriods = np.append(self.lowConfidencePeriods, [[gapIdx, gapIdx+gapLength[k]-1]], axis=0)
 
 
-    def correctTimeStamps_OLD(self,channel='CBvsPFCEEG', plot=False):
+    def correctTimeStamps_OLD(self,channel='PFCLFPvsCBEEG', plot=False):
         print('Correcting time stamps...')
         start_time = time.time()
         
@@ -239,44 +239,49 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         return(sx[idx])
 
 
-    def _findIdxCaEvents(self,k,caImEvent,lastIndex,channel,endPoint):
-        """Finds the index of a calcium event in the Neuralynx timespace. #TODO If the miniscope class method to find the timing of calcium events has not been run yet, it runs this first.
-        LASTINDEX is the """
-#THE STUFF COMMENTED OUT WAS PREVIOUSLY PULLED FROM THE END OF _syncNeuralynxMiniscopeTimestamps()
-        # # find ephys timestamps that are closest to the timestamps in self.tCaIm
-        # endPoint = round(int(self.samplingRate[channel]) * 2 / int(self.experiment['frameRate'])) # 
-        # self.tIdxCaIm = np.empty(len(self.NeuralynxEvents['timestamps'][frameAcqIdx]),dtype=int)
-        # lastIndex = 0
-        # for k, caImEvent in enumerate(self.tCaIm):
-        #     self.tIdxCaIm[k] = self._findIdxCaEvents(k,caImEvent,lastIndex,channel,endPoint)
-        #     lastIndex = self.tIdxCaIm[k]
-        
-        
-        if k == 0:
-            _tIdxCaIm = np.abs(self.tEphys[channel][lastIndex:]-caImEvent).argmin()+lastIndex
-        elif (len(self.tEphys[channel][lastIndex:]) - endPoint < 0):
-            _tIdxCaIm = np.abs(self.tEphys[channel][lastIndex:]-caImEvent).argmin()+lastIndex
-        else:
-            _tIdxCaIm = np.abs(self.tEphys[channel][lastIndex:(lastIndex + endPoint)]-caImEvent).argmin()+lastIndex
-        return(_tIdxCaIm)
+    def findEphysIdxCaEvents(self, channel='PFCLFPvsCBEEG'):
+        """Finds the index of a calcium event in the Neuralynx timespace. If the miniscope class method to find the timing of calcium events has not been run yet, it runs that first.
+        CHANNEL is the ephys channel with which to compare the timing of the ephys samples to the calcium event timing."""
+        # Note: This method only looks for the indices of the ephys timestamps that are closest to the calcium event (Neuralynx) timestamps. The previous method matched up all calcium movie timestamps with their corresponding ephys timestamps (see previous versions in GitHub repository).
+        try:
+            CaEventsIdx = self.CaEventsIdx
+        except NameError:
+            self.findCalciumEvents()
+            
+            print('Finding the indices of ephys timestamps that are closest to the calcium event (Neuralynx) timestamps...')
+            self.EphysIdxCaEvents = []
+            for k in range(len(self.CaEventsIdx)):
+                self.EphysIdxCaEvents.append([])
+                lastIndex = 0
+                for j in range(len(self.CaEventsIdx[k])):
+                    self.EphysIdxCaEvents[k].append(np.abs(self.tEphys[channel][lastIndex:] - self.tCaIm[self.CaEventsIdx[k][j]]).argmin() + lastIndex)
+                    # Check to see if the gap between the calcium event time and the corresponding ephys timestamp is reasonable.
+                    if np.abs(self.tEphys[channel][self.EphysIdxCaEvents[k][j]]-self.tCaIm[self.CaEventsIdx[k][j]]) > (1/self.experiment['frameRate']):
+                        print('There are no ephys timestamps closer to the calcium event timestamp than the duration of a calcium movie frame!')
+                    lastIndex = self.EphysIdxCaEvents[k][j]
 
 
 #%% Methods to extract the instantaneous phase of the ephys signal, determine the phases of the calcium events, and summarize and save the results
-    def _phaseCaEvents(self, channel, neuron='all'):
-        """Compare calcium events to the phase extracted from a specified ephys channel."""
+    def _phaseCaEvents(self, channel='PFCLFPvsCBEEG', neuron='all'):
+        """Compare calcium events to the phase extracted from a specified ephys channel.
+        CHANNEL is the ephys channel name.
+        NEURON is the neuron number (i.e., the integer row number in self.estimates.C, starting with 0) of the neuron you want to compare. If you want to compare all of the neurons in the recording, pass 'all' as the argument."""
         self._syncNeuralynxMiniscopeTimestamps(channel)
         phaseEphys = self.computePhase(channel)
-        neurons = self.thresholdedEvents #FIXME to be the output of the thresholding function
         print('Comparing the calcium events to the corresponding phase of ' + channel + '...')
         if neuron == 'all':
-            self.CaEventsPhases = phaseEphys[:] #FIXME to work with actual data
-            self.CaEventsNeurons = neurons[:] #FIXME to work with actual data
+            self.CaEventsPhases = []
+            for k in range(len(self.EphysIdxCaEvents)):
+                self.CaEventsPhases.append([])
+                for j in range(len(self.EphysIdxCaEvents[k])):
+                    self.CaEventsPhases[k].append(phaseEphys[self.EphysIdxCaEvents[k][j]])
         elif type(neuron) == int:
-            self.CaEventsPhases = phaseEphys[:] #FIXME to work with actual data
-            self.CaEventsNeurons = neurons[:] #FIXME to work with actual data
+            self.CaEventsPhases = []
+            for j in range(len(self.EphysIdxCaEvents[neuron])):
+                self.CaEventsPhases.append(phaseEphys[self.EphysIdxCaEvents[neuron][j]])
 
 
-    def phaseCaEventsHistogram(self, channel='CBvsPFCEEG', neuron='all', bins=18, plotHistogram=False):
+    def phaseCaEventsHistogram(self, channel='PFCLFPvsCBEEG', neuron='all', bins=18, plotHistogram=False):
         """Compute the histogram of calcium events vs phase.
         CHANNEL is the channel to compare the timing of calcium events to.
         NEURON is a list of the neuron indexes to compare. All neurons can be selected with 'all'.
@@ -286,12 +291,12 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         if plotHistogram:
             plt.figure()
             ax = misc_functions.prepAxes(xLabel='Phase (rad)', yLabel='Event Count')
-            self.hist, self.binEdges = ax.hist(self.CaEventsPhases, bins=bins)
+            self.hist, self.binEdges = ax.hist(self.CaEventsPhases, bins=bins) #FIXME self.CaEventsPhases is a list of lists, so it probably won't work with ax.hist or np.histogram.
         else:
             self.hist, self.binEdges = np.histogram(self.CaEventsPhases, bins=bins)
 
 
-    def phaseCaEventsPolarPlot(self, channel='CBvsPFCEEG', neuron='all', bins=18, plotMeanVector=True):
+    def phaseCaEventsPolarPlot(self, channel='PFCLFPvsCBEEG', neuron='all', bins=18, plotMeanVector=True):
         """"""
         pass
 
