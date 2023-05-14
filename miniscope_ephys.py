@@ -262,21 +262,20 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
 
 
 #%% Methods to extract the instantaneous phase of the ephys signal, determine the phases of the calcium events, and summarize and save the results
-    def _phaseCaEvents(self, channel='PFCLFPvsCBEEG', neuron='all'):
+    def phaseCaEvents(self, channel='PFCLFPvsCBEEG', neuron='all'):
         """Compare calcium events to the phase extracted from a specified ephys channel.
         CHANNEL is the ephys channel name.
         NEURON is the neuron number (i.e., the integer row number in self.estimates.C, starting with 0) of the neuron you want to compare. If you want to compare all of the neurons in the recording, pass 'all' as the argument."""
         self._syncNeuralynxMiniscopeTimestamps(channel)
         phaseEphys = self.computePhase(channel)
         print('Comparing the calcium events to the corresponding phase of ' + channel + '...')
+        self.CaEventsPhases = []
         if neuron == 'all':
-            self.CaEventsPhases = []
             for k in range(len(self.EphysIdxCaEvents)):
                 self.CaEventsPhases.append([])
                 for j in range(len(self.EphysIdxCaEvents[k])):
                     self.CaEventsPhases[k].append(phaseEphys[self.EphysIdxCaEvents[k][j]])
         elif type(neuron) == int:
-            self.CaEventsPhases = []
             for j in range(len(self.EphysIdxCaEvents[neuron])):
                 self.CaEventsPhases.append(phaseEphys[self.EphysIdxCaEvents[neuron][j]])
 
@@ -287,7 +286,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         NEURON is a list of the neuron indexes to compare. All neurons can be selected with 'all'.
         PLOTHISTOGRAM chooses whether or not to plot the computed histogram."""
         print('Creating a histogram of the phases of ' + channel + ' relative to the calcium events...')
-        self._phaseCaEvents(channel, neuron)
+        self.phaseCaEvents(channel, neuron)
         if plotHistogram:
             plt.figure()
             ax = misc_functions.prepAxes(xLabel='Phase (rad)', yLabel='Event Count')
