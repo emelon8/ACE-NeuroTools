@@ -24,7 +24,7 @@ from scipy.io import loadmat
 class NeuralynxEphys(experiment.experiment):
     """This is the class definition for handling Neuralynx ephys data."""
     
-    def importEphysData(self,channels='all',importEvents=False,removeArtifacts=False, 
+    def importEphysData(self,channels='all',removeArtifacts=False, 
                         VThreshold=1500,TThreshold=60,plot=False,hannNum=75):
         """Import Neuralynx continuously sampled channel data and associated events.
         CHANNELS can be 'all', 'none' (if you just want to import the events),
@@ -64,8 +64,6 @@ class NeuralynxEphys(experiment.experiment):
                     if removeArtifacts:
                         self.artifactRemoval(channel=c.name,VThreshold=VThreshold,
                                              TThreshold=TThreshold,plot=plot,hannNum=hannNum)
-        if importEvents:
-            self.importNeuralynxEvents(analogSignalImported=True)
         print('--- %s seconds ---' % (time.time() - start_time))
     
     def _makeEphysArrays(self, chNum):
@@ -89,7 +87,7 @@ class NeuralynxEphys(experiment.experiment):
     def importNeuralynxEvents(self, analogSignalImported=False):
         """Method for importing Neuralynx events."""
         print('Importing ephys events...')
-        if not analogSignalImported:
+        if not analogSignalImported: #TODO make it automatically detect whether it's been imported
             self.ephysFilePath = misc_functions._findFilePaths(self.experiment['ephys directory'], fileExtensions='.nev', fileStartsWith='Events', removeFile=True)[0]
             self._recording = NeuralynxIO(self.ephysFilePath)
             self._ephysData = self._recording.read_block(signal_group_mode='split-all')

@@ -35,8 +35,8 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         into a common time as the Neuralynx time format and combine the events from the two sources."""
         self.importNeuralynxEvents()
         self.importEphysData(channels=channel)
-        self._syncNeuralynxMiniscopeTimestamps(channel, writeFile, ttl)
-        self.correctTimeStamps(channel,plot)
+        self._syncNeuralynxMiniscopeTimestamps(channel)
+        # self.correctTimeStamps(channel,plot)
 
 
 #%% Methods for extracting timing of calcium image acquisition, deleting timestamps of dropped frames, and matching timestamps with ephys timestamps
@@ -242,7 +242,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
     def findEphysIdxCaEvents(self, channel='PFCLFPvsCBEEG'):
         """Finds the index of a calcium event in the Neuralynx timespace. If the miniscope class method to find the timing of calcium events has not been run yet, it runs that first.
         CHANNEL is the ephys channel with which to compare the timing of the ephys samples to the calcium event timing."""
-        # Note: This method only looks for the indices of the ephys timestamps that are closest to the calcium event (Neuralynx) timestamps. The previous method matched up all calcium movie timestamps with their corresponding ephys timestamps (see previous versions in GitHub repository).
+        # Note: This method only looks for the indices of the ephys timestamps that are closest to the calcium event (Neuralynx) timestamps. The previous method matched up all calcium movie timestamps with their corresponding ephys timestamps (see previous versions in GitHub repository). If you want to look at correlations between the background fluorescence and the ephys signal, you will need to re-implement that again.
         try:
             CaEventsIdx = self.CaEventsIdx
         except NameError:
