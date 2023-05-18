@@ -40,7 +40,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
 
 
 #%% Methods for extracting timing of calcium image acquisition, deleting timestamps of dropped frames, and matching timestamps with ephys timestamps
-    def _syncNeuralynxMiniscopeTimestamps(self, channel):
+    def _syncNeuralynxMiniscopeTimestamps(self, channel, deleteTTLs=True):
         """Create time vector for calcium movies from TTL events in Neuralynx."""
         print('Syncing calcium movie times...')
         
@@ -54,7 +54,8 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         
         # delete the TTL events that correspond to dropped frames in the saved calcium movie, specified in analysis_parameters.csv. This currently assumes that any gaps in the TTL events have been corrected already.
         #TODO Add a method that plots the 3 figures of the timestamps for help in deciding which events to drop, then writes to analysis_parameters.csv and self._analysisParamsDict['indices of TTL events to delete'].
-        self.tCaIm = np.delete(self.tCaIm, self._analysisParamsDict['indices of TTL events to delete'])
+        if deleteTTLs:
+            self.tCaIm = np.delete(self.tCaIm, self._analysisParamsDict['indices of TTL events to delete'])
 
 
     def _correcttCaIm(self, eventLabels, threshold=0.04):

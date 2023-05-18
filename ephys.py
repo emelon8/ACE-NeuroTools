@@ -107,7 +107,7 @@ class NeuralynxEphys(experiment.experiment):
         self.NeuralynxEvents['timestamps'] = npUnsortedEventTimestamps[evSortInds] - self._analysisParamsDict['zero time (s)']
 
         
-    def computeSpectrogram(self, channel='CBvsPFCEEG', windowLength=30, 
+    def computeSpectrogram(self, channel='PFCLFPvsCBEEG', windowLength=30, 
                            windowStep=3, freqLims=[0,50], bandwidth=2, 
                            plotSpectrogram=False, plotEvents=True):
         """Estimate (and plot) the multi-taper spectrogram of a specified ephys channel. Developed with code mostly from Morgan Siegmann."""
@@ -135,7 +135,7 @@ class NeuralynxEphys(experiment.experiment):
         self.instantaneousPhaseEphys = np.angle(analyticSignalEphys)
     
     
-    def artifactRemoval(self, channel='CBvsPFCEEG', VThreshold=1500, TThreshold=60, 
+    def artifactRemoval(self, channel='PFCLFPvsCBEEG', VThreshold=1500, TThreshold=60, 
                         plot=True, hannNum=75): 
         """artifactRemoval is a 2 x L matrix with the beginning and end times 
         (in seconds) that shoulb be removed from the raw signal.

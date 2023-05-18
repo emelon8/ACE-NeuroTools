@@ -83,7 +83,7 @@ class UCLAMiniscope(experiment.experiment):
             self.experiment['calcium imaging directory'] = os.path.abspath(os.path.dirname(filenameMiniscope))
 
         if lineNum != None:
-            self.importAnalysisParams(lineNum, analysisFilename)
+            self.importAnalysisParams(analysisFilename)
         else:
             self._analysisParamsDict = {}
 
