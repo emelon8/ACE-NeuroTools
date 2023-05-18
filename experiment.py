@@ -35,7 +35,7 @@ class experiment:
         
         self.jobID = jobID # used for naming output files
     
-    def importAnalysisParams(self, lineNum, filename):
+    def importAnalysisParams(self, filename='analysis_parameters.csv'):
         """Import parameters for calcium movie analysis using CaImAn."""
         analysisParamsCSV = []
         self.analysisParamsFilename = filename
@@ -48,7 +48,7 @@ class experiment:
         self._analysisParamsDict = {}
         for k, columnTitle in enumerate(analysisParamsCSV[0]):
             try:
-                self._analysisParamsDict[columnTitle] = analysisParamsCSV[lineNum][k]
+                self._analysisParamsDict[columnTitle] = analysisParamsCSV[self.lineNum][k]
             except IndexError:
                 self._analysisParamsDict[columnTitle] = None
             else:

@@ -18,7 +18,7 @@ import misc_functions
 import math
 import sys
 import time
-get_ipython().run_line_magic('matplotlib', 'inline')
+# get_ipython().run_line_magic('matplotlib', 'inline')
 from scipy.io import loadmat
 
 class NeuralynxEphys(experiment.experiment):
