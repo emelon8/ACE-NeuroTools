@@ -143,80 +143,80 @@ class NeuralynxEphys(experiment.experiment):
         TThreshold= time threshold, in (s) if the gap time between threshold crossing is less than TThresh, all the voltage in between them will also be converted to 0"""
         print("Removing artifacts...")
         try:
-            ephys = self.ephys[channel]
-        except:
+            ephysLength = len(self.ephys[channel])
+        except NameError:
             self.importEphysData(channels=channel)
-            ephys = self.ephys[channel]
-        
-        dt = self.tEphys[channel][1]-self.tEphys[channel][0]
-        mean = np.mean(ephys) 
-        meanCalcVect = np.vectorize(misc_functions._calcNumMinusMean)
-        ephys = meanCalcVect(ephys,mean)
-
-        # implement thresholding
-        
-        compVThreshVect = np.vectorize(misc_functions._compVThresh)
-        decimateMask = compVThreshVect(ephys,VThreshold)
+        finally:
+            dt = self.tEphys[channel][1]-self.tEphys[channel][0]
+            mean = np.mean(self.ephys[channel]) 
+            meanCalcVect = np.vectorize(misc_functions._calcNumMinusMean)
+            self.ephys[channel] = meanCalcVect(self.ephys[channel],mean)
     
-        # find area with small gap in between threshold crossing
-        
-        diffMask = np.diff(decimateMask)
-        diffMaskNeg1 = np.where(diffMask == -1)[0]
-
-        for k in diffMaskNeg1:
-            diffMaskNext1 = np.where(diffMask[k:] == 1)[0]
-            for index in diffMaskNext1:
-                if (index - 1) < TThreshold/dt:
-                    decimateMask[k:(k - 2 + index)] = True
-        han = hann(hannNum) 
-        invHan = abs(han - 1) 
-        halfHan = math.floor(np.size(invHan)/2)
-        decLocs = np.where(decimateMask)[0]
-        
-        for ele in decLocs:
-            plusH = ele + halfHan + 1
-            minusH = ele - halfHan 
+            # implement thresholding
             
-            if np.size(ephys) >= plusH:
-                if minusH > 0:
-                    ephys[minusH: plusH] = np.multiply(ephys[minusH: plusH], invHan) 
+            compVThreshVect = np.vectorize(misc_functions._compVThresh)
+            decimateMask = compVThreshVect(self.ephys[channel],VThreshold)
+        
+            # find area with small gap in between threshold crossing
+            
+            diffMask = np.diff(decimateMask)
+            diffMaskNeg1 = np.where(diffMask == -1)[0]
+    
+            for k in diffMaskNeg1:
+                diffMaskNext1 = np.where(diffMask[k:] == 1)[0]
+                for index in diffMaskNext1:
+                    if (index - 1) < TThreshold/dt:
+                        decimateMask[k:(k - 2 + index)] = True
+            han = hann(hannNum) 
+            invHan = abs(han - 1) 
+            halfHan = math.floor(np.size(invHan)/2)
+            decLocs = np.where(decimateMask)[0]
+            
+            for ele in decLocs:
+                plusH = ele + halfHan + 1
+                minusH = ele - halfHan 
+                
+                if np.size(self.ephys[channel]) >= plusH:
+                    if minusH > 0:
+                        self.ephys[channel][minusH: plusH] = np.multiply(self.ephys[channel][minusH: plusH], invHan) 
+                    else:
+                        self.ephys[channel][0: plusH] = np.multiply(self.ephys[channel][0: plusH], invHan[(halfHan - decLocs + 1):])
                 else:
-                    ephys[0: plusH] = np.multiply(ephys[0: plusH], invHan[(halfHan - decLocs + 1):])
-            else:
-                sizeEphysmod = np.size(ephys[minusH:])
-                ephys[minusH:] = np.multiply(ephys[minusH:], invHan[0: sizeEphysmod]) 
-        
-        self.ephys[channel]=ephys
-        if plot:
-            print('Plotting ' + channel + '...')
-            plt.figure()
-            plt.plot(ephys)
-            plt.title('{0}'.format(channel))
-            plt.xlabel('Time(s)')
-            plt.ylabel('Voltage(\u03BC'+'V)')
-            
+                    sizeEphysmod = np.size(self.ephys[channel][minusH:])
+                    self.ephys[channel][minusH:] = np.multiply(self.ephys[channel][minusH:], invHan[0: sizeEphysmod]) 
+    
+            if plot:
+                print('Plotting ' + channel + '...')
+                plt.figure()
+                plt.plot(self.ephys[channel])
+                plt.title('{0}'.format(channel))
+                plt.xlabel('Time(s)')
+                plt.ylabel('Voltage(\u03BC'+'V)')
+
+
     class filteredEphys():
         """This is an empty class in which to store filtering properties and filtered data."""
         pass
-   
+
+
     def filterEphys(self, n=5, cut=[0.5,4], channel='PFCLFPvsCBEEG', ftype='Butterworth', btype='bandpass'):
         """Method for filtering the ephys channel of choice with either a Butterworth or FIR filter."""
         print('Filtering ' + channel + ' with a(n) ' + ftype + ' filter ...')
         fdata = self.filteredEphys()
         try:
-            fdata.data = misc_functions.filterData(self.tEphys[channel], self.ephys[channel], n=n, cut=cut, ftype=ftype, btype=btype, fs=self.samplingRate[channel])
-        except:
+            ephysLength = len(self.ephys[channel])
+        except NameError:
             self.importEphysData(channels=channel)
+        finally:
             fdata.data = misc_functions.filterData(self.tEphys[channel], self.ephys[channel], n=n, cut=cut, ftype=ftype, btype=btype, fs=self.samplingRate[channel])
-        fdata.channel = channel
-        fdata.cutoff = cut
-        fdata.ftype = ftype
-        fdata.btype = btype
-        fdata.order = n
-        
-        try:
-            self.fdata.append(fdata)
+            fdata.channel = channel
+            fdata.cutoff = cut
+            fdata.ftype = ftype
+            fdata.btype = btype
+            fdata.order = n
             
-        except:
-            self.fdata = []
-            self.fdata.append(fdata)
+            try:
+                self.fdata.append(fdata)
+            except NameError:
+                self.fdata = []
+                self.fdata.append(fdata)

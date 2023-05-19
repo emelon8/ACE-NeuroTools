@@ -34,7 +34,8 @@ class experiment:
                 break
         
         self.jobID = jobID # used for naming output files
-    
+
+
     def importAnalysisParams(self, filename='analysis_parameters.csv'):
         """Import parameters for calcium movie analysis using CaImAn."""
         analysisParamsCSV = []
@@ -72,7 +73,6 @@ class experiment:
                                     convertParamTuple.append(int(c))
                             self._analysisParamsDict[columnTitle] = tuple(convertParamTuple)                                            # string to tuple
                 
-
 
     def saveObj(self, filename=None, includejobID=False, includeSubjectID=False, includeTimeStamp=False):
         """Save the class instance to a pickled file.

@@ -25,22 +25,13 @@ import pandas as pd
 
 class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
     """This is the class definition for handling miniscopes and simultaneous ephys data."""
-#%% Methods for importing experiment info, metadata, events, and analysis parameters
+#%% Methods for importing experiment info, metadata, and analysis parameters
     def __init__(self, lineNum=None, filename='experiments.csv', filenameMiniscope='metaData.json', analysisFilename='analysis_parameters.csv', jobID=''):
         super().__init__(lineNum=lineNum, filename=filename, filenameMiniscope=filenameMiniscope, analysisFilename=analysisFilename, jobID=jobID) #FIXME Does this init statment need to be here? Will it inherit from ephys or miniscope if it's not?
 
 
-    def importEvents(self, channel='PFCLFPvsCBEEG', writeFile=False, ttl=False,plot=False):
-        """Translate the events imported from self.experiment['Miniscope settings filename']
-        into a common time as the Neuralynx time format and combine the events from the two sources."""
-        self.importNeuralynxEvents()
-        self.importEphysData(channels=channel)
-        self._syncNeuralynxMiniscopeTimestamps(channel)
-        # self.correctTimeStamps(channel,plot)
-
-
 #%% Methods for extracting timing of calcium image acquisition, deleting timestamps of dropped frames, and matching timestamps with ephys timestamps
-    def _syncNeuralynxMiniscopeTimestamps(self, channel, deleteTTLs=True):
+    def syncNeuralynxMiniscopeTimestamps(self, channel='PFCLFPvsCBEEG', deleteTTLs=True):
         """Create time vector for calcium movies from TTL events in Neuralynx."""
         print('Syncing calcium movie times...')
         
@@ -240,26 +231,50 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         return(sx[idx])
 
 
-    def findEphysIdxCaEvents(self, channel='PFCLFPvsCBEEG'):
+    def findEphysIdxOfTTLEvents(self, channel='PFCLFPvsCBEEG', allTTLEvents=True, CaEvents=True):
         """Finds the index of a calcium event in the Neuralynx timespace. If the miniscope class method to find the timing of calcium events has not been run yet, it runs that first.
         CHANNEL is the ephys channel with which to compare the timing of the ephys samples to the calcium event timing."""
-        # Note: This method only looks for the indices of the ephys timestamps that are closest to the calcium event (Neuralynx) timestamps. The previous method matched up all calcium movie timestamps with their corresponding ephys timestamps (see previous versions in GitHub repository). If you want to look at correlations between the background fluorescence and the ephys signal, you will need to re-implement that again.
-        try:
-            CaEventsIdx = self.CaEventsIdx
-        except NameError:
-            self.findCalciumEvents()
-            
-            print('Finding the indices of ephys timestamps that are closest to the calcium event (Neuralynx) timestamps...')
-            self.EphysIdxCaEvents = []
-            for k in range(len(self.CaEventsIdx)):
-                self.EphysIdxCaEvents.append([])
+        # Match up all calcium movie timestamps with their corresponding ephys timestamps.
+        if allTTLEvents:
+            try:
+                tCaImLength = len(self.tCaIm)
+            except NameError:
+                self.syncNeuralynxMiniscopeTimestamps(channel=channel)
+            finally:
+                print('Finding the indices of ephys timestamps that are closest to all calcium movie frame acquisition TTL events...')
+                self.ephysIdxAllTTLEvents = np.empty(len(self.tCaIm),dtype=int)
+                # Choose a number of indices after the lastIndex before which you are confident that the next index will be.
+                # I am choosing the number of ephys indices during the time it takes for two calcium imaging frames.
+                endPoint = round(int(self.samplingRate[channel]) * 2 / int(self.experiment['frameRate']))
                 lastIndex = 0
-                for j in range(len(self.CaEventsIdx[k])):
-                    self.EphysIdxCaEvents[k].append(np.abs(self.tEphys[channel][lastIndex:] - self.tCaIm[self.CaEventsIdx[k][j]]).argmin() + lastIndex)
-                    # Check to see if the gap between the calcium event time and the corresponding ephys timestamp is reasonable.
-                    if np.abs(self.tEphys[channel][self.EphysIdxCaEvents[k][j]]-self.tCaIm[self.CaEventsIdx[k][j]]) > (1/self.experiment['frameRate']):
-                        print('There are no ephys timestamps closer to the calcium event timestamp than the duration of a calcium movie frame!')
-                    lastIndex = self.EphysIdxCaEvents[k][j]
+                
+                for k, CaImTTLEvent in enumerate(self.tCaIm):
+                    if k == 0:
+                        self.ephysIdxAllTTLEvents[k] = np.abs(self.tEphys[channel][lastIndex:] - CaImTTLEvent).argmin() + lastIndex
+                    elif len(self.tEphys[channel][lastIndex:]) - endPoint < 0:
+                        self.ephysIdxAllTTLEvents[k] = np.abs(self.tEphys[channel][lastIndex:] - CaImTTLEvent).argmin() + lastIndex
+                    else:
+                        self.ephysIdxAllTTLEvents[k] = np.abs(self.tEphys[channel][lastIndex:(lastIndex + endPoint)] - CaImTTLEvent).argmin() + lastIndex
+                    lastIndex = self.ephysIdxAllTTLEvents[k]
+                
+        # Look for the indices of the ephys timestamps that are closest to the calcium event (Neuralynx) timestamps.
+        if CaEvents:
+            try:
+                CaEventsIdxLength = len(self.CaEventsIdx)
+            except NameError:
+                self.findCalciumEvents()
+            finally:
+                print('Finding the indices of ephys timestamps that are closest to the calcium event (Neuralynx) timestamps...')
+                self.ephysIdxCaEvents = []
+                for k in range(len(self.CaEventsIdx)):
+                    self.ephysIdxCaEvents.append([])
+                    lastIndex = 0
+                    for j in range(len(self.CaEventsIdx[k])):
+                        self.ephysIdxCaEvents[k].append(np.abs(self.tEphys[channel][lastIndex:] - self.tCaIm[self.CaEventsIdx[k][j]]).argmin() + lastIndex)
+                        # Check to see if the gap between the calcium event time and the corresponding ephys timestamp is reasonable (within 1 frame's timestep).
+                        if np.abs(self.tEphys[channel][self.ephysIdxCaEvents[k][j]]-self.tCaIm[self.CaEventsIdx[k][j]]) > (1/self.experiment['frameRate']):
+                            print('There are no ephys timestamps closer to the calcium event timestamp than the duration of a calcium movie frame!')
+                        lastIndex = self.ephysIdxCaEvents[k][j]
 
 
 #%% Methods to extract the instantaneous phase of the ephys signal, determine the phases of the calcium events, and summarize and save the results
@@ -272,13 +287,13 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         print('Comparing the calcium events to the corresponding phase of ' + channel + '...')
         self.CaEventsPhases = []
         if neuron == 'all':
-            for k in range(len(self.EphysIdxCaEvents)):
+            for k in range(len(self.ephysIdxCaEvents)):
                 self.CaEventsPhases.append([])
-                for j in range(len(self.EphysIdxCaEvents[k])):
-                    self.CaEventsPhases[k].append(phaseEphys[self.EphysIdxCaEvents[k][j]])
+                for j in range(len(self.ephysIdxCaEvents[k])):
+                    self.CaEventsPhases[k].append(phaseEphys[self.ephysIdxCaEvents[k][j]])
         elif type(neuron) == int:
-            for j in range(len(self.EphysIdxCaEvents[neuron])):
-                self.CaEventsPhases.append(phaseEphys[self.EphysIdxCaEvents[neuron][j]])
+            for j in range(len(self.ephysIdxCaEvents[neuron])):
+                self.CaEventsPhases.append(phaseEphys[self.ephysIdxCaEvents[neuron][j]])
 
 
     def phaseCaEventsHistogram(self, channel='PFCLFPvsCBEEG', neuron='all', bins=18, plotHistogram=False):

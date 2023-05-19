@@ -70,39 +70,41 @@ class UCLAMiniscope(experiment.experiment):
                     m.close()
         except AttributeError:
             pass
-        '''
-        self.experiment['Miniscope settings filename'] = filenameMiniscope
-        with open(filenameMiniscope) as s:
-            self.experiment.update(load(s))
-       
-        settingsFilename = os.path.split(filenameMiniscope)     # FIXME take a look to see if this can be deleted
-        with open('Miniscope/' + settingsFilename[1]) as s: 
-            self.experiment.update(load(s)) 
-        '''
-        if 'calcium imaging directory' not in self.experiment:
-            self.experiment['calcium imaging directory'] = os.path.abspath(os.path.dirname(filenameMiniscope))
-
-        if lineNum != None:
-            self.importAnalysisParams(analysisFilename)
-        else:
-            self._analysisParamsDict = {}
-
-        timeStampsFilename = misc_functions._findFilePaths(self.experiment['calcium imaging directory'], '.csv', 'timeStamps', removeFile=False, printPath=False, fileAndDirectory=False)
-
-        if len(timeStampsFilename) == 1:
-            timeStampsFilename = timeStampsFilename[0]
-        else:
-            raise ValueError('More than one timeStamps files found')
-        self.timeStamps = []
-        self.frameNum = []
-        with open(timeStampsFilename, newline='') as t:
-            next(t)
-            reader = csv.reader(t)
-            for row in reader:
-                self.frameNum.append(int(row[0]))
-                self.timeStamps.append(float(row[1]))
-        self.timeStamps = np.divide(np.asarray(self.timeStamps), 1000)  # convert from ms to s
-        # self.timeStamps = np.divide((np.asarray(self.timeStamps) - self.timeStamps[0]), 1000)  # start timestamps at 0 and convert from ms to s
+        finally:
+            '''
+            FIXME: I AM NOT SURE WHAT THIS CODE BLOCK WAS FOR, BUT IT WAS ALREADY COMMENTED OUT.
+            self.experiment['Miniscope settings filename'] = filenameMiniscope
+            with open(filenameMiniscope) as s:
+                self.experiment.update(load(s))
+           
+            settingsFilename = os.path.split(filenameMiniscope)     # FIXME take a look to see if this can be deleted
+            with open('Miniscope/' + settingsFilename[1]) as s: 
+                self.experiment.update(load(s)) 
+            '''
+            if 'calcium imaging directory' not in self.experiment:
+                self.experiment['calcium imaging directory'] = os.path.abspath(os.path.dirname(filenameMiniscope))
+    
+            if lineNum != None:
+                self.importAnalysisParams(analysisFilename)
+            else:
+                self._analysisParamsDict = {}
+    
+            timeStampsFilename = misc_functions._findFilePaths(self.experiment['calcium imaging directory'], '.csv', 'timeStamps', removeFile=False, printPath=False, fileAndDirectory=False)
+    
+            if len(timeStampsFilename) == 1:
+                timeStampsFilename = timeStampsFilename[0]
+            else:
+                raise ValueError('More than one timeStamps files found')
+            self.timeStamps = []
+            self.frameNum = []
+            with open(timeStampsFilename, newline='') as t:
+                next(t)
+                reader = csv.reader(t)
+                for row in reader:
+                    self.frameNum.append(int(row[0]))
+                    self.timeStamps.append(float(row[1]))
+            self.timeStamps = np.divide(np.asarray(self.timeStamps), 1000)  # convert from ms to s
+            # self.timeStamps = np.divide((np.asarray(self.timeStamps) - self.timeStamps[0]), 1000)  # start timestamps at 0 and convert from ms to s
 
 
     def importMiniscopeEvents(self):
@@ -255,25 +257,16 @@ class UCLAMiniscope(experiment.experiment):
 #%% Methods for preprocessing calcium movies, including computing the projections, cropping, denoising, detrending, and computing dF/F
     def computeProjections(self):
         """Calculates the projections of self.movie and stores the result in self.projections."""
-        try:
-            Max = np.amax(self.movie, axis=0)
-            Std = np.std(self.movie, axis=0)
-            Min = np.amin(self.movie, axis=0)
-            Mean = np.mean(self.movie, axis=0)
-            Med = np.median(self.movie, axis=0)
-            Range = Max - Min
-            self.projections = {"Max": Max, "Std": Std, "Min": Min, "Mean": Mean, "Med": Med, "Range": Range}
-        except:
+        if 'movie' not in self.__dir__():
             print('Projection cannot be done, as no movie has been loaded. Loading movie from self.movieFilePaths and proceeding with projection...')
-            if 'movie' not in self.__dir__():
-                self.importCaMovies()
-            Max = np.amax(self.movie, axis=0)
-            Std = np.std(self.movie, axis=0)
-            Min = np.amin(self.movie, axis=0)
-            Mean = np.mean(self.movie, axis=0)
-            Med = np.median(self.movie, axis=0)
-            Range = Max - Min
-            self.projections = {"Max": Max, "Std": Std, "Min": Min, "Mean": Mean, "Med": Med, "Range": Range}
+            self.importCaMovies()
+        Max = np.amax(self.movie, axis=0)
+        Std = np.std(self.movie, axis=0)
+        Min = np.amin(self.movie, axis=0)
+        Mean = np.mean(self.movie, axis=0)
+        Med = np.median(self.movie, axis=0)
+        Range = Max - Min
+        self.projections = {"Max": Max, "Std": Std, "Min": Min, "Mean": Mean, "Med": Med, "Range": Range}
 
 
     def preprocessCaMovies(self, saveMovie=True, crop=False, cropGUI=False, denoise=False, detrend=False, dFoverF=False):
@@ -284,21 +277,22 @@ class UCLAMiniscope(experiment.experiment):
             print('Prepocessing cannot be done, as no movie has been loaded. Loading movie from self.movieFilePaths and proceeding with preprocessing...')
             if 'movie' not in self.__dir__():
                 self.importCaMovies()
-        newFileName = ''
-        if crop:
-            self._crop(self.movie, GUI=cropGUI)
-            newFileName += '_cropped'
-        if denoise:
-            self.denoiseCaMovie(saveMovie=False)
-            newFileName += '_denoised'
-        if detrend:
-            self.detrendCaFluorescence(saveMovie=False)
-            newFileName += '_detrend'
-        if dFoverF:
-            self.computedFoverF(saveMovie=False)
-            newFileName += '_dFoverF'
-        if saveMovie:
-            self.saveCaMovie(processingStep=newFileName)
+        finally:
+            newFileName = ''
+            if crop:
+                self._crop(self.movie, GUI=cropGUI)
+                newFileName += '_cropped'
+            if denoise:
+                self.denoiseCaMovie(saveMovie=False)
+                newFileName += '_denoised'
+            if detrend:
+                self.detrendCaFluorescence(saveMovie=False)
+                newFileName += '_detrend'
+            if dFoverF:
+                self.computedFoverF(saveMovie=False)
+                newFileName += '_dFoverF'
+            if saveMovie:
+                self.saveCaMovie(processingStep=newFileName)
 
 
     def _cropMovie(self, crop_top=0, crop_bottom=0, crop_left=0, crop_right=0, crop_begin=0, crop_end=0) -> None:
@@ -1034,118 +1028,117 @@ class UCLAMiniscope(experiment.experiment):
             a = self.projections['Range']
         except:
             self.computeProjections()
-        
-        if self.estimates.idx_components_bad is None:
-            self.estimates.idx_components = []
-            self.estimates.idx_components_bad = []
-        
-        if auto_eval:
-            # preselect rejected components using evaluate_component
-            self.evaluateComponents()
-            self.estimates.idx_components += np.ones(self.estimates.idx_components.shape, dtype=self.estimates.idx_components.dtype)
-            self.estimates.idx_components_bad += np.ones(self.estimates.idx_components_bad.shape, dtype=self.estimates.idx_components_bad.dtype)
-        
-        # define the window layout
-        cmapOptions = ['viridis', 'jet', 'plasma', 'inferno', 'magma', 'cividis', 'Greys', 'Purples', 'Blues', 'Greens',
-                       'Oranges', 'Reds',
-                       'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu',
-                       'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn', 'binary', 'gist_yarg', 'gist_gray', 'gray',
-                       'bone',
-                       'pink', 'spring', 'summer', 'autumn', 'winter', 'cool',
-                       'Wistia', 'hot', 'afmhot', 'gist_heat', 'copper', 'PiYG', 'PRGn', 'BrBG', 'PuOr', 'RdGy', 'RdBu',
-                       'RdYlBu',
-                       'RdYlGn', 'Spectral', 'coolwarm', 'bwr', 'seismic', 'Pastel1', 'Pastel2', 'Paired', 'Accent',
-                       'Dark2',
-                       'Set1', 'Set2', 'Set3', 'tab10', 'tab20', 'tab20b',
-                       'tab20c']
-
-
-        layout = [[sg.Text('Components', key='-TITLE-')],
-                  [sg.Graph((self.movie.shape[2], self.movie.shape[1]), (0, 0), (self.movie.shape[1], self.movie.shape[2]), key='-GRAPH-', 
-                            enable_events=True)],
-                  [sg.Text("Projection Type:"),
-                   sg.Combo(['Max', 'Min', 'Mean', 'Median', 'STD', "Range"], key='-OPTION-', default_value='Max',
-                            readonly=True,
-                            auto_size_text=True, enable_events=True)],
-                  [sg.Text("CMAP:"), sg.Combo(cmapOptions, key='-CMAP-', default_value='viridis', readonly=True,
-                                              auto_size_text=True, enable_events=True)],
-                  [sg.Text("Select to reject: ")],
-                  [sg.Listbox(values=range(1, len(self.estimates.C)+1), default_values=self.estimates.idx_components_bad, size=(3, 3), key='-LISTCOMP-', select_mode='multiple', background_color="white", highlight_background_color="red", enable_events = True)],
-                  [sg.Button('Cancel', key="-CANCEL-"), sg.Button('Submit', key="-SUBMIT-")]]
-        # create the form and show it without the plot
-        window = sg.Window('Components', layout, finalize=True, resizable=True,
-                           element_justification='center', font='Helvetica 18')
-
-        # adds image to window
-        graph = window['-GRAPH-']
-        self._componentImage(graph, self.estimates.idx_components_bad, max=True)
-        
-        # calls view_components to view temporal data
-        plt.figure(2)
-        self.estimates.view_components(img = self.projections['Range'])
-        plt.close(2)
-        
-        while True:
-            # controls events to update window
-            event, values = window.read(timeout=100)
-
+        finally:
+            if self.estimates.idx_components_bad is None:
+                self.estimates.idx_components = []
+                self.estimates.idx_components_bad = []
             
-            if event == sg.WINDOW_CLOSED or event in '-CANCEL-':
-                break
-
-            # Type of image options
-            elif event in '-OPTION-':
-                if values['-OPTION-'] == 'Max':
-                    self._componentImage(graph, values['-LISTCOMP-'], max=True, cmap=values['-CMAP-'])
-                elif values['-OPTION-'] == 'Min':
-                    self._componentImage(graph, values['-LISTCOMP-'], min=True, cmap=values['-CMAP-'])
-                elif values['-OPTION-'] == 'STD':
-                    self._componentImage(graph, values['-LISTCOMP-'], STD=True, cmap=values['-CMAP-'])
-                elif values['-OPTION-'] == 'Mean':
-                    self._componentImage(graph, values['-LISTCOMP-'], mean=True, cmap=values['-CMAP-'])
-                elif values['-OPTION-'] == 'Median':
-                    self._componentImage(graph, values['-LISTCOMP-'], median=True, cmap=values['-CMAP-'])
-                elif values['-OPTION-'] == 'Range':
-                    self._componentImage(graph, values['-LISTCOMP-'], range=True, cmap=values['-CMAP-'])
-
-            # CMAP of image
-            elif event in '-CMAP-':
-                if values['-OPTION-'] == 'Max':
-                    self._componentImage(graph, values['-LISTCOMP-'], max=True, cmap=values['-CMAP-'])
-                elif values['-OPTION-'] == 'Min':
-                    self._componentImage(graph, values['-LISTCOMP-'], min=True, cmap=values['-CMAP-'])
-                elif values['-OPTION-'] == 'STD':
-                    self._componentImage(graph, values['-LISTCOMP-'], STD=True, cmap=values['-CMAP-'])
-                elif values['-OPTION-'] == 'Mean':
-                    self._componentImage(graph, values['-LISTCOMP-'], mean=True, cmap=values['-CMAP-'])
-                elif values['-OPTION-'] == 'Median':
-                    self._componentImage(graph, values['-LISTCOMP-'], median=True, cmap=values['-CMAP-'])
-                elif values['-OPTION-'] == 'Range':
-                    self._componentImage(graph, values['-LISTCOMP-'], range=True, cmap=values['-CMAP-'])
-
-            #Update colors of selected components
-            elif event in '-LISTCOMP-':
-                if values['-OPTION-'] == 'Max':
-                    self._componentImage(graph, values['-LISTCOMP-'], max=True, cmap=values['-CMAP-'])
-                elif values['-OPTION-'] == 'Min':
-                    self._componentImage(graph, values['-LISTCOMP-'], min=True, cmap=values['-CMAP-'])
-                elif values['-OPTION-'] == 'STD':
-                    self._componentImage(graph, values['-LISTCOMP-'], STD=True, cmap=values['-CMAP-'])
-                elif values['-OPTION-'] == 'Mean':
-                    self._componentImage(graph, values['-LISTCOMP-'], mean=True, cmap=values['-CMAP-'])
-                elif values['-OPTION-'] == 'Median':
-                    self._componentImage(graph, values['-LISTCOMP-'], median=True, cmap=values['-CMAP-'])
-                elif values['-OPTION-'] == 'Range':
-                    self._componentImage(graph, values['-LISTCOMP-'], range=True, cmap=values['-CMAP-'])
-
-            elif event in '-SUBMIT-':
-                selected = np.arange(0, len(self.estimates.C))
-                selected = [idx for idx in selected if idx not in (np.array(values['-LISTCOMP-'], dtype=int)- np.ones(len(values['-LISTCOMP-']), dtype=int))]
-                self.estimates.select_components(idx_components = selected)
-                break
-
-        plt.close()
-        window.close()
+            if auto_eval:
+                # preselect rejected components using evaluate_component
+                self.evaluateComponents()
+                self.estimates.idx_components += np.ones(self.estimates.idx_components.shape, dtype=self.estimates.idx_components.dtype)
+                self.estimates.idx_components_bad += np.ones(self.estimates.idx_components_bad.shape, dtype=self.estimates.idx_components_bad.dtype)
+            
+            # define the window layout
+            cmapOptions = ['viridis', 'jet', 'plasma', 'inferno', 'magma', 'cividis', 'Greys', 'Purples', 'Blues', 'Greens',
+                           'Oranges', 'Reds',
+                           'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu',
+                           'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn', 'binary', 'gist_yarg', 'gist_gray', 'gray',
+                           'bone',
+                           'pink', 'spring', 'summer', 'autumn', 'winter', 'cool',
+                           'Wistia', 'hot', 'afmhot', 'gist_heat', 'copper', 'PiYG', 'PRGn', 'BrBG', 'PuOr', 'RdGy', 'RdBu',
+                           'RdYlBu',
+                           'RdYlGn', 'Spectral', 'coolwarm', 'bwr', 'seismic', 'Pastel1', 'Pastel2', 'Paired', 'Accent',
+                           'Dark2',
+                           'Set1', 'Set2', 'Set3', 'tab10', 'tab20', 'tab20b',
+                           'tab20c']
+    
+            layout = [[sg.Text('Components', key='-TITLE-')],
+                      [sg.Graph((self.movie.shape[2], self.movie.shape[1]), (0, 0), (self.movie.shape[1], self.movie.shape[2]), key='-GRAPH-', 
+                                enable_events=True)],
+                      [sg.Text("Projection Type:"),
+                       sg.Combo(['Max', 'Min', 'Mean', 'Median', 'STD', "Range"], key='-OPTION-', default_value='Max',
+                                readonly=True,
+                                auto_size_text=True, enable_events=True)],
+                      [sg.Text("CMAP:"), sg.Combo(cmapOptions, key='-CMAP-', default_value='viridis', readonly=True,
+                                                  auto_size_text=True, enable_events=True)],
+                      [sg.Text("Select to reject: ")],
+                      [sg.Listbox(values=range(1, len(self.estimates.C)+1), default_values=self.estimates.idx_components_bad, size=(3, 3), key='-LISTCOMP-', select_mode='multiple', background_color="white", highlight_background_color="red", enable_events = True)],
+                      [sg.Button('Cancel', key="-CANCEL-"), sg.Button('Submit', key="-SUBMIT-")]]
+            # create the form and show it without the plot
+            window = sg.Window('Components', layout, finalize=True, resizable=True,
+                               element_justification='center', font='Helvetica 18')
+    
+            # adds image to window
+            graph = window['-GRAPH-']
+            self._componentImage(graph, self.estimates.idx_components_bad, max=True)
+            
+            # calls view_components to view temporal data
+            plt.figure(2)
+            self.estimates.view_components(img = self.projections['Range'])
+            plt.close(2)
+            
+            while True:
+                # controls events to update window
+                event, values = window.read(timeout=100)
+    
+                
+                if event == sg.WINDOW_CLOSED or event in '-CANCEL-':
+                    break
+    
+                # Type of image options
+                elif event in '-OPTION-':
+                    if values['-OPTION-'] == 'Max':
+                        self._componentImage(graph, values['-LISTCOMP-'], max=True, cmap=values['-CMAP-'])
+                    elif values['-OPTION-'] == 'Min':
+                        self._componentImage(graph, values['-LISTCOMP-'], min=True, cmap=values['-CMAP-'])
+                    elif values['-OPTION-'] == 'STD':
+                        self._componentImage(graph, values['-LISTCOMP-'], STD=True, cmap=values['-CMAP-'])
+                    elif values['-OPTION-'] == 'Mean':
+                        self._componentImage(graph, values['-LISTCOMP-'], mean=True, cmap=values['-CMAP-'])
+                    elif values['-OPTION-'] == 'Median':
+                        self._componentImage(graph, values['-LISTCOMP-'], median=True, cmap=values['-CMAP-'])
+                    elif values['-OPTION-'] == 'Range':
+                        self._componentImage(graph, values['-LISTCOMP-'], range=True, cmap=values['-CMAP-'])
+    
+                # CMAP of image
+                elif event in '-CMAP-':
+                    if values['-OPTION-'] == 'Max':
+                        self._componentImage(graph, values['-LISTCOMP-'], max=True, cmap=values['-CMAP-'])
+                    elif values['-OPTION-'] == 'Min':
+                        self._componentImage(graph, values['-LISTCOMP-'], min=True, cmap=values['-CMAP-'])
+                    elif values['-OPTION-'] == 'STD':
+                        self._componentImage(graph, values['-LISTCOMP-'], STD=True, cmap=values['-CMAP-'])
+                    elif values['-OPTION-'] == 'Mean':
+                        self._componentImage(graph, values['-LISTCOMP-'], mean=True, cmap=values['-CMAP-'])
+                    elif values['-OPTION-'] == 'Median':
+                        self._componentImage(graph, values['-LISTCOMP-'], median=True, cmap=values['-CMAP-'])
+                    elif values['-OPTION-'] == 'Range':
+                        self._componentImage(graph, values['-LISTCOMP-'], range=True, cmap=values['-CMAP-'])
+    
+                #Update colors of selected components
+                elif event in '-LISTCOMP-':
+                    if values['-OPTION-'] == 'Max':
+                        self._componentImage(graph, values['-LISTCOMP-'], max=True, cmap=values['-CMAP-'])
+                    elif values['-OPTION-'] == 'Min':
+                        self._componentImage(graph, values['-LISTCOMP-'], min=True, cmap=values['-CMAP-'])
+                    elif values['-OPTION-'] == 'STD':
+                        self._componentImage(graph, values['-LISTCOMP-'], STD=True, cmap=values['-CMAP-'])
+                    elif values['-OPTION-'] == 'Mean':
+                        self._componentImage(graph, values['-LISTCOMP-'], mean=True, cmap=values['-CMAP-'])
+                    elif values['-OPTION-'] == 'Median':
+                        self._componentImage(graph, values['-LISTCOMP-'], median=True, cmap=values['-CMAP-'])
+                    elif values['-OPTION-'] == 'Range':
+                        self._componentImage(graph, values['-LISTCOMP-'], range=True, cmap=values['-CMAP-'])
+    
+                elif event in '-SUBMIT-':
+                    selected = np.arange(0, len(self.estimates.C))
+                    selected = [idx for idx in selected if idx not in (np.array(values['-LISTCOMP-'], dtype=int)- np.ones(len(values['-LISTCOMP-']), dtype=int))]
+                    self.estimates.select_components(idx_components = selected)
+                    break
+    
+            plt.close()
+            window.close()
 
 
     def evaluateComponents(self, min_SNR=3, r_values_min=0.85):
