@@ -65,7 +65,8 @@ class NeuralynxEphys(experiment.experiment):
                         self.artifactRemoval(channel=c.name,VThreshold=VThreshold,
                                              TThreshold=TThreshold,plot=plot,hannNum=hannNum)
         print('--- %s seconds ---' % (time.time() - start_time))
-    
+
+
     def _makeEphysArrays(self, chNum):
         """Method for concatenating ephys data and interpolating data between timestamp jumps.
         CHNUM is the channel number"""
