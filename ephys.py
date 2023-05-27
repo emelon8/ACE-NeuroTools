@@ -37,6 +37,7 @@ class NeuralynxEphys(experiment.experiment):
         self.samplingRate = {}
         self.tEphys = {}
         self.ephys = {}
+        self.zeroTime = {}
         if channels == 'all':
             channels = self.experiment['LFP and EEG CSCs'].split(';')
         if channels != 'none':
@@ -59,8 +60,9 @@ class NeuralynxEphys(experiment.experiment):
                     # For each channel, after making the ephys arrays, find the element
                     # of the time vector closest to self.experiment['zero time (s)']
                     # and subtract the time at that element from the entire time array
-                    zeroIdx = (np.abs(self.tEphys[c.name] - self._analysisParamsDict['zero time (s)'])).argmin()
-                    self.tEphys[c.name] -= self.tEphys[c.name][zeroIdx]
+                    # zeroIdx = (np.abs(self.tEphys[c.name] - self._analysisParamsDict['zero time (s)'])).argmin()
+                    # self.zeroTime[c.name] = self.tEphys[c.name][zeroIdx]
+                    # self.tEphys[c.name] -= self.zeroTime[c.name]
                     if removeArtifacts:
                         self.artifactRemoval(channel=c.name,VThreshold=VThreshold,
                                              TThreshold=TThreshold,plot=plot,hannNum=hannNum)
@@ -105,7 +107,7 @@ class NeuralynxEphys(experiment.experiment):
         npUnsortedEventTimestamps = np.array(unsortedEventTimestamps)
         evSortInds = np.argsort(npUnsortedEventTimestamps)
         self.NeuralynxEvents['labels'] = npUnsortedEventLabels[evSortInds]
-        self.NeuralynxEvents['timestamps'] = npUnsortedEventTimestamps[evSortInds] - self._analysisParamsDict['zero time (s)']
+        self.NeuralynxEvents['timestamps'] = npUnsortedEventTimestamps[evSortInds] # - self.zeroTime[next(iter(self.zeroTime))]
 
         
     def computeSpectrogram(self, channel='PFCLFPvsCBEEG', windowLength=30, 
