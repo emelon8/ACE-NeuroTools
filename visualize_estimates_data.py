@@ -4,7 +4,7 @@ Created on Fri Aug 14 11:25:19 2020
 
 @author: Eric
 
-For examining the spatial and temporal components of a calcium imaging movie.
+Examines the spatial and temporal components of a calcium imaging movie.
 """
 
 import os

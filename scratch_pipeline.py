@@ -3,6 +3,9 @@
 Created on Fri May 19 12:05:51 2023
 
 @author: Eric
+
+This script goes through the entire pipeline of data analysis to find the
+phases of calcium events in simultaneous ephys and calcium imaging experiments.
 """
 
 import miniscope_ephys

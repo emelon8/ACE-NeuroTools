@@ -3,6 +3,11 @@
 Created on Mon Mar 13 10:46:31 2023
 
 @author: Eric
+
+The purpose of this script is to plot the difference between the Neuralynx TTL
+event timestamps created when calcium movie frames are captured and the
+timestamps recorded by the UCLA Miniscope software, for the purpose of finding
+the indices of dropped frames.
 """
 
 import miniscope_ephys

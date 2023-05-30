@@ -3,6 +3,11 @@
 Created on Fri May 19 16:13:23 2023
 
 @author: Eric
+
+The purpose of this script is to plot the spectrogram and mean slow wave band
+power of a given experiment, determine the period(s) of high slow wave power
+that you want to analyze, and find the correspoding calcium imaging movie files
+to that time period.
 """
 
 import miniscope_ephys
@@ -49,5 +54,8 @@ obj.findEphysIdxOfTTLEvents(channel=channel, CaEvents=False)
 frameStart = np.where(obj.tEphys[channel][obj.ephysIdxAllTTLEvents]>timeSecStart)[0][0]
 frameEnd = np.where(obj.tEphys[channel][obj.ephysIdxAllTTLEvents]<timeSecEnd)[0][-1]
 
-print('The first video in the sequence is ' + str(int(np.ceil(frameStart/1000))) + '.avi.')
-print('The last video in the sequence is ' + str(int(np.floor(frameEnd/1000)-1)) + '.avi.')
+firstVideo = int(np.ceil(frameStart/1000))
+lastVideo = int(np.floor(frameEnd/1000)-1)
+
+print('The first video in the sequence is ' + str(firstVideo) + '.avi.')
+print('The last video in the sequence is ' + str(lastVideo) + '.avi.')

@@ -4,6 +4,7 @@ Created on Fri Aug 14 11:25:19 2020
 
 @author: Eric
 
+Run calcium imaging analysis on a select range of miniscope recordings.
 """
 
 import os
