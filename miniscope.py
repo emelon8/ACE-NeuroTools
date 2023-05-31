@@ -3,6 +3,10 @@
 Created on Mon Oct 19 08:43:50 2020
 
 @author: eric
+
+This file contains classes that are used to analyze calcium images, including
+from the single-photon UCLA Miniscope V4. Methods to import and analyze the
+images are included.
 """
 
 import csv
@@ -30,7 +34,7 @@ class UCLAMiniscope(experiment.experiment):
 
     # @staticmethod
     # def main():
-    #     program = miniscope(lineNum=16)
+    #     program = UCLAminiscope(lineNum=16)
     #     #program.findMovieFilePaths()
     #     # cutFile = []
     #     #for file in program.movieFilePaths:
@@ -833,7 +837,7 @@ class UCLAMiniscope(experiment.experiment):
             mcMovie = cm.load(mc.mmap_file)
             if playConcatenatedMovies:
                 cm.concatenate([self.movie.resize(1, 1, downsampleRatio) - mc.min_mov * mc.nonneg_movie,
-                                mcMovie.resize(1, 1, downsampleRatio)], axis=2).play(fr=self._analysisParamsDict['fr'],
+                                mcMovie.resize(1, 1, downsampleRatio)], axis=2).play(fr=self._analysisParamsDict['frame rate'],
                                                                                      q_max=99.5, magnification=2,
                                                                                      bord_px=self.optsCaImAn.get(
                                                                                          'patch', 'border_pix'))

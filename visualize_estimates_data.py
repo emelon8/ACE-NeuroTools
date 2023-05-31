@@ -7,20 +7,29 @@ Created on Fri Aug 14 11:25:19 2020
 Examines the spatial and temporal components of a calcium imaging movie.
 """
 
-import os
-os.chdir('..')
-
 import miniscope
 import caiman as cm
 
-obj = miniscope.UCLAMiniscope(lineNum=16)
+# obj = miniscope.UCLAMiniscope(lineNum=20)
+
+# # %% Import videos
+# obj.importCaMovies('D:/Dropbox (Partners HealthCare)/experimental_data/miniscope_data/test/R220607/2022_07_26/14_57_17/Miniscope/0.avi')
+
+# # %% Load the estimates object
+# cnmObj = cm.source_extraction.cnmf.cnmf.load_CNMF('D:/Dropbox (Partners HealthCare)/experimental_data/miniscope_data/test/R220607/2022_07_26/14_57_17/estimates.hdf5')
+
+# obj.estimates = cnmObj.estimates
+
+# obj._componentGUI()
+
+obj = miniscope.UCLAMiniscope(lineNum=41)
 
 # %% Import videos
-obj.importCaMovies('cluster_testing/multiple_movies/same_analysis_twice/Yr_d1_390_d2_388_d3_1_order_C_frames_3000_.mmap')
+obj.importCaMovies('D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/dexmedetomidine/R221020A/2022_12_07/15_08_13/Miniscope/103.avi')
 
 # %% Load the estimates object
-cnmObj = cm.source_extraction.cnmf.cnmf.load_CNMF('cluster_testing/multiple_movies/same_analysis_twice/%J_estimates.hdf5')
+cnmObj = cm.source_extraction.cnmf.cnmf.load_CNMF('D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/dexmedetomidine/R221020A/2022_12_07/15_08_13/hdf5 files/cnm_41.103.estimates.hdf5')
 
 obj.estimates = cnmObj.estimates
 
-obj._componentGUI()
+# obj._componentGUI()

@@ -5,6 +5,9 @@ Created on Wed Sep  9 18:44:28 2020
 Miscellaneous functions
 
 @author: eric
+
+This file contains funcitons that are not tied to a single type of data
+analysis.
 """
 
 import numpy as np
@@ -615,30 +618,26 @@ def threshFunc(dataArray, threshVal):
     return dataArray
 
 
-def filterData(t, data, n, cut, ftype, btype, fs):
+def filterData(data, n, cut, ftype, btype, fs):
     """ Use ftype to indicate FIR or Butterworth filter.
     
-    For the FIR filter indicate a LowPass, HighPass, or BandPass with btype = lowpass, highpass, or bandpass . 
+    For the FIR filter indicate a LowPass, HighPass, or BandPass with btype = lowpass, highpass, or bandpass, respectively. 
     n is the length of the filter (number of coefficients, i.e. the filter order + 1). numtaps must be odd if a passband includes the Nyquist frequency.
-    The default n vaulue is n = 101
+    A good value for n is 10000.
     Channel should be set to desired .ncs file
     
     The Butterworth filters have a more linear phase response in the pass-band than other types and is able to provide better group delay performance, and also a lower level of overshoot.
     Indicate the filter type by setting btype = 'low', 'high', or 'band'.
     To set the cutoff frequency use wn= 
-    The default for n is n = 5
+    The default for n is n = 3
     For a bandpass filter indicate the lowstop and the highstop by using an array. example: wn= ([10, 30])"""
-    
-    dt = t[1] - t[0]  # Define the sampling interval.
-    fNQ = 1 / dt / 2  # Determine the Nyquist frequency.
-    wn = cut / fNQ  # ... and specify the cutoff frequency,
 
-    if ftype == 'FIR':
-        b, a = firwin(n, cut, pass_zero=btype)  # ... build bandpass FIR filter,
-        filteredData = filtfilt(b, a, data)  # ... and zero-phase filter each trial
+    if ftype.lower() == 'fir':
+        h = firwin(n, cut, pass_zero=btype, fs=fs)  # Build the FIR filter
+        filteredData = filtfilt(h, 1, data)  # Zero-phase filter the data
 
-    if ftype == 'Butterworth':
-        b, a = butter(n, wn, btype=btype, fs=fs)
+    if ftype.lower() == 'butterworth' or ftype.lower() == 'butter':
+        b, a = butter(n, cut, btype=btype, fs=fs)
         filteredData = filtfilt(b, a, data)
 
     return filteredData

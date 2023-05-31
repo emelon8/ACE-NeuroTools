@@ -3,6 +3,11 @@
 Created on Fri Aug 14 19:54:58 2020
 
 @author: eric
+
+This file contains classes that are used to analyze simultaneous calcium
+imaging and ephys, including from the UCLA Miniscope V4 and Neuralynx DAQ.
+Methods to syncronize the timing of events and analyze relationships between
+the different types of data are included.
 """
 
 # import csv

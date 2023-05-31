@@ -3,6 +3,10 @@
 Created on Mon Oct 19 09:10:23 2020
 
 @author: eric
+
+This file contains classes that are used to analyze electrophysiology data,
+including EEG/LFP data from a Neuralynx DAQ. Methods to import and analyze the
+data are included.
 """
 
 import experiment
@@ -131,10 +135,13 @@ class NeuralynxEphys(experiment.experiment):
             return h, ax
 
 
-    def computePhase(self, channel):
+    def computePhase(self, channel='PFCLFPvsCBEEG', data=None):
         """Compute the instantaneous phase of a specified ephys channel."""
         print('Computing instantaneous phase...')
-        analyticSignalEphys = hilbert(self.ephys[channel])
+        if data is None:
+            analyticSignalEphys = hilbert(self.ephys[channel])
+        else:
+            analyticSignalEphys = hilbert(data)
         self.instantaneousPhaseEphys = np.angle(analyticSignalEphys)
     
     
@@ -202,7 +209,7 @@ class NeuralynxEphys(experiment.experiment):
         pass
 
 
-    def filterEphys(self, n=5, cut=[0.5,4], channel='PFCLFPvsCBEEG', ftype='Butterworth', btype='bandpass'):
+    def filterEphys(self, n=10000, cut=[0.5,4], channel='PFCLFPvsCBEEG', ftype='FIR', btype='bandpass', inline=True):
         """Method for filtering the ephys channel of choice with either a Butterworth or FIR filter."""
         print('Filtering ' + channel + ' with a(n) ' + ftype + ' filter ...')
         fdata = self.filteredEphys()
@@ -211,15 +218,19 @@ class NeuralynxEphys(experiment.experiment):
         except NameError:
             self.importEphysData(channels=channel)
         finally:
-            fdata.data = misc_functions.filterData(self.tEphys[channel], self.ephys[channel], n=n, cut=cut, ftype=ftype, btype=btype, fs=self.samplingRate[channel])
-            fdata.channel = channel
-            fdata.cutoff = cut
-            fdata.ftype = ftype
-            fdata.btype = btype
-            fdata.order = n
+            fdata.data = misc_functions.filterData(self.ephys[channel], n=n, cut=cut, ftype=ftype, btype=btype, fs=self.samplingRate[channel])
             
-            try:
-                self.fdata.append(fdata)
-            except NameError:
-                self.fdata = []
-                self.fdata.append(fdata)
+            if inline:
+                self.ephys[channel] = fdata.data
+            else:
+                fdata.channel = channel
+                fdata.cutoff = cut
+                fdata.ftype = ftype
+                fdata.btype = btype
+                fdata.order = n
+                
+                try:
+                    self.fdata.append(fdata)
+                except AttributeError:
+                    self.fdata = []
+                    self.fdata.append(fdata)

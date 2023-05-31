@@ -3,6 +3,12 @@
 Created on Mon Oct 19 09:36:36 2020
 
 @author: eric
+
+A general experiment class for all data analysis. This class takes a CSV file
+that contains all of the details of the experiment itself. It also can load a
+CSV file that contains parameters for the analysis of the experiment. Finally,
+the class has a method to save a pickled version of the object for further
+analysis.
 """
 
 import csv
@@ -15,7 +21,8 @@ from datetime import datetime
 class experiment:
     """Base class for experiment analysis.
     LINENUM is the line number of the experiment on the csv file.
-    FILENAME is the filename of the csv file."""
+    FILENAME is the filename of the CSV file.
+    JOBID is a string that will be appended to the end of the filenames of saved files."""
     def __init__(self, lineNum, filename='experiments.csv', jobID=''):
         self.lineNum = lineNum
         # Import the CSV file 
@@ -37,7 +44,8 @@ class experiment:
 
 
     def importAnalysisParams(self, filename='analysis_parameters.csv'):
-        """Import parameters for calcium movie analysis using CaImAn."""
+        """Import parameters for calcium movie analysis using CaImAn.
+        FILENAME is the filename of the CSV file."""
         analysisParamsCSV = []
         self.analysisParamsFilename = filename
         with open(self.analysisParamsFilename, newline='') as s:
@@ -62,8 +70,8 @@ class experiment:
                     try:
                         self._analysisParamsDict[columnTitle] = float(self._analysisParamsDict[columnTitle])                            # string to float if above fails
                     except:
-                        if (self._analysisParamsDict[columnTitle] == 'False') or (self._analysisParamsDict[columnTitle] == 'True'):
-                            self._analysisParamsDict[columnTitle] = bool(self._analysisParamsDict[columnTitle] == 'True')               # string to boolean
+                        if self._analysisParamsDict[columnTitle] == 'False' or self._analysisParamsDict[columnTitle] == 'True' or self._analysisParamsDict[columnTitle] == 'FALSE' or self._analysisParamsDict[columnTitle] == 'TRUE':
+                            self._analysisParamsDict[columnTitle] = bool(self._analysisParamsDict[columnTitle].capitalize() == 'True')               # string to boolean
                         elif (self._analysisParamsDict[columnTitle] == 'None') or (not self._analysisParamsDict[columnTitle]):
                             self._analysisParamsDict[columnTitle] = None                                                                # 'None' or empty cell to None
                         elif (str(self._analysisParamsDict[columnTitle])[0] == '('):
@@ -86,8 +94,8 @@ class experiment:
             if includeSubjectID:
                 subjectID = self.experiment['id']
             if includeTimeStamp:
-                time = str(np.datetime64('now')).replace(":","-")
-            fileToStore = open(jobID + subjectID + "_" + os.path.splitext(str(self.__class__)[:-2])[-1][1:] + "_" + time + '.pickle', 'wb')
+                time = str(np.datetime64('now')).replace(':','-')
+            fileToStore = open(jobID + subjectID + "_" + os.path.splitext(str(self.__class__)[:-2])[-1][1:] + '_' + time + '.pickle', 'wb')
         else:
             fileToStore = open(filename, 'wb')
         pickle.dump(self, fileToStore)
