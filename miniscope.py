@@ -913,7 +913,22 @@ class UCLAMiniscope(experiment.experiment):
             cm.utils.visualization.inspect_correlation_pnr(self.cn_filter, self.pnr)
 
 
-#%% Methods for manipulating components after CNMF-E is run
+#%% Methods for loading and manipulating components after CNMF-E is run
+    def importComponents(self, filename=None):
+        """Method for importing the estimates object from a saved file.
+        """
+        try:
+            lengthEstimatesC = len(self.estimates.C)
+            print('self.estimates already exists! Overwriting...')
+        except AttributeError:
+            print('Importing estimates object...')
+        finally:
+            if filename == None:
+                filename = self.CNMFEFilename
+            cnmObj = cm.source_extraction.cnmf.cnmf.load_CNMF(filename)
+            self.estimates = cnmObj.estimates
+
+
     def removeComponents(self, idxToRemove, filename=None, saveNewCNMFE=True): #FIXME compare this to evaluate_components and the components GUI to see if there's overlap
         """Remove or merge components extracted using the CNMF-E algorithm.
         IDXTOREMOVE are the indices of components to remove.
@@ -1166,7 +1181,8 @@ class UCLAMiniscope(experiment.experiment):
             print('obj.estimates.C has not been loaded yet!')
             if filename == None:
                 filename = self.CNMFEFilename
-            self.estimates = cm.source_extraction.cnmf.cnmf.load_CNMF(filename)
+            cnmObj = cm.source_extraction.cnmf.cnmf.load_CNMF(filename)
+            self.estimates = cnmObj.estimates
         finally:
             self.CaEventsIdx = {}
             if neuron == 'all':
