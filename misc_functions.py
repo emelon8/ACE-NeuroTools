@@ -19,7 +19,7 @@ import os
 import pickle
 import cv2
 from tqdm import tqdm
-from scipy.signal import butter, freqz, filtfilt, firwin  ##they imported lfilter, but never used it
+from scipy.signal import butter, freqz, filtfilt, firwin, bode
 from IPython.display import clear_output
 import os.path
 from os import path
@@ -618,7 +618,7 @@ def threshFunc(dataArray, threshVal):
     return dataArray
 
 
-def filterData(data, n, cut, ftype, btype, fs):
+def filterData(data, n, cut, ftype, btype, fs, bodePlot=False):
     """ Use ftype to indicate FIR or Butterworth filter.
     
     For the FIR filter indicate a LowPass, HighPass, or BandPass with btype = lowpass, highpass, or bandpass, respectively. 
@@ -628,17 +628,37 @@ def filterData(data, n, cut, ftype, btype, fs):
     
     The Butterworth filters have a more linear phase response in the pass-band than other types and is able to provide better group delay performance, and also a lower level of overshoot.
     Indicate the filter type by setting btype = 'low', 'high', or 'band'.
-    To set the cutoff frequency use wn= 
     The default for n is n = 3
     For a bandpass filter indicate the lowstop and the highstop by using an array. example: wn= ([10, 30])"""
 
     if ftype.lower() == 'fir':
         h = firwin(n, cut, pass_zero=btype, fs=fs)  # Build the FIR filter
         filteredData = filtfilt(h, 1, data)  # Zero-phase filter the data
+        if bodePlot:
+            w, a = freqz(h, worN=10000,fs=2000)
+            plt.figure()
+            plt.semilogx(w, abs(a))
+            
+            w, mag, phase = bode((h,1),w=2*np.pi*w)
+            plt.figure()
+            plt.semilogx(w,mag)
+            plt.figure()
+            plt.semilogx(w,phase)
 
     if ftype.lower() == 'butterworth' or ftype.lower() == 'butter':
         b, a = butter(n, cut, btype=btype, fs=fs)
         filteredData = filtfilt(b, a, data)
+        
+        if bodePlot:
+            w, h = freqz(b, a, worN=10000,fs=2000)
+            plt.figure()
+            plt.semilogx(w, abs(h))
+            
+            w, mag, phase = bode((b,a),w=2*np.pi*w)
+            plt.figure()
+            plt.semilogx(w,mag)
+            plt.figure()
+            plt.semilogx(w,phase)
 
     return filteredData
 

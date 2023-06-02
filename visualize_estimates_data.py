@@ -28,7 +28,7 @@ obj = miniscope.UCLAMiniscope(lineNum=41)
 obj.importCaMovies('D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/dexmedetomidine/R221020A/2022_12_07/15_08_13/Miniscope/103.avi')
 
 # %% Load the estimates object
-cnmObj = cm.source_extraction.cnmf.cnmf.load_CNMF('D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/dexmedetomidine/R221020A/2022_12_07/15_08_13/hdf5 files/cnm_41.103.estimates.hdf5')
+cnmObj = cm.source_extraction.cnmf.cnmf.load_CNMF('D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/dexmedetomidine/R221020A/2022_12_07/15_08_13/cnm_41.103.estimates.hdf5')
 
 obj.estimates = cnmObj.estimates
 

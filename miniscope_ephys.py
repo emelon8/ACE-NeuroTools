@@ -243,7 +243,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         if allTTLEvents:
             try:
                 tCaImLength = len(self.tCaIm)
-            except NameError:
+            except AttributeError:
                 self.syncNeuralynxMiniscopeTimestamps(channel=channel)
             finally:
                 print('Finding the indices of ephys timestamps that are closest to all calcium movie frame acquisition TTL events...')
@@ -266,13 +266,13 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         if CaEvents:
             try:
                 CaEventsIdxLength = len(self.CaEventsIdx)
-            except NameError:
+            except AttributeError:
                 self.findCalciumEvents()
             finally:
                 print('Finding the indices of ephys timestamps that are closest to the calcium event (Neuralynx) timestamps...')
-                self.ephysIdxCaEvents = []
-                for k in range(len(self.CaEventsIdx)):
-                    self.ephysIdxCaEvents.append([])
+                self.ephysIdxCaEvents = {}
+                for k in list(self.CaEventsIdx.keys()):
+                    self.ephysIdxCaEvents[k] = []
                     lastIndex = 0
                     for j in range(len(self.CaEventsIdx[k])):
                         self.ephysIdxCaEvents[k].append(np.abs(self.tEphys[channel][lastIndex:] - self.tCaIm[self.CaEventsIdx[k][j]]).argmin() + lastIndex)
@@ -287,18 +287,22 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         """Compare calcium events to the phase extracted from a specified ephys channel.
         CHANNEL is the ephys channel name.
         NEURON is the neuron number (i.e., the integer row number in self.estimates.C, starting with 0) of the neuron you want to compare. If you want to compare all of the neurons in the recording, pass 'all' as the argument."""
-        self._syncNeuralynxMiniscopeTimestamps(channel)
-        phaseEphys = self.computePhase(channel)
-        print('Comparing the calcium events to the corresponding phase of ' + channel + '...')
-        self.CaEventsPhases = []
-        if neuron == 'all':
-            for k in range(len(self.ephysIdxCaEvents)):
-                self.CaEventsPhases.append([])
+        try:
+            tCaImLength = len(self.tCaIm)
+        except AttributeError:
+            self.syncNeuralynxMiniscopeTimestamps(channel=channel)
+        finally:
+            self.computePhase(channel)
+            print('Comparing the calcium events to the corresponding phase of ' + channel + '...')
+            self.CaEventsPhases = {}
+            if neuron == 'all':
+                neurons = list(self.ephysIdxCaEvents.keys())
+            elif type(neuron) != list:
+                neurons = [neuron]
+            for k in neurons:
+                self.CaEventsPhases[k] = []
                 for j in range(len(self.ephysIdxCaEvents[k])):
-                    self.CaEventsPhases[k].append(phaseEphys[self.ephysIdxCaEvents[k][j]])
-        elif type(neuron) == int:
-            for j in range(len(self.ephysIdxCaEvents[neuron])):
-                self.CaEventsPhases.append(phaseEphys[self.ephysIdxCaEvents[neuron][j]])
+                    self.CaEventsPhases[k].append(self.instantaneousPhaseEphys[channel][self.ephysIdxCaEvents[k][j]])
 
 
     def phaseCaEventsHistogram(self, channel='PFCLFPvsCBEEG', neuron='all', bins=18, plotHistogram=False):
@@ -307,18 +311,26 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         NEURON is a list of the neuron indexes to compare. All neurons can be selected with 'all'.
         PLOTHISTOGRAM chooses whether or not to plot the computed histogram."""
         print('Creating a histogram of the phases of ' + channel + ' relative to the calcium events...')
-        self.phaseCaEvents(channel, neuron)
-        if plotHistogram:
-            plt.figure()
-            ax = misc_functions.prepAxes(xLabel='Phase (rad)', yLabel='Event Count')
-            self.hist, self.binEdges = ax.hist(self.CaEventsPhases, bins=bins) #FIXME self.CaEventsPhases is a list of lists, so it probably won't work with ax.hist or np.histogram.
-        else:
-            self.hist, self.binEdges = np.histogram(self.CaEventsPhases, bins=bins)
+        try:
+            lengthCaEventsPhases = len(self.CaEventsPhases)
+        except AttributeError:
+            self.phaseCaEvents(channel, neuron)
+        finally:
+            if plotHistogram:
+                CaEventsPhases = []
+                # Flatten the dictionary of lists so that all calcium events are contained in the same list
+                for k in list(self.CaEventsPhases.keys()):
+                    CaEventsPhases += self.CaEventsPhases[k]
+                ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Count')
+                self.hist, self.binEdges = ax.hist(CaEventsPhases, bins=bins)
+            else:
+                self.hist, self.binEdges = np.histogram(self.CaEventsPhases, bins=bins)
 
 
     def phaseCaEventsPolarPlot(self, channel='PFCLFPvsCBEEG', neuron='all', bins=18, plotMeanVector=True):
         """"""
-        pass
+        plt.subplot()
+        self.hist
 
 
     def saveData(self, filename='neuron_phase.csv'):

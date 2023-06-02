@@ -20,3 +20,6 @@ for k in experiments:
     obj.syncNeuralynxMiniscopeTimestamps(channel=channel)
     obj.computeSpectrogram(channel=channel, plotSpectrogram=True, plotEvents=False)
     obj.findEphysIdxOfTTLEvents(CaEvents=False)
+    
+    obj.filterEphys(channel=channel)
+    obj.computePhase()

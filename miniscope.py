@@ -16,7 +16,7 @@ import warnings
 
 import experiment
 import numpy as np
-from scipy.signal import detrend
+from scipy.signal import detrend, find_peaks
 import matplotlib.pyplot as plt
 
 plt.rcParams['svg.fonttype'] = 'none'
@@ -1155,13 +1155,30 @@ class UCLAMiniscope(experiment.experiment):
 
 
 #%% Methods for finding calcium events
-    def findCalciumEvents(self, derivative='first', threshold=0.1):
+    def findCalciumEvents(self, neuron='all', derivative='first', height=5, filename=None):
         """This method looks for calcium events in self.estimates.C.
-        DERIVATIVE is the number of times to take the derivative before thresholding. The options are 'zeroth', 'first', or 'second'.
+        DERIVATIVE is the number of times to take the derivative before thresholding. #TODO The options are 'zeroth', 'first', or 'second'.
         THRESHOLD is the threshold above which to detect calcium events. The units depend on the DERIVATIVE used."""
         print('Finding indices of calcium events...')
-        self.CaEventsIdx = 0 #FIXME This variable is currently a placeholder (since it's used in miniscope_ephys.py) for the variable that stores the indices of calcium events in self.estimates.C. It is a list with the same number of elements as components, and each element is, in turn, an array of the indices of the calcium events of the corresponding neuron.
-        pass
+        try:
+            lengthEstimatesC = len(self.estimates.C)
+        except:
+            print('obj.estimates.C has not been loaded yet!')
+            if filename == None:
+                filename = self.CNMFEFilename
+            self.estimates = cm.source_extraction.cnmf.cnmf.load_CNMF(filename)
+        finally:
+            self.CaEventsIdx = {}
+            if neuron == 'all':
+                for k in range(len(self.estimates.C)):
+                    if derivative == 'first':
+                        self.CaEventsIdx[k] = find_peaks(np.diff(self.estimates.C[k]), height=height)
+            else:
+                if type(neuron) != list:
+                    neuron = [neuron]
+                for k in neuron:
+                    if derivative == 'first':
+                        self.CaEventsIdx[k] = find_peaks(np.diff(self.estimates.C[k]), height=height)
 
 
 #%% Methods for computing and plotting head direction data
