@@ -1188,13 +1188,13 @@ class UCLAMiniscope(experiment.experiment):
             if neuron == 'all':
                 for k in range(len(self.estimates.C)):
                     if derivative == 'first':
-                        self.CaEventsIdx[k] = find_peaks(np.diff(self.estimates.C[k]), height=height)
+                        self.CaEventsIdx[k] = find_peaks(np.diff(self.estimates.C[k]), height=height)[0]
             else:
                 if type(neuron) != list:
                     neuron = [neuron]
                 for k in neuron:
                     if derivative == 'first':
-                        self.CaEventsIdx[k] = find_peaks(np.diff(self.estimates.C[k]), height=height)
+                        self.CaEventsIdx[k] = find_peaks(np.diff(self.estimates.C[k]), height=height)[0]
 
 
 #%% Methods for computing and plotting head direction data
