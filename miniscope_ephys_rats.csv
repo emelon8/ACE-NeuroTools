@@ -25,3 +25,7 @@ R220629A,220420,M,"[2.9, 1.67, 3.7, 17], DV is depth from craniotomy surface alo
 R220629B,220420,M,"[2.9, 1.67, 4.17, 17], DV is depth along the hypotenuse","650 nL at 300 nL/min, diffuse for ~10.5-11 mins, raise 1 mm, then diffuse an additional ~5 mins",,,,,,[0.6; 7.3],,,,,,No cell activity.
 R220719,220420,M,"[2.9, 2.9, 2.9; 1.6, 1.6, 1.6; 2.7, 3.0, 3.3; 18, 18, 18], DV is depth from brain surface along the hypotenuse","[250, 250, 250] nL at 60 nL/min, diffuse for ~5 mins",,2.5,26,2,23,[0.6; 7.3],"[3.0, 18], DV is depth from brain surface at the center of the craniotomy along the hypotenuse",,,,,No cell activity.
 R220720,220420,M,"[2.9, 2.9, 2.9; 1.6, 1.6, 1.6; 2.7, 3.0, 3.3; 18, 18, 18], DV is depth from brain surface along the hypotenuse","[250, 250, 250] nL at 60 nL/min, diffuse for ~5 mins",,2.5,26,2,23,[0.6; 7.3],"[3.0, 18], DV is depth from brain surface at the center of the craniotomy along the hypotenuse",,,,,No cell activity.
+R220817A,220514,F,,,,,,,,,,,,,,
+R220817B,220514,F,,,,,,,,,,,,,,
+R221020A,220514,F,,,,,,,,,,,,,,
+R221020B,220514,F,,,,,,,,,,,,,,

@@ -273,7 +273,7 @@ class UCLAMiniscope(experiment.experiment):
         self.projections = {"Max": Max, "Std": Std, "Min": Min, "Mean": Mean, "Med": Med, "Range": Range}
 
 
-    def preprocessCaMovies(self, saveMovie=True, crop=False, cropGUI=False, denoise=False, detrend=False, dFoverF=False):
+    def preprocessCaMovies(self, saveMovie=False, crop=False, cropGUI=False, denoise=False, detrend=False, dFoverF=False):
         """Run all preprocessing steps in one method, using their default options."""
         try:
             self.movie.shape
