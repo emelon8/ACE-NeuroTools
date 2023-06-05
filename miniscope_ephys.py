@@ -326,20 +326,31 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                     # Flatten the dictionary of numpy arrays so that all calcium events are contained in the same array
                     if neuron == 'all':
                         if density:
-                            CaEventsPhasesHist = np.array([])
+                            # CaEventsPhasesHist = np.empty((0, bins))
+                            # for k in list(self.CaEventsPhases.keys()):
+                            #     hist, self.binEdges = np.histogram(self.CaEventsPhases[k], bins=bins, range=histRange, density=True)
+                            #     CaEventsPhasesHist = np.concatenate((CaEventsPhasesHist, hist.reshape((1,-1))), axis=1)
+                            # self.hist = np.mean(CaEventsPhasesHist,axis=0) # Take the mean across the neurons at each bin.
+                            # h, ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Count', title='Neuron(s): '+str(neuron))
+                            # ax.hist(self.binEdges[:-1], self.binEdges, weights=self.hist)
+                            CaEventsPhasesHist = []
                             for k in list(self.CaEventsPhases.keys()):
-                                hist, binEdges = np.histogram(self.CaEventsPhases[k], bins=bins, range=histRange, density=True)
-                                CaEventsPhasesHist = np.concatenate((CaEventsPhasesHist, hist.reshape((1,-1))), axis=1)
+                                CaEventsPhasesHist.append(self.)
+                            self.hist = np.mean(CaEventsPhasesHist,axis=0) # Take the mean across the neurons at each bin.
+                            h, ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Count', title='Neuron(s): '+str(neuron))
+                            self.hist, self.binEdges = ax.hist(self.CaEventsPhases[k], bins=bins, range=histRange, density=True, histtype='barstacked')
                         else:
                             for k in list(self.CaEventsPhases.keys()):
                                 CaEventsPhases = np.concatenate((CaEventsPhases, self.CaEventsPhases[k]))
+                                h, ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Count', title='Neuron(s): '+str(neuron))
+                                self.hist, self.binEdges, _ = ax.hist(CaEventsPhases, bins=bins)
                     else:
                         if type(neuron) != list:
                             neuron = [neuron]
                         for k in neuron:
                             CaEventsPhases = np.concatenate((CaEventsPhases, self.CaEventsPhases[k]))
-                    h, ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Count', title='Neuron(s): '+str(neuron))
-                    self.hist, self.binEdges, _ = ax.hist(CaEventsPhases, bins=bins)
+                            h, ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Count', title='Neuron(s): '+str(neuron))
+                            self.hist, self.binEdges, _ = ax.hist(CaEventsPhases, bins=bins)
                 else:
                     # Plot each of the neurons as separate histograms
                     ax = []
