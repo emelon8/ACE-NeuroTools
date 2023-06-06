@@ -116,7 +116,7 @@ class NeuralynxEphys(experiment.experiment):
         
     def computeSpectrogram(self, channel='PFCLFPvsCBEEG', windowLength=30, 
                            windowStep=3, freqLims=[0,50], bandwidth=2, 
-                           plotSpectrogram=False, plotEvents=True):
+                           plotSpectrogram=True, plotEvents=False):
         """Estimate (and plot) the multi-taper spectrogram of a specified ephys channel. Developed with code mostly from Morgan Siegmann."""
         print('Computing spectrogram...')
         fs = int(self.samplingRate[channel])
