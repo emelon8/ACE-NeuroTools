@@ -18,7 +18,7 @@ channel = 'PFCLFPvsCBEEG'
 
 obj = ephys.NeuralynxEphys(lineNum=lineNum)
 
-# Butterworth filter
+#%% Butterworth filter
 obj.importEphysData(channel)
 
 data = obj.ephys[channel].copy()
@@ -39,7 +39,7 @@ plt.plot(obj.tEphys[channel],butterdata,color='red')
 plt.plot(obj.tEphys[channel],obj.instantaneousPhaseEphys[channel]*200/np.pi,color='green')
 plt.title('Butterworth filter (red) vs. phase (green)')
 
-# FIR filter
+#%% FIR filter
 plt.figure()
 plt.plot(obj.tEphys[channel],data,color='blue')
 
@@ -58,10 +58,10 @@ plt.plot(obj.tEphys[channel],firdata,color='red')
 plt.plot(obj.tEphys[channel],obj.instantaneousPhaseEphys[channel]*200/np.pi,color='green')
 plt.title('FIR filter (red) vs. phase (green)')
 
-# Make Bode plots of the filters
+#%% Make Bode plots of the filters
 filterData(data,3,[0.5,4],'Butterworth','bandpass',2000,bodePlot=True)
 filterData(data,10000,[0.5,4],'fir','bandpass',2000,bodePlot=True)
 
-# Compare the standard deviations of the difference between the filtered signals and the original signal (not sure if this is a good measure of the filter or not!)
+#%% Compare the standard deviations of the difference between the filtered signals and the original signal (not sure if this is a good measure of the filter or not!)
 print('Standard deviation of the difference between Butterworth and original signal: ' + str(np.std(data-butterdata)))
 print('Standard deviation of the difference between FIR and original signal: ' + str(np.std(data-firdata)))
