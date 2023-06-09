@@ -916,7 +916,7 @@ class UCLAMiniscope(experiment.experiment):
 #%% Methods for loading and manipulating components after CNMF-E is run
     def importComponents(self, filename=None):
         """Method for importing the estimates object from a saved file.
-        """
+        FILENAME is the filename of the .hdf5 file that contains the estimates object."""
         try:
             lengthEstimatesC = len(self.estimates.C)
             print('self.estimates already exists! Overwriting...')

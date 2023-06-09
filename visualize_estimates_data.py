@@ -32,4 +32,4 @@ cnmObj = cm.source_extraction.cnmf.cnmf.load_CNMF('D:/Dropbox/Documents/Brown_La
 
 obj.estimates = cnmObj.estimates
 
-# obj._componentGUI()
+obj._componentGUI()
