@@ -4,20 +4,12 @@ Created on Fri June 9 9:00:00 2023
 
 @author: Rachael Fisher 
 
-<<<<<<< Updated upstream
-This script is used to crop within lens and find average fluorescence, stats for correlation
-=======
 This script is used to crop within lens and find average fluorescence and compare with Ephys data, correlation and cross correlation metrics
->>>>>>> Stashed changes
 """
 import miniscope 
 
 channel = 'PFCEEGvsCBEEG'
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
 obj = miniscope_ephys.miniscopeEphys(lineNum=lineNum)
 
 obj.importEphysData(channels=channel)
