@@ -335,8 +335,11 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                                     hist, self.binEdges = np.histogram(self.CaEventsPhases[k], bins=bins, range=histRange, density=True)
                                     CaEventsPhasesHist = np.concatenate((CaEventsPhasesHist, hist.reshape((1,-1))), axis=0)
                                 self.hist = np.mean(CaEventsPhasesHist,axis=0) # Take the mean across the neurons at each bin.
+                                self.histError = np.std(CaEventsPhasesHist,axis=0) / np.sqrt(np.shape(CaEventsPhasesHist)[0]) # Take the standard error of the mean at each bin.
                                 h, ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Mean Event Probability', title='Neuron(s): '+str(neuron))
                                 ax.hist(self.binEdges[:-1], self.binEdges, weights=self.hist)
+                                binMidpoints = (self.binEdges[1:] + self.binEdges[:-1]) / 2
+                                ax.errorbar(binMidpoints, self.hist, yerr=self.histError, fmt='none', capsize=3)
                             else:
                                 # Barstacked density histogram across neurons
                                 CaEventsPhasesHist = list(self.CaEventsPhases.values())
