@@ -313,7 +313,8 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         NEURON is a list of the neuron indexes to compare. All neurons can be selected with 'all'.
         BINS is the number of bins to sort the data into.
         HISTRANGE is a tuple of the range that the bins should cover.
-        DENSITY determines whether the data will be plotted as the probability density or as a count.
+        DENSITY determines whether the data will be bins will represent a probability density or a count.
+        MEANDENSITY provides the mean of the density histograms of all specified neurons.
         PLOTHISTOGRAM chooses whether or not to plot the computed histogram.
         COMBINED is a boolean that determines whether to combine the data from all of the specified neurons or whether to create histograms for each of the specified neurons."""
         print('Creating a histogram of the phases of ' + channel + ' relative to the calcium events...')
