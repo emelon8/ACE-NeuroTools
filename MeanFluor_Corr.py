@@ -31,16 +31,25 @@ obj.syncNeuralynxMiniscopeTimestamps(channel=channel)
 #ephys timestamps nearest to TTL events
 obj.findEphysIdxOfTTLEvents(channel=channel, CaEvents=False)
 
-#filters EEG (?) thru FIR filter
-#how do i get these values??
-obj.filterEphys(channel=channel)
-## do i need to normalize like Tort‐Colet?
+#filters EEG thru FIR filter, inline = False puts data into fdata[index].data
 
+obj.filterEphys(channel=channel, inline = False)
+filteredEphys = obj.fdata[0].data #prints array of filtered data
+
+#normalize data 
+#thinking through best technique to do this, research more
+zscore = filteredEphys - np.mean(filteredEphys) / np.std(filteredEphys)
+normalized1 = filteredEphys/np.max(filteredEphys) 
+normalized2 = (filteredEphys - np.min(filteredEphys))/ np.ptp(filteredEphys) # zero to one
+
+
+#get timesstamps of data
 timestamps = obj.ephys[channel][obj.ephysIdxAllTTLEvents]
 
 #crop and preprocess 
 #Update preprocess and _crop soon to be able to get rid of these new functions and just have an argument called colname
-obj.cropSquarePreprocessing(self, saveMovie=False, crop=False, cropGUI=False, denoise=False, detrend=False, dFoverF=False)
+#cropSquareProcessing(self, saveMovie=False, crop=False, cropGUI=False, denoise=False, detrend=False, dFoverF=False) #defaults
+obj.cropSquarePreprocessing(crop = True, cropGUI = True)
 
 #gives array of values, 1000x608x608 if not cropped yet, smaller if changed in crop GUI
 #collapsed is the 1d array that summerizes the 3d matrix from movie
@@ -55,4 +64,4 @@ frame = np.arange(0,1000)
 plt.plot(times, collapsed)
 xlabel('frame')                                    
 ylabel('Average Fluorescence')
-filterdArray = collapsed.filterEphys(channel=channel)
+filteredMini = collapsed.filterEphys(channel=channel)
