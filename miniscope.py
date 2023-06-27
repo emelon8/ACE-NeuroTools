@@ -1425,7 +1425,55 @@ def findSameNeurons(sessionList, FOVdims, templateList = None, background=None, 
         else:
             return cm.base.rois.register_ROIs(sessionList[0], sessionList[1], FOVdims, Cn=background, plot_results=plotResults)
 
+###rachael edit - correlation project to filter miniscope videos through FIR 
 
+    class filteredMiniscope():
+        """This is an empty class in which to store filtering properties and filtered data."""
+        pass
+
+
+    def filterMiniscope(self, n=10000, lineNum = lineNum, cut=[0.5,4], ftype='FIR', btype='bandpass', inline=True):
+        """Method for filtering the miniscope video of choice with either a Butterworth or FIR filter."""
+        print('Filtering' + lineNum + 'calcium video with a(n) ' + ftype + ' filter ...')
+        fdata = self.filteredMiniscope()
+        try:
+            miniscopeLength = len(obj.movie) 
+            
+        except NameError:
+            obj = miniscope.UCLAMiniscope(lineNum)
+            #the zero avi is hard coded in... think about how to fix that after function is working 
+            #forloop and loop thru all vidoes here maybe? cant concatinate integers to strings in a for i in arange type loop... keep thinking
+            self.importCaMovies(obj.experiment['calcium imaging directory']+'/Miniscope/0.avi')
+        
+        finally:
+            fdata.data = misc_functions.filterData(self.movie, n=n, cut=cut, ftype=ftype, btype=btype, fs=30)
+            
+            if inline:
+                self.movie = fdata.data
+            else:
+                fdata.cutoff = cut
+                fdata.ftype = ftype
+                fdata.btype = btype
+                fdata.order = n
+                
+                try:
+                    self.fdata.append(fdata)
+                except AttributeError:
+                    self.fdata = []
+                    self.fdata.append(fdata)
+
+    def importCaMovies2(self, filenames=None, fileExtensions='.avi'):
+        """Import calcium imaging data. Not necessary if using processCaMovies().
+        FILENAMES can be a single movie file or a list of movie files (in the order that you want them)."""
+        if filenames == None:
+            self.findMovieFilePaths(fileExtensions=fileExtensions)
+            filenames = self.movieFilePaths
+        else:
+            self.movieFilePaths = filenames
+        if type(filenames) is str:
+            self.movie = cm.load(filenames)
+        else:
+            self.movie = cm.load_movie_chain(filenames)
 
 # if __name__ == "__main__":
 #     program = miniscope
