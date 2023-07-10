@@ -58,6 +58,7 @@ class UCLAMiniscope(experiment.experiment):
             metaDataPaths = misc_functions._findFilePaths(self.experiment['calcium imaging directory'], fileExtensions='.json',
                                                           fileStartsWith='metaData')
             for path in metaDataPaths:
+                print('Reading metadata from ' + os.path.abspath(path) + '...')
                 with open(path) as m:
                     data = json.loads(m.read())
                     for key in data:
@@ -99,6 +100,7 @@ class UCLAMiniscope(experiment.experiment):
                 timeStampsFilename = timeStampsFilename[0]
             else:
                 raise ValueError('More than one timeStamps files found')
+            print('Reading miniscope software timestamps from ' + os.path.abspath(timeStampsFilename) + '...')
             self.timeStamps = []
             self.frameNum = []
             with open(timeStampsFilename, newline='') as t:
@@ -120,6 +122,7 @@ class UCLAMiniscope(experiment.experiment):
         else:
             raise ValueError('More than one notes files found')
         
+        print('Reading miniscope software events from ' + os.path.abspath(miniscopeEventsFilename) + '...')
         self.miniscopeEvents = {}
         self.miniscopeEvents['timestamps'] = []
         self.miniscopeEvents['labels'] = []

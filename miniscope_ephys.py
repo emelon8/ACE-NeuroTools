@@ -54,7 +54,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
             self.tCaIm = np.delete(self.tCaIm, self._analysisParamsDict['indices of TTL events to delete'])
 
 
-    def _correcttCaIm(self, eventLabels, threshold=0.04):
+    def _correcttCaIm(self, eventLabels, threshold=0.06):
         """This method first confirms that the TTL events alternate and then checks for missing TTL events. If there are any, the method guesses their timing and inserts them into the calcium imaging time vector.
         EVENTLABELS is the array of imported Neuralynx event labels.
         THRESHOLD is the time threshold, in seconds, for detecting gaps in the TTL events."""
