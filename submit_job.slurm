@@ -1,15 +1,16 @@
 #!/bin/bash
-# To run this script, type 'bsub < submit_job.lsf' in the terminal.
+# To run this script, type 'sbatch submit_job.slurm' in the terminal.
 # Then look in the output folder for the logs that matches the job ID number
 
-#BSUB -J data_analysis # This is the name of the job
-#BSUB -o output/%J.out # This is the name of the file where print statements are sent
-#BSUB -e output/%J.err # This is the name of the file where error messages are sent
-# #BSUB -N # Commented out because it removes the report from the output file when email notifications are sent.
-#BSUB -q bigmem # normal bigmem This is the name of the queue to request
-#BSUB -n 8 # Number of tasks (CPUs?) to request
-#BSUB -M 64000 # 32000 64000 128000 This is the amount of RAM to request
-#BSUB -R rusage[mem=64000] # 32000 64000 128000 The part in the brackets determines how much memory to use per node and how much swap to use (if specified, e.g. by '[mem=32000:swap=100000]')
+#SBATCH --job-name=data_analysis # This is the name of the job
+#SBATCH --partition=Normal
+#SBATCH --ntasks=1
+#SBATCH --mem-per-cpu=150G
+#SBATCH --time=5-0:0:0
+#SBATCH --output=output/%j.out # This is the name of the file where print statements are sent
+#SBATCH --error=output/%j.err # This is the name of the file where error messages are sent
+#SBATCH --mail-user=emelonakos@mgh.harvard.edu
+#SBATCH --mail-type=end
 
 # Some important variables to check (Can be removed later)
 echo '---PROCESS RESOURCE LIMITS---'
@@ -19,9 +20,7 @@ echo $LD_LIBRARY_PATH
 echo '---APPLICATION SEARCH PATH:---'
 echo $PATH
 echo '---LSF Parameters:---'
-printenv | grep '^LSF'
-echo '---LSB Parameters:---'
-printenv | grep '^LSB'
+printenv | grep '^SLURM'
 echo '---LOADED MODULES:---'
 module list
 echo '---SHELL:---'
@@ -45,4 +44,4 @@ echo $TMPDIR
 
 # python --version # This can help confirm that the previous command has been run, because otherwise the command below will start Python 2.
 
-python ~/data_analysis_code/experiment_analysis/projection_generation.py $LSB_JOBID
+python ~/data_analysis_code/experiment_analysis/projection_generation.py $SLURM_JOBID
