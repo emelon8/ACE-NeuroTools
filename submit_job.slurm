@@ -44,4 +44,4 @@ echo $TMPDIR
 
 # python --version # This can help confirm that the previous command has been run, because otherwise the command below will start Python 2.
 
-python ~/data_analysis_code/experiment_analysis/projection_generation.py $SLURM_JOBID
+python ~/data_analysis_code/experiment_analysis/process_entire_miniscope_recording.py $SLURM_JOBID
