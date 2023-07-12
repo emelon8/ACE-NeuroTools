@@ -55,8 +55,7 @@ class UCLAMiniscope(experiment.experiment):
         # Import the metadata files and add to the experiment dictionary
 
         try:
-            metaDataPaths = misc_functions._findFilePaths(self.experiment['calcium imaging directory'], fileExtensions='.json',
-                                                          fileStartsWith='metaData')
+            metaDataPaths = misc_functions._findFilePaths(self.experiment['calcium imaging directory'], fileExtensions='.json', fileStartsWith='metaData')
             for path in metaDataPaths:
                 print('Reading metadata from ' + os.path.abspath(path) + '...')
                 with open(path) as m:
@@ -67,8 +66,6 @@ class UCLAMiniscope(experiment.experiment):
                                 self.experiment[key] = float(data[key])
                             except ValueError:
                                 self.experiment[key] = float(data[key].replace('FPS', ''))
-                                if not self.experiment[key].isdecimal():
-                                    raise ValueError(f"{self.experiment['id']} from {self.experiment['date']} has no framerate")
                         else:
                             self.experiment[key] = data[key]
 
