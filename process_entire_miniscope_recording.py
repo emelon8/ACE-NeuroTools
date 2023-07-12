@@ -7,8 +7,6 @@ Created on Fri Aug 14 11:25:19 2020
 This script is used to process an entire miniscope recording. High RAM demands.
 """
 
-import os
-os.chdir('..')
 # import glob
 import miniscope
 
