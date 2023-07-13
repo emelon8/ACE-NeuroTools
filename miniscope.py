@@ -278,6 +278,7 @@ class UCLAMiniscope(experiment.experiment):
             self.projections["Med"] = np.median(self.movie, axis=0)
             self.projections["Range"] = self.projections["Max"] - self.projections["Min"]
 
+
     def preprocessCaMovies(self, saveMovie=False, crop=False, square=False, cropGUI=False, denoise=False, detrend=False, dFoverF=False):
         """Run all preprocessing steps in one method, using their default options."""
         try:
@@ -395,136 +396,6 @@ class UCLAMiniscope(experiment.experiment):
                     data=f'({self.cropCoordinates["x0"]},{self.cropCoordinates["y0"]}, {self.cropCoordinates["x1"]},{self.cropCoordinates["y1"]})',
                     columnTitle=col , lineNum=self.lineNum, csvFile=self.analysisParamsFilename)
 
-    class filteredMiniscope():
-        """This is an empty class in which to store filtering properties and filtered data."""
-        pass
-
-    def filterMiniscope(self, n=2, cut=[0.1,1.5], ftype='butter', btype='bandpass', inline=False):
-        """Method for filtering the miniscope calcium videos of choice with either a Butterworth or FIR filter."""
-        print('Filtering with a(n) ' + ftype + ' filter ...')
-        fdata = self.filteredMiniscope()
-        try:
-            miniscopeLength = np.shape(self.movie)[0]
-        except NameError:
-            # edit to import all the vidoes of a specific dim once function working
-            print("video not loaded, try again")
-        else:
-            self.computeProjections(time = True)
-            fdata.data = misc_functions.filterData(self.projections["oneDim"], n=n, cut=cut, ftype=ftype, btype=btype, fs=self.experiment['frameRate'])
-            
-            if inline:
-                self.projections["oneDim"] = fdata.data
-                
-            else:
-                fdata.cutoff = cut
-                fdata.ftype = ftype
-                fdata.btype = btype
-                fdata.order = n
-                
-                try:
-                    self.fdata.append(fdata)
-                except AttributeError:
-                    self.fdata = []
-                    self.fdata.append(fdata)
-                    
-    def cropSquarePreprocessing(self, saveMovie=False, crop=False, cropGUI=False, denoise=False, detrend=False, dFoverF=False):
-            """Run all preprocessing steps in one method, using their default options."""
-            try:
-                self.movie.shape
-            except:
-                print('Prepocessing cannot be done, as no movie has been loaded. Loading movie from self.movieFilePaths and proceeding with preprocessing...')
-                if 'movie' not in self.__dir__():
-                    self.importCaMovies()
-            finally:
-                newFileName = ''
-                if crop:
-                    self._cropSquare(self.movie, GUI=cropGUI)
-                    newFileName += '_inscribedSquareCrop'
-                if denoise:
-                    self.denoiseCaMovie(saveMovie=False)
-                    newFileName += '_denoised'
-                if detrend:
-                    self.detrendCaFluorescence(saveMovie=False)
-                    newFileName += '_detrend'
-                if dFoverF:
-                    self.computedFoverF(saveMovie=False)
-                    newFileName += '_dFoverF'
-                if saveMovie:
-                    self.saveCaMovie(processingStep=newFileName)
-
-    def _cropSquare(self, movie, GUI=False):
-        """
-        Takes previously save coordinates from analysis params.csv and optionally displays a GUI to allow the user to select
-        new ones or crop at the previously saved site. This function then saves the new cropping coords and writes them
-        back into analysis params and also the new size of self.movie
-        """
-        # Get all projections
-        self.computeProjections()
-        # Grab saved crop coords from .csv file that has been read
-        if self._analysisParamsDict['crop_square'] is None:
-            self.cropCoordinates = {'x0': 0, 'x1': 0, 'y0': 0, 'y1': 0}
-        else:
-            self.cropCoordinates = {
-                'x0': self._analysisParamsDict['crop_square'][0],
-                'y0': self._analysisParamsDict['crop_square'][1],
-                'x1': self._analysisParamsDict['crop_square'][2],
-                'y1': self._analysisParamsDict['crop_square'][3]
-                }
-
-        if GUI:
-            self._cropWindow(movie)
-
-        croppedMovie = None
-        if self.cropCoordinates['x1'] and self.cropCoordinates['x0'] and self.cropCoordinates['y1'] and self.cropCoordinates['y0'] != 0:
-            if self.cropCoordinates['x1'] > self.cropCoordinates['x0']:
-                # rectangle was drawn from Left -> Right
-                if self.cropCoordinates['y1'] > self.cropCoordinates['y0']:
-                    #Bottom L -> Upper R
-                    cropBottom = self.cropCoordinates['y0']
-                    cropTop = movie.shape[1] - self.cropCoordinates['y1']
-                    cropLeft = self.cropCoordinates['x0']
-                    cropRight = movie.shape[2] - self.cropCoordinates['x1']
-                    croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom, crop_left=cropLeft)
-                else:
-                    #Upper L -> Bottom R
-                    cropBottom = self.cropCoordinates['y1']
-                    cropTop = movie.shape[1] - self.cropCoordinates['y0']
-                    cropLeft = self.cropCoordinates['x0']
-                    cropRight = movie.shape[2] - self.cropCoordinates['x1']
-                    croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
-                                                   crop_left=cropLeft)
-            else:
-                # rectangle was drawn from R -> L
-                if self.cropCoordinates['y1'] > self.cropCoordinates['y0']:
-                    # Bottom R -> Upper L
-                    cropBottom = self.cropCoordinates['y0']
-                    cropTop = movie.shape[1] - self.cropCoordinates['y1']
-                    cropLeft = self.cropCoordinates['x1']
-                    cropRight = movie.shape[2] - self.cropCoordinates['x0']
-                    croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
-                                                   crop_left=cropLeft)
-                else:
-                    # Upper R -> Bottom L
-                    cropBottom = self.cropCoordinates['y1']
-                    cropTop = movie.shape[1] - self.cropCoordinates['y0']
-                    cropLeft = self.cropCoordinates['x1']
-                    cropRight = movie.shape[2] - self.cropCoordinates['x0']
-                    croppedMovie = self._cropMovie(crop_right=cropRight, crop_top=cropTop, crop_bottom=cropBottom,
-                                                   crop_left=cropLeft)
-        #protects against no cropping
-        if croppedMovie is not None:
-            self.movie = croppedMovie
-            if GUI:
-                # update analysis params to reflect new movie size
-                misc_functions.updateCSVCell(data=f'({self.movie.shape[1]} ,{self.movie.shape[2]})', columnTitle="dims",
-                                                        lineNum=self.lineNum, csvFile=self.analysisParamsFilename)
-
-                # update analysis params to have new crop coords
-                misc_functions.updateCSVCell(
-                    data=f'({self.cropCoordinates["x0"]},{self.cropCoordinates["y0"]}, {self.cropCoordinates["x1"]},{self.cropCoordinates["y1"]})',
-                    columnTitle="crop_square", lineNum=self.lineNum, csvFile=self.analysisParamsFilename)
-
-###end of rachael edits
 
     def _updateCoords(self, window, x0, y0, x1, y1):
         """
@@ -1335,6 +1206,41 @@ class UCLAMiniscope(experiment.experiment):
                 for k in neuron:
                     if derivative == 'first':
                         self.CaEventsIdx[k] = find_peaks(np.diff(self.estimates.C[k]), height=height)[0]
+
+
+#%% Methods for filtering the mean fluorescence over time
+    class filteredMiniscope():
+        """This is an empty class in which to store filtering properties and filtered data."""
+        pass
+
+
+    def filterMiniscope(self, n=2, cut=[0.1,1.5], ftype='butter', btype='bandpass', inline=False):
+        """Method for filtering the miniscope calcium videos of choice with either a Butterworth or FIR filter."""
+        print('Filtering with a(n) ' + ftype + ' filter ...')
+        fdata = self.filteredMiniscope()
+        try:
+            miniscopeLength = np.shape(self.movie)[0]
+        except NameError:
+            # edit to import all the vidoes of a specific dim once function working
+            print("video not loaded, try again")
+        else:
+            self.computeProjections(time = True)
+            fdata.data = misc_functions.filterData(self.projections["oneDim"], n=n, cut=cut, ftype=ftype, btype=btype, fs=self.experiment['frameRate'])
+            
+            if inline:
+                self.projections["oneDim"] = fdata.data
+                
+            else:
+                fdata.cutoff = cut
+                fdata.ftype = ftype
+                fdata.btype = btype
+                fdata.order = n
+                
+                try:
+                    self.fdata.append(fdata)
+                except AttributeError:
+                    self.fdata = []
+                    self.fdata.append(fdata)
 
 
 #%% Methods for computing and plotting head direction data
