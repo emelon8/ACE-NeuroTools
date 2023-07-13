@@ -258,7 +258,7 @@ class UCLAMiniscope(experiment.experiment):
 
 
 #%% Methods for preprocessing calcium movies, including computing the projections, cropping, denoising, detrending, and computing dF/F
-    def computeProjections(self, time = False):
+    def computeProjections(self, time=False):
         """Calculates the projections of self.movie and stores the result in self.projections."""
         if 'movie' not in self.__dir__():
             print('Projection cannot be done, as no movie has been loaded. Loading movie from self.movieFilePaths and proceeding with projection...')
@@ -278,7 +278,7 @@ class UCLAMiniscope(experiment.experiment):
             self.projections["Med"] = np.median(self.movie, axis=0)
             self.projections["Range"] = self.projections["Max"] - self.projections["Min"]
 
-    def preprocessCaMovies(self, saveMovie=False, crop=False, square = False, cropGUI=False, denoise=False, detrend=False, dFoverF=False):
+    def preprocessCaMovies(self, saveMovie=False, crop=False, square=False, cropGUI=False, denoise=False, detrend=False, dFoverF=False):
         """Run all preprocessing steps in one method, using their default options."""
         try:
             self.movie.shape
@@ -288,7 +288,6 @@ class UCLAMiniscope(experiment.experiment):
                 self.importCaMovies()
         finally:
             newFileName = ''
-            col = ''
             if crop:
                 if square:
                     col = 'crop_square'
@@ -310,7 +309,6 @@ class UCLAMiniscope(experiment.experiment):
             if saveMovie:
                 self.saveCaMovie(processingStep=newFileName)
 
-            return col
 
     def _cropMovie(self, crop_top=0, crop_bottom=0, crop_left=0, crop_right=0, crop_begin=0, crop_end=0) -> None:
         """
@@ -401,7 +399,7 @@ class UCLAMiniscope(experiment.experiment):
         """This is an empty class in which to store filtering properties and filtered data."""
         pass
 
-    def filterMiniscope(self, n=2, cut=[0.1,1.5], ftype='butter', btype='bandpass', inline= False):
+    def filterMiniscope(self, n=2, cut=[0.1,1.5], ftype='butter', btype='bandpass', inline=False):
         """Method for filtering the miniscope calcium videos of choice with either a Butterworth or FIR filter."""
         print('Filtering with a(n) ' + ftype + ' filter ...')
         fdata = self.filteredMiniscope()
@@ -410,9 +408,9 @@ class UCLAMiniscope(experiment.experiment):
         except NameError:
             # edit to import all the vidoes of a specific dim once function working
             print("video not loaded, try again")
-        finally:
+        else:
             self.computeProjections(time = True)
-            fdata.data = misc_functions.filterData(self.projections["oneDim"], n=n, cut=cut, ftype=ftype, btype=btype, fs=30)
+            fdata.data = misc_functions.filterData(self.projections["oneDim"], n=n, cut=cut, ftype=ftype, btype=btype, fs=self.experiment['frameRate'])
             
             if inline:
                 self.projections["oneDim"] = fdata.data
