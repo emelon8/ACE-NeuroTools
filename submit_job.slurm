@@ -19,7 +19,7 @@ echo '---SHARED LIBRARY PATH---'
 echo $LD_LIBRARY_PATH
 echo '---APPLICATION SEARCH PATH:---'
 echo $PATH
-echo '---LSF Parameters:---'
+echo '---SLURM Parameters:---'
 printenv | grep '^SLURM'
 echo '---LOADED MODULES:---'
 module list
