@@ -15,7 +15,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 # %matplotlib qt
 
-# %% Import experiment and electrophysiological data
+#%% Import experiment and electrophysiological data
 lendiff = []
 alternating = []
 driftFit = []
