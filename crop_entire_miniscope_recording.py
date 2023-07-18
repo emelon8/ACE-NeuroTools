@@ -14,6 +14,7 @@ jobID = ''
 if len(sys.argv) > 1:
     jobID = sys.argv[1] + '_'
 
+square=False
 lineNum = 35
 
 obj = miniscope.UCLAMiniscope(lineNum=lineNum, jobID=jobID)
@@ -23,4 +24,4 @@ numMovies = int(np.ceil(len(obj.timeStamps)/1000)) # The total number of calcium
 
 for i in range(numMovies):
     obj.importCaMovies(os.path.join(obj.experiment['calcium imaging directory'], 'Miniscope', str(i) + '.avi'))
-    obj.preprocessCaMovies(saveMovie=True, crop=True, cropGUI=False)
+    obj.preprocessCaMovies(saveMovie=True, crop=True, cropGUI=False, square=square)
