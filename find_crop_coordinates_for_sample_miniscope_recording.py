@@ -14,6 +14,7 @@ jobID = ''
 if len(sys.argv) > 1:
     jobID = sys.argv[1] + '_'
 
+square = False
 lineNum = 35
 movieNums = np.arange(5)
 
@@ -28,4 +29,4 @@ for k in movieNums:
 obj.importCaMovies(movieList)
 
 #%% Find and save the cropping coordinates for the recording
-obj.preprocessCaMovies(saveMovie=False, crop=True, cropGUI=True)
+obj.preprocessCaMovies(saveMovie=False, crop=True, cropGUI=True, square=square)
