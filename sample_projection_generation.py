@@ -14,7 +14,7 @@ import numpy as np
 
 obj = miniscope.UCLAMiniscope(lineNum=54)
 
-# %% Import movies
+#%% Import movies
 moviePath = 'D:/Dropbox (Partners HealthCare)/experimental_data/miniscope_data/sleep/R221107B/2023_02_28/14_38_18/Miniscope'
 movieFilenameAfterNum = '.avi' # '_cropped.avi'
 movieNums = np.arange(5)
@@ -27,7 +27,7 @@ obj.importCaMovies(movieList) # This doesn't play well with online-only Dropbox 
 print('obj.movieFilePaths = ' + str(obj.movieFilePaths))
 
 
-# %%Create projections
+#%% Create projections
 obj.computeProjections()
 
 fMax = plt.figure();plt.imshow(obj.projections['Max'], cmap='gray')
@@ -37,7 +37,7 @@ fMed = plt.figure();plt.imshow(obj.projections['Med'], cmap='gray')
 fStd = plt.figure();plt.imshow(obj.projections['Std'], cmap='gray')
 fRange = plt.figure();plt.imshow(obj.projections['Range'], cmap='gray')
 
-#Save figure
+#%% Save figures
 fMax.savefig(moviePath + '/max_' + str(obj.lineNum) + '_' + str(movieNums[0]) + '-' + str(movieNums[-1]) + '.png', bbox_inches='tight')
 fMin.savefig(moviePath + '/min_' + str(obj.lineNum) + '_' + str(movieNums[0]) + '-' + str(movieNums[-1]) + '.png', bbox_inches='tight')
 fMean.savefig(moviePath + '/mean_' + str(obj.lineNum) + '_' + str(movieNums[0]) + '-' + str(movieNums[-1]) + '.png', bbox_inches='tight')
@@ -47,7 +47,7 @@ fRange.savefig(moviePath + '/range_' + str(obj.lineNum) + '_' + str(movieNums[0]
 
 plt.close('all')
 
-#Save arrays of the projections
+#%% Save arrays of the projections
 # maxpro = np.array(obj.projections['Max'])
 # minpro = np.array(obj.projections['Min'])
 # meanpro = np.array(obj.projections['Mean'])

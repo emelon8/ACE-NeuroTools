@@ -3,10 +3,10 @@
 # Then look in the output folder for the logs that matches the job ID number
 
 #SBATCH --job-name=data_analysis # This is the name of the job
-#SBATCH --partition=Normal
+#SBATCH --partition=normal #short
 #SBATCH --ntasks=1
-#SBATCH --mem-per-cpu=150G
-#SBATCH --time=5-0:0:0
+#SBATCH --mem-per-cpu=8G #150G
+#SBATCH --time=3:0:0 #5-0:0:0
 #SBATCH --output=output/%j.out # This is the name of the file where print statements are sent
 #SBATCH --error=output/%j.err # This is the name of the file where error messages are sent
 #SBATCH --mail-user=emelonakos@mgh.harvard.edu
@@ -19,7 +19,7 @@ echo '---SHARED LIBRARY PATH---'
 echo $LD_LIBRARY_PATH
 echo '---APPLICATION SEARCH PATH:---'
 echo $PATH
-echo '---LSF Parameters:---'
+echo '---SLURM Parameters:---'
 printenv | grep '^SLURM'
 echo '---LOADED MODULES:---'
 module list
@@ -44,4 +44,4 @@ echo $TMPDIR
 
 # python --version # This can help confirm that the previous command has been run, because otherwise the command below will start Python 2.
 
-python ~/data_analysis_code/experiment_analysis/process_entire_miniscope_recording.py $SLURM_JOBID
+python ~/data_analysis_code/experiment_analysis/crop_entire_miniscope_recording.py $SLURM_JOBID
