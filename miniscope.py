@@ -310,10 +310,6 @@ class UCLAMiniscope(experiment.experiment):
             if saveMovie:
                 self.saveCaMovie(processingStep=newFileName)
 
-<<<<<<< HEAD
-            return col 
-=======
->>>>>>> 6271e864dba40014b621a90447ee42ce1415bebe
 
     def _cropMovie(self, crop_top=0, crop_bottom=0, crop_left=0, crop_right=0, crop_begin=0, crop_end=0) -> None:
         """
@@ -400,40 +396,6 @@ class UCLAMiniscope(experiment.experiment):
                     data=f'({self.cropCoordinates["x0"]},{self.cropCoordinates["y0"]}, {self.cropCoordinates["x1"]},{self.cropCoordinates["y1"]})',
                     columnTitle=col , lineNum=self.lineNum, csvFile=self.analysisParamsFilename)
 
-<<<<<<< HEAD
-    class filteredMiniscope():
-        """This is an empty class in which to store filtering properties and filtered data."""
-        pass
-
-    def filterMiniscope(self, n=2, cut=[0.1,1.5], ftype='butter', btype='bandpass', inline= False):
-        """Method for filtering the miniscope calcium videos of choice with either a Butterworth or FIR filter."""
-        print('Filtering with a(n) ' + ftype + ' filter ...')
-        fdata = self.filteredMiniscope()
-        try:
-            miniscopeLength = np.shape(self.movie)[0]
-        except NameError:
-            # edit to import all the vidoes of a specific dim once function working
-            print("video not loaded, try again")
-        finally:
-            self.computeProjections(time = True)
-            fdata.data = misc_functions.filterData(self.projections["oneDim"], n=n, cut=cut, ftype=ftype, btype=btype, fs=30)
-            
-            if inline:
-                self.projections["oneDim"] = fdata.data
-                
-            else:
-                fdata.cutoff = cut
-                fdata.ftype = ftype
-                fdata.btype = btype
-                fdata.order = n
-                
-                try:
-                    self.fdata.append(fdata)
-                except AttributeError:
-                    self.fdata = []
-                    self.fdata.append(fdata)
-=======
->>>>>>> 6271e864dba40014b621a90447ee42ce1415bebe
 
     def _updateCoords(self, window, x0, y0, x1, y1):
         """
