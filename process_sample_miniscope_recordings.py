@@ -17,31 +17,32 @@ jobID = ''
 if len(sys.argv) > 1:
     jobID = sys.argv[1] + '_'
 
-obj = miniscope.UCLAMiniscope(lineNum=35, jobID=jobID)
-
-# %% Import movies
-moviePath = '../../experimental_data/miniscope_data/sleep/R220817B/2022_11_25/14_04_09/Miniscope/'
-movieFilenameAfterNum = '_cropped.avi'
+lineNum = 35
 movieNums = np.arange(5)
+
+obj = miniscope.UCLAMiniscope(lineNum=lineNum, jobID=jobID)
+
+#%% Import movies
+movieFilenameAfterNum = '.avi'
 movieList = []
 for k in movieNums:
-    movieList.append(os.path.join(moviePath, str(k) + movieFilenameAfterNum))
+    movieList.append(os.path.join(obj.experiment['calcium imaging directory'], 'Miniscope', str(k) + movieFilenameAfterNum))
 
 obj.importCaMovies(movieList)
 
-# %% Crop and re-save the videos
+#%% Crop and re-save the videos
 # obj.preprocessCaMovies(saveMovie=False, crop=True, cropGUI=True)
 
 # for k in movieList:
 #     obj.importCaMovies(k)
 #     obj.preprocessCaMovies(saveMovie=True, crop=True, cropGUI=False)
 
-# %% Run motion correction and CNMF-E and save the estimates object
+#%% Run motion correction and CNMF-E and save the estimates object
 obj.processCaMovies(parallel=False, n_processes=8)
 
 print('obj.movieFilePaths = ' + str(obj.movieFilePaths))
 
-# %% Delete memmapped files
+#%% Delete memmapped files
 # # Get a list of all the file paths that ends with .txt from in specified directory
 # if type(obj.movieFilePaths) is str:
 #     fileList = glob.glob(os.path.split(obj.movieFilePaths)[0] + '/*.mmap')
