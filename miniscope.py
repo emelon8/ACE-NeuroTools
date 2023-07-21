@@ -387,10 +387,6 @@ class UCLAMiniscope(experiment.experiment):
         if croppedMovie is not None:
             self.movie = croppedMovie
             if GUI:
-                # update analysis params to reflect new movie size
-                misc_functions.updateCSVCell(data=f'({self.movie.shape[1]} ,{self.movie.shape[2]})', columnTitle="dims",
-                                                        lineNum=self.lineNum, csvFile=self.analysisParamsFilename)
-
                 # update analysis params to have new crop coords
                 misc_functions.updateCSVCell(
                     data=f'({self.cropCoordinates["x0"]},{self.cropCoordinates["y0"]}, {self.cropCoordinates["x1"]},{self.cropCoordinates["y1"]})',
@@ -662,6 +658,15 @@ class UCLAMiniscope(experiment.experiment):
         if 'movieFilePaths' not in dir(self):
             self.findMovieFilePaths()
         self._analysisParamsDict['fnames'] = self.movieFilePaths
+        
+        # Find the dimensions of the calcium movie automatically (to account
+        # for possible cropping). Requires loading one of the movies, but it
+        # means that we don't have to save the dimensions of all cropping
+        # scenarios.
+        if 'movie' not in dir(self):
+            self.importCaMovies(self.movieFilePaths[0])
+        self._analysisParamsDict['dims'] = self.movie.shape[1:]
+        
         self.optsCaImAn = cm.source_extraction.cnmf.params.CNMFParams(params_dict=self._analysisParamsDict)
         if parallel:
             print('Setting up cluster...')
