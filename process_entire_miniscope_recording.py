@@ -15,7 +15,9 @@ jobID = ''
 if len(sys.argv) > 1:
     jobID = sys.argv[1] + '_'
 
-obj = miniscope.UCLAMiniscope(lineNum=21, jobID=jobID)
+lineNum = 37
+
+obj = miniscope.UCLAMiniscope(lineNum=lineNum, jobID=jobID)
 
 #%% Crop and re-save the videos
 # for vidnum in range(92): # The number in range() should be the total number of .avi movies in the recording
