@@ -10,7 +10,7 @@ This script finds the start times of UCLA Miniscope and/or Neuralynx ephys recor
 import miniscope_ephys
 from datetime import datetime
 
-lineNum = 44
+lineNum = 41
 
 obj = miniscope_ephys.miniscopeEphys(lineNum)
 # obj.importEphysData(channels='PFCLFPvsCBEEG')
