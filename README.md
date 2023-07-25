@@ -3,4 +3,4 @@ The directories listed in experiments.csv and analysis_parameters.csv assume you
 
 An analysis job is run by the following command in the command line: "python [path to scratch.py] [optional jobID]", e.g., "python Dropbox/Documents/Brown_Lab/data_analysis_code/experiment_analysis test_larger_gSig"
 
-When running the code on the ERISTwo cluster at MGH, first load your conda environment before submitting the LSF script. The command to run the code in the LSF script is "python ~/data_analysis_code/experiment_analysis/ERISTwo_script.py %J"
+When running the code on the ERISTwo cluster at MGH, first load your conda environment before submitting the SLURM script. The command within the SLURM script that runs your code is "python ~/data_analysis_code/experiment_analysis/<filename of script> $SLURM_JOBID"

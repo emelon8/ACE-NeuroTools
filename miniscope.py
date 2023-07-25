@@ -55,9 +55,9 @@ class UCLAMiniscope(experiment.experiment):
         # Import the metadata files and add to the experiment dictionary
 
         try:
-            metaDataPaths = misc_functions._findFilePaths(self.experiment['calcium imaging directory'], fileExtensions='.json',
-                                                          fileStartsWith='metaData')
+            metaDataPaths = misc_functions._findFilePaths(self.experiment['calcium imaging directory'], fileExtensions='.json', fileStartsWith='metaData')
             for path in metaDataPaths:
+                print('Reading metadata from ' + os.path.abspath(path) + '...')
                 with open(path) as m:
                     data = json.loads(m.read())
                     for key in data:
@@ -66,8 +66,6 @@ class UCLAMiniscope(experiment.experiment):
                                 self.experiment[key] = float(data[key])
                             except ValueError:
                                 self.experiment[key] = float(data[key].replace('FPS', ''))
-                                if not self.experiment[key].isdecimal():
-                                    raise ValueError(f"{self.experiment['id']} from {self.experiment['date']} has no framerate")
                         else:
                             self.experiment[key] = data[key]
 
@@ -99,6 +97,7 @@ class UCLAMiniscope(experiment.experiment):
                 timeStampsFilename = timeStampsFilename[0]
             else:
                 raise ValueError('More than one timeStamps files found')
+            print('Reading miniscope software timestamps from ' + os.path.abspath(timeStampsFilename) + '...')
             self.timeStamps = []
             self.frameNum = []
             with open(timeStampsFilename, newline='') as t:
@@ -120,6 +119,7 @@ class UCLAMiniscope(experiment.experiment):
         else:
             raise ValueError('More than one notes files found')
         
+        print('Reading miniscope software events from ' + os.path.abspath(miniscopeEventsFilename) + '...')
         self.miniscopeEvents = {}
         self.miniscopeEvents['timestamps'] = []
         self.miniscopeEvents['labels'] = []
@@ -142,7 +142,6 @@ class UCLAMiniscope(experiment.experiment):
             directory = self.experiment['calcium imaging directory']
         self.movieFilePaths = misc_functions._findFilePaths(directory, fileExtensions, fileStartsWith,
                                                             removeFile, printPath, fileAndDirectory)
-
 
     def importCaMovies(self, filenames=None, fileExtensions='.avi'):
         """Import calcium imaging data. Not necessary if using processCaMovies().
@@ -259,21 +258,28 @@ class UCLAMiniscope(experiment.experiment):
 
 
 #%% Methods for preprocessing calcium movies, including computing the projections, cropping, denoising, detrending, and computing dF/F
-    def computeProjections(self):
+    def computeProjections(self, time=False):
         """Calculates the projections of self.movie and stores the result in self.projections."""
         if 'movie' not in self.__dir__():
             print('Projection cannot be done, as no movie has been loaded. Loading movie from self.movieFilePaths and proceeding with projection...')
             self.importCaMovies()
-        Max = np.amax(self.movie, axis=0)
-        Std = np.std(self.movie, axis=0)
-        Min = np.amin(self.movie, axis=0)
-        Mean = np.mean(self.movie, axis=0)
-        Med = np.median(self.movie, axis=0)
-        Range = Max - Min
-        self.projections = {"Max": Max, "Std": Std, "Min": Min, "Mean": Mean, "Med": Med, "Range": Range}
+
+        if 'projections' not in self.__dir__():
+            self.projections = {}
+            
+        if time:
+            self.projections["oneDim"] = self.movie.mean(axis=(1,2))
+            
+        else:
+            self.projections["Max"] = np.amax(self.movie, axis=0)
+            self.projections["Std"] = np.std(self.movie, axis=0)
+            self.projections["Min"] = np.amin(self.movie, axis=0)
+            self.projections["Mean"] = np.mean(self.movie, axis=0)
+            self.projections["Med"] = np.median(self.movie, axis=0)
+            self.projections["Range"] = self.projections["Max"] - self.projections["Min"]
 
 
-    def preprocessCaMovies(self, saveMovie=False, crop=False, cropGUI=False, denoise=False, detrend=False, dFoverF=False):
+    def preprocessCaMovies(self, saveMovie=False, crop=False, square=False, cropGUI=False, denoise=False, detrend=False, dFoverF=False):
         """Run all preprocessing steps in one method, using their default options."""
         try:
             self.movie.shape
@@ -284,8 +290,14 @@ class UCLAMiniscope(experiment.experiment):
         finally:
             newFileName = ''
             if crop:
-                self._crop(self.movie, GUI=cropGUI)
-                newFileName += '_cropped'
+                if square:
+                    col = 'crop_square'
+                    self._crop(self.movie, col, GUI=cropGUI)
+                    newFileName += '_croppedSquare'
+                else:
+                    col = 'crop'
+                    self._crop(self.movie, col, GUI=cropGUI)
+                    newFileName += '_cropped'
             if denoise:
                 self.denoiseCaMovie(saveMovie=False)
                 newFileName += '_denoised'
@@ -312,23 +324,23 @@ class UCLAMiniscope(experiment.experiment):
         return tempArray
 
 
-    def _crop(self, movie, GUI=False):
+    def _crop(self, movie, col, GUI=False):
         """
         Takes previously save coordinates from analysis params.csv and optionally displays a GUI to allow the user to select
         new ones or crop at the previously saved site. This function then saves the new cropping coords and writes them
         back into analysis params and also the new size of self.movie
         """
-        # Get all projections
+        # Get all projections and crop info
         self.computeProjections()
         # Grab saved crop coords from .csv file that has been read
-        if self._analysisParamsDict['crop'] is None:
+        if self._analysisParamsDict[col] is None:
             self.cropCoordinates = {'x0': 0, 'x1': 0, 'y0': 0, 'y1': 0}
         else:
             self.cropCoordinates = {
-                'x0': self._analysisParamsDict['crop'][0],
-                'y0': self._analysisParamsDict['crop'][1],
-                'x1': self._analysisParamsDict['crop'][2],
-                'y1': self._analysisParamsDict['crop'][3]
+                'x0': self._analysisParamsDict[col][0],
+                'y0': self._analysisParamsDict[col][1],
+                'x1': self._analysisParamsDict[col][2],
+                'y1': self._analysisParamsDict[col][3]
                 }
 
         if GUI:
@@ -375,14 +387,10 @@ class UCLAMiniscope(experiment.experiment):
         if croppedMovie is not None:
             self.movie = croppedMovie
             if GUI:
-                # update analysis params to reflect new movie size
-                misc_functions.updateCSVCell(data=f'({self.movie.shape[1]} ,{self.movie.shape[2]})', columnTitle="dims",
-                                                        lineNum=self.lineNum, csvFile=self.analysisParamsFilename)
-
                 # update analysis params to have new crop coords
                 misc_functions.updateCSVCell(
                     data=f'({self.cropCoordinates["x0"]},{self.cropCoordinates["y0"]}, {self.cropCoordinates["x1"]},{self.cropCoordinates["y1"]})',
-                    columnTitle="crop", lineNum=self.lineNum, csvFile=self.analysisParamsFilename)
+                    columnTitle=col , lineNum=self.lineNum, csvFile=self.analysisParamsFilename)
 
 
     def _updateCoords(self, window, x0, y0, x1, y1):
@@ -591,7 +599,6 @@ class UCLAMiniscope(experiment.experiment):
 
         window.close()
 
-
     def denoiseCaMovie(self, saveMovie=True):
         """Loads a movie and removes both the horizontal bands (that slowly travel upwards) from the movie and the slow flicker of the entire image.
         SAVEMOVIE determines whether to save the filtered movie (with '_denoised' appended to the filename)."""
@@ -651,6 +658,15 @@ class UCLAMiniscope(experiment.experiment):
         if 'movieFilePaths' not in dir(self):
             self.findMovieFilePaths()
         self._analysisParamsDict['fnames'] = self.movieFilePaths
+        
+        # Find the dimensions of the calcium movie automatically (to account
+        # for possible cropping). Requires loading one of the movies, but it
+        # means that we don't have to save the dimensions of all cropping
+        # scenarios.
+        if 'movie' not in dir(self):
+            self.importCaMovies(self.movieFilePaths[0])
+        self._analysisParamsDict['dims'] = self.movie.shape[1:]
+        
         self.optsCaImAn = cm.source_extraction.cnmf.params.CNMFParams(params_dict=self._analysisParamsDict)
         if parallel:
             print('Setting up cluster...')
@@ -1197,6 +1213,41 @@ class UCLAMiniscope(experiment.experiment):
                         self.CaEventsIdx[k] = find_peaks(np.diff(self.estimates.C[k]), height=height)[0]
 
 
+#%% Methods for filtering the mean fluorescence over time
+    class filteredMiniscope():
+        """This is an empty class in which to store filtering properties and filtered data."""
+        pass
+
+
+    def filterMiniscope(self, n=2, cut=[0.1,1.5], ftype='butter', btype='bandpass', inline=False):
+        """Method for filtering the miniscope calcium videos of choice with either a Butterworth or FIR filter."""
+        print('Filtering with a(n) ' + ftype + ' filter ...')
+        fdata = self.filteredMiniscope()
+        try:
+            miniscopeLength = np.shape(self.movie)[0]
+        except NameError:
+            # edit to import all the vidoes of a specific dim once function working
+            print("video not loaded, try again")
+        else:
+            self.computeProjections(time = True)
+            fdata.data = misc_functions.filterData(self.projections["oneDim"], n=n, cut=cut, ftype=ftype, btype=btype, fs=self.experiment['frameRate'])
+            
+            if inline:
+                self.projections["oneDim"] = fdata.data
+                
+            else:
+                fdata.cutoff = cut
+                fdata.ftype = ftype
+                fdata.btype = btype
+                fdata.order = n
+                
+                try:
+                    self.fdata.append(fdata)
+                except AttributeError:
+                    self.fdata = []
+                    self.fdata.append(fdata)
+
+
 #%% Methods for computing and plotting head direction data
     def _quatFileToEulerFile(self, filename='headOrientation.csv', nf='True'):  ##returns newfilename
         newfilename =  self.jobID + filename.replace('.csv', 'inEulerAngles.csv')
@@ -1325,6 +1376,7 @@ def findSameNeurons(sessionList, FOVdims, templateList = None, background=None, 
             return cm.base.rois.register_ROIs(sessionList[0], sessionList[1], FOVdims, template1=templateList[0], template2=templateList[1], Cn=background, plot_results=plotResults)
         else:
             return cm.base.rois.register_ROIs(sessionList[0], sessionList[1], FOVdims, Cn=background, plot_results=plotResults)
+
 
 # if __name__ == "__main__":
 #     program = miniscope

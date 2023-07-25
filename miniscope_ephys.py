@@ -54,7 +54,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
             self.tCaIm = np.delete(self.tCaIm, self._analysisParamsDict['indices of TTL events to delete'])
 
 
-    def _correcttCaIm(self, eventLabels, threshold=0.04):
+    def _correcttCaIm(self, eventLabels, threshold=0.06):
         """This method first confirms that the TTL events alternate and then checks for missing TTL events. If there are any, the method guesses their timing and inserts them into the calcium imaging time vector.
         EVENTLABELS is the array of imported Neuralynx event labels.
         THRESHOLD is the time threshold, in seconds, for detecting gaps in the TTL events."""
@@ -313,7 +313,8 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         NEURON is a list of the neuron indexes to compare. All neurons can be selected with 'all'.
         BINS is the number of bins to sort the data into.
         HISTRANGE is a tuple of the range that the bins should cover.
-        DENSITY determines whether the data will be plotted as the probability density or as a count.
+        DENSITY determines whether the data will be bins will represent a probability density or a count.
+        MEANDENSITY provides the mean of the density histograms of all specified neurons.
         PLOTHISTOGRAM chooses whether or not to plot the computed histogram.
         COMBINED is a boolean that determines whether to combine the data from all of the specified neurons or whether to create histograms for each of the specified neurons."""
         print('Creating a histogram of the phases of ' + channel + ' relative to the calcium events...')
@@ -331,12 +332,27 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                             if meanDensity:
                                 # Mean density histogram across neurons
                                 CaEventsPhasesHist = np.empty((0, bins))
-                                for k in list(self.CaEventsPhases.keys()):
+                                meanCaEventsVectors = np.empty((0, 2))
+                                self.meanCaEventsVectorTheta = []
+                                self.meanCaEventsVectorRadius = []
+                                for i, k in enumerate(list(self.CaEventsPhases.keys())):
                                     hist, self.binEdges = np.histogram(self.CaEventsPhases[k], bins=bins, range=histRange, density=True)
                                     CaEventsPhasesHist = np.concatenate((CaEventsPhasesHist, hist.reshape((1,-1))), axis=0)
-                                self.hist = np.mean(CaEventsPhasesHist,axis=0) # Take the mean across the neurons at each bin.
+                                    # Find the mean vector for each neuron's calcium events
+                                    CaEventsVectors = np.concatenate((np.cos(self.CaEventsPhases[k]).reshape((-1,1)), np.sin(self.CaEventsPhases[k]).reshape((-1,1))), axis=1)
+                                    meanCaEventsVectors = np.concatenate((meanCaEventsVectors, np.mean(CaEventsVectors,axis=0).reshape((1,2))), axis=0)
+                                    self.meanCaEventsVectorTheta.append(np.arctan2(meanCaEventsVectors[i,1], meanCaEventsVectors[i,0]))
+                                    self.meanCaEventsVectorRadius.append(np.sqrt(meanCaEventsVectors[i,0]**2 + meanCaEventsVectors[i,1]**2))
+                                self.hist = np.mean(CaEventsPhasesHist, axis=0) # Take the mean across the neurons at each bin.
+                                self.histError = np.std(CaEventsPhasesHist, axis=0) / np.sqrt(np.shape(CaEventsPhasesHist)[0]) # Take the standard error of the mean at each bin.
                                 h, ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Mean Event Probability', title='Neuron(s): '+str(neuron))
                                 ax.hist(self.binEdges[:-1], self.binEdges, weights=self.hist)
+                                binMidpoints = (self.binEdges[1:] + self.binEdges[:-1]) / 2
+                                ax.errorbar(binMidpoints, self.hist, yerr=self.histError, fmt='none', capsize=3)
+                                # Find the mean vector of all of the neurons
+                                meanNeuronVector = np.mean(meanCaEventsVectors, axis=0)
+                                self.meanNeuronVectorTheta = np.arctan2(meanNeuronVector[1], meanNeuronVector[0])
+                                self.meanNeuronVectorRadius = np.sqrt(meanNeuronVector[0]**2 + meanNeuronVector[1]**2)
                             else:
                                 # Barstacked density histogram across neurons
                                 CaEventsPhasesHist = list(self.CaEventsPhases.values())

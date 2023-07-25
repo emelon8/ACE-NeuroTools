@@ -26,6 +26,7 @@ class experiment:
     def __init__(self, lineNum, filename='experiments.csv', jobID=''):
         self.lineNum = lineNum
         # Import the CSV file 
+        print('Reading experiment details from ' + os.path.abspath(filename) + '...')
         experimentCSV = []
         with open(filename, newline='') as s:
             reader = csv.reader(s)
@@ -48,6 +49,7 @@ class experiment:
         FILENAME is the filename of the CSV file."""
         analysisParamsCSV = []
         self.analysisParamsFilename = filename
+        print('Reading analysis parameters from ' + os.path.abspath(filename) + '...')
         with open(self.analysisParamsFilename, newline='') as s:
             reader = csv.reader(s)
             for row in reader:
