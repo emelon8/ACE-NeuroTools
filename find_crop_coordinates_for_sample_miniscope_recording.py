@@ -14,9 +14,9 @@ jobID = ''
 if len(sys.argv) > 1:
     jobID = sys.argv[1] + '_'
 
-square = False
-lineNum = 35
-movieNums = np.arange(5)
+square = True
+lineNum = 83
+movieNums = [0]#np.arange(5)
 
 obj = miniscope.UCLAMiniscope(lineNum=lineNum, jobID=jobID)
 
