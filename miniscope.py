@@ -17,6 +17,7 @@ import warnings
 import experiment
 import numpy as np
 from scipy.signal import detrend, find_peaks
+from mne.time_frequency import psd_array_multitaper
 import matplotlib.pyplot as plt
 
 plt.rcParams['svg.fonttype'] = 'none'
@@ -1214,6 +1215,23 @@ class UCLAMiniscope(experiment.experiment):
 
 
 #%% Methods for filtering the mean fluorescence over time
+    def computeMiniscopeSpectrogram(self, data, windowLength=30, windowStep=3, freqLims=[0,15], bandwidth=2, plotSpectrogram=True):
+        """Estimate (and plot) the multi-taper spectrogram (of the mean miniscope fluorescence). Developed with code mostly from Morgan Siegmann."""
+        print('Computing spectrogram of average miniscope fluorescence...')
+        fs = int(self._analysisParamsDict['frame rate'])
+        windowLengthSamples = windowLength * fs
+        windowStepSamples = windowStep * fs
+        miniscopeMat = misc_functions._overlapBinning(data, windowLengthSamples, windowStepSamples)
+        # Make a time vector
+        tMat = misc_functions._overlapBinning(np.arange(1/fs,fs*len(data)), windowLengthSamples, windowStepSamples)
+        self.tSpectMiniscope = tMat[:,windowLengthSamples // 2]
+        PSDSpectMiniscope, self.freqsSpectMiniscope = psd_array_multitaper(miniscopeMat, fs, fmin=freqLims[0], fmax=freqLims[1], bandwidth=bandwidth)
+        self.pSpectMiniscope = np.transpose(10 * np.log10(PSDSpectMiniscope))
+        if plotSpectrogram:
+            h, ax = misc_functions.spectrogram(self.tSpectMiniscope/60, self.freqsSpectMiniscope, self.pSpectMiniscope, xLabel='Time (min)')
+            return h, ax
+
+
     class filteredMiniscope():
         """This is an empty class in which to store filtering properties and filtered data."""
         pass
