@@ -28,4 +28,4 @@ for k in obj.movieFilePaths:
     obj.computeProjections(time=True)
     meanFluorescence = np.concatenate((meanFluorescence, obj.projections['oneDim']))
 
-np.savez_compressed(obj.experiment['calcium imaging directory'] + '/Miniscope/meanFluorescence_' + str(lineNum) + '.npz', meanFluorescence)
+np.savez_compressed(obj.experiment['calcium imaging directory'] + '/Miniscope/meanFluorescence_' + str(lineNum) + '.npz', meanFluorescence=meanFluorescence)
