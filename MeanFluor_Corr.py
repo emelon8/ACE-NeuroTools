@@ -11,95 +11,61 @@ This script is used to crop within lens and find average fluorescence and compar
 >>>>>>> Stashed changes
 """
 import miniscope_ephys
+import misc_functions
 import numpy as np
 from pylab import *
 from scipy.signal import butter, freqz, filtfilt, firwin, bode
 import matplotlib.pyplot as plt
 
 #load data
-lineNum = 41
+lineNum = 36
 channel ='PFCEEGvsCBEEG'
 
 obj = miniscope_ephys.miniscopeEphys(lineNum)
-# for all calcium videos 
-obj.findMovieFilePaths()
-obj.importCaMovies(obj.movieFilePaths[0:5])
-#___________________________________________________________________________________________
-#OR (once i add something to get number of videos)
 
-#moviePath = '../../experimental_data/miniscope_data/sleep/R220817B/2022_11_25/14_04_09/Miniscope/'
-#movieFilenameAfterNum = '_cropped.avi'
-#movieNums = np.arange(5)
-#movieList = []
-#for k in movieNums:
-#    movieList.append(os.path.join(moviePath, str(k) + movieFilenameAfterNum))
-
-#obj.importCaMovies(movieList)
-#___________________________________________________________________________________________
-#just one video
-#obj.importCaMovies(obj.experiment['calcium imaging directory']+'/Miniscope/0.avi')
-#___________________________________________________________________________________________
-#slow... 6 min for 5 videos... efficiency improvements?
-obj.preprocessCaMovies(crop = True, square = True, cropGUI = False)
-obj.computeProjections(time = True)
-
-#filter the calcium data 
-obj.filterMiniscope(inline = False)
-filteredCalcium = obj.fdata[0].data
-
-zscoreCa = (filteredCalcium - np.mean(filteredCalcium)) / np.std(filteredCalcium)
-normalizedCa1 = filteredCalcium/np.max(filteredCalcium) 
-normalizedCa2 = (filteredCalcium - np.min(filteredCalcium))/ np.ptp(filteredCalcium) # zero to one
-
-#importing data and synching timestamps
-obj.importEphysData(channels=channel)
+obj.importEphysData()
 obj.importNeuralynxEvents(analogSignalImported=True)
-obj.syncNeuralynxMiniscopeTimestamps(channel=channel)
+obj.syncNeuralynxMiniscopeTimestamps()
+obj.findEphysIdxOfTTLEvents(CaEvents=False)
 
-#ephys timestamps nearest to TTL events
-obj.findEphysIdxOfTTLEvents(channel=channel, CaEvents=False)
 
-#filters EEG thru butter filter, inline = False puts data into fdata[index].data
-obj.filterEphys(n=2, cut=[10,15], channel=channel, ftype='butter', btype='bandpass', inline= False)
-filteredEphys = obj.fdata[0].data #prints array of filtered data
-unfilteredEphys = obj.ephys[channel]
+# for loading and cropping all calcium videos 
+numMovies = int(np.ceil(len(obj.timeStamps)/1000)) # The total number of calcium movie files
 
-#normalize EEG data 
-#thinking through best technique to do this, research more
-zscore = (filteredEphys - np.mean(filteredEphys)) / np.std(filteredEphys)
-normalized1 = filteredEphys/np.max(filteredEphys) 
-normalized2 = (filteredEphys - np.min(filteredEphys))/ np.ptp(filteredEphys) # zero to one
+for i in range(numMovies):
+    obj.importCaMovies(os.path.join(obj.experiment['calcium imaging directory'], 'Miniscope', str(i) + '.avi'))
+    obj.preprocessCaMovies(saveMovie=True, crop=True, cropGUI=False, square=square)
 
-#get timesstamps of EEG data
-timestamps = obj.tEphys[channel][obj.ephysIdxAllTTLEvents[0:len(filteredCalcium)]]
+#if videos have already been analyzed
+meanFluorescence_36 = np.load('/home/lab/Dropbox (Partners HealthCare)/miniscope_analysis/experimental_data/miniscope_data/propofol/R220817B/2022_11_28/14_25_30/Miniscope/meanFluorescence_36.npz')
 
-#plot of collapsed array
-plt.plot(timestamps, zscoreCa)
-plt.plot(timestamps, zscore[0:1000])
-plt.show()
-xlabel('frame')                                    
-ylabel('Average Fluorescence')
+fdataM = misc_functions.filterData(meanFluorescence_36['meanFluorescence'], n=2, cut=[2,4], ftype='butter', btype='bandpass', fs=obj.experiment['frameRate'])
 
-#_______________________________________________________________________________________________________________________________________________________________________________________________________________________
+#EEG DATA
+obj.artifactRemoval(channel = channel, VThreshold=500) # VThreshold will change based on exp
+obj.filterEphys(channel = channel, n=2, cut=[2,4],ftype='butter',inline=False)
 
-import miniscope_ephys
-import numpy as np
-from pylab import *
-from scipy.signal import butter, freqz, filtfilt, firwin, bode
-import matplotlib.pyplot as plt
+#normalize...
+normalizedM = fdataM / np.max(fdataM)
+normalizedEEG = obj.fdata[0].data / np.max(obj.fdata[0].data)
 
-#load data
-lineNum = 41
-channel ='PFCEEGvsCBEEG'
+#run the find miniscope movies to analyze script to get start and end values?
 
-obj = miniscope_ephys.miniscopeEphys(lineNum)
-# for all calcium videos 
-obj.findMovieFilePaths()
-obj.importCaMovies(obj.movieFilePaths[0:5])
+Mini_AOI = fdataM[start:end]
+filteredEphys = obj.fdata[0].data[obj.ephysIdxAllTTLEvents[start:end]]  #prints array of filtered data
+timestamps = obj.tEphys[channel][obj.ephysIdxAllTTLEvents]
 
-obj.preprocessCaMovies(crop = True, square = True, cropGUI = False)
+
+#pick time regions of interest, sleep, dex ect
+xcorr = correlate(fdataM[116300:125900], obj.fdata[0].data[obj.ephysIdxAllTTLEvents][116300:125900])
+
+plt.figure()
+plt.plot(scipy.signal.correlate(Mini_AOI, filteredEphys, mode='full', method='auto'))
+
+
+____________________________________________________________________________________________________________________________________________________________________________________
+#for if npz file not created yet
 obj.computeProjections(time = True)
-
 unfilteredCalcium = obj.projections["oneDim"]
 
 obj.filterMiniscope(inline = False)
@@ -109,13 +75,7 @@ zscoreCa = (filteredCalcium - np.mean(filteredCalcium)) / np.std(filteredCalcium
 normalizedCa1 = filteredCalcium/np.max(filteredCalcium) 
 normalizedCa2 = (filteredCalcium - np.min(filteredCalcium))/ np.ptp(filteredCalcium) # zero to one
 
-obj.importEphysData(channels=channel)
-obj.importNeuralynxEvents(analogSignalImported=True)
-obj.syncNeuralynxMiniscopeTimestamps(channel=channel)
 
-obj.findEphysIdxOfTTLEvents(channel=channel, CaEvents=False)
-
-obj.filterEphys(n=2, cut=[10,15], channel=channel, ftype='butter', btype='bandpass', inline= False)
 filteredEphys = obj.fdata[1].data[obj.ephysIdxAllTTLEvents[0:len(filteredCalcium)]] #prints array of filtered data
 unfilteredEphys = obj.ephys[channel][obj.ephysIdxAllTTLEvents[0:len(filteredCalcium)]]
 
