@@ -16,7 +16,7 @@ channel = 'PFCLFPvsCBEEG'
 
 obj = miniscope_ephys.miniscopeEphys(lineNum)
 
-obj.importEphysData(channels=channel)
+obj.importEphysData(channels=[channel, 'PFCEEGvsCBEEG'])
 obj.importNeuralynxEvents(analogSignalImported=True)
 obj.syncNeuralynxMiniscopeTimestamps(channel=channel)
 obj.findEphysIdxOfTTLEvents(channel=channel, CaEvents=False)
@@ -28,7 +28,14 @@ fdataM = misc_functions.filterData(meanFluorescence['meanFluorescence'], n=2, cu
 obj.filterEphys(channel=channel, n=2, cut=[1,3], ftype='butter', inline=False)
 
 obj.computeSpectrogram(freqLims=[0,15])
-obj.computeMiniscopeSpectrogram()
+plt.gcf()
+ax = plt.gca()
+xl = ax.get_xlim()
+obj.computeSpectrogram(channel='PFCEEGvsCBEEG', freqLims=[0,15])
+obj.computeMiniscopeSpectrogram(meanFluorescence['meanFluorescence'])
+plt.gcf()
+ax3 = plt.gca()
+ax3.set_xlim(xl)
 
 # Times (s) to analyze based on the ephys spectrogram
 begin = obj._analysisParamsDict['periods of high slow wave power (s)'][0]

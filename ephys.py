@@ -138,15 +138,14 @@ class NeuralynxEphys(experiment.experiment):
     def computePhase(self, channel='PFCLFPvsCBEEG', data=None):
         """Compute the instantaneous phase of a specified ephys channel."""
         print('Computing instantaneous phase...')
+        if data is None:
+            data = self.ephys[channel]
         try:
             lengthInstantaneousPhaseEphys = len(self.instantaneousPhaseEphys)
         except:
             self.instantaneousPhaseEphys = {}
         finally:
-            if data is None:
-                analyticSignalEphys = hilbert(self.ephys[channel])
-            else:
-                analyticSignalEphys = hilbert(data)
+            analyticSignalEphys = hilbert(data)
             self.instantaneousPhaseEphys[channel] = np.angle(analyticSignalEphys)
     
     

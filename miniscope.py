@@ -16,7 +16,7 @@ import warnings
 
 import experiment
 import numpy as np
-from scipy.signal import detrend, find_peaks
+from scipy.signal import detrend, find_peaks, hilbert
 from mne.time_frequency import psd_array_multitaper
 import matplotlib.pyplot as plt
 
@@ -269,7 +269,7 @@ class UCLAMiniscope(experiment.experiment):
             self.projections = {}
             
         if time:
-            self.projections["oneDim"] = self.movie.mean(axis=(1,2))
+            self.projections["time"] = self.movie.mean(axis=(1,2))
             
         else:
             self.projections["Max"] = np.amax(self.movie, axis=0)
@@ -1214,8 +1214,8 @@ class UCLAMiniscope(experiment.experiment):
                         self.CaEventsIdx[k] = find_peaks(np.diff(self.estimates.C[k]), height=height)[0]
 
 
-#%% Methods for filtering the mean fluorescence over time
-    def computeMiniscopeSpectrogram(self, data, windowLength=30, windowStep=3, freqLims=[0,15], bandwidth=2, plotSpectrogram=True):
+#%% Signal processing methods for the mean fluorescence over time
+    def computeMiniscopeSpectrogram(self, data=None, windowLength=30, windowStep=3, freqLims=[0,15], bandwidth=2, plotSpectrogram=True):
         """Estimate (and plot) the multi-taper spectrogram (of the mean miniscope fluorescence). Developed with code mostly from Morgan Siegmann."""
         print('Computing spectrogram of average miniscope fluorescence...')
         fs = int(self._analysisParamsDict['frame rate'])
@@ -1223,13 +1223,30 @@ class UCLAMiniscope(experiment.experiment):
         windowStepSamples = windowStep * fs
         miniscopeMat = misc_functions._overlapBinning(data, windowLengthSamples, windowStepSamples)
         # Make a time vector
-        tMat = misc_functions._overlapBinning(np.arange(1/fs,len(data)/fs,1/fs), windowLengthSamples, windowStepSamples)
-        self.tSpectMiniscope = tMat[:,windowLengthSamples // 2]
+        tMat = misc_functions._overlapBinning(np.arange(0,len(data)/fs,1/fs), windowLengthSamples, windowStepSamples)
+        try:
+            self.tSpectMiniscope = tMat[:,windowLengthSamples // 2] + self.tEphys['PFCLFPvsCBEEG'][self.ephysIdxAllTTLEvents[0]]
+        except:
+            self.tSpectMiniscope = tMat[:,windowLengthSamples // 2]
         PSDSpectMiniscope, self.freqsSpectMiniscope = psd_array_multitaper(miniscopeMat, fs, fmin=freqLims[0], fmax=freqLims[1], bandwidth=bandwidth)
         self.pSpectMiniscope = np.transpose(10 * np.log10(PSDSpectMiniscope))
         if plotSpectrogram:
             h, ax = misc_functions.spectrogram(self.tSpectMiniscope/60, self.freqsSpectMiniscope, self.pSpectMiniscope, xLabel='Time (min)')
             return h, ax
+
+
+    def computeMiniscopePhase(self, data=None):
+        """Compute the instantaneous phase of a specified ephys channel."""
+        print('Computing instantaneous phase...')
+        if data is None:
+            data = self.projections['time']
+        try:
+            lengthInstantaneousPhaseMiniscope = len(self.instantaneousPhaseMiniscope)
+        except:
+            self.instantaneousPhaseMiniscope = {}
+        finally:
+            analyticSignalMiniscope = hilbert(data)
+            self.instantaneousPhaseMiniscope = np.angle(analyticSignalMiniscope)
 
 
     class filteredMiniscope():
@@ -1248,10 +1265,10 @@ class UCLAMiniscope(experiment.experiment):
             print("video not loaded, try again")
         else:
             self.computeProjections(time = True)
-            fdata.data = misc_functions.filterData(self.projections["oneDim"], n=n, cut=cut, ftype=ftype, btype=btype, fs=self.experiment['frameRate'])
+            fdata.data = misc_functions.filterData(self.projections["time"], n=n, cut=cut, ftype=ftype, btype=btype, fs=self.experiment['frameRate'])
             
             if inline:
-                self.projections["oneDim"] = fdata.data
+                self.projections["time"] = fdata.data
                 
             else:
                 fdata.cutoff = cut
