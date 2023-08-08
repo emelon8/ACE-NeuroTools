@@ -5,23 +5,52 @@ Created on Tue Jul 25 17:27:39 2023
 @author: Eric
 """
 
-from scipy.signal import correlate
+from scipy.signal import correlate, correlation_lags, coherence
 import miniscope_ephys
 import matplotlib.pyplot as plt
 import numpy as np
 import misc_functions
 
-obj = miniscope_ephys.miniscopeEphys(37)
+lineNum = 41
+channel = 'PFCLFPvsCBEEG'
 
-obj.importEphysData()
+obj = miniscope_ephys.miniscopeEphys(lineNum)
+
+obj.importEphysData(channels=channel)
 obj.importNeuralynxEvents(analogSignalImported=True)
-obj.syncNeuralynxMiniscopeTimestamps()
-obj.findEphysIdxOfTTLEvents(CaEvents=False)
+obj.syncNeuralynxMiniscopeTimestamps(channel=channel)
+obj.findEphysIdxOfTTLEvents(channel=channel, CaEvents=False)
 
-meanFluorescence_37 = np.load('D:/Dropbox/Documents/Brown_Lab/experimental_data/miniscope_data/sleep/R221020A/2022_11_29/14_23_10/Miniscope/meanFluorescence_37.npz')
+meanFluorescence = np.load('../../experimental_results/miniscope_ephys_correlation_project/npzFiles/meanFluorescence_' + str(lineNum) + '.npz')
 
-fdataM = misc_functions.filterData(meanFluorescence_37['meanFluorescence'], n=2, cut=[2,4], ftype='butter', btype='bandpass', fs=obj.experiment['frameRate'])
+fdataM = misc_functions.filterData(meanFluorescence['meanFluorescence'], n=2, cut=[1,3], ftype='butter', btype='bandpass', fs=obj.experiment['frameRate'])
 
-obj.filterEphys(n=2,cut=[2,4],ftype='butter',inline=False)
+obj.filterEphys(channel=channel, n=2, cut=[1,3], ftype='butter', inline=False)
 
-xcorr = correlate(fdataM[116300:125900], obj.fdata[0].data[obj.ephysIdxAllTTLEvents][116300:125900])
+obj.computeSpectrogram(freqLims=[0,15])
+obj.computeMiniscopeSpectrogram()
+
+# Times (s) to analyze based on the ephys spectrogram
+begin = obj._analysisParamsDict['periods of high slow wave power (s)'][0]
+end = obj._analysisParamsDict['periods of high slow wave power (s)'][1]
+
+start = np.where(obj.tEphys[channel][obj.ephysIdxAllTTLEvents]>begin)[0][0]
+stop = np.where(obj.tEphys[channel][obj.ephysIdxAllTTLEvents]>end)[0][0]
+
+ephys = obj.fdata[0].data[obj.ephysIdxAllTTLEvents][start:stop]
+minis = fdataM[start:stop]
+
+
+# Calculate and plot the normalized cross-correlation
+nminis = minis/np.max(np.abs(minis))
+nephys = ephys/np.max(np.abs(ephys))
+nxcorr = correlate(nminis, nephys)
+nxcorrLags = correlation_lags(minis.size, ephys.size)
+nlag = nxcorrLags[np.argmax(nxcorr)]
+
+plt.figure()
+plt.plot(nxcorrLags, nxcorr)
+plt.title('Normalized cross-correlation')
+
+
+# Calculate and plot the coherence

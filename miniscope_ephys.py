@@ -283,6 +283,17 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                     self.ephysIdxCaEvents[k] = np.array(self.ephysIdxCaEvents[k])
 
 
+#%% Methods to compare the mean fluorescence signal with the ephys signals
+    def correlationMiniscopeEphys():
+        """Compute the cross-correlation between the average miniscope fluorescence and a specified ephys signal."""
+        pass
+    
+    
+    def coherenceMiniscopeEphys():
+        """Compute the coherence between the average miniscope fluorescence and a specified ephys signal."""
+        pass
+
+
 #%% Methods to extract the instantaneous phase of the ephys signal, determine the phases of the calcium events, and summarize and save the results
     def phaseCaEvents(self, channel='PFCLFPvsCBEEG', neuron='all'):
         """Compare calcium events to the phase extracted from a specified ephys channel.

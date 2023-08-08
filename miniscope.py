@@ -1223,7 +1223,7 @@ class UCLAMiniscope(experiment.experiment):
         windowStepSamples = windowStep * fs
         miniscopeMat = misc_functions._overlapBinning(data, windowLengthSamples, windowStepSamples)
         # Make a time vector
-        tMat = misc_functions._overlapBinning(np.arange(1/fs,fs*len(data)), windowLengthSamples, windowStepSamples)
+        tMat = misc_functions._overlapBinning(np.arange(1/fs,len(data)/fs,1/fs), windowLengthSamples, windowStepSamples)
         self.tSpectMiniscope = tMat[:,windowLengthSamples // 2]
         PSDSpectMiniscope, self.freqsSpectMiniscope = psd_array_multitaper(miniscopeMat, fs, fmin=freqLims[0], fmax=freqLims[1], bandwidth=bandwidth)
         self.pSpectMiniscope = np.transpose(10 * np.log10(PSDSpectMiniscope))
