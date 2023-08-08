@@ -213,7 +213,7 @@ class NeuralynxEphys(experiment.experiment):
         pass
 
 
-    def filterEphys(self, n=10000, cut=[0.5,4], channel='PFCLFPvsCBEEG', ftype='FIR', btype='bandpass', inline=True):
+    def filterEphys(self, n=2, cut=[0.5,4], channel='PFCLFPvsCBEEG', ftype='butter', btype='bandpass', inline=True):
         """Method for filtering the ephys channel of choice with either a Butterworth or FIR filter."""
         print('Filtering ' + channel + ' with a(n) ' + ftype + ' filter ...')
         fdata = self.filteredEphys()
