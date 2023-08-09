@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import misc_functions
 
-lineNum = 83
+lineNum = 41
 channel = 'PFCLFPvsCBEEG'
 
 obj = miniscope_ephys.miniscopeEphys(lineNum)
@@ -24,18 +24,22 @@ obj.findEphysIdxOfTTLEvents(channel=channel, CaEvents=False)
 meanFluorescence = np.load('../../experimental_results/miniscope_ephys_correlation_project/npzFiles/meanFluorescence_' + str(lineNum) + '.npz')
 
 fdataM = misc_functions.filterData(meanFluorescence['meanFluorescence'], n=2, cut=[1,3], ftype='butter', btype='bandpass', fs=fr)
-
 obj.filterEphys(channel=channel, n=2, cut=[1,3], ftype='butter', inline=False)
 
-# obj.computeSpectrogram(freqLims=[0,15])
-# plt.gcf()
-# ax = plt.gca()
-# xl = ax.get_xlim()
-# obj.computeSpectrogram(channel='PFCEEGvsCBEEG', freqLims=[0,15])
-# obj.computeMiniscopeSpectrogram(meanFluorescence['meanFluorescence'])
-# plt.gcf()
-# ax3 = plt.gca()
-# ax3.set_xlim(xl)
+obj.computeSpectrogram(freqLims=[0,15], windowLength=10, windowStep=1)
+plt.gcf()
+ax = plt.gca()
+xl = ax.get_xlim()
+ax.set_title('PFC LFP spectrogram, Exp. ' + str(lineNum))
+obj.computeSpectrogram(channel='PFCEEGvsCBEEG', freqLims=[0,15], windowLength=10, windowStep=1)
+plt.gcf()
+ax2 = plt.gca()
+ax2.set_title('PFC EEG spectrogram, Exp. ' + str(lineNum))
+obj.computeMiniscopeSpectrogram(meanFluorescence['meanFluorescence'], windowLength=10, windowStep=1)
+plt.gcf()
+ax3 = plt.gca()
+ax3.set_xlim(xl)
+ax3.set_title('Miniscope spectrogram, Exp. ' + str(lineNum))
 
 # Times (s) to analyze based on the ephys spectrogram
 begin = obj._analysisParamsDict['periods of high slow wave power (s)'][0]
@@ -64,6 +68,7 @@ nlag = nxcorrLags[np.argmax(nxcorr)] / fr
 plt.figure(num=4)
 plt.plot(nxcorrLags, nxcorr)
 plt.title('Normalized cross-correlation, Exp. ' + str(lineNum))
+plt.xlim([-2, 2])
 
 
 nminisControl = minisControl/np.max(np.abs(minisControl))
@@ -75,6 +80,7 @@ nlagControl = nxcorrLagsControl[np.argmax(nxcorrControl)] / fr
 plt.figure(num=5)
 plt.plot(nxcorrLagsControl, nxcorrControl)
 plt.title('Normalized cross-correlation, control period, Exp. ' + str(lineNum))
+plt.xlim([-2, 2])
 
 
 # Calculate and plot the normalized auto-correlation
@@ -85,6 +91,7 @@ nlag = nacorrLagsMinis[np.argmax(nacorrMinis)] / fr
 plt.figure(num=6)
 plt.plot(nacorrLagsMinis, nacorrMinis)
 plt.title('Miniscope normalized auto-correlation, Exp. ' + str(lineNum))
+plt.xlim([-2, 2])
 
 nacorrMinisControl = correlate(nminisControl, nminisControl)
 nacorrLagsMinisControl = correlation_lags(nminisControl.size, nminisControl.size) / fr
@@ -93,6 +100,7 @@ nlagMinisControl = nacorrLagsMinisControl[np.argmax(nacorrMinisControl)] / fr
 plt.figure(num=7)
 plt.plot(nacorrLagsMinisControl, nacorrMinisControl)
 plt.title('Miniscope normalized auto-correlation, control period, Exp. ' + str(lineNum))
+plt.xlim([-2, 2])
 
 
 nacorrEphys = correlate(nephys, nephys)
@@ -102,6 +110,7 @@ nlagEphys = nacorrLagsEphys[np.argmax(nacorrEphys)] / fr
 plt.figure(num=8)
 plt.plot(nacorrLagsEphys, nacorrEphys)
 plt.title('LFP normalized auto-correlation, Exp. ' + str(lineNum))
+plt.xlim([-2, 2])
 
 nacorrEphysControl = correlate(nephysControl, nephysControl)
 nacorrLagsEphysControl = correlation_lags(nephysControl.size, nephysControl.size) / fr
@@ -110,6 +119,7 @@ nlagEphysControl = nacorrLagsEphysControl[np.argmax(nacorrEphysControl)] / fr
 plt.figure(num=9)
 plt.plot(nacorrLagsEphysControl, nacorrEphysControl)
 plt.title('LFP normalized auto-correlation, control period, Exp. ' + str(lineNum))
+plt.xlim([-2, 2])
 
 # Calculate and plot the coherence
 plt.figure(num=10)
