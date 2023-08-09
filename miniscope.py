@@ -668,6 +668,8 @@ class UCLAMiniscope(experiment.experiment):
             self.importCaMovies(self.movieFilePaths[0])
         self._analysisParamsDict['dims'] = self.movie.shape[1:]
         
+        self._analysisParamsDict['frame rate'] = self.experiment['frameRate']
+        
         self.optsCaImAn = cm.source_extraction.cnmf.params.CNMFParams(params_dict=self._analysisParamsDict)
         if parallel:
             print('Setting up cluster...')
@@ -854,7 +856,7 @@ class UCLAMiniscope(experiment.experiment):
             mcMovie = cm.load(mc.mmap_file)
             if playConcatenatedMovies:
                 cm.concatenate([self.movie.resize(1, 1, downsampleRatio) - mc.min_mov * mc.nonneg_movie,
-                                mcMovie.resize(1, 1, downsampleRatio)], axis=2).play(fr=self._analysisParamsDict['frame rate'],
+                                mcMovie.resize(1, 1, downsampleRatio)], axis=2).play(fr=self.experiment['frameRate'],
                                                                                      q_max=99.5, magnification=2,
                                                                                      bord_px=self.optsCaImAn.get(
                                                                                          'patch', 'border_pix'))
@@ -1218,7 +1220,7 @@ class UCLAMiniscope(experiment.experiment):
     def computeMiniscopeSpectrogram(self, data=None, windowLength=30, windowStep=3, freqLims=[0,15], bandwidth=2, plotSpectrogram=True):
         """Estimate (and plot) the multi-taper spectrogram (of the mean miniscope fluorescence). Developed with code mostly from Morgan Siegmann."""
         print('Computing spectrogram of average miniscope fluorescence...')
-        fs = int(self._analysisParamsDict['frame rate'])
+        fs = int(self.experiment['frameRate'])
         windowLengthSamples = windowLength * fs
         windowStepSamples = windowStep * fs
         miniscopeMat = misc_functions._overlapBinning(data, windowLengthSamples, windowStepSamples)
