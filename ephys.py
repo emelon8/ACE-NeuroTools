@@ -138,15 +138,14 @@ class NeuralynxEphys(experiment.experiment):
     def computePhase(self, channel='PFCLFPvsCBEEG', data=None):
         """Compute the instantaneous phase of a specified ephys channel."""
         print('Computing instantaneous phase...')
+        if data is None:
+            data = self.ephys[channel]
         try:
             lengthInstantaneousPhaseEphys = len(self.instantaneousPhaseEphys)
         except:
             self.instantaneousPhaseEphys = {}
         finally:
-            if data is None:
-                analyticSignalEphys = hilbert(self.ephys[channel])
-            else:
-                analyticSignalEphys = hilbert(data)
+            analyticSignalEphys = hilbert(data)
             self.instantaneousPhaseEphys[channel] = np.angle(analyticSignalEphys)
     
     
@@ -214,7 +213,7 @@ class NeuralynxEphys(experiment.experiment):
         pass
 
 
-    def filterEphys(self, n=10000, cut=[0.5,4], channel='PFCLFPvsCBEEG', ftype='FIR', btype='bandpass', inline=True):
+    def filterEphys(self, n=2, cut=[0.5,4], channel='PFCLFPvsCBEEG', ftype='butter', btype='bandpass', inline=True):
         """Method for filtering the ephys channel of choice with either a Butterworth or FIR filter."""
         print('Filtering ' + channel + ' with a(n) ' + ftype + ' filter ...')
         fdata = self.filteredEphys()

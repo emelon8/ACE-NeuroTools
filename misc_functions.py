@@ -628,7 +628,7 @@ def filterData(data, n, cut, ftype, btype, fs, bodePlot=False):
     
     The Butterworth filters have a more linear phase response in the pass-band than other types and is able to provide better group delay performance, and also a lower level of overshoot.
     Indicate the filter type by setting btype = 'low', 'high', or 'band'.
-    The default for n is n = 3
+    The default for n is n = 2
     For a bandpass filter indicate the lowstop and the highstop by using an array. example: wn= ([10, 30])"""
 
     if ftype.lower() == 'fir':
