@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import misc_functions
 
-lineNum = 41
+lineNum = 42
 channel = 'PFCLFPvsCBEEG'
 
 obj = miniscope_ephys.miniscopeEphys(lineNum)
