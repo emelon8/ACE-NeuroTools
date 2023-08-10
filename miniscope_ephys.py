@@ -482,7 +482,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
 
     def phaseCaEventsPolarPlot(self, channel='PFCLFPvsCBEEG', neuron='all', bins=18, plotMeanVector=True):
         """"""
-        plt.subplot()
+        plt.subplot() #TODO Figure out why misc_functions._prepAxes won't work with this method.
         self.hist
 
 
