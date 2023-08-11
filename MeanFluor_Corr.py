@@ -4,11 +4,7 @@ Created on Fri June 9 9:00:00 2023
 
 @author: Rachael Fisher 
 
-<<<<<<< Updated upstream
-This script is used to crop within lens and find average fluorescence, stats for correlation
-=======
-This script is used to crop within lens and find average fluorescence and compare with Ephys data, correlation and cross correlation metrics
->>>>>>> Stashed changes
+This script is used to crop within lens and find average fluorescence and compare with Ephys data, correlation and cross correlation metrics.
 """
 import miniscope_ephys
 import misc_functions
@@ -18,8 +14,8 @@ from scipy.signal import butter, freqz, filtfilt, firwin, bode
 import matplotlib.pyplot as plt
 
 #load data
-lineNum = 36
-channel ='PFCEEGvsCBEEG'
+lineNum = 43
+channel ='PFCLFPvsCBEEG'
 
 obj = miniscope_ephys.miniscopeEphys(lineNum)
 
@@ -28,7 +24,11 @@ obj.importNeuralynxEvents(analogSignalImported=True)
 obj.syncNeuralynxMiniscopeTimestamps()
 obj.findEphysIdxOfTTLEvents(CaEvents=False)
 
+#if videos have already been analyzed, insert path  
+meanFluorescence_43 = np.load('')
 
+#for if npz file not created yet
+obj.computeProjections(time = True)
 # for loading and cropping all calcium videos 
 numMovies = int(np.ceil(len(obj.timeStamps)/1000)) # The total number of calcium movie files
 
@@ -36,37 +36,36 @@ for i in range(numMovies):
     obj.importCaMovies(os.path.join(obj.experiment['calcium imaging directory'], 'Miniscope', str(i) + '.avi'))
     obj.preprocessCaMovies(saveMovie=True, crop=True, cropGUI=False, square=square)
 
-#if videos have already been analyzed
-meanFluorescence_36 = np.load('/home/lab/Dropbox (Partners HealthCare)/miniscope_analysis/experimental_data/miniscope_data/propofol/R220817B/2022_11_28/14_25_30/Miniscope/meanFluorescence_36.npz')
+# unfiltered calcium = obj.projections["time"]
 
-fdataM = misc_functions.filterData(meanFluorescence_36['meanFluorescence'], n=2, cut=[2,4], ftype='butter', btype='bandpass', fs=obj.experiment['frameRate'])
+#filter miniscope data... artifact removal?
+fdataM = misc_functions.filterData(meanFluorescence_43['meanFluorescence'], n=2, cut=[1,3], ftype='butter', btype='bandpass', fs=obj.experiment['frameRate'])
 
 #EEG DATA
-obj.artifactRemoval(channel = channel, VThreshold=500) # VThreshold will change based on exp
-obj.filterEphys(channel = channel, n=2, cut=[2,4],ftype='butter',inline=False)
+obj.artifactRemoval(channel = channel, VThreshold=1600) # VThreshold will change based on exp
+obj.filterEphys(channel = channel, n=2, cut=[1,3],ftype='butter',inline=False)
 
-#normalize...
-normalizedM = fdataM / np.max(fdataM)
-normalizedEEG = obj.fdata[0].data / np.max(obj.fdata[0].data)
+#control periods
+conTimeSecStart = obj._analysisParamsDict['control periods (s)'][0]
+conTimeSecEnd = obj._analysisParamsDict['control periods (s)'][-1]
+conFrameStart = np.where(obj.tEphys[channel][obj.ephysIdxAllTTLEvents]>conTimeSecStart)[0][0]
+conFrameEnd = np.where(obj.tEphys[channel][obj.ephysIdxAllTTLEvents]<conTimeSecEnd)[0][-1]
+sliced = fdataM[conFrameStart:conFrameEnd]
+conEphysData = obj.ephys[channel][obj.ephysIdxAllTTLEvents][conFrameStart:conFrameEnd]
+conTEphysData = obj.tEphys[channel][obj.ephysIdxAllTTLEvents][conFrameStart:conFrameEnd]
 
-#run the find miniscope movies to analyze script to get start and end values?
-
-Mini_AOI = fdataM[start:end]
-filteredEphys = obj.fdata[0].data[obj.ephysIdxAllTTLEvents[start:end]]  #prints array of filtered data
-timestamps = obj.tEphys[channel][obj.ephysIdxAllTTLEvents]
-
-
-#pick time regions of interest, sleep, dex ect
-xcorr = correlate(fdataM[116300:125900], obj.fdata[0].data[obj.ephysIdxAllTTLEvents][116300:125900])
+conCorr = signal.correlate(sliced, ephysData, mode='full', method='auto')
+normConCorr = conCorr / (len(sliced)*np.std(sliced)* np.std(conEphysData))
 
 plt.figure()
-plt.plot(scipy.signal.correlate(Mini_AOI, filteredEphys, mode='full', method='auto'))
+plt.plot(normConCorr)
 
-
+#experimental periods
+exptimeSecStart = obj._analysisParamsDict['periods of high slow wave power (s)'][0]
+exptimeSecEnd = obj._analysisParamsDict['periods of high slow wave power (s)'][-1]
+expframeStart = np.where(obj.tEphys[channel][obj.ephysIdxAllTTLEvents]>exptimeSecStart)[0][0]
+expframeEnd = np.where(obj.tEphys[channel][obj.ephysIdxAllTTLEvents]<exptimeSecEnd)[0][-1]
 ____________________________________________________________________________________________________________________________________________________________________________________
-#for if npz file not created yet
-obj.computeProjections(time = True)
-unfilteredCalcium = obj.projections["oneDim"]
 
 obj.filterMiniscope(inline = False)
 filteredCalcium = obj.fdata[0].data
