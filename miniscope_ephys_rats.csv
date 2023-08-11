@@ -3,8 +3,8 @@ R201110A,,M,,,,,,,,,,,,,,Died on surgery day.
 R201110B,200924,M,,,,,,,,,,,,,,Useful for determining the concentration of 1:16 for the original titer of 3.2e13 gc/mL.
 R201209,201019,M,,,,,,,,[1.0; 4.0],,,,,,No cell activity.
 R201210,201016,M,,,,,,,,[1.0; 4.0],,,,,,No cell activity.
-R210413A,,M,,,,,,,,[1.0; 4.0],,,,,,Didn't survive the surgery.
 R210413,,M,,,,,,,,[1.0; 4.0],,,,,,No cell activity.
+R210413A,,M,,,,,,,,[1.0; 4.0],,,,,,Didn't survive the surgery.
 R210414,,M,,,,,,,,[1.0; 4.0],,,,,,No cell activity.
 R210601,,M,,,,,,,,[1.0; 4.0],,,,,,No cell activity. Possibly drove the lens in too deep.
 R210602,,M,,,,,,,,[1.0; 4.0],,,,,,No cell activity. Possibly drove the lens in too deep.
@@ -16,16 +16,26 @@ R211015,,M,,,,,,,,[1.0; 4.0],,,,,,No cell activity.
 R211021,,M,,,,,,,,[1.0; 4.0],,,,,,"This rat had a virus-coated lens. Unfortunately, I did not pin the animal ground channel into the proper hole, so even if there is expression, this animal cannot be used for experiments."
 R211022,,M,,,,,,,,[1.0; 4.0],,,,,,This rat had a virus-coated lens.
 R211221A,,M,"[2.2, 2.2, 2.2; 1.6, 1.6, 1.6; 2.1, 1.5, 1.0; 0, 0, 0]","[500, 500, 250] nL at 60 nL/min, diffuse for ~10 mins",,,,,,[1.0; 4.0],,,220224,220224,,
-R211221B,,M,"[2.2, 2.2, 2.2; 1.6, 1.6, 1.6; 2.1, 1.5, 1.0; 0, 0, 0]","[500, 500, 250] nL at 60 nL/min, diffuse for ~10 mins",,,,,,[1.0; 4.0],,,220513,,,"This rat's implant fell off and he healed up, so much that I thought a naïve rat had been accidentally put in his cage. The implant was never found."
+R211221B,,M,"[2.2, 2.2, 2.2; 1.6, 1.6, 1.6; 2.1, 1.5, 1.0; 0, 0, 0]","[500, 500, 250] nL at 60 nL/min, diffuse for ~10 mins",,,,,,[1.0; 4.0],,,220513,,,"This rat's implant fell off and he healed up, so much that I thought a naï¿½ve rat had been accidentally put in his cage. The implant was never found."
 R220331A,,M,"[2.9, 2.9, 2.9; 1.6, 1.6, 1.6; 2.7, 3.0, 3.3; 18, 18, 18], DV is depth from brain surface along the hypotenuse","[250, 250, 250] nL at 60 nL/min, diffuse for ~5 mins",,,,,,[0.6; 7.3],"[2.9, 1.6, 3.79, 18], DV is depth from brain surface along the hypotenuse",,,,,"This rat did not have any expression. During the rat's lens/baseplate combo implant, I didn't see any fluorescence when I got to -3.0 mm depth, so I kept lowering the lens until I saw fluorescence (~-3.79 mm). When I imaged after a week of recovery, it was just dark. My guess is that I had compressed the tissue as I lowered the lens, and as the tissue relaxed over the week, the fluorescent cells ended up above the bottom of the lens (where they were during the surgery)."
 R220331B,,M,"[2.9, 2.9, 2.9; 1.6, 1.6, 1.6; 2.7, 3.0, 3.3; 18, 18, 18], DV is depth from brain surface along the hypotenuse","[250, 250, 250] nL at 60 nL/min, diffuse for ~5 mins",,,,,,[0.6; 7.3],"[2.9, 1.6, 3.0, 18], DV is depth from brain surface along the hypotenuse",,,,,"With this rat, I saw fluorescence at -3 mm, and a week later I definitely saw dynamic signals, albeit they are not super crisp. Progress, though! I think the aspiration hole was wider in this rat, which may have allowed better access to the fluorescent neurons without tissue compression during lens lowering, but that's just a guess."
 R220606,220402,M,"[2.9, 2.9, 2.9; 1.9, 1.9, 1.9; 3.4, 3.7, 4.0; 18, 18, 18], DV is depth from brain surface along the hypotenuse","[250, 250, 250] nL at 60 nL/min, diffuse for ~5 mins",?,3.4,23,2.7,23,[0.6; 7.3],"[2.9, 1.6, 3.7, 18], DV is depth from brain surface at the center of the craniotomy along the hypotenuse",,,,,"No cell activity during surgery. Cell activity about 2 weeks later! Then, after putting the rat under isoflurane and recording again, no cell activity."
 R220607,220402,M,"[2.9, 2.9, 2.9; 1.6, 1.6, 1.6; 2.7, 3.0, 3.3; 18, 18, 18], DV is depth from brain surface along the hypotenuse","[250, 250, 250] nL at 60 nL/min, diffuse for ~5 mins",30-40?,3.2,23,2.7,23,[0.6; 7.3],"[2.9, 1.6, 4.0, 18], DV is depth from brain surface at the center of the craniotomy along the hypotenuse",,,,,No cell activity during surgery. Cell activity about 1.5 weeks later!
 R220629A,220420,M,"[2.9, 1.67, 3.7, 17], DV is depth from craniotomy surface along the hypotenuse","650 nL at 300 nL/min, diffuse for ~10 mins, raise 1 mm, then diffuse an additional ~5 mins",,,,,,[0.6; 7.3],,,,,,A few successful neurons in the video!
+R220629A,220420,M,,,,,,,,,,,,,,
 R220629B,220420,M,"[2.9, 1.67, 4.17, 17], DV is depth along the hypotenuse","650 nL at 300 nL/min, diffuse for ~10.5-11 mins, raise 1 mm, then diffuse an additional ~5 mins",,,,,,[0.6; 7.3],,,,,,No cell activity.
+R220629B,220420,M,,,,,,,,,,,,,,
 R220719,220420,M,"[2.9, 2.9, 2.9; 1.6, 1.6, 1.6; 2.7, 3.0, 3.3; 18, 18, 18], DV is depth from brain surface along the hypotenuse","[250, 250, 250] nL at 60 nL/min, diffuse for ~5 mins",,2.5,26,2,23,[0.6; 7.3],"[3.0, 18], DV is depth from brain surface at the center of the craniotomy along the hypotenuse",,,,,No cell activity.
+R220719,220420,M,,,,,,,,,,,,,,
 R220720,220420,M,"[2.9, 2.9, 2.9; 1.6, 1.6, 1.6; 2.7, 3.0, 3.3; 18, 18, 18], DV is depth from brain surface along the hypotenuse","[250, 250, 250] nL at 60 nL/min, diffuse for ~5 mins",,2.5,26,2,23,[0.6; 7.3],"[3.0, 18], DV is depth from brain surface at the center of the craniotomy along the hypotenuse",,,,,No cell activity.
+R220720,220420,M,,,,,,,,,,,,,,
+R220817A,220514,F,,,,,,,,,,,,,,
 R220817A,220514,F,,,,,,,,,,,,,,
 R220817B,220514,F,,,,,,,,,,,,,,
+R220817B,220514,F,,,,,,,,,,,,,,
 R221020A,220514,F,,,,,,,,,,,,,,
+R221020A,220804,F,,,,,,,,,,,,,,
 R221020B,220514,F,,,,,,,,,,,,,,
+R221020B,220514,F,,,,,,,,,,,,,,
+R221107A,210815,M,,,,,,,,,,,,,,
+R230523,230223,M,,,,,,,,,,,,,,
