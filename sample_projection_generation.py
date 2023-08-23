@@ -12,10 +12,10 @@ import matplotlib.pyplot as plt
 import miniscope
 import numpy as np
 
-obj = miniscope.UCLAMiniscope(lineNum=54)
+obj = miniscope.UCLAMiniscope(lineNum=88)
 
 #%% Import movies
-moviePath = 'D:/Dropbox (Partners HealthCare)/experimental_data/miniscope_data/sleep/R221107B/2023_02_28/14_38_18/Miniscope'
+moviePath = obj.experiment['calcium imaging directory'] + '/Miniscope'
 movieFilenameAfterNum = '.avi' # '_cropped.avi'
 movieNums = np.arange(5)
 movieList = []
@@ -38,14 +38,14 @@ fStd = plt.figure();plt.imshow(obj.projections['Std'], cmap='gray')
 fRange = plt.figure();plt.imshow(obj.projections['Range'], cmap='gray')
 
 #%% Save figures
-fMax.savefig(moviePath + '/max_' + str(obj.lineNum) + '_' + str(movieNums[0]) + '-' + str(movieNums[-1]) + '.png', bbox_inches='tight')
-fMin.savefig(moviePath + '/min_' + str(obj.lineNum) + '_' + str(movieNums[0]) + '-' + str(movieNums[-1]) + '.png', bbox_inches='tight')
-fMean.savefig(moviePath + '/mean_' + str(obj.lineNum) + '_' + str(movieNums[0]) + '-' + str(movieNums[-1]) + '.png', bbox_inches='tight')
-fMed.savefig(moviePath + '/med_' + str(obj.lineNum) + '_' + str(movieNums[0]) + '-' + str(movieNums[-1]) + '.png', bbox_inches='tight')
-fStd.savefig(moviePath + '/std_' + str(obj.lineNum) + '_' + str(movieNums[0]) + '-' + str(movieNums[-1]) + '.png', bbox_inches='tight')
-fRange.savefig(moviePath + '/range_' + str(obj.lineNum) + '_' + str(movieNums[0]) + '-' + str(movieNums[-1]) + '.png', bbox_inches='tight')
+# fMax.savefig(moviePath + '/max_' + str(obj.lineNum) + '_' + str(movieNums[0]) + '-' + str(movieNums[-1]) + '.png', bbox_inches='tight')
+# fMin.savefig(moviePath + '/min_' + str(obj.lineNum) + '_' + str(movieNums[0]) + '-' + str(movieNums[-1]) + '.png', bbox_inches='tight')
+# fMean.savefig(moviePath + '/mean_' + str(obj.lineNum) + '_' + str(movieNums[0]) + '-' + str(movieNums[-1]) + '.png', bbox_inches='tight')
+# fMed.savefig(moviePath + '/med_' + str(obj.lineNum) + '_' + str(movieNums[0]) + '-' + str(movieNums[-1]) + '.png', bbox_inches='tight')
+# fStd.savefig(moviePath + '/std_' + str(obj.lineNum) + '_' + str(movieNums[0]) + '-' + str(movieNums[-1]) + '.png', bbox_inches='tight')
+# fRange.savefig(moviePath + '/range_' + str(obj.lineNum) + '_' + str(movieNums[0]) + '-' + str(movieNums[-1]) + '.png', bbox_inches='tight')
 
-plt.close('all')
+# plt.close('all')
 
 #%% Save arrays of the projections
 # maxpro = np.array(obj.projections['Max'])
