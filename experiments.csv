@@ -1,3 +1,4 @@
+<<<<<<< HEAD,,,,,,,,,,,,,
 line number,id,date (YYMMDD),calcium imaging directory,ephys directory,rat weight (kg),systemic drug,systemic dose (% or mg/kg/min),systemic drug concentration (mg/mL),total systemic time (min),emg channel,events filename,LFP and EEG CSCs,comments
 1,Rtest,200803,,D:\Dropbox\Documents\Brown_Lab\data_analysis_code\miniscopes_EEG\testing\test_recordings\Rtest_200803,NA,NA,NA,NA,NA,EMG.ncs,Events.nev,CBvsPFCEEG;EMG;PCvsCBEEG;PFCvsPCEEG,
 2,Rtest,200914,,D:\Dropbox\Documents\Brown_Lab\data_analysis_code\miniscopes_EEG\testing\test_recordings\Rtest_200914,NA,NA,NA,NA,NA,EMG.ncs,Events.nev,CBvsPFCEEG;EMG;PCvsCBEEG;PFCvsPCEEG,
@@ -100,8 +101,3 @@ line number,id,date (YYMMDD),calcium imaging directory,ephys directory,rat weigh
 99,,,,,,,,,,,,,
 100,,,,,,,,,,,,,
 101,,,,,,,,,,,,,
-,,,,,,,,,,,,,
-,1,2,3,4,5,6,7,8,9,10,11,12,13
-,,,,,,,,,,,,,
-,,,,,,,,,,,,,
-Example,R191014,200116,D:\Dropbox\Documents\Brown_Lab\data_analysis_code\miniscopes_EEG\test_recordings\R191014_R191016_200116_syst_ketamine_CNO,D:\Dropbox\Documents\Brown_Lab\data_analysis_code\miniscopes_EEG\test_recordings\R191014_R191016_200116_syst_ketamine_CNO,0.63,ketamine,4,6,15,EMG.ncs,Events.nev,CBvsPFCEEG;EMG;PCvsCBEEG;PFCvsPCEEG,"CNO was given at 1:41 pm, ~1 hr before the start of the ketamine infusion. No clave; used luer-lock cap. Ketamine dilution was made by putting 2.4 mL of 100 mg/mL ketamine in 37.6 mL saline. Heating pad was already started before recording."
