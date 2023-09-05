@@ -125,7 +125,6 @@ plt.figure(num=7)
 plt.plot(nacorrLagsMinisControl, nacorrMinisControl)
 plt.title('Miniscope normalized auto-correlation, control period, Exp. ' + str(lineNum))
 plt.xlim([-2, 2])
-plt.xlim[xlimitLeft, xlimitRight]
 plt.ylim([-1.1,1.1])
 
 nacorrEphys = correlate(nephys, nephys) / nephys.size
