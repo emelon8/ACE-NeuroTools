@@ -21,7 +21,12 @@ obj.importNeuralynxEvents(analogSignalImported=True)
 obj.syncNeuralynxMiniscopeTimestamps(channel=channel)
 obj.findEphysIdxOfTTLEvents(channel=channel, CaEvents=False)
 
-meanFluorescence = np.load('../../experimental_results/miniscope_ephys_correlation_project/npzFiles/meanFluorescence_' + str(lineNum) + '.npz')
+drug = obj.experiment['systemic drug']
+rat = obj.experiment['animalID']
+
+#meanFluorescence = np.load('../../experimental_results/miniscope_ephys_correlation_project/npzFiles/meanFluorescence_' + str(lineNum) + '.npz')
+meanFluorescence = np.load('/home/lab/Desktop/Correlation Project/npzFiles/meanFluorescence_'+ str(lineNum)+ '.npz')
+
 
 fdataM = misc_functions.filterData(meanFluorescence['meanFluorescence'], n=2, cut=[1,3], ftype='butter', btype='bandpass', fs=fr)
 obj.filterEphys(channel=channel, n=2, cut=[1,3], ftype='butter', inline=False)
@@ -65,11 +70,25 @@ nxcorr = correlate(nminis, nephys) / nminis.size
 nxcorrLags = correlation_lags(nminis.size, nephys.size) / fr
 nlag = nxcorrLags[np.argmax(nxcorr)]
 
+extremes = [np.max(nxcorr),np.min(nxcorr)]
+extremesTimestamps = [nxcorrLags[np.argmax(nxcorr)],nxcorrLags[np.argmin(nxcorr)]]
+
+if np.max(nxcorr) >= abs(np.min(nxcorr)):
+     xlimitLeft = nxcorrLags[np.argmax(nxcorr)] - 2
+     xlimitRight = nxcorrLags[np.argmax(nxcorr)] + 2
+     print('The maximum normalized cross correlation of for the experimental period is ' + str(np.max(nxcorr)) + ' at time ' +  str(nxcorrLags[np.argmax(nxcorr)]) + ' seconds')
+else:
+     xlimitLeft = nxcorrLags[np.argmin(nxcorr)] - 2
+     xlimitRight = nxcorrLags[np.argmin(nxcorr)] + 2
+     print('The minimum normalized cross correlation of for the experimental period is ' + str(np.min(nxcorr)) + ' at time ' +  str(nxcorrLags[np.argmin(nxcorr)])+ ' seconds')
+
+
 plt.figure(num=4)
 plt.plot(nxcorrLags, nxcorr)
 plt.title('Normalized cross-correlation, Exp. ' + str(lineNum))
-plt.xlim([-2, 2])
-
+#plt.xlim([-2, 2])
+plt.xlim([xlimitLeft, xlimitRight])
+plt.ylim([-1.1,1.1])
 
 nminisControl = minisControl/np.std(minisControl)
 nephysControl = ephysControl/np.std(ephysControl)
@@ -77,11 +96,15 @@ nxcorrControl = correlate(nminisControl, nephysControl) / nminisControl.size
 nxcorrLagsControl = correlation_lags(nminisControl.size, nephysControl.size) / fr
 nlagControl = nxcorrLagsControl[np.argmax(nxcorrControl)]
 
+extremesCon = [np.max(nxcorrControl),np.min(nxcorrControl)]
+extremesTimestampsCon  = [nxcorrLagsControl[np.argmax(nxcorrControl)],nxcorrLagsControl[np.argmin(nxcorrControl)]]
+
 plt.figure(num=5)
 plt.plot(nxcorrLagsControl, nxcorrControl)
 plt.title('Normalized cross-correlation, control period, Exp. ' + str(lineNum))
-plt.xlim([-2, 2])
-
+#plt.xlim([-2, 2])
+plt.xlim([xlimitLeft, xlimitRight])
+plt.ylim([-1.1,1.1])
 
 # Calculate and plot the normalized auto-correlation
 nacorrMinis = correlate(nminis, nminis) / nminis.size
@@ -92,6 +115,7 @@ plt.figure(num=6)
 plt.plot(nacorrLagsMinis, nacorrMinis)
 plt.title('Miniscope normalized auto-correlation, Exp. ' + str(lineNum))
 plt.xlim([-2, 2])
+plt.ylim([-1.1,1.1])
 
 nacorrMinisControl = correlate(nminisControl, nminisControl) / nminisControl.size
 nacorrLagsMinisControl = correlation_lags(nminisControl.size, nminisControl.size) / fr
@@ -101,7 +125,7 @@ plt.figure(num=7)
 plt.plot(nacorrLagsMinisControl, nacorrMinisControl)
 plt.title('Miniscope normalized auto-correlation, control period, Exp. ' + str(lineNum))
 plt.xlim([-2, 2])
-
+plt.ylim([-1.1,1.1])
 
 nacorrEphys = correlate(nephys, nephys) / nephys.size
 nacorrLagsEphys = correlation_lags(nephys.size, nephys.size) / fr
@@ -129,3 +153,5 @@ plt.title('Coherence of miniscope fluorescence and ephys, Exp. ' + str(lineNum))
 plt.figure(num=11)
 plt.cohere(nminisControl,nephysControl,Fs=30)
 plt.title('Coherence of miniscope fluorescence and ephys, control period, Exp. ' + str(lineNum))
+
+data = [lineNum, rat, drug, extremes[0], extremesTimestamps[0], extremes[1], extremesTimestamps[1], extremesCon[0], extremesTimestampsCon[0], extremesCon[1], extremesTimestampsCon[1]]
