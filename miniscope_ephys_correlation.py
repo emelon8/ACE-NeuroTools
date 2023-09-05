@@ -25,7 +25,7 @@ drug = obj.experiment['systemic drug']
 rat = obj.experiment['animalID']
 
 #meanFluorescence = np.load('../../experimental_results/miniscope_ephys_correlation_project/npzFiles/meanFluorescence_' + str(lineNum) + '.npz')
-meanFluorescence = np.load('/home/lab/Desktop/npzFiles/meanFluorescence_'+ str(lineNum)+ '.npz')
+meanFluorescence = np.load('/home/lab/Desktop/Correlation Project/npzFiles/meanFluorescence_'+ str(lineNum)+ '.npz')
 
 
 fdataM = misc_functions.filterData(meanFluorescence['meanFluorescence'], n=2, cut=[1,3], ftype='butter', btype='bandpass', fs=fr)
@@ -87,7 +87,7 @@ plt.figure(num=4)
 plt.plot(nxcorrLags, nxcorr)
 plt.title('Normalized cross-correlation, Exp. ' + str(lineNum))
 #plt.xlim([-2, 2])
-plt.xlim[xlimitLeft, xlimitRight]
+plt.xlim([xlimitLeft, xlimitRight])
 plt.ylim([-1.1,1.1])
 
 nminisControl = minisControl/np.std(minisControl)
@@ -103,7 +103,7 @@ plt.figure(num=5)
 plt.plot(nxcorrLagsControl, nxcorrControl)
 plt.title('Normalized cross-correlation, control period, Exp. ' + str(lineNum))
 #plt.xlim([-2, 2])
-plt.xlim[xlimitLeft, xlimitRight]
+plt.xlim([xlimitLeft, xlimitRight])
 plt.ylim([-1.1,1.1])
 
 # Calculate and plot the normalized auto-correlation
