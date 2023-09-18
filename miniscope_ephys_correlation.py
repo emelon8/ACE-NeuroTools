@@ -135,6 +135,7 @@ plt.figure(num=8)
 plt.plot(nacorrLagsEphys, nacorrEphys)
 plt.title('LFP normalized auto-correlation, Exp. ' + str(lineNum))
 plt.xlim([-2, 2])
+plt.ylim([-1.1,1.1])
 
 nacorrEphysControl = correlate(nephysControl, nephysControl) / nephysControl.size
 nacorrLagsEphysControl = correlation_lags(nephysControl.size, nephysControl.size) / fr
@@ -144,14 +145,17 @@ plt.figure(num=9)
 plt.plot(nacorrLagsEphysControl, nacorrEphysControl)
 plt.title('LFP normalized auto-correlation, control period, Exp. ' + str(lineNum))
 plt.xlim([-2, 2])
+plt.ylim([-1.1,1.1])
 
 # Calculate and plot the coherence
 plt.figure(num=10)
 plt.cohere(nminis,nephys,Fs=30)
 plt.title('Coherence of miniscope fluorescence and ephys, Exp. ' + str(lineNum))
+plt.ylim([-1.1,1.1])
 
 plt.figure(num=11)
 plt.cohere(nminisControl,nephysControl,Fs=30)
 plt.title('Coherence of miniscope fluorescence and ephys, control period, Exp. ' + str(lineNum))
+plt.ylim([-1.1,1.1])
 
 data = [lineNum, rat, drug, extremes[0], extremesTimestamps[0], extremes[1], extremesTimestamps[1], extremesCon[0], extremesTimestampsCon[0], extremesCon[1], extremesTimestampsCon[1]]
