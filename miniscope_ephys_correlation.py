@@ -163,4 +163,12 @@ plt.cohere(nminisControlCentered,nephysControlCentered,Fs=30)
 plt.title('Coherence of miniscope fluorescence and ephys, control period, Exp. ' + str(lineNum))
 plt.ylim([-1.1,1.1])
 
+pearsonExperimental = pearsonr(nminis_centered, nephys_centered)
+R1 = pearsonExperimental[0]
+P1 = pearsonExperimental[1]
+
+pearsonControl = pearsonr(nminisControlCentered, nephysControlCentered)
+R2 = pearsonControl[0]
+P2 = pearsonControl[1]
+
 data = [lineNum, rat, drug, extremes[0], extremesTimestamps[0], extremes[1], extremesTimestamps[1], extremesCon[0], extremesTimestampsCon[0], extremesCon[1], extremesTimestampsCon[1]]
