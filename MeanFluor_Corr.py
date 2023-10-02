@@ -17,15 +17,17 @@ import numpy as np
 import misc_functions
 
 df_centered = pd.DataFrame(columns=['experiment', 'rat', 'drug', 'MPE', 'MPELag', 'MNE', 'MNELag', 'MPC', 'MPCLag', 'MNC', 'MNCLag', 'expR', 'expP', 'conR', 'conP'])
-experiments = [35,37,38,83,36,43,44,86,39,42,45,85,40,41,48,87,46,47,64,88,53,54,67,70,58,66,72,76,56,60,74,75,57,63,69,73,62,65,80]
+nonTg = [35,37,38,83,90,92,36,43,44,86,39,42,45,85,40,41,48,87,46,47,64,88]
+#nonTg = [35,37,38,83,90,92,36,43,44,86,99, 103, 39,42,45,85, 95,96,40,41,48,87,93,94,46,47,64,88,97,101]
+Tg = [53,54,67,70,58,66,72,76,56,60,74,75,57,63,69,73,62,65,80]
 
-for i in experiments: 
+for i in nonTg: 
     lineNum = i
     channel = 'PFCLFPvsCBEEG'
     
     obj = miniscope_ephys.miniscopeEphys(lineNum)
     fr = obj.experiment['frameRate']
-    obj.importEphysData(channels=[channel, 'PFCEEGvsCBEEG'])
+    obj.importEphysData(channels=[channel])
     obj.importNeuralynxEvents(analogSignalImported=True)
     obj.syncNeuralynxMiniscopeTimestamps(channel=channel)
     obj.findEphysIdxOfTTLEvents(channel=channel, CaEvents=False)
@@ -86,8 +88,8 @@ for i in experiments:
     extremesCon = [np.max(nxcorrControl),np.min(nxcorrControl)]
     extremesTimestampsCon  = [nxcorrLagsControl[np.argmax(nxcorrControl)],nxcorrLagsControl[np.argmin(nxcorrControl)]]
     
-    nacorrMinis = correlate(nminis, nminis) / nminis.size
-    nacorrLagsMinis = correlation_lags(nminis.size, nminis.size) / fr
+    nacorrMinis = correlate(nminis_centered, nminis_centered) / nminis_centered.size
+    nacorrLagsMinis = correlation_lags(nminis_centered.size, nminis_centered.size) / fr
     nlag = nacorrLagsMinis[np.argmax(nacorrMinis)]
     
     nacorrMinisControl = correlate(nminisControlCentered, nminisControlCentered) / nminisControlCentered.size
@@ -102,13 +104,9 @@ for i in experiments:
     nacorrLagsEphysControl = correlation_lags(nephysControlCentered.size, nephysControlCentered.size) / fr
     nlagEphysControl = nacorrLagsEphysControl[np.argmax(nacorrEphysControl)]
     
-    pearsonExperimental = pearsonr(nminis_centered, nephys_centered)
-    R1 = pearsonExperimental[0]
-    P1 = pearsonExperimental[1]
+    R1,P1 = pearsonr(nminis_centered, nephys_centered)
     
-    pearsonControl = pearsonr(nminisControlCentered, nephysControlCentered)
-    R2 = pearsonControl[0]
-    P2 = pearsonControl[1]
+    R2,P2 = pearsonr(nminisControlCentered, nephysControlCentered)
     
     data = [lineNum, rat, drug, extremes[0], extremesTimestamps[0], extremes[1], extremesTimestamps[1], extremesCon[0], extremesTimestampsCon[0], extremesCon[1], extremesTimestampsCon[1], R1, P1, R2, P2]
     

@@ -28,7 +28,6 @@ rat = obj.experiment['animalID']
 #meanFluorescence = np.load('../../experimental_results/miniscope_ephys_correlation_project/npzFiles/meanFluorescence_' + str(lineNum) + '.npz')
 meanFluorescence = np.load('/home/lab/Desktop/Correlation Project/npzFiles/meanFluorescence_'+ str(lineNum)+ '.npz')
 
-
 fdataM = misc_functions.filterData(meanFluorescence['meanFluorescence'], n=2, cut=[1,3], ftype='butter', btype='bandpass', fs=fr)
 obj.filterEphys(channel=channel, n=2, cut=[1,3], ftype='butter', inline=False)
 
@@ -163,12 +162,8 @@ plt.cohere(nminisControlCentered,nephysControlCentered,Fs=30)
 plt.title('Coherence of miniscope fluorescence and ephys, control period, Exp. ' + str(lineNum))
 plt.ylim([-1.1,1.1])
 
-pearsonExperimental = pearsonr(nminis_centered, nephys_centered)
-R1 = pearsonExperimental[0]
-P1 = pearsonExperimental[1]
+R1, P1 = pearsonr(nminis_centered, nephys_centered)
 
-pearsonControl = pearsonr(nminisControlCentered, nephysControlCentered)
-R2 = pearsonControl[0]
-P2 = pearsonControl[1]
+R2, P2 = pearsonr(nminisControlCentered, nephysControlCentered)
 
 data = [lineNum, rat, drug, extremes[0], extremesTimestamps[0], extremes[1], extremesTimestamps[1], extremesCon[0], extremesTimestampsCon[0], extremesCon[1], extremesTimestampsCon[1]]
