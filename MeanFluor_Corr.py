@@ -5,85 +5,111 @@ Created on Fri June 9 9:00:00 2023
 @author: Rachael Fisher 
 
 This script is used to crop within lens and find average fluorescence and compare with Ephys data, correlation and cross correlation metrics.
+Forloop, No graphs, dataframe result
 """
+
+from scipy.signal import correlate, correlation_lags, coherence
+import pandas as pd
+from scipy.stats import pearsonr
 import miniscope_ephys
-import misc_functions
-import numpy as np
-from pylab import *
-from scipy.signal import butter, freqz, filtfilt, firwin, bode
 import matplotlib.pyplot as plt
+import numpy as np
+import misc_functions
 
-#load data
-lineNum = 43
-channel ='PFCLFPvsCBEEG'
+df_centered = pd.DataFrame(columns=['experiment', 'rat', 'drug', 'MPE', 'MPELag', 'MNE', 'MNELag', 'MPC', 'MPCLag', 'MNC', 'MNCLag', 'expR', 'expP', 'conR', 'conP'])
+experiments = [35,37,38,83,36,43,44,86,39,42,45,85,40,41,48,87,46,47,64,88,53,54,67,70,58,66,72,76,56,60,74,75,57,63,69,73,62,65,80]
 
-obj = miniscope_ephys.miniscopeEphys(lineNum)
-
-obj.importEphysData()
-obj.importNeuralynxEvents(analogSignalImported=True)
-obj.syncNeuralynxMiniscopeTimestamps()
-obj.findEphysIdxOfTTLEvents(CaEvents=False)
-
-#if videos have already been analyzed, insert path  
-meanFluorescence_43 = np.load('')
-
-#for if npz file not created yet
-obj.computeProjections(time = True)
-# for loading and cropping all calcium videos 
-numMovies = int(np.ceil(len(obj.timeStamps)/1000)) # The total number of calcium movie files
-
-for i in range(numMovies):
-    obj.importCaMovies(os.path.join(obj.experiment['calcium imaging directory'], 'Miniscope', str(i) + '.avi'))
-    obj.preprocessCaMovies(saveMovie=True, crop=True, cropGUI=False, square=square)
-
-# unfiltered calcium = obj.projections["time"]
-
-#filter miniscope data... artifact removal?
-fdataM = misc_functions.filterData(meanFluorescence_43['meanFluorescence'], n=2, cut=[1,3], ftype='butter', btype='bandpass', fs=obj.experiment['frameRate'])
-
-#EEG DATA
-obj.artifactRemoval(channel = channel, VThreshold=1600) # VThreshold will change based on exp
-obj.filterEphys(channel = channel, n=2, cut=[1,3],ftype='butter',inline=False)
-
-#control periods
-conTimeSecStart = obj._analysisParamsDict['control periods (s)'][0]
-conTimeSecEnd = obj._analysisParamsDict['control periods (s)'][-1]
-conFrameStart = np.where(obj.tEphys[channel][obj.ephysIdxAllTTLEvents]>conTimeSecStart)[0][0]
-conFrameEnd = np.where(obj.tEphys[channel][obj.ephysIdxAllTTLEvents]<conTimeSecEnd)[0][-1]
-sliced = fdataM[conFrameStart:conFrameEnd]
-conEphysData = obj.ephys[channel][obj.ephysIdxAllTTLEvents][conFrameStart:conFrameEnd]
-conTEphysData = obj.tEphys[channel][obj.ephysIdxAllTTLEvents][conFrameStart:conFrameEnd]
-
-conCorr = signal.correlate(sliced, ephysData, mode='full', method='auto')
-normConCorr = conCorr / (len(sliced)*np.std(sliced)* np.std(conEphysData))
-
-plt.figure()
-plt.plot(normConCorr)
-
-#experimental periods
-exptimeSecStart = obj._analysisParamsDict['periods of high slow wave power (s)'][0]
-exptimeSecEnd = obj._analysisParamsDict['periods of high slow wave power (s)'][-1]
-expframeStart = np.where(obj.tEphys[channel][obj.ephysIdxAllTTLEvents]>exptimeSecStart)[0][0]
-expframeEnd = np.where(obj.tEphys[channel][obj.ephysIdxAllTTLEvents]<exptimeSecEnd)[0][-1]
-____________________________________________________________________________________________________________________________________________________________________________________
-
-obj.filterMiniscope(inline = False)
-filteredCalcium = obj.fdata[0].data
-
-zscoreCa = (filteredCalcium - np.mean(filteredCalcium)) / np.std(filteredCalcium)
-normalizedCa1 = filteredCalcium/np.max(filteredCalcium) 
-normalizedCa2 = (filteredCalcium - np.min(filteredCalcium))/ np.ptp(filteredCalcium) # zero to one
-
-
-filteredEphys = obj.fdata[1].data[obj.ephysIdxAllTTLEvents[0:len(filteredCalcium)]] #prints array of filtered data
-unfilteredEphys = obj.ephys[channel][obj.ephysIdxAllTTLEvents[0:len(filteredCalcium)]]
-
-zscoreEphys = (filteredEphys - np.mean(filteredEphys)) / np.std(filteredEphys)
-normalized1Ephys = filteredEphys/np.max(filteredEphys) 
-normalized2Ephys = (filteredEphys - np.min(filteredEphys))/ np.ptp(filteredEphys) # zero to one
-
-timestamps = obj.tEphys[channel][obj.ephysIdxAllTTLEvents[0:len(filteredCalcium)]]
-
-plt.plot(timestamps, normalized1Ephys)
-plt.plot(timestamps, normalizedCa1)
-plt.show()
+for i in experiments: 
+    lineNum = i
+    channel = 'PFCLFPvsCBEEG'
+    
+    obj = miniscope_ephys.miniscopeEphys(lineNum)
+    fr = obj.experiment['frameRate']
+    obj.importEphysData(channels=[channel, 'PFCEEGvsCBEEG'])
+    obj.importNeuralynxEvents(analogSignalImported=True)
+    obj.syncNeuralynxMiniscopeTimestamps(channel=channel)
+    obj.findEphysIdxOfTTLEvents(channel=channel, CaEvents=False)
+    
+    drug = obj.experiment['systemic drug']
+    rat = obj.experiment['animalID']
+    
+    meanFluorescence = np.load('/home/lab/Desktop/Correlation Project/npzFiles/meanFluorescence_'+ str(lineNum)+ '.npz')
+    
+    fdataM = misc_functions.filterData(meanFluorescence['meanFluorescence'], n=2, cut=[1,3], ftype='butter', btype='bandpass', fs=fr)
+    obj.filterEphys(channel=channel, n=2, cut=[1,3], ftype='butter', inline=False)
+    
+    # Times (s) to analyze based on the ephys spectrogram
+    begin = obj._analysisParamsDict['periods of high slow wave power (s)'][0]
+    end = obj._analysisParamsDict['periods of high slow wave power (s)'][1]
+    beginControl = obj._analysisParamsDict['control periods (s)'][0]
+    endControl = obj._analysisParamsDict['control periods (s)'][1]
+    
+    start = np.where(obj.tEphys[channel][obj.ephysIdxAllTTLEvents]>begin)[0][0]
+    stop = np.where(obj.tEphys[channel][obj.ephysIdxAllTTLEvents]>end)[0][0]
+    startControl = np.where(obj.tEphys[channel][obj.ephysIdxAllTTLEvents]>beginControl)[0][0]
+    stopControl = np.where(obj.tEphys[channel][obj.ephysIdxAllTTLEvents]>endControl)[0][0]
+    
+    ephys = obj.fdata[0].data[obj.ephysIdxAllTTLEvents][start:stop]
+    minis = fdataM[start:stop]
+    ephysControl = obj.fdata[0].data[obj.ephysIdxAllTTLEvents][startControl:stopControl]
+    minisControl = fdataM[startControl:stopControl]
+    
+    # Calculate and plot the normalized cross-correlation
+    nminis = minis/np.std(minis)
+    nminis_centered = nminis - np.average(nminis)
+    nephys = ephys/np.std(ephys)
+    nephys_centered = nephys - np.average(nephys)
+    nxcorr = correlate(nminis_centered, nephys_centered) / nminis_centered.size
+    nxcorrLags = correlation_lags(nminis_centered.size, nephys_centered.size) / fr
+    nlag = nxcorrLags[np.argmax(nxcorr)]
+    
+    extremes = [np.max(nxcorr),np.min(nxcorr)]
+    extremesTimestamps = [nxcorrLags[np.argmax(nxcorr)],nxcorrLags[np.argmin(nxcorr)]]
+    
+    if np.max(nxcorr) >= abs(np.min(nxcorr)):
+         xlimitLeft = nxcorrLags[np.argmax(nxcorr)] - 2
+         xlimitRight = nxcorrLags[np.argmax(nxcorr)] + 2
+         print('The maximum normalized cross correlation of for the experimental period is ' + str(np.max(nxcorr)) + ' at time ' +  str(nxcorrLags[np.argmax(nxcorr)]) + ' seconds')
+    else:
+         xlimitLeft = nxcorrLags[np.argmin(nxcorr)] - 2
+         xlimitRight = nxcorrLags[np.argmin(nxcorr)] + 2
+         print('The minimum normalized cross correlation of for the experimental period is ' + str(np.min(nxcorr)) + ' at time ' +  str(nxcorrLags[np.argmin(nxcorr)])+ ' seconds')
+    
+    nminisControl = minisControl/np.std(minisControl)
+    nminisControlCentered = nminisControl - (np.average(nminisControl))
+    nephysControl = ephysControl/np.std(ephysControl)
+    nephysControlCentered = nephysControl - (np.average(nephysControl))
+    nxcorrControl = correlate(nminisControlCentered, nephysControlCentered) / nminisControlCentered.size
+    nxcorrLagsControl = correlation_lags(nminisControlCentered.size, nephysControlCentered.size) / fr
+    nlagControl = nxcorrLagsControl[np.argmax(nxcorrControl)]
+    
+    extremesCon = [np.max(nxcorrControl),np.min(nxcorrControl)]
+    extremesTimestampsCon  = [nxcorrLagsControl[np.argmax(nxcorrControl)],nxcorrLagsControl[np.argmin(nxcorrControl)]]
+    
+    nacorrMinis = correlate(nminis, nminis) / nminis.size
+    nacorrLagsMinis = correlation_lags(nminis.size, nminis.size) / fr
+    nlag = nacorrLagsMinis[np.argmax(nacorrMinis)]
+    
+    nacorrMinisControl = correlate(nminisControlCentered, nminisControlCentered) / nminisControlCentered.size
+    nacorrLagsMinisControl = correlation_lags(nminisControlCentered.size, nminisControlCentered.size) / fr
+    nlagMinisControl = nacorrLagsMinisControl[np.argmax(nacorrMinisControl)]
+    
+    nacorrEphys = correlate(nephys_centered, nephys_centered) / nephys_centered.size
+    nacorrLagsEphys = correlation_lags(nephys_centered.size, nephys_centered.size) / fr
+    nlagEphys = nacorrLagsEphys[np.argmax(nacorrEphys)]
+    
+    nacorrEphysControl = correlate(nephysControlCentered, nephysControlCentered) / nephysControlCentered.size
+    nacorrLagsEphysControl = correlation_lags(nephysControlCentered.size, nephysControlCentered.size) / fr
+    nlagEphysControl = nacorrLagsEphysControl[np.argmax(nacorrEphysControl)]
+    
+    pearsonExperimental = pearsonr(nminis_centered, nephys_centered)
+    R1 = pearsonExperimental[0]
+    P1 = pearsonExperimental[1]
+    
+    pearsonControl = pearsonr(nminisControlCentered, nephysControlCentered)
+    R2 = pearsonControl[0]
+    P2 = pearsonControl[1]
+    
+    data = [lineNum, rat, drug, extremes[0], extremesTimestamps[0], extremes[1], extremesTimestamps[1], extremesCon[0], extremesTimestampsCon[0], extremesCon[1], extremesTimestampsCon[1], R1, P1, R2, P2]
+    
+    df_centered.loc[ len(df_centered) ] = data
