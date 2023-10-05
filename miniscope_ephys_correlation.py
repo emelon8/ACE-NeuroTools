@@ -6,6 +6,7 @@ Created on Tue Jul 25 17:27:39 2023
 """
 
 from scipy.signal import correlate, correlation_lags, coherence
+from scipy.stats import pearsonr
 import miniscope_ephys
 import matplotlib.pyplot as plt
 import numpy as np
@@ -31,7 +32,7 @@ meanFluorescence = np.load('/home/lab/Desktop/Correlation Project/npzFiles/meanF
 fdataM = misc_functions.filterData(meanFluorescence['meanFluorescence'], n=2, cut=[1,3], ftype='butter', btype='bandpass', fs=fr)
 obj.filterEphys(channel=channel, n=2, cut=[1,3], ftype='butter', inline=False)
 
-obj.computeSpectrogram(freqLims=[0,15], windowLength=10, windowStep=1)
+obj.computeSpectrogram(freqLims=[0,15], channel = channel, windowLength=10, windowStep=1)
 plt.gcf()
 ax = plt.gca()
 xl = ax.get_xlim()
@@ -65,9 +66,11 @@ minisControl = fdataM[startControl:stopControl]
 
 # Calculate and plot the normalized cross-correlation
 nminis = minis/np.std(minis)
+nminis_centered = nminis - np.average(nminis)
 nephys = ephys/np.std(ephys)
-nxcorr = correlate(nminis, nephys) / nminis.size
-nxcorrLags = correlation_lags(nminis.size, nephys.size) / fr
+nephys_centered = nephys - np.average(nephys)
+nxcorr = correlate(nminis_centered, nephys_centered) / nminis_centered.size
+nxcorrLags = correlation_lags(nminis_centered.size, nephys_centered.size) / fr
 nlag = nxcorrLags[np.argmax(nxcorr)]
 
 extremes = [np.max(nxcorr),np.min(nxcorr)]
@@ -91,9 +94,11 @@ plt.xlim([xlimitLeft, xlimitRight])
 plt.ylim([-1.1,1.1])
 
 nminisControl = minisControl/np.std(minisControl)
+nminisControlCentered = nminisControl - (np.average(nminisControl))
 nephysControl = ephysControl/np.std(ephysControl)
-nxcorrControl = correlate(nminisControl, nephysControl) / nminisControl.size
-nxcorrLagsControl = correlation_lags(nminisControl.size, nephysControl.size) / fr
+nephysControlCentered = nephysControl - (np.average(nephysControl))
+nxcorrControl = correlate(nminisControlCentered, nephysControlCentered) / nminisControlCentered.size
+nxcorrLagsControl = correlation_lags(nminisControlCentered.size, nephysControlCentered.size) / fr
 nlagControl = nxcorrLagsControl[np.argmax(nxcorrControl)]
 
 extremesCon = [np.max(nxcorrControl),np.min(nxcorrControl)]
@@ -107,8 +112,8 @@ plt.xlim([xlimitLeft, xlimitRight])
 plt.ylim([-1.1,1.1])
 
 # Calculate and plot the normalized auto-correlation
-nacorrMinis = correlate(nminis, nminis) / nminis.size
-nacorrLagsMinis = correlation_lags(nminis.size, nminis.size) / fr
+nacorrMinis = correlate(nminis_centered, nminis_centered) / nminis_centered.size
+nacorrLagsMinis = correlation_lags(nminis_centered.size, nminis_centered.size) / fr
 nlag = nacorrLagsMinis[np.argmax(nacorrMinis)]
 
 plt.figure(num=6)
@@ -117,8 +122,8 @@ plt.title('Miniscope normalized auto-correlation, Exp. ' + str(lineNum))
 plt.xlim([-2, 2])
 plt.ylim([-1.1,1.1])
 
-nacorrMinisControl = correlate(nminisControl, nminisControl) / nminisControl.size
-nacorrLagsMinisControl = correlation_lags(nminisControl.size, nminisControl.size) / fr
+nacorrMinisControl = correlate(nminisControlCentered, nminisControlCentered) / nminisControlCentered.size
+nacorrLagsMinisControl = correlation_lags(nminisControlCentered.size, nminisControlCentered.size) / fr
 nlagMinisControl = nacorrLagsMinisControl[np.argmax(nacorrMinisControl)]
 
 plt.figure(num=7)
@@ -127,8 +132,8 @@ plt.title('Miniscope normalized auto-correlation, control period, Exp. ' + str(l
 plt.xlim([-2, 2])
 plt.ylim([-1.1,1.1])
 
-nacorrEphys = correlate(nephys, nephys) / nephys.size
-nacorrLagsEphys = correlation_lags(nephys.size, nephys.size) / fr
+nacorrEphys = correlate(nephys_centered, nephys_centered) / nephys_centered.size
+nacorrLagsEphys = correlation_lags(nephys_centered.size, nephys_centered.size) / fr
 nlagEphys = nacorrLagsEphys[np.argmax(nacorrEphys)]
 
 plt.figure(num=8)
@@ -137,8 +142,8 @@ plt.title('LFP normalized auto-correlation, Exp. ' + str(lineNum))
 plt.xlim([-2, 2])
 plt.ylim([-1.1,1.1])
 
-nacorrEphysControl = correlate(nephysControl, nephysControl) / nephysControl.size
-nacorrLagsEphysControl = correlation_lags(nephysControl.size, nephysControl.size) / fr
+nacorrEphysControl = correlate(nephysControlCentered, nephysControlCentered) / nephysControlCentered.size
+nacorrLagsEphysControl = correlation_lags(nephysControlCentered.size, nephysControlCentered.size) / fr
 nlagEphysControl = nacorrLagsEphysControl[np.argmax(nacorrEphysControl)]
 
 plt.figure(num=9)
@@ -149,13 +154,21 @@ plt.ylim([-1.1,1.1])
 
 # Calculate and plot the coherence
 plt.figure(num=10)
-plt.cohere(nminis,nephys,Fs=30)
+plt.cohere(nminis_centered,nephys_centered,Fs=30)
 plt.title('Coherence of miniscope fluorescence and ephys, Exp. ' + str(lineNum))
 plt.ylim([-1.1,1.1])
 
 plt.figure(num=11)
-plt.cohere(nminisControl,nephysControl,Fs=30)
+plt.cohere(nminisControlCentered,nephysControlCentered,Fs=30)
 plt.title('Coherence of miniscope fluorescence and ephys, control period, Exp. ' + str(lineNum))
 plt.ylim([-1.1,1.1])
+
+pearsonExperimental = pearsonr(nminis_centered, nephys_centered)
+R1 = pearsonExperimental[0]
+P1 = pearsonExperimental[1]
+
+pearsonControl = pearsonr(nminisControlCentered, nephysControlCentered)
+R2 = pearsonControl[0]
+P2 = pearsonControl[1]
 
 data = [lineNum, rat, drug, extremes[0], extremesTimestamps[0], extremes[1], extremesTimestamps[1], extremesCon[0], extremesTimestampsCon[0], extremesCon[1], extremesTimestampsCon[1]]
