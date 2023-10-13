@@ -20,7 +20,7 @@ lendiff = []
 alternating = []
 driftFit = []
 
-for k in [64]:#48,64]: #35,36,37,38,39,40,41,42,43,44,45,46,47,
+for k in [96]:#48,64]: #35,36,37,38,39,40,41,42,43,44,45,46,47,
     obj = miniscope_ephys.miniscopeEphys(k)
     obj.importEphysData(channels=['PFCEEGvsCBEEG'])
     obj.importNeuralynxEvents(analogSignalImported=True)
