@@ -45,7 +45,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         self.tCaIm = self.NeuralynxEvents['timestamps'][frameAcqIdx]
         
         # Check for gaps in the TTL event timestamps and insert a timestamp guess if needed
-        self.lowConfidencePeriods = np.array([])
+        self.lowConfidencePeriods = np.empty((0,2))
         self._correcttCaIm(self.NeuralynxEvents['labels'][frameAcqIdx])
         
         # delete the TTL events that correspond to dropped frames in the saved calcium movie, specified in analysis_parameters.csv. This currently assumes that any gaps in the TTL events have been corrected already.
@@ -77,8 +77,8 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
             gapLength.append(round(dtCaIm[gapIdx]/(1/self.experiment['frameRate']))) # Guesses how many timesteps occur in the gap. E.g., a 30 Hz video with a gap of 67 ms will have 2 timesteps in the gap.
             print(str(gapLength[k]-1) + ' TTL event(s) is/are missing between index numbers ' + str(gapIdx) + ' and ' + str(gapIdx + 1) + '.')
             estimatedEventTimes = np.linspace(self.tCaIm[gapIdx], self.tCaIm[gapIdx+1], gapLength[k]+1) # Estimates the timing of the TTLs, beginning at the one before the gap and ending at the one after the gap.
-            self.tCaIm = np.insert(self.tCaIm, gapIdx, estimatedEventTimes[:-1])
-            self.lowConfidencePeriods = np.append(self.lowConfidencePeriods, [[gapIdx, gapIdx+gapLength[k]-1]], axis=0)
+            self.tCaIm = np.insert(self.tCaIm, gapIdx+1, estimatedEventTimes[1:-1])
+            self.lowConfidencePeriods = np.append(self.lowConfidencePeriods, [[gapIdx, gapIdx+gapLength[k]]], axis=0)
 
 
     def correctTimeStamps_OLD(self,channel='PFCLFPvsCBEEG', plot=False):
