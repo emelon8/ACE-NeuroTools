@@ -36,13 +36,20 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
 
 
 #%% Methods for extracting timing of calcium image acquisition, deleting timestamps of dropped frames, and matching timestamps with ephys timestamps
-    def syncNeuralynxMiniscopeTimestamps(self, channel='PFCLFPvsCBEEG', deleteTTLs=True):
+    def syncNeuralynxMiniscopeTimestamps(self, channel='PFCLFPvsCBEEG', deleteTTLs=True, onlyExperimentEvents=True):
         """Create time vector for calcium movies from TTL events in Neuralynx."""
         print('Syncing calcium movie times...')
         
         # create the self.tCaIm, which is the array of labels and timestamps for the Neuralynx events that occur for each calcium image frame acquisition
         frameAcqIdx = (self.NeuralynxEvents['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0000).') | (self.NeuralynxEvents['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0001).')
         self.tCaIm = self.NeuralynxEvents['timestamps'][frameAcqIdx]
+        
+        # make an array of the Neuralynx events with the TTL events removed
+        if onlyExperimentEvents:
+            experimentEventIdx = np.invert(frameAcqIdx)
+            self.NeuralynxExperimentEvents = {}
+            self.NeuralynxExperimentEvents['labels'] = self.NeuralynxEvents['labels'][experimentEventIdx]
+            self.NeuralynxExperimentEvents['timestamps'] = self.NeuralynxEvents['timestamps'][experimentEventIdx]
         
         # Check for gaps in the TTL event timestamps and insert a timestamp guess if needed
         self.lowConfidencePeriods = np.empty((0,2))
