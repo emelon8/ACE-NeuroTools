@@ -113,6 +113,33 @@ class NeuralynxEphys(experiment.experiment):
         self.NeuralynxEvents['labels'] = npUnsortedEventLabels[evSortInds]
         self.NeuralynxEvents['timestamps'] = npUnsortedEventTimestamps[evSortInds] # - self.zeroTime[next(iter(self.zeroTime))]
 
+
+    def loadAgentAnalyzer(self, filename='S5DataExport.csv'):
+        filepath = self.experiment['ephys directory'] + '/' + filename
+        agentAnalyzerCSV = []
+        with open(filepath, newline='') as s:
+            reader = csv.reader(s)
+            for row in reader:
+                agentAnalyzerCSV.append(row)
+                
+        # Make a dictionary with each of the columns in the CSV file
+        self.agentAnalyzer = {}
+        for k, columnTitle in enumerate(agentAnalyzerCSV[2]):
+            try:
+                self.agentAnalyzer[columnTitle] = []
+                if columnTitle == 'Date':
+                    for h in range(3,len(agentAnalyzerCSV)):
+                        dateAndTimeString = agentAnalyzerCSV[h][k] + ' ' + agentAnalyzerCSV[h][k+1]
+                        tempDateTime = datetime.strptime(dateAndTimeString, "%m/%d/%Y %I:%M:%S %p")
+                        self.agentAnalyzer[columnTitle].append(tempDateTime)
+                elif columnTitle != 'Time':
+                    for h in range(3,len(agentAnalyzerCSV)):
+                        self.agentAnalyzer[columnTitle].append(agentAnalyzerCSV[h][k])
+                    if (columnTitle == ' AA FI') or (columnTitle == ' O2 FI'):
+                        self.agentAnalyzer[columnTitle] = np.array(self.agentAnalyzer[columnTitle], dtype=float)
+            except:
+                break
+
         
     def computeSpectrogram(self, channel='PFCLFPvsCBEEG', windowLength=30, 
                            windowStep=3, freqLims=[0,50], bandwidth=2, 
