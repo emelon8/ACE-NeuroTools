@@ -239,7 +239,7 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
 
         # Makes sure path ends with '/'
 
-        if filePath[-1] is not "/":
+        if filePath[-1] != "/":
             filePath = filePath + "/"
         print('filePath=' + filePath)
 
@@ -467,13 +467,13 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
         codec = cv2.VideoWriter_fourcc(compressionCodec[0], compressionCodec[1], compressionCodec[2],
                                        compressionCodec[3])
 
-        if mode is "save" and not path.exists(filePath + "Denoised"):
+        if mode == "save" and not path.exists(filePath + "Denoised"):
             os.mkdir(filePath + "Denoised")
 
         while not (not path.exists(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum)) or not (running is True)):
             cap = cv2.VideoCapture(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum))
 
-            if mode is "save":
+            if mode == "save":
                 writeFile = cv2.VideoWriter(
                     filePath + "Denoised/" + jobID + dataFilePrefix + "denoised{:.0f}.avi".format(fileNum),
                     codec, 60, (cols, rows), isColor=False)
@@ -505,10 +505,10 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
                     img_back[img_back > 255] = 255
                     img_back = np.uint8(img_back)
 
-                    if mode is "save":
+                    if mode == "save":
                         writeFile.write(img_back)
 
-                    if mode is "display":
+                    if mode == "display":
                         im_diff = (128 + (frame - img_back) * 2)
                         im_v = cv2.hconcat([frame, img_back])
                         im_v = cv2.hconcat([im_v, im_diff])
@@ -522,7 +522,7 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
 
                     frameCount = frameCount + 1
 
-            if mode is "save":
+            if mode == "save":
                 writeFile.release()
 
         cv2.destroyAllWindows()
