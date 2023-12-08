@@ -15,7 +15,7 @@ if len(sys.argv) > 1:
     jobID = sys.argv[1] + '_'
 
 square=False
-lineNum = 37
+lineNum = 90
 
 obj = miniscope.UCLAMiniscope(lineNum=lineNum, jobID=jobID)
 

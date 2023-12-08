@@ -146,16 +146,23 @@ class UCLAMiniscope(experiment.experiment):
 
     def importCaMovies(self, filenames=None, fileExtensions='.avi'):
         """Import calcium imaging data. Not necessary if using processCaMovies().
-        FILENAMES can be a single movie file or a list of movie files (in the order that you want them)."""
+        FILENAMES can be a single movie file or a list of movie files (in the order that you want them). If FILENAMES doesn't point to a file (either absolute or relative path from the PWD), it will append the path to the calcium imaging directory to the front of the filename."""
         if filenames == None:
             self.findMovieFilePaths(fileExtensions=fileExtensions)
             filenames = self.movieFilePaths
-        else:
+        elif type(filenames)==list:
+            for k in range(len(filenames)):
+                if not os.path.isfile(filenames[k]):
+                    filenames[k] = self.experiment['calcium imaging directory'] + '/Miniscope/' + filenames[k]
             self.movieFilePaths = filenames
-        if type(filenames) is str:
-            self.movie = cm.load(filenames)
         else:
+            if not os.path.isfile(filenames):
+                    filenames = self.experiment['calcium imaging directory'] + '/Miniscope/' + filenames
+            self.movieFilePaths = filenames
+        if type(filenames) is list:
             self.movie = cm.load_movie_chain(filenames)
+        else:
+            self.movie = cm.load(filenames)
 
 
     def convertCaMovies(self, filenames=None, newFileType='.tif', joinMovies=False, metaDataConvert=True):

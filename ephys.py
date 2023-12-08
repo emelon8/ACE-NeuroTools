@@ -24,6 +24,8 @@ import sys
 import time
 # get_ipython().run_line_magic('matplotlib', 'inline')
 from scipy.io import loadmat
+import csv
+from datetime import datetime
 
 class NeuralynxEphys(experiment.experiment):
     """This is the class definition for handling Neuralynx ephys data."""
@@ -114,28 +116,27 @@ class NeuralynxEphys(experiment.experiment):
         self.NeuralynxEvents['timestamps'] = npUnsortedEventTimestamps[evSortInds] # - self.zeroTime[next(iter(self.zeroTime))]
 
 
-    def loadAgentAnalyzer(self, filename='S5DataExport.csv'):
+    def importAgentAnalyzerData(self, filename='S5DataExport.csv'):
         filepath = self.experiment['ephys directory'] + '/' + filename
         agentAnalyzerCSV = []
-        with open(filepath, newline='') as s:
+        with open(filepath, newline='', encoding='utf-8-sig') as s:
             reader = csv.reader(s)
             for row in reader:
                 agentAnalyzerCSV.append(row)
                 
         # Make a dictionary with each of the columns in the CSV file
         self.agentAnalyzer = {}
-        for k, columnTitle in enumerate(agentAnalyzerCSV[2]):
+        for k, columnTitle in enumerate(agentAnalyzerCSV[0]):
             try:
                 self.agentAnalyzer[columnTitle] = []
-                if columnTitle == 'Date':
-                    for h in range(3,len(agentAnalyzerCSV)):
-                        dateAndTimeString = agentAnalyzerCSV[h][k] + ' ' + agentAnalyzerCSV[h][k+1]
-                        tempDateTime = datetime.strptime(dateAndTimeString, "%m/%d/%Y %I:%M:%S %p")
+                if columnTitle == 'Time':
+                    for h in range(1,len(agentAnalyzerCSV)):
+                        tempDateTime = datetime.strptime(agentAnalyzerCSV[h][k], "%d-%m-%Y  %H:%M:%S")
                         self.agentAnalyzer[columnTitle].append(tempDateTime)
-                elif columnTitle != 'Time':
-                    for h in range(3,len(agentAnalyzerCSV)):
+                else:
+                    for h in range(1,len(agentAnalyzerCSV)):
                         self.agentAnalyzer[columnTitle].append(agentAnalyzerCSV[h][k])
-                    if (columnTitle == ' AA FI') or (columnTitle == ' O2 FI'):
+                    if (columnTitle == 'AA_FI') or (columnTitle == 'O2_FI'):
                         self.agentAnalyzer[columnTitle] = np.array(self.agentAnalyzer[columnTitle], dtype=float)
             except:
                 break

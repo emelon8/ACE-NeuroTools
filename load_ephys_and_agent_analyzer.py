@@ -9,8 +9,8 @@ Created on Thu Nov 30 12:14:48 2023
 import ephys
 import matplotlib.pyplot as plt
 
-obj = ephys.NeuralynxEphys(104)
+obj = ephys.NeuralynxEphys(107)
 
-obj.loadAgentAnalyzer()
+obj.importAgentAnalyzerData()
 
-obj.importEphysData()
+# obj.importEphysData()
