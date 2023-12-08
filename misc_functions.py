@@ -25,20 +25,19 @@ import os.path
 from os import path
 from matplotlib import pyplot as plt
 import csv
-import sys
 from scipy import stats
 
 
-def _overlapBinning(data, windowLength, windowStep):
-    # Prepare signal for ephys.computeSpectrogram(). Developed with code mostly from Morgan Siegmann. Takes a 1D array and bins it into segments that overlap and then forms into a matrix. windowLength and windowStep units are samples.
-    startInds = np.arange(0, len(data), windowStep)
-    # Check to see if the last row is full window length
-    incompleteRows = (len(data) - startInds) < windowLength
-    outDims = np.array([len(startInds) - sum(incompleteRows), windowLength], dtype=np.int64)
-    outMat = np.zeros(outDims)
-    for k in np.arange(0, outDims[0]):
-        outMat[k, :] = data[startInds[k]:(startInds[k] + windowLength)]
-    return outMat
+#TODO may not be needed if you don't use mne's spectrogram function # def _overlapBinning(data, windowLength, windowStep):
+#     # Prepare signal for ephys.computeSpectrogram(). Developed with code mostly from Morgan Siegmann. Takes a 1D array and bins it into segments that overlap and then forms into a matrix. windowLength and windowStep units are samples.
+#     startInds = np.arange(0, len(data), windowStep)
+#     # Check to see if the last row is full window length
+#     incompleteRows = (len(data) - startInds) < windowLength
+#     outDims = np.array([len(startInds) - sum(incompleteRows), windowLength], dtype=np.int64)
+#     outMat = np.zeros(outDims)
+#     for k in np.arange(0, outDims[0]):
+#         outMat[k, :] = data[startInds[k]:(startInds[k] + windowLength)]
+#     return outMat
 
 
 def _prepAxes(title='', xLabel='', yLabel='', subPlots=None):

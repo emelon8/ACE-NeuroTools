@@ -10,20 +10,17 @@ data are included.
 """
 
 import experiment
-from pylab import *
 import numpy as np
-from scipy.signal import hilbert, firwin, filtfilt
+from scipy.signal import hilbert
 from scipy.signal import hann
 import matplotlib.pyplot as plt
 # plt.rcParams['svg.fonttype'] = 'none'
-from mne.time_frequency import psd_array_multitaper
+# from mne.time_frequency import psd_array_multitaper #TODO replace this with new package to compute spectrograms
 from neo.io import NeuralynxIO
 import misc_functions
 import math
-import sys
 import time
 # get_ipython().run_line_magic('matplotlib', 'inline')
-from scipy.io import loadmat
 import csv
 from datetime import datetime
 
@@ -142,25 +139,25 @@ class NeuralynxEphys(experiment.experiment):
                 break
 
         
-    def computeSpectrogram(self, channel='PFCLFPvsCBEEG', windowLength=30, 
-                           windowStep=3, freqLims=[0,50], bandwidth=2, 
-                           plotSpectrogram=True, plotEvents=False):
-        """Estimate (and plot) the multi-taper spectrogram of a specified ephys channel. Developed with code mostly from Morgan Siegmann."""
-        print('Computing spectrogram...')
-        fs = int(self.samplingRate[channel])
-        windowLengthSamples = windowLength * fs
-        windowStepSamples = windowStep * fs
-        ephysMat = misc_functions._overlapBinning(self.ephys[channel], windowLengthSamples, windowStepSamples)
-        # Make a time vector
-        tMat = misc_functions._overlapBinning(self.tEphys[channel], windowLengthSamples, windowStepSamples)
-        self.tSpect = tMat[:,windowLengthSamples // 2]
-        PSDSpect, self.freqsSpect = psd_array_multitaper(ephysMat, fs, fmin=freqLims[0], fmax=freqLims[1], bandwidth=bandwidth)
-        self.pSpect = np.transpose(10 * np.log10(PSDSpect))
-        if plotSpectrogram:
-            h, ax = misc_functions.spectrogram(self.tSpect/60, self.freqsSpect, self.pSpect, xLabel='Time (min)')
-            if plotEvents:
-                misc_functions.markEvents(ax, self.NeuralynxEvents['timestamps']/60)
-            return h, ax
+ #TODO replace this with method that doesn't use mne   # def computeSpectrogram(self, channel='PFCLFPvsCBEEG', windowLength=30, 
+    #                        windowStep=3, freqLims=[0,50], bandwidth=2, 
+    #                        plotSpectrogram=True, plotEvents=False):
+    #     """Estimate (and plot) the multi-taper spectrogram of a specified ephys channel. Developed with code mostly from Morgan Siegmann."""
+    #     print('Computing spectrogram...')
+    #     fs = int(self.samplingRate[channel])
+    #     windowLengthSamples = windowLength * fs
+    #     windowStepSamples = windowStep * fs
+    #     ephysMat = misc_functions._overlapBinning(self.ephys[channel], windowLengthSamples, windowStepSamples)
+    #     # Make a time vector
+    #     tMat = misc_functions._overlapBinning(self.tEphys[channel], windowLengthSamples, windowStepSamples)
+    #     self.tSpect = tMat[:,windowLengthSamples // 2]
+    #     PSDSpect, self.freqsSpect = psd_array_multitaper(ephysMat, fs, fmin=freqLims[0], fmax=freqLims[1], bandwidth=bandwidth)
+    #     self.pSpect = np.transpose(10 * np.log10(PSDSpect))
+    #     if plotSpectrogram:
+    #         h, ax = misc_functions.spectrogram(self.tSpect/60, self.freqsSpect, self.pSpect, xLabel='Time (min)')
+    #         if plotEvents:
+    #             misc_functions.markEvents(ax, self.NeuralynxEvents['timestamps']/60)
+    #         return h, ax
 
 
     def computePhase(self, channel='PFCLFPvsCBEEG', data=None):
