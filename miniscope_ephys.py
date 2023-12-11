@@ -36,16 +36,15 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         frameAcqIdx = (self.NeuralynxEvents['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0000).') | (self.NeuralynxEvents['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0001).')
         self.tCaIm = self.NeuralynxEvents['timestamps'][frameAcqIdx]
         
-        # make an array of the Neuralynx events with the TTL events removed
-        if onlyExperimentEvents:
-            experimentEventIdx = np.invert(frameAcqIdx)
-            self.NeuralynxExperimentEvents = {}
-            self.NeuralynxExperimentEvents['labels'] = self.NeuralynxEvents['labels'][experimentEventIdx]
-            self.NeuralynxExperimentEvents['timestamps'] = self.NeuralynxEvents['timestamps'][experimentEventIdx]
-        
         # Check for gaps in the TTL event timestamps and insert a timestamp guess if needed
         self.lowConfidencePeriods = np.empty((0,2))
         self._correcttCaIm(self.NeuralynxEvents['labels'][frameAcqIdx])
+        
+        # make an array of the Neuralynx events with the TTL events removed
+        if onlyExperimentEvents:
+            experimentEventIdx = np.invert(frameAcqIdx)
+            self.NeuralynxEvents['labels'] = self.NeuralynxEvents['labels'][experimentEventIdx]
+            self.NeuralynxEvents['timestamps'] = self.NeuralynxEvents['timestamps'][experimentEventIdx]
         
         # delete the TTL events that correspond to dropped frames in the saved calcium movie, specified in analysis_parameters.csv. This currently assumes that any gaps in the TTL events have been corrected already.
         #TODO Add a method that plots the 3 figures of the timestamps for help in deciding which events to drop, then writes to analysis_parameters.csv and self._analysisParamsDict['indices of TTL events to delete'].

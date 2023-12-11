@@ -16,6 +16,7 @@ from scipy.signal import hann
 import matplotlib.pyplot as plt
 # plt.rcParams['svg.fonttype'] = 'none'
 # from mne.time_frequency import psd_array_multitaper #TODO replace this with new package to compute spectrograms
+from multitaper_spectrogram_python import multitaper_spectrogram
 from neo.io import NeuralynxIO
 import misc_functions
 import math
@@ -139,25 +140,35 @@ class NeuralynxEphys(experiment.experiment):
                 break
 
         
- #TODO replace this with method that doesn't use mne   # def computeSpectrogram(self, channel='PFCLFPvsCBEEG', windowLength=30, 
-    #                        windowStep=3, freqLims=[0,50], bandwidth=2, 
-    #                        plotSpectrogram=True, plotEvents=False):
-    #     """Estimate (and plot) the multi-taper spectrogram of a specified ephys channel. Developed with code mostly from Morgan Siegmann."""
-    #     print('Computing spectrogram...')
-    #     fs = int(self.samplingRate[channel])
-    #     windowLengthSamples = windowLength * fs
-    #     windowStepSamples = windowStep * fs
-    #     ephysMat = misc_functions._overlapBinning(self.ephys[channel], windowLengthSamples, windowStepSamples)
-    #     # Make a time vector
-    #     tMat = misc_functions._overlapBinning(self.tEphys[channel], windowLengthSamples, windowStepSamples)
-    #     self.tSpect = tMat[:,windowLengthSamples // 2]
-    #     PSDSpect, self.freqsSpect = psd_array_multitaper(ephysMat, fs, fmin=freqLims[0], fmax=freqLims[1], bandwidth=bandwidth)
-    #     self.pSpect = np.transpose(10 * np.log10(PSDSpect))
-    #     if plotSpectrogram:
-    #         h, ax = misc_functions.spectrogram(self.tSpect/60, self.freqsSpect, self.pSpect, xLabel='Time (min)')
-    #         if plotEvents:
-    #             misc_functions.markEvents(ax, self.NeuralynxEvents['timestamps']/60)
-    #         return h, ax
+    def computeSpectrogram(self, channel='PFCLFPvsCBEEG', windowLength=30, windowStep=3, freqLims=[0,50], timeBandwidth=2, plotSpectrogram=True, plotEvents=False):
+        """Estimate (and plot) the multi-taper spectrogram of a specified ephys channel. Developed with Mike Prerau's function."""
+        print('Computing spectrogram...')
+        # Set spectrogram params
+        fs = int(self.samplingRate[channel])
+        numTapers = timeBandwidth * 2 - 1
+        windowParams = [windowLength, windowStep]
+        minNfft = 0  # No minimum nfft
+        detrendOpt = 'constant'  # detrend each window by subtracting the average
+        multiprocess = True  # use multiprocessing
+        nJobs = 3  # use 3 cores in multiprocessing
+        weighting = 'unity'  # weight each taper at 1
+        plotOn = False  # plot spectrogram using multitaper_spectrogram()
+        returnFig = False  # do not return plotted spectrogram
+        climScale = False # do not auto-scale colormap
+        verbose = True  # print extra info
+        xyflip = False  # do not transpose spect output matrix
+        
+        # Compute the multitaper spectrogram and convert the output to decibels
+        PSDSpect, self.tSpect, self.freqsSpect = multitaper_spectrogram(self.ephys[channel], fs, freqLims, timeBandwidth, numTapers, windowParams, minNfft, detrendOpt, multiprocess, nJobs, weighting, plotOn, returnFig, climScale, verbose, xyflip)
+        self.pSpect = 10 * np.log10(PSDSpect)
+        
+        # Plot the multitaper spectrogram
+        if plotSpectrogram:
+            h, ax = misc_functions.spectrogram(self.tSpect/60, self.freqsSpect, self.pSpect, xLabel='Time (min)')
+            if plotEvents:
+                misc_functions.markEvents(ax, self.NeuralynxEvents['timestamps']/60)
+            return h, ax
+    
 
 
     def computePhase(self, channel='PFCLFPvsCBEEG', data=None):
