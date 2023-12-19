@@ -91,30 +91,33 @@ class NeuralynxEphys(experiment.experiment):
             self.ephys[chName][startIdx:(startIdx+segSize)] = np.reshape(seg.analogsignals[chNum].magnitude, segSize)
 
 
-    def importNeuralynxEvents(self, analogSignalImported=False):
+    def importNeuralynxEvents(self):
         """Method for importing Neuralynx events."""
-        print('Importing ephys events...')
-        if not analogSignalImported: #TODO make it automatically detect whether it's been imported
-            self.ephysFilePath = misc_functions._findFilePaths(self.experiment['ephys directory'], fileExtensions='.nev', fileStartsWith='Events', removeFile=True)[0]
-            self._recording = NeuralynxIO(self.ephysFilePath)
-            self._ephysData = self._recording.read_block(signal_group_mode='split-all')
-        unsortedEventLabels = []
-        unsortedEventTimestamps = []
-        self.NeuralynxEvents = {}
-        for seg in self._ephysData.segments:
-            for e in seg.events:
-                for k, l in enumerate(e.labels.astype(str)):
-                    unsortedEventLabels.append(l)
-                    unsortedEventTimestamps.append(e.times[k].magnitude)
-        # Sort all of the events
-        npUnsortedEventLabels = np.array(unsortedEventLabels)
-        npUnsortedEventTimestamps = np.array(unsortedEventTimestamps)
-        evSortInds = np.argsort(npUnsortedEventTimestamps)
-        self.NeuralynxEvents['labels'] = npUnsortedEventLabels[evSortInds]
-        self.NeuralynxEvents['timestamps'] = npUnsortedEventTimestamps[evSortInds] # - self.zeroTime[next(iter(self.zeroTime))]
+        try:
+            ephysLength = len(self.ephys)
+        except AttributeError:
+            self.importEphysData()
+        finally:
+            print('Importing ephys events...')
+            unsortedEventLabels = []
+            unsortedEventTimestamps = []
+            self.NeuralynxEvents = {}
+            for seg in self._ephysData.segments:
+                for e in seg.events:
+                    for k, l in enumerate(e.labels.astype(str)):
+                        unsortedEventLabels.append(l)
+                        unsortedEventTimestamps.append(e.times[k].magnitude)
+            # Sort all of the events
+            npUnsortedEventLabels = np.array(unsortedEventLabels)
+            npUnsortedEventTimestamps = np.array(unsortedEventTimestamps)
+            evSortInds = np.argsort(npUnsortedEventTimestamps)
+            self.NeuralynxEvents['labels'] = npUnsortedEventLabels[evSortInds]
+            self.NeuralynxEvents['timestamps'] = npUnsortedEventTimestamps[evSortInds] # - self.zeroTime[next(iter(self.zeroTime))]
 
 
     def importAgentAnalyzerData(self, filename='S5DataExport.csv'):
+        """Method for importing agent analyzer (Datex-Ohmeda S/5) data that was recorded using VSCapture."""
+        print('Importing agent analyzer data...')
         filepath = self.experiment['ephys directory'] + '/' + filename
         agentAnalyzerCSV = []
         with open(filepath, newline='', encoding='utf-8-sig') as s:
@@ -131,6 +134,11 @@ class NeuralynxEphys(experiment.experiment):
                     for h in range(1,len(agentAnalyzerCSV)):
                         tempDateTime = datetime.strptime(agentAnalyzerCSV[h][k], "%d-%m-%Y  %H:%M:%S")
                         self.agentAnalyzer[columnTitle].append(tempDateTime)
+                    try:
+                        self.NeuralynxEvents['labels'][np.where(np.char.find(self.NeuralynxEvents['labels'],'time')==0)[0]] #TODO make this into a function that pulls this time into the recording and finds the closest time to the start of the agent analyzer
+                        self.agentAnalyzer[columnTitle]
+                    except NameError:
+                        break
                 else:
                     for h in range(1,len(agentAnalyzerCSV)):
                         self.agentAnalyzer[columnTitle].append(agentAnalyzerCSV[h][k])

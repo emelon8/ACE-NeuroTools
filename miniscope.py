@@ -15,7 +15,7 @@ import os.path
 import experiment
 import numpy as np
 from scipy.signal import detrend, find_peaks, hilbert
-# from mne.time_frequency import psd_array_multitaper #TODO replace this with new package to compute spectrograms
+from multitaper_spectrogram_python import multitaper_spectrogram
 import matplotlib.pyplot as plt
 plt.rcParams['svg.fonttype'] = 'none'
 import caiman as cm
@@ -1221,24 +1221,32 @@ class UCLAMiniscope(experiment.experiment):
 
 
 #%% Signal processing methods for the mean fluorescence over time
-#TODO replace this with method that doesn't use mne    # def computeMiniscopeSpectrogram(self, data=None, windowLength=30, windowStep=3, freqLims=[0,15], bandwidth=2, plotSpectrogram=True):
-    #     """Estimate (and plot) the multi-taper spectrogram (of the mean miniscope fluorescence). Developed with code mostly from Morgan Siegmann."""
-    #     print('Computing spectrogram of average miniscope fluorescence...')
-    #     fs = int(self.experiment['frameRate'])
-    #     windowLengthSamples = windowLength * fs
-    #     windowStepSamples = windowStep * fs
-    #     miniscopeMat = misc_functions._overlapBinning(data, windowLengthSamples, windowStepSamples)
-    #     # Make a time vector
-    #     tMat = misc_functions._overlapBinning(np.arange(0,len(data)/fs,1/fs), windowLengthSamples, windowStepSamples)
-    #     try:
-    #         self.tSpectMiniscope = tMat[:,windowLengthSamples // 2] + self.tEphys['PFCLFPvsCBEEG'][self.ephysIdxAllTTLEvents[0]]
-    #     except:
-    #         self.tSpectMiniscope = tMat[:,windowLengthSamples // 2]
-    #     PSDSpectMiniscope, self.freqsSpectMiniscope = psd_array_multitaper(miniscopeMat, fs, fmin=freqLims[0], fmax=freqLims[1], bandwidth=bandwidth)
-    #     self.pSpectMiniscope = np.transpose(10 * np.log10(PSDSpectMiniscope))
-    #     if plotSpectrogram:
-    #         h, ax = misc_functions.spectrogram(self.tSpectMiniscope/60, self.freqsSpectMiniscope, self.pSpectMiniscope, xLabel='Time (min)')
-    #         return h, ax
+    def computeMiniscopeSpectrogram(self, data=None, windowLength=30, windowStep=3, freqLims=[0,15], timeBandwidth=2, plotSpectrogram=True):
+        """Estimate (and plot) the multi-taper spectrogram (of the mean miniscope fluorescence). Developed with Mike Prerau's function."""
+        print('Computing spectrogram of average miniscope fluorescence...')
+        # Set spectrogram params
+        fs = int(self.experiment['frameRate'])
+        numTapers = timeBandwidth * 2 - 1
+        windowParams = [windowLength, windowStep]
+        minNfft = 0  # No minimum nfft
+        detrendOpt = 'constant'  # detrend each window by subtracting the average
+        multiprocess = True  # use multiprocessing
+        nJobs = 3  # use 3 cores in multiprocessing
+        weighting = 'unity'  # weight each taper at 1
+        plotOn = False  # plot spectrogram using multitaper_spectrogram()
+        returnFig = False  # do not return plotted spectrogram
+        climScale = False # do not auto-scale colormap
+        verbose = True  # print extra info
+        xyflip = False  # do not transpose spect output matrix
+        
+        # Compute the multitaper spectrogram and convert the output to decibels
+        PSDSpectMiniscope, self.tSpect, self.freqsSpect = multitaper_spectrogram(data, fs, freqLims, timeBandwidth, numTapers, windowParams, minNfft, detrendOpt, multiprocess, nJobs, weighting, plotOn, returnFig, climScale, verbose, xyflip)
+        self.pSpectMiniscope = 10 * np.log10(PSDSpectMiniscope)
+        
+        # Plot the multitaper spectrogram
+        if plotSpectrogram:
+            h, ax = misc_functions.spectrogram(self.tSpect/60, self.freqsSpect, self.pSpect, xLabel='Time (min)')
+            return h, ax
 
 
     def computeMiniscopePhase(self, data=None):
