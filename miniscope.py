@@ -154,7 +154,7 @@ class UCLAMiniscope(experiment.experiment):
             self.movieFilePaths = filenames
         else:
             if not os.path.isfile(filenames):
-                    filenames = self.experiment['calcium imaging directory'] + '/Miniscope/' + filenames
+                filenames = self.experiment['calcium imaging directory'] + '/Miniscope/' + filenames
             self.movieFilePaths = filenames
         if type(filenames) is list:
             self.movie = cm.load_movie_chain(filenames)
@@ -171,7 +171,7 @@ class UCLAMiniscope(experiment.experiment):
         difVideos = []
         if (filenames == None):
             if 'movie' in self.__dir__():
-                print('self.movie exists, but there are no filenames associated with it. Loading filenames from self.experiment[\'directory\']')
+                print('self.movie exists, but there are no filenames associated with it. Loading filenames from self.experiment[\'calcium imaging directory\']')
             self.findMovieFilePaths()
             filenames = self.movieFilePaths
         if type(filenames) is not list:
@@ -188,6 +188,8 @@ class UCLAMiniscope(experiment.experiment):
             else:
                 for k in range(len(filenames)):
                     try:
+                        if not os.path.isfile(filenames[k]):
+                            filenames[k] = self.experiment['calcium imaging directory'] + '/Miniscope/' + filenames[k]
                         movie = cm.load(filenames[k])
                         movie.save(os.path.splitext(filenames[k])[
                                        0] + newFileType)  ###########FIXME maybe use the saveCaMovie method here and elsewhere in this method?
