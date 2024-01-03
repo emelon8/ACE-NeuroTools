@@ -12,7 +12,7 @@ import miniscope_ephys
 
 lineNum = 107
 channel = 'PFCLFPvsCBEEG'
-videoNum = 260
+videoNum = 0#260
 
 obj = miniscope_ephys.miniscopeEphys(lineNum=lineNum)
 obj.importCaMovies(str(videoNum) + '.avi')
@@ -53,4 +53,4 @@ ani = animation.FuncAnimation(fig, update, frames=len(obj.movie), interval=5, re
 plt.show()
 
 # Save the animation
-# ani.save('movie.mp4', dpi=300)
+# ani.save(obj.experiment['calcium imaging directory'] + '/Miniscope/' + str(videoNum) + '_CaIm_and_ephys.mp4', dpi=300)
