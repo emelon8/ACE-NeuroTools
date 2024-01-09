@@ -12,7 +12,7 @@ import miniscope_ephys
 
 lineNum = 107
 channel = 'PFCLFPvsCBEEG'
-videoNum = 0#260
+videoNum = 37 #0, 260
 
 obj = miniscope_ephys.miniscopeEphys(lineNum=lineNum)
 obj.importCaMovies(str(videoNum) + '.avi')
@@ -35,7 +35,7 @@ def update(frame):
 
     # Get the corresponding segment of the ephys recording
     frame += videoNum*1000
-    ephys_segment = obj.ephys[channel][obj.ephysIdxAllTTLEvents[frame]:obj.ephysIdxAllTTLEvents[frame+1]]
+    ephys_segment = obj.ephys[channel][obj.ephysIdxAllTTLEvents[frame]:obj.ephysIdxAllTTLEvents[frame+1]] #TODO Fix this so that the frame is paired with the ephys that leads up to its timestamp in obj.ephysIdxAllTTLEvents.
     ephys_segment = -np.flip(ephys_segment) # flip and invert signal so it is flipped and inverted again when the movie is written.
 
     # Plot the segment on top of the frame
@@ -53,4 +53,4 @@ ani = animation.FuncAnimation(fig, update, frames=len(obj.movie), interval=5, re
 plt.show()
 
 # Save the animation
-# ani.save(obj.experiment['calcium imaging directory'] + '/Miniscope/' + str(videoNum) + '_CaIm_and_ephys.mp4', dpi=300)
+# ani.save(obj.experiment['calcium imaging directory'] + '/Miniscope/' + str(videoNum) + '_CaIm_and_' + channel + '.mp4', dpi=300)

@@ -104,6 +104,8 @@ def markEvents(axisHandle, eventTimes):
     xLimits = axisHandle.get_xlim()
     lineLength = np.diff(yLimits)
     lineOffset = yLimits[0] + (lineLength / 2)
+    if type(eventTimes) != list:
+        eventTimes = [eventTimes]
     axisHandle.eventplot(eventTimes, lineoffsets=lineOffset, linelengths=lineLength, colors='k')
     axisHandle.axis([xLimits[0], xLimits[1], yLimits[0], yLimits[1]])
 
