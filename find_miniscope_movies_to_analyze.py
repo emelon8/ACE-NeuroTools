@@ -21,9 +21,7 @@ endFreq = 4.0
 
 #%% Load experiment and ephys data
 obj = miniscope_ephys.miniscopeEphys(experimentNum)
-
 obj.importEphysData(channels=channel)
-obj.importNeuralynxEvents(analogSignalImported=True)
 
 
 #%% Compute and plot the spectrograms
@@ -46,7 +44,6 @@ plt.plot(obj.tSpect, meanBand)
 timeSecStart = obj._analysisParamsDict['periods of high slow wave power (s)'][0]
 timeSecEnd = obj._analysisParamsDict['periods of high slow wave power (s)'][-1]
 
-obj.syncNeuralynxMiniscopeTimestamps(channel=channel)
 obj.findEphysIdxOfTTLEvents(channel=channel, CaEvents=False)
 
 

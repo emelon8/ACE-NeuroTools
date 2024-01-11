@@ -10,9 +10,9 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import miniscope_ephys
 
-lineNum = 64
+lineNum = 107
 channel = 'PFCLFPvsCBEEG'
-videoNum = 90 #{64: 60, 107:[0, 37, 260]}
+videoNum = 260 #{64: [60, 90], 107:[0, 37, 260]}
 
 obj = miniscope_ephys.miniscopeEphys(lineNum=lineNum)
 obj.importCaMovies(str(videoNum) + '.avi')
@@ -34,9 +34,9 @@ def update(frame):
     ax.imshow(obj.movie[frame], vmin=vmin, vmax=vmax, cmap='gray')
 
     # Get the corresponding segment of the ephys recording
-    frame += videoNum*1000
+    frame += videoNum * 1000
     if frame > 0:
-        ephys_segment = obj.ephys[channel][obj.ephysIdxAllTTLEvents[frame-1]:obj.ephysIdxAllTTLEvents[frame]]
+        ephys_segment = obj.ephys[channel][obj.ephysIdxAllTTLEvents[frame-10]:obj.ephysIdxAllTTLEvents[frame]]
     else:
         ephys_segment = obj.ephys[channel][obj.ephysIdxAllTTLEvents[frame]-round(obj.samplingRate[channel]/obj.experiment['fr']):obj.ephysIdxAllTTLEvents[frame]]
     ephys_segment = -np.flip(ephys_segment) # flip and invert signal so it is flipped and inverted again when the movie is written.
@@ -50,7 +50,7 @@ def update(frame):
     ax.set_axis_off()
 
 # Create the animation
-ani = animation.FuncAnimation(fig, update, frames=len(obj.movie), interval=5, repeat=False)
+ani = animation.FuncAnimation(fig, update, frames=len(obj.movie), interval=33, repeat=False)
 
 # Display the animation
 plt.show()

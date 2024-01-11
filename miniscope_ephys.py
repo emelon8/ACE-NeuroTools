@@ -16,6 +16,7 @@ import miniscope
 import numpy as np
 import matplotlib.pyplot as plt
 plt.rcParams['svg.fonttype'] = 'none'
+import matplotlib.animation as animation
 import misc_functions
 import sys
 import pandas as pd
@@ -130,6 +131,15 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                     self.ephysIdxCaEvents[k] = np.array(self.ephysIdxCaEvents[k])
 
 
+    def findCaMovieFrameNumOfEphysIdx(self, channel='PFCLFPvsCBEEG'): #TODO Make sure this method works correctly (e.g., it handles ephys indices before and after the start of the movie correctly), is placed in the most logical place in this file, and is fleshed out more.
+        """Method to create an array the same size as obj.ephys[channel], where each element is the frame number of the corresponding calcium movie frame."""
+        self.CaFrameNumOfEphysIdx = np.zeros(np.shape(self.ephys[channel]),dtype=int)
+
+        # Assign a frame number to each element of self.CaFrameNumOfEphysIdx. I'm not sure if the sample of obj.ephys that's closest to the TTL event should be paired with the preceding frame or not.
+        for k, i in enumerate(self.ephysIdxAllTTLEvents[1:]):
+            self.CaFrameNumOfEphysIdx[i:self.ephysIdxAllTTLEvents[k]:-1] = k+1
+
+
 #%% Methods to compare the mean fluorescence signal with the ephys signals
     def correlationMiniscopeEphys(self):
         """Compute the cross-correlation between the average miniscope fluorescence and a specified ephys signal."""
@@ -142,9 +152,59 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
 
 
 #%% Methods for visualizing the results
-    def createCaEphysMovie(self, channel='PFCLFPvsCBEEG'):
+    def createCaEphysMovie(self, videoNum, channel='PFCLFPvsCBEEG', dFoverSqrtF=False, vmin=None, vmax=None, numFramesOfEphys=10, playbackInterval=33, playMovie=True, saveMovie=False):
         """Create a movie that has the ephys overlayed."""
-        pass
+        try:
+            lenMovie = len(self.ephysIdxAllTTLEvents)
+        except:
+            self.findEphysIdxOfTTLEvents()
+        finally:
+            self.importCaMovies(str(videoNum) + '.avi')
+            if dFoverSqrtF:
+                self.computedFoverF(saveMovie=False)
+            if vmin == None:
+                vmin = self.movie.mean() - self.movie.std()*0
+            if vmax == None:
+                vmax = self.movie.mean() + self.movie.std()*4
+    
+            # Set up the plot
+            fig, ax = plt.subplots(figsize=(5.4,5.4))
+            plt.subplots_adjust(0,0,1,1)
+    
+            def update(frame):
+                # Clear the plot
+                ax.clear()
+    
+                # Plot the frame
+                ax.imshow(np.flip(self.movie[frame], axis=0), vmin=vmin, vmax=vmax, cmap='gray')
+    
+                # Get the corresponding segment of the ephys recording
+                frame += videoNum * self.experiment['framesPerFile']
+                if frame > 0:
+                    ephys_segment = self.ephys[channel][self.ephysIdxAllTTLEvents[frame-numFramesOfEphys]:self.ephysIdxAllTTLEvents[frame]]
+                else:
+                    ephys_segment = self.ephys[channel][self.ephysIdxAllTTLEvents[frame]-round(self.samplingRate[channel]/self.experiment['fr']):self.ephysIdxAllTTLEvents[frame]]
+                ephys_segment = -np.flip(ephys_segment) # flip and invert signal so it is flipped and inverted again when the movie is written.
+    
+                # Plot the segment on top of the frame
+                ax.plot(np.linspace(-0.5, self.movie.shape[2]-0.5, len(ephys_segment)), ephys_segment/5 + 508, color='red', linewidth=2)
+                ax.set_xlim(-0.5, self.movie.shape[2]-0.5)
+                ax.set_ylim(-0.5, self.movie.shape[1]-0.5)
+                ax.set_axis_off()
+    
+            # Create the animation
+            self.ani = animation.FuncAnimation(fig, update, frames=len(self.movie), interval=playbackInterval, repeat=False)
+    
+            # Display the animation
+            if playMovie:
+                plt.show()
+    
+            # Save the animation
+            if saveMovie:
+                if dFoverSqrtF:
+                    self.ani.save(self.experiment['calcium imaging directory'] + '/Miniscope/' + str(videoNum) + '_CaIm_dFoverSqrtF_and_' + channel + '.mp4', dpi=300)
+                else:
+                    self.ani.save(self.experiment['calcium imaging directory'] + '/Miniscope/' + str(videoNum) + '_CaIm_and_' + channel + '.mp4', dpi=300)
 
 
 #%% Methods to extract the instantaneous phase of the ephys signal, determine the phases of the calcium events, and summarize and save the results
