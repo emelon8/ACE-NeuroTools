@@ -176,18 +176,17 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                 ax.clear()
     
                 # Plot the frame
-                ax.imshow(np.flip(self.movie[frame], axis=0), vmin=vmin, vmax=vmax, cmap='gray')
+                ax.imshow(self.movie[frame], vmin=vmin, vmax=vmax, cmap='gray')
     
                 # Get the corresponding segment of the ephys recording
                 frame += videoNum * self.experiment['framesPerFile']
                 if frame > 0:
                     ephys_segment = self.ephys[channel][self.ephysIdxAllTTLEvents[frame-numFramesOfEphys]:self.ephysIdxAllTTLEvents[frame]]
                 else:
-                    ephys_segment = self.ephys[channel][self.ephysIdxAllTTLEvents[frame]-round(self.samplingRate[channel]/self.experiment['fr']):self.ephysIdxAllTTLEvents[frame]]
-                ephys_segment = -np.flip(ephys_segment) # flip and invert signal so it is flipped and inverted again when the movie is written.
-    
+                    ephys_segment = self.ephys[channel][self.ephysIdxAllTTLEvents[frame]-numFramesOfEphys*round(self.samplingRate[channel]/self.experiment['fr']):self.ephysIdxAllTTLEvents[frame]]
+
                 # Plot the segment on top of the frame
-                ax.plot(np.linspace(-0.5, self.movie.shape[2]-0.5, len(ephys_segment)), ephys_segment/5 + 508, color='red', linewidth=2)
+                ax.plot(np.linspace(-0.5, self.movie.shape[2]-0.5, len(ephys_segment)), ephys_segment/5 + 100, color='red', linewidth=2)
                 ax.set_xlim(-0.5, self.movie.shape[2]-0.5)
                 ax.set_ylim(-0.5, self.movie.shape[1]-0.5)
                 ax.set_axis_off()
