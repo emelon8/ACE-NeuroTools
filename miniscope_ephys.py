@@ -242,6 +242,8 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                 if meanFluorescence:
                     if frame >= numFramesOfTraces:
                         meanFluorescenceSegment = self.projections['time'][frame-numFramesOfTraces:frame]
+                    else:
+                        meanFluorescenceSegment = np.concatenate((np.ones(numFramesOfTraces - frame) * np.nan, self.projections['time'][0:frame]))
                 
                 # Get the corresponding segment of the ephys recording
                 frame += self.movieFrames[0]
