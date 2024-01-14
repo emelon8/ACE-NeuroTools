@@ -254,8 +254,8 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
 
                 # Plot the segment on top of the frame
                 if meanFluorescence:
-                    fluorescenceScaling = 800 / np.mean(self.projections['time'])
-                    ax.plot(np.linspace(-0.5, self.movie.shape[2]-0.5, len(meanFluorescenceSegment)), meanFluorescenceSegment*fluorescenceScaling - 700, color='blue', linewidth=2)
+                    fluorescenceScaling = 200 / np.max(np.abs(self.projections['time']))
+                    ax.plot(np.linspace(-0.5, self.movie.shape[2]-0.5, len(meanFluorescenceSegment)), meanFluorescenceSegment*fluorescenceScaling + 100, color='blue', linewidth=2)
                 ax.plot(np.linspace(-0.5, self.movie.shape[2]-0.5, len(ephysSegment)), ephysSegment/5 + 100, color='red', linewidth=2)
                 ax.set_xlim(-0.5, self.movie.shape[2]-0.5)
                 ax.set_ylim(-0.5, self.movie.shape[1]-0.5)
@@ -269,7 +269,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                 plt.show()
     
             # Save the animation
-            if saveMovie:
+            if saveMovie: #TODO add saving options with and without fluorescnece (And mabye ephys)
                 if dFoverSqrtF:
                     self.ani.save(self.experiment['calcium imaging directory'] + '/Miniscope/frames_' + str(self.movieFrames[0]) + '_' + str(self.movieFrames[1]) + '_CaIm_dFoverSqrtF_and_' + channel + '.mp4', dpi=300)
                 else:
