@@ -22,17 +22,17 @@ for k in lineNum:
     
     obj.computeProjections()
     
-    maxpro = np.array(obj.projections['Max'])
-    minpro = np.array(obj.projections['Min'])
-    meanpro = np.array(obj.projections['Mean'])
-    medpro = np.array(obj.projections['Med'])
-    stdpro = np.array(obj.projections['Std'])
-    rangepro = np.array(obj.projections['Range'])
+    maxpro = np.array(obj.projections['max'])
+    minpro = np.array(obj.projections['min'])
+    meanpro = np.array(obj.projections['mean'])
+    medpro = np.array(obj.projections['median'])
+    stdpro = np.array(obj.projections['std'])
+    rangepro = np.array(obj.projections['range'])
     
     np.save('max_' + str(k) + '.npy', maxpro)
     np.save('min_' + str(k) + '.npy', minpro)
     np.save('mean_' + str(k) + '.npy', meanpro)
-    np.save('med_' + str(k) + '.npy', medpro)
+    np.save('median_' + str(k) + '.npy', medpro)
     np.save('std_' + str(k) + '.npy', stdpro)
     np.save('range_' + str(k) + '.npy', rangepro)
     

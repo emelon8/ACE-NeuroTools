@@ -140,6 +140,36 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
             self.CaFrameNumOfEphysIdx[i:self.ephysIdxAllTTLEvents[k]:-1] = k+1
 
 
+    def findCaMovieNums(self, timeRange=None, channel='PFCLFPvsCBEEG', filenameEndsWith=''):
+        """Determine the calcium imaging movie file(s) that correspond to a specified time period (in seconds) in the electrophysiological signal. Set SELF.MOVIEFILEPATHS to these movies' paths.
+        TIMERANGE is a list specifing the boundaries of the time period.
+        FILENAMEENDSWITH specifies any appended characters to the filenames, such as '_cropped'."""
+        if timeRange == None:
+            timeSecStart = self._analysisParamsDict['periods of high slow wave power (s)'][0]
+            timeSecEnd = self._analysisParamsDict['periods of high slow wave power (s)'][-1]
+        else:
+            timeSecStart = timeRange[0]
+            timeSecEnd = timeRange[1]
+
+        try:
+            lenEphysIdxAllTTLEvents = len(self.ephysIdxAllTTLEvents)
+        except:
+            self.findEphysIdxOfTTLEvents(channel=channel, CaEvents=False)
+        finally:
+            print('Finding the miniscope frames and movie corresponding to the specified time period...')
+            self.movieFrames = np.zeros(2, dtype=int)
+            self.movieFrames[0] = np.where(self.tEphys[channel][self.ephysIdxAllTTLEvents]>=timeSecStart)[0][0] # Start frame
+            self.movieFrames[1] = np.where(self.tEphys[channel][self.ephysIdxAllTTLEvents]<=timeSecEnd)[0][-1] # End frame
+            firstMovie = int(self.movieFrames[0]/self.experiment['framesPerFile']) # Truncates result to just the integer part
+            lastMovie = int(self.movieFrames[1]/self.experiment['framesPerFile']) # Truncates result to just the integer part
+    
+            print('The first movie in the sequence is ' + str(firstMovie) + '.avi.')
+            print('The last movie in the sequence is ' + str(lastMovie) + '.avi.')
+            
+            movieRange = tuple([str(x) + filenameEndsWith + '.' for x in range(firstMovie, lastMovie+1)])
+            self.findMovieFilePaths(fileStartsWith=movieRange)
+
+
 #%% Methods to compare the mean fluorescence signal with the ephys signals
     def correlationMiniscopeEphys(self):
         """Compute the cross-correlation between the average miniscope fluorescence and a specified ephys signal."""
@@ -152,21 +182,52 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
 
 
 #%% Methods for visualizing the results
-    def createCaEphysMovie(self, videoNum, channel='PFCLFPvsCBEEG', dFoverSqrtF=False, vmin=None, vmax=None, numFramesOfEphys=10, playbackInterval=33, playMovie=True, saveMovie=False):
-        """Create a movie that has the ephys overlayed."""
+    def createCaEphysMovie(self, timeRange=None, movieNum=None, filenameEndsWith='', dFoverSqrtF=False, vmin=None, vmax=None, meanFluorescence=False, filterMeanFluorescence=False, filterCutoffFreq=[0.5,4], channel='PFCLFPvsCBEEG', filterEphys=False, numFramesOfTraces=10, playbackInterval=33, playMovie=True, saveMovie=False):
+        """Create a movie that has the ephys overlayed.
+        Accepts either a time range or a video number, but not both.
+        TIMERANGE is a list of the time boundaries, in seconds, from ephys space.
+        MOVIENUM is an int representing the number of the video file (e.g., 0 for '0.avi').
+        FILENAMEENDSWITH specifies any appended characters to the filenames, such as '_cropped'."""
+        if type(timeRange) == list:
+            if movieNum != None:
+                print('Please only provide either a time range or a video number, not both! Proceeding with time range...')
+            self.findCaMovieNums(timeRange=timeRange, channel=channel, filenameEndsWith=filenameEndsWith)
+            self.importCaMovies(self.movieFilePaths)
+        elif type(movieNum) == int:
+            self.importCaMovies(str(movieNum) + filenameEndsWith + '.avi')
+            self.movieFrames = np.zeros(2, dtype=int)
+            self.movieFrames[0] = movieNum * self.experiment['framesPerFile'] # Start frame of movieNum
+            self.movieFrames[1] = (movieNum + 1) * self.experiment['framesPerFile'] - 1 # End frame of movieNum
+        else:
+            print('Please provide either a time range or a movie number!')
+            return
+        
+        # Adjust the movie frame numbers so that they are with respect to the imported movies, not the entire recording.
+        adjustedMovieFrames = np.zeros(2, dtype=int)
+        adjustedMovieFrames[0] = self.movieFrames[0] % self.experiment['framesPerFile']
+        adjustedMovieFrames[1] = adjustedMovieFrames[0] + np.diff(self.movieFrames)[0]
+        self.movie = self.movie[adjustedMovieFrames[0]:adjustedMovieFrames[1]+1]
+        
+        if meanFluorescence:
+            if filterMeanFluorescence:
+                self.filterMiniscope(cut=filterCutoffFreq, inline=True)
+            else:
+                self.computeProjections(time=True)
+        
         try:
-            lenMovie = len(self.ephysIdxAllTTLEvents)
+            lenRecording = len(self.ephysIdxAllTTLEvents)
         except:
-            self.findEphysIdxOfTTLEvents()
+            self.findEphysIdxOfTTLEvents(channel=channel)
         finally:
-            self.importCaMovies(str(videoNum) + '.avi')
             if dFoverSqrtF:
                 self.computedFoverF(saveMovie=False)
             if vmin == None:
                 vmin = self.movie.mean() - self.movie.std()*0
             if vmax == None:
                 vmax = self.movie.mean() + self.movie.std()*4
-    
+            if filterEphys:
+                self.filterEphys(cut=filterCutoffFreq, channel=channel)
+
             # Set up the plot
             fig, ax = plt.subplots(figsize=(5.4,5.4))
             plt.subplots_adjust(0,0,1,1)
@@ -177,16 +238,23 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
     
                 # Plot the frame
                 ax.imshow(self.movie[frame], vmin=vmin, vmax=vmax, cmap='gray')
-    
+                
+                if meanFluorescence:
+                    if frame >= numFramesOfTraces:
+                        meanFluorescenceSegment = self.projections['time'][frame-numFramesOfTraces:frame]
+                
                 # Get the corresponding segment of the ephys recording
-                frame += videoNum * self.experiment['framesPerFile']
-                if frame > 0:
-                    ephys_segment = self.ephys[channel][self.ephysIdxAllTTLEvents[frame-numFramesOfEphys]:self.ephysIdxAllTTLEvents[frame]]
+                frame += self.movieFrames[0]
+                if frame >= numFramesOfTraces:
+                    ephysSegment = self.ephys[channel][self.ephysIdxAllTTLEvents[frame-numFramesOfTraces]:self.ephysIdxAllTTLEvents[frame]]
                 else:
-                    ephys_segment = self.ephys[channel][self.ephysIdxAllTTLEvents[frame]-numFramesOfEphys*round(self.samplingRate[channel]/self.experiment['fr']):self.ephysIdxAllTTLEvents[frame]]
+                    ephysSegment = self.ephys[channel][self.ephysIdxAllTTLEvents[frame]-numFramesOfTraces*round(self.samplingRate[channel]/self.experiment['fr']):self.ephysIdxAllTTLEvents[frame]]
 
                 # Plot the segment on top of the frame
-                ax.plot(np.linspace(-0.5, self.movie.shape[2]-0.5, len(ephys_segment)), ephys_segment/5 + 100, color='red', linewidth=2)
+                if meanFluorescence:
+                    fluorescenceScaling = 800 / np.mean(self.projections['time'])
+                    ax.plot(np.linspace(-0.5, self.movie.shape[2]-0.5, len(meanFluorescenceSegment)), meanFluorescenceSegment*fluorescenceScaling - 700, color='blue', linewidth=2)
+                ax.plot(np.linspace(-0.5, self.movie.shape[2]-0.5, len(ephysSegment)), ephysSegment/5 + 100, color='red', linewidth=2)
                 ax.set_xlim(-0.5, self.movie.shape[2]-0.5)
                 ax.set_ylim(-0.5, self.movie.shape[1]-0.5)
                 ax.set_axis_off()
@@ -201,9 +269,9 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
             # Save the animation
             if saveMovie:
                 if dFoverSqrtF:
-                    self.ani.save(self.experiment['calcium imaging directory'] + '/Miniscope/' + str(videoNum) + '_CaIm_dFoverSqrtF_and_' + channel + '.mp4', dpi=300)
+                    self.ani.save(self.experiment['calcium imaging directory'] + '/Miniscope/frames_' + str(self.movieFrames[0]) + '_' + str(self.movieFrames[1]) + '_CaIm_dFoverSqrtF_and_' + channel + '.mp4', dpi=300)
                 else:
-                    self.ani.save(self.experiment['calcium imaging directory'] + '/Miniscope/' + str(videoNum) + '_CaIm_and_' + channel + '.mp4', dpi=300)
+                    self.ani.save(self.experiment['calcium imaging directory'] + '/Miniscope/frames_' + str(self.movieFrames[0]) + '_' + str(self.movieFrames[1]) + '_CaIm_and_' + channel + '.mp4', dpi=300)
 
 
 #%% Methods to extract the instantaneous phase of the ephys signal, determine the phases of the calcium events, and summarize and save the results

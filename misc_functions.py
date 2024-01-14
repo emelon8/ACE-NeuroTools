@@ -115,7 +115,8 @@ def _findFilePaths(directory=None, fileExtensions=None, fileStartsWith=None,
     '''
     Makes a list of the full paths of all files of type FILEEXTENSIONS in DIRECTORY, sorted by the time they were last modified.
     FILEEXTENSIONS is a string of the file extension or a list or tuple with multiple file extensions.
-    removeFile = returns path of folder containing the files you want
+    FILESTARTSWITH is a string or tuple of strings to be included.
+    REMOVEFILE returns path of folder containing the files you want
     '''
 
     if (fileExtensions == None and fileStartsWith == None):

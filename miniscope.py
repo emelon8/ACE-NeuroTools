@@ -278,12 +278,12 @@ class UCLAMiniscope(experiment.experiment):
             self.projections["time"] = self.movie.mean(axis=(1,2))
             
         else:
-            self.projections["Max"] = np.amax(self.movie, axis=0)
-            self.projections["Std"] = np.std(self.movie, axis=0)
-            self.projections["Min"] = np.amin(self.movie, axis=0)
-            self.projections["Mean"] = np.mean(self.movie, axis=0)
-            self.projections["Med"] = np.median(self.movie, axis=0)
-            self.projections["Range"] = self.projections["Max"] - self.projections["Min"]
+            self.projections["max"] = np.amax(self.movie, axis=0)
+            self.projections["std"] = np.std(self.movie, axis=0)
+            self.projections["min"] = np.amin(self.movie, axis=0)
+            self.projections["mean"] = np.mean(self.movie, axis=0)
+            self.projections["median"] = np.median(self.movie, axis=0)
+            self.projections["range"] = self.projections["max"] - self.projections["min"]
 
 
     def preprocessCaMovies(self, saveMovie=False, crop=False, square=False, cropGUI=False, denoise=False, detrend=False, dFoverF=False):
@@ -424,17 +424,17 @@ class UCLAMiniscope(experiment.experiment):
         # adds projection to GUI
         pic_IObytes = io.BytesIO()
         if max:
-            plt.imsave(pic_IObytes, self.projections['Max'], format='png', cmap=cmap)
+            plt.imsave(pic_IObytes, self.projections['max'], format='png', cmap=cmap)
         elif min:
-            plt.imsave(pic_IObytes, self.projections['Min'], format='png', cmap=cmap)
+            plt.imsave(pic_IObytes, self.projections['min'], format='png', cmap=cmap)
         elif STD:
-            plt.imsave(pic_IObytes, self.projections['Std'], format='png', cmap=cmap)
+            plt.imsave(pic_IObytes, self.projections['std'], format='png', cmap=cmap)
         elif mean:
-            plt.imsave(pic_IObytes, self.projections['Mean'], format='png', cmap=cmap)
+            plt.imsave(pic_IObytes, self.projections['mean'], format='png', cmap=cmap)
         elif median:
-            plt.imsave(pic_IObytes, self.projections['Med'], format='png', cmap=cmap)
+            plt.imsave(pic_IObytes, self.projections['median'], format='png', cmap=cmap)
         elif range:
-            plt.imsave(pic_IObytes, self.projections['Range'], format='png', cmap=cmap)
+            plt.imsave(pic_IObytes, self.projections['range'], format='png', cmap=cmap)
         plt.close()
         pic_IObytes.seek(0)
         pic_hash = base64.b64encode(pic_IObytes.read())
@@ -1047,17 +1047,17 @@ class UCLAMiniscope(experiment.experiment):
         """Adds projection to GUI."""
         pic_IObytes = io.BytesIO()
         if max:
-            self._createContourFig(self.estimates.A, self.projections['Max'], current_selected, cmap=cmap).figure.savefig(pic_IObytes, format='png', bbox_inches='tight', pad_inches = 0)
+            self._createContourFig(self.estimates.A, self.projections['max'], current_selected, cmap=cmap).figure.savefig(pic_IObytes, format='png', bbox_inches='tight', pad_inches = 0)
         elif min:
-            self._createContourFig(self.estimates.A, self.projections['Min'], current_selected, cmap=cmap).figure.savefig(pic_IObytes, format='png', bbox_inches='tight', pad_inches = 0)
+            self._createContourFig(self.estimates.A, self.projections['min'], current_selected, cmap=cmap).figure.savefig(pic_IObytes, format='png', bbox_inches='tight', pad_inches = 0)
         elif STD:
-            self._createContourFig(self.estimates.A, self.projections['Std'], current_selected, cmap=cmap).figure.savefig(pic_IObytes, format='png', bbox_inches='tight', pad_inches = 0)
+            self._createContourFig(self.estimates.A, self.projections['std'], current_selected, cmap=cmap).figure.savefig(pic_IObytes, format='png', bbox_inches='tight', pad_inches = 0)
         elif mean:
-            self._createContourFig(self.estimates.A, self.projections['Mean'], current_selected, cmap=cmap).figure.savefig(pic_IObytes, format='png', bbox_inches='tight', pad_inches = 0)
+            self._createContourFig(self.estimates.A, self.projections['mean'], current_selected, cmap=cmap).figure.savefig(pic_IObytes, format='png', bbox_inches='tight', pad_inches = 0)
         elif median:
-            self._createContourFig(self.estimates.A, self.projections['Med'], current_selected, cmap=cmap).figure.savefig(pic_IObytes, format='png', bbox_inches='tight', pad_inches = 0)
+            self._createContourFig(self.estimates.A, self.projections['median'], current_selected, cmap=cmap).figure.savefig(pic_IObytes, format='png', bbox_inches='tight', pad_inches = 0)
         elif range:
-            self._createContourFig(self.estimates.A, self.projections['Range'], current_selected, cmap=cmap).figure.savefig(pic_IObytes, format='png', bbox_inches='tight', pad_inches = 0)
+            self._createContourFig(self.estimates.A, self.projections['range'], current_selected, cmap=cmap).figure.savefig(pic_IObytes, format='png', bbox_inches='tight', pad_inches = 0)
         plt.close()
         pic_IObytes.seek(0)
         pic_hash = base64.b64encode(pic_IObytes.read())
@@ -1069,7 +1069,7 @@ class UCLAMiniscope(experiment.experiment):
         """"""
         # Get all projections
         try: 
-            a = self.projections['Range']
+            a = self.projections['range']
         except:
             self.computeProjections()
         finally:
@@ -1119,7 +1119,7 @@ class UCLAMiniscope(experiment.experiment):
             
             # calls view_components to view temporal data
             plt.figure(2)
-            self.estimates.view_components(img = self.projections['Range'])
+            self.estimates.view_components(img = self.projections['range'])
             plt.close(2)
             
             while True:
@@ -1273,30 +1273,30 @@ class UCLAMiniscope(experiment.experiment):
     def filterMiniscope(self, n=2, cut=[0.1,1.5], ftype='butter', btype='bandpass', inline=False):
         """Method for filtering the miniscope calcium videos of choice with either a Butterworth or FIR filter."""
         print('Filtering with a(n) ' + ftype + ' filter ...')
-        fdata = self.filteredMiniscope()
+        fMiniscopeData = self.filteredMiniscope()
         try:
             miniscopeLength = np.shape(self.movie)[0]
         except NameError:
-            # edit to import all the vidoes of a specific dim once function working
+            # edit to import all the videos of a specific dim once function working
             print("video not loaded, try again")
         else:
-            self.computeProjections(time = True)
-            fdata.data = misc_functions.filterData(self.projections["time"], n=n, cut=cut, ftype=ftype, btype=btype, fs=self.experiment['frameRate'])
+            self.computeProjections(time=True)
+            fMiniscopeData.data = misc_functions.filterData(self.projections["time"], n=n, cut=cut, ftype=ftype, btype=btype, fs=self.experiment['frameRate'])
             
             if inline:
-                self.projections["time"] = fdata.data
+                self.projections["time"] = fMiniscopeData.data
                 
             else:
-                fdata.cutoff = cut
-                fdata.ftype = ftype
-                fdata.btype = btype
-                fdata.order = n
+                fMiniscopeData.cutoff = cut
+                fMiniscopeData.ftype = ftype
+                fMiniscopeData.btype = btype
+                fMiniscopeData.order = n
                 
                 try:
-                    self.fdata.append(fdata)
+                    self.fMiniscopeData.append(fMiniscopeData)
                 except AttributeError:
-                    self.fdata = []
-                    self.fdata.append(fdata)
+                    self.fMiniscopeData = []
+                    self.fMiniscopeData.append(fMiniscopeData)
 
 
 #%% Methods for computing and plotting head direction data
