@@ -54,6 +54,7 @@ def _prepAxes(title='', xLabel='', yLabel='', subPlots=None):
             xLabel.append('')
 
     h = plt.figure()
+    # h.set_layout_engine('constrained')
     if subPlots is None:
         ax = h.add_subplot()
         ax.set_title(title)
@@ -75,7 +76,7 @@ def _prepAxes(title='', xLabel='', yLabel='', subPlots=None):
                 ax[k].set_xlabel(xLabel[k])
             if k <= len(yLabel):
                 ax[k].set_ylabel(yLabel[k])
-    h.tight_layout()
+    h.tight_layout() # incompatible with the 'constrained' layout engine
     return h, ax
 
 

@@ -182,12 +182,15 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
 
 
 #%% Methods for visualizing the results
-    def createCaEphysMovie(self, timeRange=None, movieNum=None, filenameEndsWith='', dFoverSqrtF=False, vmin=None, vmax=None, meanFluorescence=False, filterMeanFluorescence=False, filterCutoffFreq=[0.5,4], channel='PFCLFPvsCBEEG', filterEphys=False, numFramesOfTraces=10, playbackInterval=33, playMovie=True, saveMovie=False):
+    def createCaEphysMovie(self, timeRange=None, movieNum=None, filenameEndsWith='', crop=False, cropSquare=False, dFoverSqrtF=False, vmin=None, vmax=None, plotMeanFluorescence=False, plotEphys=True, filterMeanFluorescence=False, filterCutoffFreq=[0.5,4], channel='PFCLFPvsCBEEG', filterEphys=False, numFramesOfTraces=10, playbackInterval=33, playMovie=True, saveMovie=False):
         """Create a movie that has the ephys overlayed.
         Accepts either a time range or a video number, but not both.
         TIMERANGE is a list of the time boundaries, in seconds, from ephys space.
         MOVIENUM is an int representing the number of the video file (e.g., 0 for '0.avi').
         FILENAMEENDSWITH specifies any appended characters to the filenames, such as '_cropped'."""
+        if not plotEphys and not plotMeanFluorescence:
+            print('Note: you have chosen not to overlay an ephys signal nor the mean fluroescence.')
+        
         if type(timeRange) == list:
             if movieNum != None:
                 print('Please only provide either a time range or a video number, not both! Proceeding with time range...')
@@ -202,13 +205,19 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
             print('Please provide either a time range or a movie number!')
             return
         
+        if crop or cropSquare:
+            if cropSquare:
+                self.preprocessCaMovies(crop=True, square=True)
+            else:
+                self.preprocessCaMovies(crop=True)
+        
         # Adjust the movie frame numbers so that they are with respect to the imported movies, not the entire recording.
         adjustedMovieFrames = np.zeros(2, dtype=int)
         adjustedMovieFrames[0] = self.movieFrames[0] % self.experiment['framesPerFile']
         adjustedMovieFrames[1] = adjustedMovieFrames[0] + np.diff(self.movieFrames)[0]
         self.movie = self.movie[adjustedMovieFrames[0]:adjustedMovieFrames[1]+1]
         
-        if meanFluorescence:
+        if plotMeanFluorescence:
             if filterMeanFluorescence:
                 self.filterMiniscope(cut=filterCutoffFreq, inline=True)
             else:
@@ -223,10 +232,13 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                 self.computedFoverF(saveMovie=False)
             if vmin == None:
                 vmin = self.movie.mean() - self.movie.std()*0
+                print('vmin = ' + str(vmin))
             if vmax == None:
                 vmax = self.movie.mean() + self.movie.std()*4
-            if filterEphys:
-                self.filterEphys(cut=filterCutoffFreq, channel=channel)
+                print('vmax = ' + str(vmax))
+            if plotEphys:
+                if filterEphys:
+                    self.filterEphys(cut=filterCutoffFreq, channel=channel, inline=True)
 
             # Set up the plot
             fig, ax = plt.subplots(figsize=(5.4,5.4))
@@ -239,24 +251,28 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                 # Plot the frame
                 ax.imshow(self.movie[frame], vmin=vmin, vmax=vmax, cmap='gray')
                 
-                if meanFluorescence:
+                if plotMeanFluorescence:
                     if frame >= numFramesOfTraces:
                         meanFluorescenceSegment = self.projections['time'][frame-numFramesOfTraces:frame]
                     else:
                         meanFluorescenceSegment = np.concatenate((np.ones(numFramesOfTraces - frame) * np.nan, self.projections['time'][0:frame]))
                 
                 # Get the corresponding segment of the ephys recording
-                frame += self.movieFrames[0]
-                if frame >= numFramesOfTraces:
-                    ephysSegment = self.ephys[channel][self.ephysIdxAllTTLEvents[frame-numFramesOfTraces]:self.ephysIdxAllTTLEvents[frame]]
-                else:
-                    ephysSegment = self.ephys[channel][self.ephysIdxAllTTLEvents[frame]-numFramesOfTraces*round(self.samplingRate[channel]/self.experiment['fr']):self.ephysIdxAllTTLEvents[frame]]
+                if plotEphys:
+                    frame += self.movieFrames[0]
+                    if frame >= numFramesOfTraces+self.movieFrames[0]:
+                        ephysSegment = self.ephys[channel][self.ephysIdxAllTTLEvents[frame-numFramesOfTraces]:self.ephysIdxAllTTLEvents[frame]]
+                    else:
+                        # ephysSegment = self.ephys[channel][self.ephysIdxAllTTLEvents[frame]-numFramesOfTraces*round(self.samplingRate[channel]/self.experiment['frameRate']):self.ephysIdxAllTTLEvents[frame]] # This makes it so it plots the ephys from before the created movie started.
+                        ephysSegment = np.concatenate((np.ones((numFramesOfTraces - frame + self.movieFrames[0])*round(self.samplingRate[channel]/self.experiment['frameRate'])) * np.nan, self.ephys[channel][self.ephysIdxAllTTLEvents[self.movieFrames[0]]:self.ephysIdxAllTTLEvents[frame]]))
 
                 # Plot the segment on top of the frame
-                if meanFluorescence:
-                    fluorescenceScaling = 200 / np.max(np.abs(self.projections['time']))
-                    ax.plot(np.linspace(-0.5, self.movie.shape[2]-0.5, len(meanFluorescenceSegment)), meanFluorescenceSegment*fluorescenceScaling + 100, color='blue', linewidth=2)
-                ax.plot(np.linspace(-0.5, self.movie.shape[2]-0.5, len(ephysSegment)), ephysSegment/5 + 100, color='red', linewidth=2)
+                if plotMeanFluorescence:
+                    fluorescenceScaling = (self.movie.shape[2]/3) / np.max(np.abs(self.projections['time']))
+                    ax.plot(np.linspace(-0.5, self.movie.shape[2]-0.5, len(meanFluorescenceSegment)), meanFluorescenceSegment*fluorescenceScaling + (self.movie.shape[2]/6), color='blue', linewidth=2)
+                if plotEphys:
+                    ephysScaling = self.movie.shape[2] / np.max(np.abs(self.ephys[channel]))
+                    ax.plot(np.linspace(-0.5, self.movie.shape[2]-0.5, len(ephysSegment)), ephysSegment*ephysScaling + (self.movie.shape[2]/6), color='red', linewidth=2)
                 ax.set_xlim(-0.5, self.movie.shape[2]-0.5)
                 ax.set_ylim(-0.5, self.movie.shape[1]-0.5)
                 ax.set_axis_off()
@@ -269,7 +285,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                 plt.show()
     
             # Save the animation
-            if saveMovie: #TODO add saving options with and without fluorescnece (And mabye ephys)
+            if saveMovie: #TODO add saving options with and without fluorescnece (And mabye ephys. Maybe make a check at the beginning to return if neither is shown, but make either one of them options, instead of always ephys).
                 if dFoverSqrtF:
                     self.ani.save(self.experiment['calcium imaging directory'] + '/Miniscope/frames_' + str(self.movieFrames[0]) + '_' + str(self.movieFrames[1]) + '_CaIm_dFoverSqrtF_and_' + channel + '.mp4', dpi=300)
                 else:
