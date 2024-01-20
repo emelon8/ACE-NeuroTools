@@ -182,7 +182,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
 
 
 #%% Methods for visualizing the results
-    def createCaEphysMovie(self, timeRange=None, movieNum=None, filenameEndsWith='', crop=False, cropSquare=False, dFoverSqrtF=False, vmin=None, vmax=None, plotMeanFluorescence=False, plotEphys=True, filterMeanFluorescence=False, filterCutoffFreq=[0.5,4], channel='PFCLFPvsCBEEG', filterEphys=False, numFramesOfTraces=10, playbackInterval=33, playMovie=True, saveMovie=False):
+    def createCaEphysMovie(self, timeRange=None, movieNum=None, filenameEndsWith='', crop=False, cropSquare=False, dFoverSqrtF=False, vmin=None, vmax=None, plotMeanFluorescence=False, plotEphys=True, filterMeanFluorescence=False, filterCutoffFreq=[0.5,4], channel='PFCLFPvsCBEEG', filterEphys=False, numFramesOfTraces=10, timeStamps=True, playbackInterval=33, playMovie=True, saveMovie=False):
         """Create a movie that has the ephys overlayed.
         Accepts either a time range or a video number, but not both.
         TIMERANGE is a list of the time boundaries, in seconds, from ephys space.
@@ -205,11 +205,11 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
             print('Please provide either a time range or a movie number!')
             return
         
-        if crop or cropSquare:
-            if cropSquare:
-                self.preprocessCaMovies(crop=True, square=True)
-            else:
-                self.preprocessCaMovies(crop=True)
+        # Crop the movie if desired.
+        if crop:
+            self.preprocessCaMovies(crop=True)
+        if cropSquare:
+            self.preprocessCaMovies(crop=True, square=True)
         
         # Adjust the movie frame numbers so that they are with respect to the imported movies, not the entire recording.
         adjustedMovieFrames = np.zeros(2, dtype=int)
@@ -222,6 +222,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                 self.filterMiniscope(cut=filterCutoffFreq, inline=True)
             else:
                 self.computeProjections(time=True)
+            self.projections['time'] -= np.mean(self.projections['time']) # Maybe not needed for the filtered signal, but this is applied to both filtered and non-filtered just in case the filter doesn't exclude the DC component (0 Hz).
         
         try:
             lenRecording = len(self.ephysIdxAllTTLEvents)
@@ -258,8 +259,8 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                         meanFluorescenceSegment = np.concatenate((np.ones(numFramesOfTraces - frame) * np.nan, self.projections['time'][0:frame]))
                 
                 # Get the corresponding segment of the ephys recording
+                frame += self.movieFrames[0]
                 if plotEphys:
-                    frame += self.movieFrames[0]
                     if frame >= numFramesOfTraces+self.movieFrames[0]:
                         ephysSegment = self.ephys[channel][self.ephysIdxAllTTLEvents[frame-numFramesOfTraces]:self.ephysIdxAllTTLEvents[frame]]
                     else:
@@ -268,11 +269,14 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
 
                 # Plot the segment on top of the frame
                 if plotMeanFluorescence:
-                    fluorescenceScaling = (self.movie.shape[2]/3) / np.max(np.abs(self.projections['time']))
-                    ax.plot(np.linspace(-0.5, self.movie.shape[2]-0.5, len(meanFluorescenceSegment)), meanFluorescenceSegment*fluorescenceScaling + (self.movie.shape[2]/6), color='blue', linewidth=2)
+                    fluorescenceScaling = (self.movie.shape[1] / 3) / np.max(np.abs(self.projections['time']))
+                    ax.plot(np.linspace(-0.5, self.movie.shape[2]-0.5, len(meanFluorescenceSegment)), meanFluorescenceSegment*fluorescenceScaling + (self.movie.shape[1]/6), color='blue', linewidth=2)
                 if plotEphys:
-                    ephysScaling = self.movie.shape[2] / np.max(np.abs(self.ephys[channel]))
-                    ax.plot(np.linspace(-0.5, self.movie.shape[2]-0.5, len(ephysSegment)), ephysSegment*ephysScaling + (self.movie.shape[2]/6), color='red', linewidth=2)
+                    ephysScaling = self.movie.shape[1] / np.max(np.abs(self.ephys[channel]))
+                    ax.plot(np.linspace(-0.5, self.movie.shape[2]-0.5, len(ephysSegment)), ephysSegment*ephysScaling + (self.movie.shape[1]/6), color='red', linewidth=2)
+                if timeStamps:
+                    timeStamp = self.tEphys[channel][self.ephysIdxAllTTLEvents[frame]] - self.tEphys[channel][self.ephysIdxAllTTLEvents[self.movieFrames[0]]]
+                    ax.text(0.9375*self.movie.shape[2], 10*self.movie.shape[1]/608, '{:.2f}'.format(timeStamp) + ' s', ha='right', color=[1, 1, 1]) # Also could do color=[0.7,0.7,1]
                 ax.set_xlim(-0.5, self.movie.shape[2]-0.5)
                 ax.set_ylim(-0.5, self.movie.shape[1]-0.5)
                 ax.set_axis_off()
@@ -285,11 +289,21 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                 plt.show()
     
             # Save the animation
-            if saveMovie: #TODO add saving options with and without fluorescnece (And mabye ephys. Maybe make a check at the beginning to return if neither is shown, but make either one of them options, instead of always ephys).
-                if dFoverSqrtF:
-                    self.ani.save(self.experiment['calcium imaging directory'] + '/Miniscope/frames_' + str(self.movieFrames[0]) + '_' + str(self.movieFrames[1]) + '_CaIm_dFoverSqrtF_and_' + channel + '.mp4', dpi=300)
-                else:
-                    self.ani.save(self.experiment['calcium imaging directory'] + '/Miniscope/frames_' + str(self.movieFrames[0]) + '_' + str(self.movieFrames[1]) + '_CaIm_and_' + channel + '.mp4', dpi=300)
+            if saveMovie:
+                dirStr = self.experiment['calcium imaging directory'] + '/Miniscope/'
+                framesStr = 'frames_' + str(self.movieFrames[0]) + '_' + str(self.movieFrames[1])
+                cropStr = '_crop' * crop
+                cropSqStr = '_cropSquare' * cropSquare
+                dFSqrtFStr = '_dFSqrtF' * dFoverSqrtF
+                pltMFStr = '_plotMeanF' * plotMeanFluorescence
+                pltEphysStr = ('_' + str(channel)) * plotEphys
+                fMFStr = '_filterMeanF' * filterMeanFluorescence * plotMeanFluorescence
+                fEphysStr = '_filterEphys' * filterEphys * plotEphys
+                fCutStr = ('_filterCutoffFreq_' + str(filterCutoffFreq[0]) + '_' + str(filterCutoffFreq[1])) * (filterEphys or filterMeanFluorescence)
+                nTracesStr = '_nFramesTraces_' + str(numFramesOfTraces)
+                intervalStr = '_playTS_' + str(playbackInterval)
+                saveName = dirStr + framesStr + cropStr + cropSqStr + dFSqrtFStr + pltMFStr + pltEphysStr + fMFStr + fEphysStr + fCutStr + nTracesStr + intervalStr
+                self.ani.save(saveName + '.mp4', dpi=300)
 
 
 #%% Methods to extract the instantaneous phase of the ephys signal, determine the phases of the calcium events, and summarize and save the results
