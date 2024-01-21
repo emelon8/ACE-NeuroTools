@@ -291,18 +291,17 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
             # Save the animation
             if saveMovie:
                 dirStr = self.experiment['calcium imaging directory'] + '/Miniscope/'
-                framesStr = 'frames_' + str(self.movieFrames[0]) + '_' + str(self.movieFrames[1])
+                framesStr = str(self.movieFrames[0]) + '_' + str(self.movieFrames[1])
                 cropStr = '_crop' * crop
                 cropSqStr = '_cropSquare' * cropSquare
                 dFSqrtFStr = '_dFSqrtF' * dFoverSqrtF
-                pltMFStr = '_plotMeanF' * plotMeanFluorescence
-                pltEphysStr = ('_' + str(channel)) * plotEphys
+                channelStr = ('_' + str(channel)) * plotEphys
                 fMFStr = '_filterMeanF' * filterMeanFluorescence * plotMeanFluorescence
                 fEphysStr = '_filterEphys' * filterEphys * plotEphys
                 fCutStr = ('_filterCutoffFreq_' + str(filterCutoffFreq[0]) + '_' + str(filterCutoffFreq[1])) * (filterEphys or filterMeanFluorescence)
-                nTracesStr = '_nFramesTraces_' + str(numFramesOfTraces)
+                nTracesStr = '_nTraces_' + str(numFramesOfTraces)
                 intervalStr = '_playTS_' + str(playbackInterval)
-                saveName = dirStr + framesStr + cropStr + cropSqStr + dFSqrtFStr + pltMFStr + pltEphysStr + fMFStr + fEphysStr + fCutStr + nTracesStr + intervalStr
+                saveName = dirStr + framesStr + cropStr + cropSqStr + dFSqrtFStr + channelStr + fMFStr + fEphysStr + fCutStr + nTracesStr + intervalStr
                 self.ani.save(saveName + '.mp4', dpi=300)
 
 
