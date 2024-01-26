@@ -182,7 +182,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
 
 
 #%% Methods for visualizing the results
-    def createCaEphysMovie(self, timeRange=None, movieNum=None, filenameEndsWith='', crop=False, cropSquare=False, dFoverSqrtF=False, vmin=None, vmax=None, plotMeanFluorescence=False, plotEphys=True, filterMeanFluorescence=False, filterCutoffFreq=[0.5,4], channel='PFCLFPvsCBEEG', filterEphys=False, numFramesOfTraces=10, timeStamps=True, playbackInterval=33, playMovie=True, saveMovie=False):
+    def createCaEphysMovie(self, timeRange=None, movieNum=None, filenameEndsWith='', crop=False, cropSquare=False, dFoverSqrtF=False, vmin=None, vmax=None, plotMeanFluorescence=False, plotEphys=True, filterMeanFluorescence=False, filterCutoffFreq=[0.5,4], channel='PFCLFPvsCBEEG', filterEphys=False, numFramesOfTraces=10, timeStamps=True, markStartSystemic=True, playbackInterval=33, playMovie=True, saveMovie=False):
         """Create a movie that has the ephys overlayed.
         Accepts either a time range or a video number, but not both.
         TIMERANGE is a list of the time boundaries, in seconds, from ephys space.
@@ -240,12 +240,16 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
             if plotEphys:
                 if filterEphys:
                     self.filterEphys(cut=filterCutoffFreq, channel=channel, inline=True)
+            if markStartSystemic:
+                sysStartIdx = np.where(np.char.find(self.NeuralynxEvents['labels'], 'start') == 0)[0][0]
+                print('Found event labeled: ' + self.NeuralynxEvents['labels'][sysStartIdx])
+                tEphysSysStartIdx = np.abs(self.tEphys[channel] - self.NeuralynxEvents['timestamps'][sysStartIdx]).argmin()
 
             # Set up the plot
             fig, ax = plt.subplots(figsize=(5.4,5.4))
             plt.subplots_adjust(0,0,1,1)
     
-            def update(frame):
+            def update(frame): # TODO Add a way to downsample your movie/ephys/miniscope fluorescence.
                 # Clear the plot
                 ax.clear()
     
@@ -277,6 +281,9 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                 if timeStamps:
                     timeStamp = self.tEphys[channel][self.ephysIdxAllTTLEvents[frame]] - self.tEphys[channel][self.ephysIdxAllTTLEvents[self.movieFrames[0]]]
                     ax.text(0.9375*self.movie.shape[2], 10*self.movie.shape[1]/608, '{:.2f}'.format(timeStamp) + ' s', ha='right', color=[1, 1, 1]) # Also could do color=[0.7,0.7,1]
+                if markStartSystemic:
+                    if (self.ephysIdxAllTTLEvents[frame] >= tEphysSysStartIdx) and (self.ephysIdxAllTTLEvents[frame] < tEphysSysStartIdx + int(float(self.experiment['total systemic time (min)']) * self.samplingRate[channel])): #FIXME I think this is turning off too quickly, fix after the 'and'
+                        ax.text(0.0625*self.movie.shape[2], 550*self.movie.shape[1]/608, self.experiment['systemic drug'] + ' infusion', ha='left', color=[1, 0, 0])
                 ax.set_xlim(-0.5, self.movie.shape[2]-0.5)
                 ax.set_ylim(-0.5, self.movie.shape[1]-0.5)
                 ax.set_axis_off()
