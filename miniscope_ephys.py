@@ -242,7 +242,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                     self.filterEphys(cut=filterCutoffFreq, channel=channel, inline=True)
             if markStartSystemic:
                 sysStartIdx = np.where(np.char.find(self.NeuralynxEvents['labels'], 'start') == 0)[0][0]
-                print('Found event labeled: ' + self.NeuralynxEvents['labels'][sysStartIdx])
+                print('''Found event labeled: "''' + self.NeuralynxEvents['labels'][sysStartIdx] + '''" at ''' + str(self.NeuralynxEvents['timestamps'][sysStartIdx]) + ' s.')
                 tEphysSysStartIdx = np.abs(self.tEphys[channel] - self.NeuralynxEvents['timestamps'][sysStartIdx]).argmin()
 
             # Set up the plot
