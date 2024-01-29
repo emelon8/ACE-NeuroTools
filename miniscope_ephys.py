@@ -282,7 +282,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                     timeStamp = self.tEphys[channel][self.ephysIdxAllTTLEvents[frame]] - self.tEphys[channel][self.ephysIdxAllTTLEvents[self.movieFrames[0]]]
                     ax.text(0.9375*self.movie.shape[2], 10*self.movie.shape[1]/608, '{:.2f}'.format(timeStamp) + ' s', ha='right', color=[1, 1, 1]) # Also could do color=[0.7,0.7,1]
                 if markStartSystemic:
-                    if (self.ephysIdxAllTTLEvents[frame] >= tEphysSysStartIdx) and (self.ephysIdxAllTTLEvents[frame] < tEphysSysStartIdx + int(float(self.experiment['total systemic time (min)']) * self.samplingRate[channel])): #FIXME I think this is turning off too quickly, fix after the 'and'
+                    if (self.ephysIdxAllTTLEvents[frame] >= tEphysSysStartIdx) and (self.ephysIdxAllTTLEvents[frame] < tEphysSysStartIdx + int(float(self.experiment['total systemic time (min)']) * 60 * self.samplingRate[channel])):
                         ax.text(0.0625*self.movie.shape[2], 550*self.movie.shape[1]/608, self.experiment['systemic drug'] + ' infusion', ha='left', color=[1, 0, 0])
                 ax.set_xlim(-0.5, self.movie.shape[2]-0.5)
                 ax.set_ylim(-0.5, self.movie.shape[1]-0.5)
