@@ -26,14 +26,14 @@ channel = 'PFCLFPvsCBEEG'
 # neuronMatrix = [[0,1,2,3],[0,1,2,4],[3],[0,5,3],[4,3],[3],[0,2],[2,3,6],[7],[0,1,8]]
 
 # Low-dose dex experiment
-lineNum = 41
-firstVideo = 103
-neuronMatrix = [[0,1,2,3,4],[0,1,3,5],[6,0,1,3,2],[7,0,8,9,2,10,3],[11,7,1,2,3,6],[12,0,8,4,9,3],[11,6,0,4,13,14,15,3],[6,8,4,14,3,16,17,10],[11,0,8,18,14,2,3,19,20],[21,6,22,0,8,1,14,23,3],[24,25,0,1,14,3,6],[6,26,0,1,14,3],[24,11,6,20,8,0,2,1,14,3],[8,14,3,2,17],[7,20,0,18,26,2],[21,6,0,27,1,14,28],[21,1,29,30,31,0,7]]
+# lineNum = 41
+# firstVideo = 103
+# neuronMatrix = [[0,1,2,3,4],[0,1,3,5],[6,0,1,3,2],[7,0,8,9,2,10,3],[11,7,1,2,3,6],[12,0,8,4,9,3],[11,6,0,4,13,14,15,3],[6,8,4,14,3,16,17,10],[11,0,8,18,14,2,3,19,20],[21,6,22,0,8,1,14,23,3],[24,25,0,1,14,3,6],[6,26,0,1,14,3],[24,11,6,20,8,0,2,1,14,3],[8,14,3,2,17],[7,20,0,18,26,2],[21,6,0,27,1,14,28],[21,1,29,30,31,0,7]]
 
 # Propofol experiment
-# lineNum = 44
-# firstVideo = 77
-# neuronMatrix = [[0,1],[1,2,3],[1,4],[1,2],[1,2,3],[1,2],[5,6,1],[1,2],[7,1,2,3],[0,1,3],[1,2],[1,2,3],[0,1,3],[1],[1],[1],[1,3],[1],[0,1],[8,1,3],[7,1,3],[1],[0,1],[1,3],[1,3],[0,1],[0,1],[1],[1],[1],[7,1,9],[1],[0,1],[0,1,10],[1],[0,1,3],[1,3]]
+lineNum = 44
+firstVideo = 77
+neuronMatrix = [[0,1],[1,2,3],[1,4],[1,2],[1,2,3],[1,2],[5,6,1],[1,2],[7,1,2,3],[0,1,3],[1,2],[1,2,3],[0,1,3],[1],[1],[1],[1,3],[1],[0,1],[8,1,3],[7,1,3],[1],[0,1],[1,3],[1,3],[0,1],[0,1],[1],[1],[1],[7,1,9],[1],[0,1],[0,1,10],[1],[0,1,3],[1,3]]
 
 
 #%% R2201020B's experiments
@@ -66,7 +66,7 @@ n = max(flatNeuronMatrix) + 1
 obj = miniscope_ephys.miniscopeEphys(lineNum=lineNum)
 
 obj.importEphysData(channels=channel)
-obj.importNeuralynxEvents(analogSignalImported=True)
+obj.importNeuralynxEvents()
 obj.syncNeuralynxMiniscopeTimestamps(channel=channel)
 
 # Import all of the estimates objects and find the indices of each calcium event
@@ -91,16 +91,16 @@ for i, k in enumerate(estimatesObjectsPaths):
 # Find the ephys indices that correspond to the calcium events
 obj.CaEventsIdx = CaEventsIdx.copy()
 
-meanFluorescence = np.load('../../experimental_results/miniscope_ephys_correlation_project/npzFiles/meanFluorescence_' + str(lineNum) + '.npz')
+meanFluorescence = np.load('../../experimental_results/K99/miniscope_ephys_correlation_project/npzFiles/meanFluorescence_' + str(lineNum) + '.npz')
 
 fdataM = misc_functions.filterData(meanFluorescence['meanFluorescence'], n=2, cut=[1,3], ftype='butter', btype='bandpass', fs=obj.experiment['frameRate'])
 obj.miniscopePhaseCaEvents(data=fdataM)
 
 # Plot histograms of the mean probability density of all of the neurons
-obj.phaseCaEventsHistogram(plotHistogram=True, combined=True, density=True, meanDensity=True)
+# obj.phaseCaEventsHistogram(plotHistogram=True, combined=True, density=True, meanDensity=True)
 
 # Plot histograms of the event count of all of the neurons
-# obj.phaseCaEventsHistogram(plotHistogram=True, combined=True, density=False)
+obj.phaseCaEventsHistogram(plotHistogram=True, combined=True, density=False)
 
 # Plot histograms of all of the neurons
 # obj.phaseCaEventsHistogram(plotHistogram=True, combined=False, density=False)
