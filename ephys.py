@@ -15,7 +15,6 @@ from scipy.signal import hilbert
 from scipy.signal import hann
 import matplotlib.pyplot as plt
 # plt.rcParams['svg.fonttype'] = 'none'
-# from mne.time_frequency import psd_array_multitaper #TODO replace this with new package to compute spectrograms
 from multitaper_spectrogram_python import multitaper_spectrogram
 from neo.io import NeuralynxIO
 import misc_functions

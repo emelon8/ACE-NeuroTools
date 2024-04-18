@@ -7,6 +7,9 @@ Created on Fri Aug 14 11:25:19 2020
 Run calcium imaging analysis on a select range of miniscope recordings.
 """
 
+import time
+start=time.time()
+
 import os
 # import glob
 import miniscope
@@ -42,6 +45,7 @@ obj.processCaMovies(parallel=False, n_processes=8)
 
 print('obj.movieFilePaths = ' + str(obj.movieFilePaths))
 
+
 #%% Delete memmapped files
 # # Get a list of all the file paths that ends with .txt from in specified directory
 # if type(obj.movieFilePaths) is str:
@@ -54,3 +58,6 @@ print('obj.movieFilePaths = ' + str(obj.movieFilePaths))
 #         os.remove(filePath)
 #     except:
 #         print("Error while deleting file : ", filePath)
+
+stop=time.time()
+print(str((stop-start)/60))
