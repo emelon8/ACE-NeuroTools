@@ -660,7 +660,7 @@ class UCLAMiniscope(experiment.experiment):
     def processCaMovies(self, parallel=True, n_processes=12, motionCorrect=True, saveMotionCorrect=True, inspectMotionCorrection=False,
                         inspectCorrPNR=False, downsampleForCorrPNR=1, runCNMFE=True, saveCNMFEFilename='estimates.hdf5',
                         editComponents=False, deconvolve=False, saveProcessedData=False):
-        """Preprocess calcium imaging data."""
+        """Process calcium imaging data."""
         print('Processing movie...')
         if 'movieFilePaths' not in dir(self):
             self.findMovieFilePaths()
@@ -671,6 +671,8 @@ class UCLAMiniscope(experiment.experiment):
         # means that we don't have to save the dimensions of all cropping
         # scenarios.
         if 'movie' not in dir(self):
+            if type(self.movieFilePaths) != list:
+                self.movieFilePaths = [self.movieFilePaths]
             self.importCaMovies(self.movieFilePaths[0])
         self._analysisParamsDict['dims'] = self.movie.shape[1:]
         
@@ -753,7 +755,7 @@ class UCLAMiniscope(experiment.experiment):
             self.optsCaImAn.change_params({'fnames': fname_new})
 
 
-    def _CNMFE(self, nProcesses, dview=None, saveCNMFEFilename='estimates.h5'):
+    def _CNMFE(self, nProcesses, dview, saveCNMFEFilename):
         """Segments neurons, demixes spatially overlapping neurons, and denoises the calcium activity from calcium movies.
         See paper describing the method: https://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3"""
         print('Setting up CNMF-E object...')
