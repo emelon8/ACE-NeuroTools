@@ -22,13 +22,13 @@ import caiman as cm
 
 # obj._componentGUI()
 
-obj = miniscope.UCLAMiniscope(lineNum=41)
+obj = miniscope.UCLAMiniscope(lineNum=85)
 
 #%% Import videos
 obj.importCaMovies(obj.experiment['calcium imaging directory'] + '/Miniscope/103.avi')
 
 #%% Load the estimates object
-cnmObj = cm.source_extraction.cnmf.cnmf.load_CNMF(obj.experiment['calcium imaging directory'] + '/cnm_41.103.estimates.hdf5')
+cnmObj = cm.source_extraction.cnmf.cnmf.load_CNMF(obj.experiment['calcium imaging directory'] + '/estimates.hdf5')
 
 obj.estimates = cnmObj.estimates
 

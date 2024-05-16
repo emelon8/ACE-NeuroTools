@@ -19,7 +19,7 @@ lendiff = []
 alternating = []
 driftFit = []
 
-for k in [97]:#48,64]: #35,36,37,38,39,40,41,42,43,44,45,46,47,
+for k in [94,108,112]:#[35,36,37,38,39,40,41,42,43,44,45,46,47,48,64,83,85,86,87,88,90,92,93,94,96,97,99,101,103,104,105,107,108,112]:
     obj = miniscope_ephys.miniscopeEphys(k)
     obj.importEphysData(channels=['PFCEEGvsCBEEG'])
     obj.importNeuralynxEvents()
@@ -33,16 +33,19 @@ for k in [97]:#48,64]: #35,36,37,38,39,40,41,42,43,44,45,46,47,
     plt.plot(zeroed_tS*1000)
     plt.xlabel('frame number')
     plt.ylabel('Miniscope software timestamps - TTL event times (ms)')
+    plt.title('Experiment ' + str(obj.lineNum))
     
     plt.figure()
     plt.plot(np.diff(obj.timeStamps)*1000)
     plt.xlabel('diff frame number')
     plt.ylabel('Miniscope software timestamp diffs (ms)')
+    plt.title('Experiment ' + str(obj.lineNum))
     
     plt.figure()
     plt.plot(np.diff(obj.tCaIm)*1000)
     plt.xlabel('diff frame number')
     plt.ylabel('TTL event time diff (ms)')
+    plt.title('Experiment ' + str(obj.lineNum))
     
     # find the slope of the trials with no jumps
     # driftFitRaw = np.polynomial.Polynomial.fit(np.arange(len(zeroed_tS)), zeroed_tS, 1)
