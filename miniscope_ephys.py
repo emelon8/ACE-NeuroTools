@@ -29,7 +29,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
 
 
 #%% Methods for extracting timing of calcium image acquisition, deleting timestamps of dropped frames, and matching timestamps with ephys timestamps
-    def syncNeuralynxMiniscopeTimestamps(self, channel='PFCLFPvsCBEEG', deleteTTLs=True, onlyExperimentEvents=True):
+    def syncNeuralynxMiniscopeTimestamps(self, channel='PFCLFPvsCBEEG', deleteTTLs=True, fixTTLGaps=False, onlyExperimentEvents=True):
         """Create time vector for calcium movies from TTL events in Neuralynx."""
         try:
             eventsLength = len(self.NeuralynxEvents)
@@ -43,7 +43,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
             
             # Check for gaps in the TTL event timestamps and insert a timestamp guess if needed
             self.lowConfidencePeriods = np.empty((0,2))
-            self._correcttCaIm(self.NeuralynxEvents['labels'][frameAcqIdx])
+            self._correcttCaIm(self.NeuralynxEvents['labels'][frameAcqIdx], fixTTLGaps=fixTTLGaps)
             
             # make an array of the Neuralynx events with the TTL events removed
             if onlyExperimentEvents:
@@ -57,7 +57,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                 self.tCaIm = np.delete(self.tCaIm, self._analysisParamsDict['indices of TTL events to delete'])
 
 
-    def _correcttCaIm(self, eventLabels, threshold=0.06):
+    def _correcttCaIm(self, eventLabels, threshold=0.06, fixTTLGaps=False):
         """This method first confirms that the TTL events alternate and then checks for missing TTL events. If there are any, the method guesses their timing and inserts them into the calcium imaging time vector.
         EVENTLABELS is the array of imported Neuralynx event labels.
         THRESHOLD is the time threshold, in seconds, for detecting gaps in the TTL events."""
@@ -71,20 +71,27 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
             print('TTL does not alternate!')
             sys.exit() # Exit program execution if this condition is reached.
         
-        print('Fixing any gaps in the TTL events...')
+        print('Finding any gaps in the TTL events...')
         dtCaIm = np.diff(self.tCaIm)
         idxTTLGap = np.where(dtCaIm > threshold)[0] # indices of gaps in the TTL events
-        flippedIdxTTLGap = np.flip(idxTTLGap) # Reverse the order of idxTTLGap so that inserting TTLs in the loop doesn't affect the indices of the next iteration of the loop.
-        gapLength = [] # number dropped frames per index
-        for k, gapIdx in enumerate(flippedIdxTTLGap):
-            gapLength.append(round(dtCaIm[gapIdx]/(1/self.experiment['frameRate']))) # Guesses how many timesteps occur in the gap. E.g., a 30 Hz video with a gap of 67 ms will have 2 timesteps in the gap.
-            print(str(gapLength[k]-1) + ' TTL event(s) is/are missing between index numbers ' + str(gapIdx) + ' and ' + str(gapIdx + 1) + '.')
-            estimatedEventTimes = np.linspace(self.tCaIm[gapIdx], self.tCaIm[gapIdx+1], gapLength[k]+1) # Estimates the timing of the TTLs, beginning at the one before the gap and ending at the one after the gap.
-            self.tCaIm = np.insert(self.tCaIm, gapIdx+1, estimatedEventTimes[1:-1])
-            self.lowConfidencePeriods = np.append(self.lowConfidencePeriods, [[gapIdx, gapIdx+gapLength[k]]], axis=0)
+        if len(idxTTLGap) == 0:
+            print('No gaps were found with a threshold of ' + str(threshold*1000) + ' ms.')
+        elif fixTTLGaps:
+            print('Fixing any gaps in the TTL events...')
+            flippedIdxTTLGap = np.flip(idxTTLGap) # Reverse the order of idxTTLGap so that inserting TTLs in the loop doesn't affect the indices of the next iteration of the loop.
+            gapLength = [] # number dropped frames per index
+            for k, gapIdx in enumerate(flippedIdxTTLGap):
+                gapLength.append(round(dtCaIm[gapIdx]/(1/self.experiment['frameRate']))) # Guesses how many timesteps occur in the gap. E.g., a 30 Hz video with a gap of 67 ms will have 2 timesteps in the gap.
+                print(str(gapLength[k]-1) + ' TTL event(s) is/are missing between index numbers ' + str(gapIdx) + ' and ' + str(gapIdx + 1) + '.')
+                estimatedEventTimes = np.linspace(self.tCaIm[gapIdx], self.tCaIm[gapIdx+1], gapLength[k]+1) # Estimates the timing of the TTLs, beginning at the one before the gap and ending at the one after the gap.
+                self.tCaIm = np.insert(self.tCaIm, gapIdx+1, estimatedEventTimes[1:-1])
+                self.lowConfidencePeriods = np.append(self.lowConfidencePeriods, [[gapIdx, gapIdx+gapLength[k]]], axis=0)
+        else:
+            print('Gaps were found. Review self.tCaIm before proceeding.')
+            sys.exit() # Exit program execution if this condition is reached.
 
 
-    def findEphysIdxOfTTLEvents(self, channel='PFCLFPvsCBEEG', allTTLEvents=True, CaEvents=False):
+    def findEphysIdxOfTTLEvents(self, channel='PFCLFPvsCBEEG', allTTLEvents=True, CaEvents=False, fixTTLGaps=False):
         """Finds the index of a calcium event in the Neuralynx timespace. If the miniscope class method to find the timing of calcium events has not been run yet, it runs that first.
         CHANNEL is the ephys channel with which to compare the timing of the ephys samples to the calcium event timing."""
         # Match up all calcium movie timestamps with their corresponding ephys timestamps.
@@ -92,7 +99,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
             try:
                 tCaImLength = len(self.tCaIm)
             except AttributeError:
-                self.syncNeuralynxMiniscopeTimestamps(channel=channel)
+                self.syncNeuralynxMiniscopeTimestamps(channel=channel, fixTTLGaps=fixTTLGaps)
             finally:
                 print('Finding the indices of ephys timestamps that are closest to all calcium movie frame acquisition TTL events...')
                 self.ephysIdxAllTTLEvents = np.empty(len(self.tCaIm),dtype=int)
@@ -140,7 +147,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
             self.CaFrameNumOfEphysIdx[i:self.ephysIdxAllTTLEvents[k]:-1] = k+1
 
 
-    def findCaMovieNums(self, timeRange=None, channel='PFCLFPvsCBEEG', filenameEndsWith=''):
+    def findCaMovieNums(self, timeRange=None, channel='PFCLFPvsCBEEG', filenameEndsWith='', fixTTLGaps=False):
         """Determine the calcium imaging movie file(s) that correspond to a specified time period (in seconds) in the electrophysiological signal. Set SELF.MOVIEFILEPATHS to these movies' paths.
         TIMERANGE is a list specifing the boundaries of the time period.
         FILENAMEENDSWITH specifies any appended characters to the filenames, such as '_cropped'."""
@@ -154,7 +161,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         try:
             lenEphysIdxAllTTLEvents = len(self.ephysIdxAllTTLEvents)
         except:
-            self.findEphysIdxOfTTLEvents(channel=channel, CaEvents=False)
+            self.findEphysIdxOfTTLEvents(channel=channel, CaEvents=False, fixTTLGaps=fixTTLGaps)
         finally:
             print('Finding the miniscope frames and movie corresponding to the specified time period...')
             self.movieFrames = np.zeros(2, dtype=int)
@@ -182,7 +189,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
 
 
 #%% Methods for visualizing the results
-    def createCaEphysMovie(self, timeRange=None, movieNum=None, filenameEndsWith='', crop=False, cropSquare=False, dFoverSqrtF=False, vmin=None, vmax=None, plotMeanFluorescence=False, plotEphys=True, filterMeanFluorescence=False, filterCutoffFreq=[0.5,4], channel='PFCLFPvsCBEEG', filterEphys=False, numFramesOfTraces=10, timeStamps=True, markStartSystemic=True, playbackInterval=33, playMovie=True, saveMovie=False):
+    def createCaEphysMovie(self, timeRange=None, fixTTLGaps=False, movieNum=None, filenameEndsWith='', crop=False, cropSquare=False, dFoverSqrtF=False, vmin=None, vmax=None, plotMeanFluorescence=False, plotEphys=True, filterMeanFluorescence=False, filterCutoffFreq=[0.5,4], channel='PFCLFPvsCBEEG', filterEphys=False, numFramesOfTraces=10, timeStamps=True, markStartSystemic=True, playbackInterval=33, playMovie=True, saveMovie=False):
         """Create a movie that has the ephys overlayed.
         Accepts either a time range or a video number, but not both.
         TIMERANGE is a list of the time boundaries, in seconds, from ephys space.
@@ -194,7 +201,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         if type(timeRange) == list:
             if movieNum != None:
                 print('Please only provide either a time range or a video number, not both! Proceeding with time range...')
-            self.findCaMovieNums(timeRange=timeRange, channel=channel, filenameEndsWith=filenameEndsWith)
+            self.findCaMovieNums(timeRange=timeRange, channel=channel, filenameEndsWith=filenameEndsWith, fixTTLGaps=fixTTLGaps)
             self.importCaMovies(self.movieFilePaths)
         elif type(movieNum) == int:
             self.importCaMovies(str(movieNum) + filenameEndsWith + '.avi')
@@ -227,7 +234,7 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         try:
             lenRecording = len(self.ephysIdxAllTTLEvents)
         except:
-            self.findEphysIdxOfTTLEvents(channel=channel)
+            self.findEphysIdxOfTTLEvents(channel=channel, fixTTLGaps=fixTTLGaps)
         finally:
             if dFoverSqrtF:
                 self.computedFoverF(saveMovie=False)
@@ -313,14 +320,14 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
 
 
 #%% Methods to extract the instantaneous phase of the ephys signal, determine the phases of the calcium events, and summarize and save the results
-    def ephysPhaseCaEvents(self, channel='PFCLFPvsCBEEG', neuron='all'):
+    def ephysPhaseCaEvents(self, channel='PFCLFPvsCBEEG', neuron='all', fixTTLGaps=False):
         """Compare calcium events to the phase extracted from a specified ephys channel.
         CHANNEL is the ephys channel name.
         NEURON is the neuron number (i.e., the integer row number in self.estimates.C, starting with 0) of the neuron you want to compare. If you want to compare all of the neurons in the recording, pass 'all' as the argument."""
         try:
             ephysIdxCaEventsLength = len(self.ephysIdxCaEvents)
         except AttributeError:
-            self.findEphysIdxOfTTLEvents(channel=channel, CaEvents=True)
+            self.findEphysIdxOfTTLEvents(channel=channel, CaEvents=True, fixTTLGaps=fixTTLGaps)
         finally:
             self.computePhase(channel)
             print('Comparing the calcium events to the corresponding phase of ' + channel + '...')
@@ -336,14 +343,14 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                 self.CaEventsPhasesEphys[k] = np.array(self.CaEventsPhasesEphys[k])
 
 
-    def miniscopePhaseCaEvents(self, data=None, neuron='all'):
+    def miniscopePhaseCaEvents(self, data=None, neuron='all', fixTTLGaps=False):
         """Compare calcium events to the phase extracted from the mean fluorescence of the (cropped) miniscope recording.
         DATA is the fluorescence signal.
         NEURON is the neuron number (i.e., the integer row number in self.estimates.C, starting with 0) of the neuron you want to compare. If you want to compare all of the neurons in the recording, pass 'all' as the argument."""
         try:
             ephysIdxCaEventsLength = len(self.ephysIdxCaEvents)
         except AttributeError:
-            self.findEphysIdxOfTTLEvents(channel='PFCLFPvsCBEEG', CaEvents=True)
+            self.findEphysIdxOfTTLEvents(channel='PFCLFPvsCBEEG', CaEvents=True, fixTTLGaps=fixTTLGaps)
         finally:
             try:
                 CaEventsIdxLength = len(self.CaEventsIdx)

@@ -18,12 +18,13 @@ import matplotlib.pyplot as plt
 lendiff = []
 alternating = []
 driftFit = []
+meanDifftCaIm = []
 
-for k in [94,108,112]:#[35,36,37,38,39,40,41,42,43,44,45,46,47,48,64,83,85,86,87,88,90,92,93,94,96,97,99,101,103,104,105,107,108,112]:
+for k in [115]:#[35,36,37,38,39,40,41,42,43,44,45,46,47,48,64,83,85,86,87,88,90,92,93,94,96,97,99,101,103,104,105,107,108,112]:
     obj = miniscope_ephys.miniscopeEphys(k)
     obj.importEphysData(channels=['PFCEEGvsCBEEG'])
     obj.importNeuralynxEvents()
-    alternating.append(obj.syncNeuralynxMiniscopeTimestamps(channel='PFCEEGvsCBEEG', deleteTTLs=False))
+    alternating.append(obj.syncNeuralynxMiniscopeTimestamps(channel='PFCEEGvsCBEEG', deleteTTLs=False, fixTTLGaps=False, onlyExperimentEvents=False))
     
     lendiff.append(len(obj.tCaIm) - len(obj.timeStamps))
     
@@ -46,6 +47,8 @@ for k in [94,108,112]:#[35,36,37,38,39,40,41,42,43,44,45,46,47,48,64,83,85,86,87
     plt.xlabel('diff frame number')
     plt.ylabel('TTL event time diff (ms)')
     plt.title('Experiment ' + str(obj.lineNum))
+    
+    meanDifftCaIm.append(np.mean(np.diff(obj.tCaIm)*1000))
     
     # find the slope of the trials with no jumps
     # driftFitRaw = np.polynomial.Polynomial.fit(np.arange(len(zeroed_tS)), zeroed_tS, 1)

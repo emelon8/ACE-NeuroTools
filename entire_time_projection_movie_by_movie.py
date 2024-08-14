@@ -13,7 +13,7 @@ single vector that covers the entire recording. Then it saves the vector in a
 import miniscope
 import numpy as np
 
-lineNum = 83
+lineNum = 108
 
 obj = miniscope.UCLAMiniscope(lineNum=lineNum)
 
