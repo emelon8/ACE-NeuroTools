@@ -21,9 +21,9 @@ channel = 'PFCLFPvsCBEEG'
 obj = miniscope_ephys.miniscopeEphys(lineNum)
 fr = obj.experiment['frameRate']
 obj.importEphysData(channels=[channel, 'PFCEEGvsCBEEG'])
-obj.importNeuralynxEvents(analogSignalImported=True)
+obj.importNeuralynxEvents()
 obj.syncNeuralynxMiniscopeTimestamps(channel=channel)
-obj.findEphysIdxOfTTLEvents(channel=channel, CaEvents=False)
+obj.findEphysIdxOfTTLEvents(channel=channel)
 
 
 #%%  #dataframe setup if exporting data
