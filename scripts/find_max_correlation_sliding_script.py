@@ -6,16 +6,27 @@ Created on Fri Dec 27 13:09:20 2024
 @author: lukerichards
 """
 
+
+
+
+import sys
+from pathlib import Path
+
+# Add the project root to sys.path for imports to work
+project_root = Path(__file__).resolve().parent.parent
+sys.path.append(str(project_root))
+
+
 import os
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import correlate, correlation_lags
-import miniscope_ephys
+from classes import miniscope_ephys
 import misc_functions
 import statistics
 #%%  Configurable Parameters
 
-LINE_NUM = 37  # 37, 38, 46, 47, 90, 92, 97, 101
+LINE_NUM = 97  # 37, 38, 46, 47, 90, 92, 97, 101
 CHANNEL = 'PFCLFPvsCBEEG'
 MEAN_FLUORESCENCE_FILE = f'/Users/lukerichards/Desktop/Correlation Project/npzFiles/meanFluorescence_{LINE_NUM}.npz'
 RUN_DEEP_ANALYSIS = True
@@ -183,6 +194,7 @@ def simpleAnalysis(obj, meanFluorescence, frameRate, channel):
     
     filteredFluorescence, filteredEEG = filterFrequency(obj, meanFluorescence, frameRate, channel, [FREQUENCY_BOTTOM_BOUND, FREQUENCY_TOP_BOUND])
     xCorrResults, timestamps, _ = processArrays(filteredFluorescence, filteredEEG, frameRate)
+    
     
     
     # Plot results

@@ -13,13 +13,16 @@ single vector that covers the entire recording. Then it saves the vector in a
 import miniscope
 import numpy as np
 
-lineNum = 108
+lineNum = 97
 
 obj = miniscope.UCLAMiniscope(lineNum=lineNum)
 
 meanFluorescence = np.array([])
 
 obj.findMovieFilePaths(fileExtensions='_croppedSquare.avi')
+
+obj.movieFilePaths = obj.movieFilePaths[:5] # looks at the first five videos.  Each video is 1000 frames 
+
 
 h = []
 

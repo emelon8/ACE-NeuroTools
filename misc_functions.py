@@ -114,6 +114,10 @@ def markEvents(axisHandle, eventTimes):
 def _findFilePaths(directory=None, fileExtensions=None, fileStartsWith=None,
                    removeFile=False, printPath=False, fileAndDirectory=False):
     '''
+    timeStampsFilename = misc_functions._findFilePaths(self.experiment['calcium imaging directory'], '.csv', 'timeStamps', removeFile=False, printPath=False, fileAndDirectory=False)
+
+    
+    
     Makes a list of the full paths of all files of type FILEEXTENSIONS in DIRECTORY, sorted by the time they were last modified.
     FILEEXTENSIONS is a string of the file extension or a list or tuple with multiple file extensions.
     FILESTARTSWITH is a string or tuple of strings to be included.

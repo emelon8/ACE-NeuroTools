@@ -12,7 +12,7 @@ images are included.
 import csv
 import io
 import os.path
-import experiment
+from classes import experiment
 import numpy as np
 from scipy.signal import detrend, find_peaks, hilbert
 from multitaper_spectrogram_python import multitaper_spectrogram
@@ -44,7 +44,7 @@ class UCLAMiniscope(experiment.experiment):
     #     # program.processCaMovies(inspectMotionCorrection=True, runCNMFE=False)
     
 #%% Methods for importing experiment info, metadata, events, and analysis parameters
-    def __init__(self, lineNum=None, filename='experiments.csv', filenameMiniscope='metaData.json', analysisFilename='analysis_parameters.csv', jobID=''):
+    def __init__(self, lineNum=None, filename='data/experiments.csv', filenameMiniscope='metaData.json', analysisFilename='analysis_parameters.csv', jobID=''):
         if lineNum != None:
             super().__init__(lineNum=lineNum, filename=filename, jobID=jobID)
         else:

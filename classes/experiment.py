@@ -18,6 +18,15 @@ import numpy as np
 from json import loads
 from datetime import datetime
 
+import os
+from pathlib import Path
+
+import importlib
+import sys
+
+project_root = Path(__file__).resolve().parent.parent
+sys.path.append(str(project_root))
+
 class experiment:
     """Base class for experiment analysis.
     LINENUM is the line number of the experiment on the csv file.
@@ -25,10 +34,22 @@ class experiment:
     JOBID is a string that will be appended to the end of the filenames of saved files."""
     def __init__(self, lineNum, filename='experiments.csv', jobID=''):
         self.lineNum = lineNum
-        # Import the CSV file 
-        print('Reading experiment details from ' + os.path.abspath(filename) + '...')
+    
+
+
+        # Dynamically locate the project root
+        project_root = Path(__file__).resolve().parent.parent
+
+        # Resolve the full path to the file
+        full_path = project_root / filename
+
+        # Check if the file exists
+        if not full_path.exists():
+            raise FileNotFoundError(f"File not found: {full_path}")
+        
+        print('Reading experiment details from ' + str(full_path) + '...')
         experimentCSV = []
-        with open(filename, newline='') as s:
+        with open(full_path, newline='') as s:
             reader = csv.reader(s)
             for row in reader:
                 experimentCSV.append(row)
@@ -41,15 +62,27 @@ class experiment:
             except:
                 break
         
-        self.jobID = jobID # used for naming output files
+        self.jobID = jobID  # Used for naming output files
+
+
 
 
     def importAnalysisParams(self, filename='analysis_parameters.csv'):
         """Import parameters for calcium movie analysis using CaImAn.
         FILENAME is the filename of the CSV file."""
-        analysisParamsCSV = []
-        self.analysisParamsFilename = filename
+        # Dynamically locate the file
+        project_root = Path(__file__).resolve().parent.parent
+        full_path = project_root / filename
+        
+        # Store the resolved path
+        self.analysisParamsFilename = str(full_path)
+        
+        # Import the CSV file
+        if not full_path.exists():
+            raise FileNotFoundError(f"File not found: {full_path}")
+            
         print('Reading analysis parameters from ' + os.path.abspath(filename) + '...')
+        analysisParamsCSV = []
         with open(self.analysisParamsFilename, newline='') as s:
             reader = csv.reader(s)
             for row in reader:
