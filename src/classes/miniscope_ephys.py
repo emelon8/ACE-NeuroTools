@@ -11,13 +11,13 @@ the different types of data are included.
 """
 
 # import csv
-import classes.ephys as ephys
-from classes import miniscope
+import src.classes.ephys as ephys
+from src.classes import miniscope
 import numpy as np
 import matplotlib.pyplot as plt
 plt.rcParams['svg.fonttype'] = 'none'
 import matplotlib.animation as animation
-import misc_functions
+from src import misc_functions
 import sys
 import pandas as pd
 

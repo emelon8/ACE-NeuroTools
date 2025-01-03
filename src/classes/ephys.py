@@ -8,18 +8,16 @@ This file contains classes that are used to analyze electrophysiology data,
 including EEG/LFP data from a Neuralynx DAQ. Methods to import and analyze the
 data are included.
 """
-from classes import experiment
+from src.classes import experiment
 import numpy as np
 from scipy.signal import hilbert
 from scipy.signal.windows import hann
 import matplotlib.pyplot as plt
-# plt.rcParams['svg.fonttype'] = 'none'
 from multitaper_spectrogram_python import multitaper_spectrogram
 from neo.io import NeuralynxIO
 import misc_functions
 import math
 import time
-# get_ipython().run_line_magic('matplotlib', 'inline')
 import csv
 from datetime import datetime
 

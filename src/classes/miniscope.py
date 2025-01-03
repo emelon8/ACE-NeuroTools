@@ -12,14 +12,14 @@ images are included.
 import csv
 import io
 import os.path
-from classes import experiment
+from src.classes import experiment
 import numpy as np
 from scipy.signal import detrend, find_peaks, hilbert
 from multitaper_spectrogram_python import multitaper_spectrogram
 import matplotlib.pyplot as plt
 plt.rcParams['svg.fonttype'] = 'none'
 import caiman as cm
-import misc_functions
+from src import misc_functions
 import sys
 import json
 import base64
@@ -44,7 +44,7 @@ class UCLAMiniscope(experiment.experiment):
     #     # program.processCaMovies(inspectMotionCorrection=True, runCNMFE=False)
     
 #%% Methods for importing experiment info, metadata, events, and analysis parameters
-    def __init__(self, lineNum=None, filename='data/experiments.csv', filenameMiniscope='metaData.json', analysisFilename='analysis_parameters.csv', jobID=''):
+    def __init__(self, lineNum=None, filename='data/experiments.csv', filenameMiniscope='metaData.json', analysisFilename='data/analysis_parameters.csv', jobID=''):
         if lineNum != None:
             super().__init__(lineNum=lineNum, filename=filename, jobID=jobID)
         else:

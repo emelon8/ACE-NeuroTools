@@ -26,7 +26,7 @@ import misc_functions
 import statistics
 #%%  Configurable Parameters
 
-LINE_NUM = 97  # 37, 38, 46, 47, 90, 92, 97, 101
+LINE_NUM = 37  # 37, 38, 46, 47, 90, 92, 97, 101
 CHANNEL = 'PFCLFPvsCBEEG'
 MEAN_FLUORESCENCE_FILE = f'/Users/lukerichards/Desktop/Correlation Project/npzFiles/meanFluorescence_{LINE_NUM}.npz'
 RUN_DEEP_ANALYSIS = True
@@ -142,12 +142,13 @@ def findIdealFrequencyRange(obj, meanFluorescence, frameRate, channel):
     
     FREQUENCY_BOTTOM_BOUND = 0.01 # cannot be zero
     FREQUENCY_TOP_BOUND = 3.02
+    FREQUENCY_RANGE_WINDOW = 1
     STEP = 0.1
     
     xCorrResultsMeans = []
     for i in np.arange(FREQUENCY_BOTTOM_BOUND, FREQUENCY_TOP_BOUND - 1, STEP):
         filterStart = i  
-        filterEnd = i + 1
+        filterEnd = i + FREQUENCY_RANGE_WINDOW
         
         print(f"range: [{filterStart:.2f}, {filterEnd:.2f}]")
         

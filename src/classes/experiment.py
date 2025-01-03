@@ -21,11 +21,10 @@ from datetime import datetime
 import os
 from pathlib import Path
 
-import importlib
 import sys
 
-project_root = Path(__file__).resolve().parent.parent
-sys.path.append(str(project_root))
+#project_root = Path(__file__).resolve().parent.parent
+#sys.path.append(str(project_root))
 
 class experiment:
     """Base class for experiment analysis.
@@ -38,7 +37,7 @@ class experiment:
 
 
         # Dynamically locate the project root
-        project_root = Path(__file__).resolve().parent.parent
+        project_root = Path(__file__).resolve().parent.parent.parent
 
         # Resolve the full path to the file
         full_path = project_root / filename
@@ -71,7 +70,7 @@ class experiment:
         """Import parameters for calcium movie analysis using CaImAn.
         FILENAME is the filename of the CSV file."""
         # Dynamically locate the file
-        project_root = Path(__file__).resolve().parent.parent
+        project_root = Path(__file__).resolve().parent.parent.parent
         full_path = project_root / filename
         
         # Store the resolved path

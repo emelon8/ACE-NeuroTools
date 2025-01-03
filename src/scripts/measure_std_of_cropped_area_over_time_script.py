@@ -7,11 +7,24 @@ This script summarizes a movie by taking the
 @author: ericm
 """
 
-import miniscope
+import sys
+from pathlib import Path
+
+# Add the project root to sys.path for imports to work
+project_root = Path(__file__).resolve().parent.parent
+sys.path.append(str(project_root))
+
+from classes import miniscope
 import numpy as np
 import matplotlib.pyplot as plt
 
 import sys
+
+#%% Configurable Parameters
+FIRST_N_VIDEOS = 1 # typically 5 or more.  My computer is lightweight 
+
+#%%
+
 jobID = ''
 if len(sys.argv) > 1:
     jobID = sys.argv[1] + '_'
@@ -25,7 +38,7 @@ ax = []
 for i, k in enumerate(lineNum):
     obj = miniscope.UCLAMiniscope(lineNum=k, jobID=jobID)
     obj.findMovieFilePaths()
-    obj.movieFilePaths = obj.movieFilePaths[:5] # looks at the first five videos.  Each video is 1000 frames 
+    obj.movieFilePaths = obj.movieFilePaths[:FIRST_N_VIDEOS] # looks at the first n videos.  Each video is 1000 frames 
     obj.importCaMovies(filenames=obj.movieFilePaths)
     obj.computeProjections()
     cropSize = np.array(obj.movie.shape[1:]) - squareSize
