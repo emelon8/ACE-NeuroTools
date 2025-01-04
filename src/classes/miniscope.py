@@ -15,7 +15,7 @@ import os.path
 from src.classes import experiment
 import numpy as np
 from scipy.signal import detrend, find_peaks, hilbert
-from multitaper_spectrogram_python import multitaper_spectrogram
+from src.multitaper_spectrogram_python import multitaper_spectrogram
 import matplotlib.pyplot as plt
 plt.rcParams['svg.fonttype'] = 'none'
 import caiman as cm

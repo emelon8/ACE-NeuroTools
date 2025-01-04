@@ -31,7 +31,7 @@ class experiment:
     LINENUM is the line number of the experiment on the csv file.
     FILENAME is the filename of the CSV file.
     JOBID is a string that will be appended to the end of the filenames of saved files."""
-    def __init__(self, lineNum, filename='experiments.csv', jobID=''):
+    def __init__(self, lineNum, filename='data/experiments.csv', jobID=''):
         self.lineNum = lineNum
     
 
@@ -66,7 +66,7 @@ class experiment:
 
 
 
-    def importAnalysisParams(self, filename='analysis_parameters.csv'):
+    def importAnalysisParams(self, filename='data/analysis_parameters.csv'):
         """Import parameters for calcium movie analysis using CaImAn.
         FILENAME is the filename of the CSV file."""
         # Dynamically locate the file

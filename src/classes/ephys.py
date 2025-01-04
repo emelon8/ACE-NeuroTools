@@ -13,9 +13,9 @@ import numpy as np
 from scipy.signal import hilbert
 from scipy.signal.windows import hann
 import matplotlib.pyplot as plt
-from multitaper_spectrogram_python import multitaper_spectrogram
+from src.multitaper_spectrogram_python import multitaper_spectrogram
 from neo.io import NeuralynxIO
-import misc_functions
+from src import misc_functions
 import math
 import time
 import csv

@@ -6,9 +6,9 @@ Created on Thu Jan  2 19:53:41 2025
 @author: lukerichards
 """
 
-from classes import miniscope_ephys
+from src.classes import miniscope_ephys
 
-lineNum = 97
+lineNum = 64
 channel = 'PFCLFPvsCBEEG'
 
 

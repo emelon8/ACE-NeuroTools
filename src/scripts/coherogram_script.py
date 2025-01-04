@@ -8,7 +8,7 @@ Created on Wed Jan  1 18:38:43 2025
 
 import xarray as xr
 from xrscipy.signal.spectral import coherogram
-from classes import miniscope_ephys
+from src.classes import miniscope_ephys
 import numpy as np
 import matplotlib.pyplot as plt
 
