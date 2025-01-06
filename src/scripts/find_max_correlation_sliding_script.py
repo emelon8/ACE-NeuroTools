@@ -6,8 +6,6 @@ Created on Fri Dec 27 13:09:20 2024
 @author: lukerichards
 """
 
-
-
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import correlate, correlation_lags
