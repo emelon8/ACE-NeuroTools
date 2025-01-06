@@ -15,7 +15,7 @@ import pandas as pd
 
 
 #%%  #experiment selection and channels
-lineNum = 46
+lineNum = 97
 channel = 'PFCLFPvsCBEEG'
 
 obj = miniscope_ephys.miniscopeEphys(lineNum)
@@ -33,7 +33,7 @@ rat = obj.experiment['animalID']
 
 
 #%% #data importing 
-meanFluorescence = np.load('/home/lab/Desktop/Correlation Project/npzFiles/meanFluorescence_'+ str(lineNum)+ '.npz')
+meanFluorescence = np.load('/Users/lukerichards/Desktop/Correlation Project/npzFiles/meanFluorescence_'+ str(lineNum)+ '.npz')
 fdataM = misc_functions.filterData(meanFluorescence['meanFluorescence'], n=2, cut=[1,3], ftype='butter', btype='bandpass', fs=fr)
 obj.filterEphys(channel=channel, n=2, cut=[1,3], ftype='butter', inline=False)
 

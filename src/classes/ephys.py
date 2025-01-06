@@ -8,19 +8,16 @@ This file contains classes that are used to analyze electrophysiology data,
 including EEG/LFP data from a Neuralynx DAQ. Methods to import and analyze the
 data are included.
 """
-
-import experiment
+from src.classes import experiment
 import numpy as np
 from scipy.signal import hilbert
-from scipy.signal import hann
+from scipy.signal.windows import hann
 import matplotlib.pyplot as plt
-# plt.rcParams['svg.fonttype'] = 'none'
-from multitaper_spectrogram_python import multitaper_spectrogram
+from src.multitaper_spectrogram_python import multitaper_spectrogram
 from neo.io import NeuralynxIO
-import misc_functions
+from src import misc_functions
 import math
 import time
-# get_ipython().run_line_magic('matplotlib', 'inline')
 import csv
 from datetime import datetime
 
@@ -35,7 +32,7 @@ class NeuralynxEphys(experiment.experiment):
         print('Importing ephys data...')
         start_time = time.time()
         self.ephysFilePath = misc_functions._findFilePaths(self.experiment['ephys directory'], fileExtensions='.nev', fileStartsWith='Events', removeFile=True)[0]
-        self._recording = NeuralynxIO(self.ephysFilePath)
+        self._recording = NeuralynxIO(dirname=self.ephysFilePath)
         self._ephysData = self._recording.read_block(signal_group_mode='split-all')
         self.samplingRate = {}
         self.tEphys = {}
@@ -47,6 +44,7 @@ class NeuralynxEphys(experiment.experiment):
             for k, c in enumerate(self._ephysData.segments[0].analogsignals):
                 if c.name in channels:
                     self.samplingRate[c.name] = c.sampling_rate.magnitude
+                    print("Printing c.sampling_rate.magnitude", )
                     dt = 1/self.samplingRate[c.name]
                     tStart = c.t_start.magnitude
                     tStop = self._ephysData.segments[-1].analogsignals[k].t_stop.magnitude
@@ -265,7 +263,7 @@ class NeuralynxEphys(experiment.experiment):
         except NameError:
             self.importEphysData(channels=channel)
         finally:
-            fdata.data = misc_functions.filterData(self.ephys[channel], n=n, cut=cut, ftype=ftype, btype=btype, fs=self.samplingRate[channel])
+            fdata.data = misc_functions.filterData(self.ephys[channel], n=n, cut=cut, ftype=ftype, btype=btype, fs=self.samplingRate[channel].item())
             
             if inline:
                 self.ephys[channel] = fdata.data

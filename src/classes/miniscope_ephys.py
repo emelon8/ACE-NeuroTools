@@ -11,20 +11,20 @@ the different types of data are included.
 """
 
 # import csv
-import ephys
-import miniscope
+import src.classes.ephys as ephys
+from src.classes import miniscope
 import numpy as np
 import matplotlib.pyplot as plt
 plt.rcParams['svg.fonttype'] = 'none'
 import matplotlib.animation as animation
-import misc_functions
+from src import misc_functions
 import sys
 import pandas as pd
 
 class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
     """This is the class definition for handling miniscopes and simultaneous ephys data."""
 #%% Methods for importing experiment info, metadata, and analysis parameters
-    def __init__(self, lineNum=None, filename='experiments.csv', filenameMiniscope='metaData.json', analysisFilename='analysis_parameters.csv', jobID=''):
+    def __init__(self, lineNum=None, filename='data/experiments.csv', filenameMiniscope='metaData.json', analysisFilename='data/analysis_parameters.csv', jobID=''):
         super().__init__(lineNum=lineNum, filename=filename, filenameMiniscope=filenameMiniscope, analysisFilename=analysisFilename, jobID=jobID) #FIXME Does this init statment need to be here? Will it inherit from ephys or miniscope if it's not?
 
 
