@@ -23,7 +23,7 @@ fr = obj.experiment['frameRate']
 obj.importEphysData(channels=[channel, 'PFCEEGvsCBEEG'])
 obj.importNeuralynxEvents()
 obj.syncNeuralynxMiniscopeTimestamps(channel=channel)
-obj.findEphysIdxOfTTLEvents(channel=channel, CaEvents=False)
+obj.findEphysIdxOfTTLEvents(channel=channel)
 
 
 #%%  #dataframe setup if exporting data

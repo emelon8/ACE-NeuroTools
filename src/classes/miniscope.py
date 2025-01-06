@@ -246,7 +246,7 @@ class UCLAMiniscope(experiment.experiment):
                 filename, filetype = os.path.splitext(filename)
                 filename += processingStep
                 newFilename = filepath + '/' + self.jobID + filename + filetype
-                self.movie.save(newFilename, compress=9)
+                self.movie.save(newFilename, compress=0)
             else:
                 filepath, filenameFirst = os.path.split(self.movieFilePaths[0])
                 filenameFirst, filetype = os.path.splitext(filenameFirst)
@@ -258,7 +258,7 @@ class UCLAMiniscope(experiment.experiment):
                 filenumLast = filenameLast[np.where(filenumLastIdx)[0][0]:]
                 filenumLast += processingStep
                 newFilename = filepath + '/' + self.jobID + filenumFirst + '_' + filenumLast + filetype
-                self.movie.save(newFilename, compress=9)
+                self.movie.save(newFilename, compress=0)
             self.movieFilePaths = newFilename
         except AttributeError:
             print('No movies have been imported.')
@@ -1249,7 +1249,7 @@ class UCLAMiniscope(experiment.experiment):
         
         # Plot the multitaper spectrogram
         if plotSpectrogram:
-            h, ax = misc_functions.spectrogram(self.tSpect/60, self.freqsSpect, self.pSpect, xLabel='Time (min)')
+            h, ax = misc_functions.spectrogram(self.tSpect/60, self.freqsSpect, self.pSpectMiniscope, xLabel='Time (min)')
             return h, ax
 
 
