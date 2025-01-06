@@ -11,7 +11,7 @@ the different types of data are included.
 """
 
 # import csv
-import src.classes.ephys as ephys
+from src.classes import ephys
 from src.classes import miniscope
 import numpy as np
 import matplotlib.pyplot as plt
