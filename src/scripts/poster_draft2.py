@@ -14,10 +14,12 @@ import xarray as xr
 from xrscipy.signal.spectral import coherogram
 from scipy.signal import correlate, correlation_lags
 from scipy.signal import coherence
-from src.classes import miniscope_ephys
+from src.classes import miniscope_ephys, ephys
 import pandas as pd
 from src import misc_functions
 import os
+from src.multitaper_spectrogram_python import multitaper_spectrogram
+
 
 
 #%% metadata
@@ -57,8 +59,9 @@ def loadExperiment(line, meanFluorescenceFilePath):
     obj.importNeuralynxEvents()
     obj.syncNeuralynxMiniscopeTimestamps(channel=channel)
     obj.findEphysIdxOfTTLEvents(channel=channel, CaEvents=False)
+    obj.ephys[channel] = obj.ephys[channel][obj.ephysIdxAllTTLEvents] # downsample
+    obj.samplingRate[channel] = np.array(fr)
     meanFluorescence = np.load(meanFluorescenceFilePath)
-    obj.filterEphys(channel=channel, n=2, cut=[0.001,20], ftype='butter', inline=False)
     return obj, fr, meanFluorescence
     
 
@@ -176,8 +179,8 @@ def plotCoherogram(lineNum, drug, eeg_signal, calcium_signal, fr):
 #%%
 
 def computeStats(eeg, calcium, line, exp_type, fr):
-    eeg_power = computePower(eeg)
-    calcium_power = computePower(calcium)
+    eeg_power = computePower(fr, eeg, windowLength=20, plotSpectrogram=False)
+    calcium_power = computePower(fr, calcium, windowLength=20, plotSpectrogram=False)
     xc, lag = computeXC(eeg, calcium, line, exp_type, fr)
     coherence = computeCoherence(eeg, calcium, lag, fr)
     return [eeg_power, calcium_power, coherence, xc, lag]
@@ -220,18 +223,6 @@ def sliceSignal(signal, fr, slice_length=20):
 
 #%%
 
-def computePower(signal):
-    """
-    Computes the power of a signal.
-    
-    Args:
-    - signal: 1D array-like signal data.
-    
-    Returns:
-    - power: Computed power of the signal.
-    """
-    power = np.sum(np.square(signal)) / len(signal)
-    return power
 
 
 def align_signals(signal1, signal2, lag, fr):
@@ -356,15 +347,81 @@ def computeXC(eeg_signal, calcium_signal, line, exp_type, fr, plot=True):
     
     
     
+#%%
+    
+def filterFrequency(obj, meanFluorescence, frameRate, channel, cut):
+    """
+    Apply bandpass filtering to fluorescence and ephys data.
+
+    Args:
+        obj (miniscopeEphys): Object containing ephys and event data.
+        meanFluorescence (np.array): Array of mean fluorescence data.
+        frameRate (float): Frame rate of the experiment.
+        channel (str): Ephys channel to be analyzed.
+        cut (list): Frequency range for bandpass filtering.
+
+    Returns:
+        tuple: Filtered fluorescence data and filtered ephys data aligned with TTL events.
+    """
+    filteredFluorescence = misc_functions.filterData(
+        meanFluorescence, n=2, cut=cut, ftype='butter', btype='bandpass', fs=frameRate
+    )
+    obj.filterEphys(channel=channel, n=2, cut=cut, ftype='butter', inline=True) 
+    # inline=True stores the filtered data in a new place instead of modifying it in place.  this is crucial for finding the ideal range as filters many times
+    
+    return filteredFluorescence, obj.ephys[channel]
+    
+#%%
     
     
+def computePower(fr, data=None, windowLength=30, windowStep=3, freqLims=[0,20], timeBandwidth=2, plotSpectrogram=True):
+    """Estimate (and plot) the multi-taper spectrogram (of the mean miniscope fluorescence). Developed with Mike Prerau's function."""
+    print('Computing spectrogram of average miniscope fluorescence...')
+    # Set spectrogram params
+    fs = fr
+    numTapers = timeBandwidth * 2 - 1
+    windowParams = [windowLength, windowStep]
+    minNfft = 0  # No minimum nfft
+    detrendOpt = 'constant'  # detrend each window by subtracting the average
+    multiprocess = True  # use multiprocessing
+    nJobs = 3  # use 3 cores in multiprocessing
+    weighting = 'unity'  # weight each taper at 1
+    plotOn = False  # plot spectrogram using multitaper_spectrogram()
+    returnFig = False  # do not return plotted spectrogram
+    climScale = False # do not auto-scale colormap
+    verbose = True  # print extra info
+    xyflip = False  # do not transpose spect output matrix
     
+    # Compute the multitaper spectrogram and convert the output to decibels
+    power_matrix, times, frequencies = multitaper_spectrogram(data, fs, freqLims, timeBandwidth, numTapers, windowParams, minNfft, detrendOpt, multiprocess, nJobs, weighting, plotOn, returnFig, climScale, verbose, xyflip)
+    power_array = 10 * np.log10(power_matrix) # convert to decibels
     
+    low_freq = 0.5
+    high_freq = 4.0
+
+    # Find indices corresponding to the desired frequency band
+    freq_indices = np.where((frequencies >= low_freq) & (frequencies <= high_freq))[0]
     
+    print(f"power_array: {power_array.shape}")
+    print(f"frequency_array: {frequencies.shape}")
+    print(f"indices: {freq_indices}")
+
     
+    # Slice the spectral power array for the desired frequency band
+    mean= 0
+    if (power_array.shape[1] == 1):
+        sliced_power_array = power_array[freq_indices]
+        mean = np.mean(sliced_power_array)
+        print(f"mean shape: {mean.shape}")
     
+    # Plot the multitaper spectrogram
+    if plotSpectrogram:
+        h, ax = misc_functions.spectrogram(times/60, frequencies, power_array, xLabel='Time (min)')
     
+    return float(mean)
     
+
+
 
 #%% main
 
@@ -378,23 +435,36 @@ for lineNum in lineNums:
     obj, fr, meanFluorescence = loadExperiment(lineNum, meanFluorescenceFilePath)
     
     # Grab the signals
-    eeg_signal = obj.fdata[0].data[obj.ephysIdxAllTTLEvents]
+    eeg_signal = obj.ephys[channel]
     calcium_signal = meanFluorescence['meanFluorescence']
     
     # Plot comprehensive graphs
     plotSpectrogramEphys(lineNum, obj, fr)
+    computePower(fr, calcium_signal)
     plotCoherogram(lineNum, drug, eeg_signal, calcium_signal, fr)
     
     # Slice signals
     control_eeg, treatment_eeg = sliceSignal(eeg_signal, fr)
     control_calcium, treatment_calcium = sliceSignal(calcium_signal, fr)
     
-    # Compute stats for control and treatment
-    control_list = computeStats(control_eeg, control_calcium, lineNum, "Control", fr)
-    treatment_list = computeStats(treatment_eeg, treatment_calcium, lineNum, "Treatment", fr)
+    #update objects to reflect sliced signals
+    obj.ephys[channel] = control_eeg
+    CUT = [0.5,4]
+    filtered_control_calcium, filtered_control_eeg = filterFrequency(obj, control_calcium, fr, channel, cut=CUT)
     
-    # Compute the ratio for each pair of control and treatment values
-    ratios = [ctrl / treat if treat != 0 else float('nan') for ctrl, treat in zip(control_list, treatment_list)]
+    obj.ephys[channel] = treatment_eeg
+    filtered_treatment_calcium, filtered_treatment_eeg = filterFrequency(obj, treatment_calcium, fr, channel, cut=CUT)
+ 
+    
+    # Compute stats for control and treatment
+    control_list = computeStats(filtered_control_eeg, filtered_control_calcium, lineNum, "Control", fr)
+    treatment_list = computeStats(filtered_treatment_eeg, filtered_treatment_calcium, lineNum, "Treatment", fr)
+    
+    # Compute the ratio for each pair of control and treatment values    
+    ratios = []
+    
+    for control, treatment in zip(control_list, treatment_list):
+        ratios.append(treatment / control)
     
     # Combine into a row with columns ["lineNum", "Control", "Treatment", "Ratio"]
     combined_data = {
@@ -420,13 +490,17 @@ dex_df = pd.concat(dex_data, ignore_index=True)
 # Function to compute mean ± std for each measurement
 def compute_mean_std(df):
     result = df.groupby("Measurement")[["Control", "Treatment", "Ratio"]].agg(
-        lambda x: f"{x.mean():.2f} ± {x.std():.2f}"
-    )
-    return result.reset_index()
+        ["mean", "std"]
+    ).reset_index()
+    return result
+
 
 # Compute averaged DataFrames for sleep and dexmedetomidine
 sleep_avg_df = compute_mean_std(sleep_df)
 dex_avg_df = compute_mean_std(dex_df)
+
+print(f"Control: {control_list}, Treatment: {treatment_list}, Ratios: {ratios}")
+
 
 # Print the resulting DataFrames
 print("Sleep DataFrame:")
