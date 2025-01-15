@@ -21,7 +21,6 @@ import os
 from src.multitaper_spectrogram_python import multitaper_spectrogram
 
 
-
 #%% metadata
 
 lineNums = [35, 37, 38, 83, 90, 92, 46, 47, 101, 97, 64, 88]
@@ -34,6 +33,11 @@ data = {
 
 # Create a reverse mapping from numbers to drug types
 number_to_drug = {num: drug for drug, numbers in data.items() for num in numbers}
+
+
+
+
+
 
 # Time range mapping for each line number as pairs of numbers
 selections = {
@@ -50,6 +54,8 @@ selections = {
     64: [20, 40],
     88: [10, 50],
 }
+
+
 
 #%% Load experiment 
 def loadExperiment(line, meanFluorescenceFilePath):
@@ -96,7 +102,7 @@ def plotSpectrogramEphys(line, obj, fr):
     
     # Add title with line number and associated drug
     drug = number_to_drug.get(line, "Unknown")
-    ax.set_title(f"Line Number: {line} | Drug: {drug}", fontsize=9)
+    ax.set_title(f"Ephys | Line Number: {line} | Drug: {drug}", fontsize=9)
     
     # Plot red lines using the mapping
     plotLinesAx(line, ax)
@@ -179,8 +185,8 @@ def plotCoherogram(lineNum, drug, eeg_signal, calcium_signal, fr):
 #%%
 
 def computeStats(eeg, calcium, line, exp_type, fr):
-    eeg_power = computePower(fr, eeg, windowLength=20, plotSpectrogram=False)
-    calcium_power = computePower(fr, calcium, windowLength=20, plotSpectrogram=False)
+    eeg_power = computePower(line, fr, eeg, windowLength=20, plotSpectrogram=False)
+    calcium_power = computePower(line, fr, calcium, windowLength=20, plotSpectrogram=False)
     xc, lag = computeXC(eeg, calcium, line, exp_type, fr)
     coherence = computeCoherence(eeg, calcium, lag, fr)
     return [eeg_power, calcium_power, coherence, xc, lag]
@@ -312,7 +318,7 @@ def computeXC(eeg_signal, calcium_signal, line, exp_type, fr, plot=True):
     nxcorr = nxcorr[lag_mask]
     
     # Find the maximum absolute cross-correlation and the lag at that point
-    max_xc = nxcorr[np.argmax(np.abs(nxcorr))]
+    max_xc = nxcorr[np.argmax(nxcorr)]
     lag_at_max_xc = lags[np.argmax(nxcorr)]
     
     if plot:
@@ -374,7 +380,7 @@ def filterFrequency(obj, meanFluorescence, frameRate, channel, cut):
 #%%
     
     
-def computePower(fr, data=None, windowLength=30, windowStep=3, freqLims=[0,20], timeBandwidth=2, plotSpectrogram=True):
+def computePower(line, fr, data=None, windowLength=30, windowStep=3, freqLims=[0,20], timeBandwidth=2, plotSpectrogram=True):
     """Estimate (and plot) the multi-taper spectrogram (of the mean miniscope fluorescence). Developed with Mike Prerau's function."""
     print('Computing spectrogram of average miniscope fluorescence...')
     # Set spectrogram params
@@ -417,6 +423,18 @@ def computePower(fr, data=None, windowLength=30, windowStep=3, freqLims=[0,20], 
     # Plot the multitaper spectrogram
     if plotSpectrogram:
         h, ax = misc_functions.spectrogram(times/60, frequencies, power_array, xLabel='Time (min)')
+        plt.figure(figsize=(10,6))
+        
+        # Add title with line number and associated drug
+        drug = number_to_drug.get(line, "Unknown")
+        ax.set_title(f"Miniscope | Line Number: {line} | Drug: {drug}", fontsize=9)
+        
+        # Plot red lines using the mapping
+        plotLinesAx(line, ax)
+        
+
+        plt.tight_layout()
+        plt.show()  # Display the graph
     
     return float(mean)
     
@@ -440,7 +458,7 @@ for lineNum in lineNums:
     
     # Plot comprehensive graphs
     plotSpectrogramEphys(lineNum, obj, fr)
-    computePower(fr, calcium_signal)
+    computePower(lineNum, fr, calcium_signal)
     plotCoherogram(lineNum, drug, eeg_signal, calcium_signal, fr)
     
     # Slice signals
