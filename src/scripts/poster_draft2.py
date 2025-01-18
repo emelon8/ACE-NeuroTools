@@ -19,16 +19,17 @@ import pandas as pd
 from src import misc_functions
 import os
 from src.multitaper_spectrogram_python import multitaper_spectrogram
+import scipy.stats as stats
 
 
 #%% metadata
 
-lineNums = [35, 37, 38, 83, 90, 92, 46, 47, 101, 97, 64, 88]
+lineNums = [35, 37, 38, 83, 90, 46, 47,  97, 64, 88]
 channel = 'PFCLFPvsCBEEG'
 
 data = {
-    "sleep": [37, 38, 83, 90, 92, 35],
-    "dexmedetomidine": [46, 47, 101, 97, 64, 88],
+    "sleep": [37, 38, 83, 90,  35],
+    "dexmedetomidine": [46, 47, 97, 64, 88],
 }
 
 # Create a reverse mapping from numbers to drug types
@@ -188,8 +189,9 @@ def computeStats(eeg, calcium, line, exp_type, fr):
     eeg_power = computePower(line, fr, eeg, windowLength=20, plotSpectrogram=False)
     calcium_power = computePower(line, fr, calcium, windowLength=20, plotSpectrogram=False)
     xc, lag = computeXC(eeg, calcium, line, exp_type, fr)
+    xc_p_value = computePValue(eeg, calcium, lag, fr)
     coherence = computeCoherence(eeg, calcium, lag, fr)
-    return [eeg_power, calcium_power, coherence, xc, lag]
+    return [eeg_power, calcium_power, coherence, xc, lag, xc_p_value]
 
 
 
@@ -258,6 +260,16 @@ def align_signals(signal1, signal2, lag, fr):
         aligned_signal2 = signal2
 
     return aligned_signal1, aligned_signal2
+
+#%%
+
+def computePValue(signal1, signal2, ideal_lag, fr):
+    
+    aligned_signal1, aligned_signal2 = align_signals(signal1, signal2, ideal_lag, fr)
+    
+    # Compute coherence using Welch's method
+    _, p_value = stats.pearsonr(aligned_signal1, aligned_signal2)
+    return p_value
 
 
 def computeCoherence(signal1, signal2, ideal_lag, fr):
@@ -445,7 +457,7 @@ def computePower(line, fr, data=None, windowLength=30, windowStep=3, freqLims=[0
 
 # Initialize data lists
 sleep_data, dex_data = [], []
-rows = ["EEG Power", "Calcium Power", "Coherence", "XC", "Lag"]
+rows = ["EEG Power", "Calcium Power", "Coherence", "XC", "Lag", "XC P-Value"]
 
 for lineNum in lineNums:
     drug = number_to_drug.get(lineNum)
@@ -512,10 +524,47 @@ def compute_mean_std(df):
     ).reset_index()
     return result
 
+def compute_difference_p_value(control_mean, control_std, treatment_mean, treatment_std, n=5):
+    #calculate t-statistic
+    pooled_std = np.sqrt((control_std**2 / n) + (treatment_std**2 / n))
+    t_stat = (control_mean - treatment_mean) / pooled_std
+    
+    #calculate degrees of freedom
+    df_numerator = (control_std**2 / n + treatment_std**2 / n) ** 2
+    df_denominator = ((control_std**2 / n)**2 / (n - 1)) + ((treatment_std**2 / n)**2 / (n - 1))
+    df = df_numerator / df_denominator
+    p_value = 2 * (1 - stats.t.cdf(abs(t_stat), df=df))
+    return p_value
+
+# Function to compute difference and p-value for each measurement
+def add_p_values(df):
+    p_values = []
+    
+    for _, row in df.iterrows():
+        measurement = row['Measurement']
+        
+        # Extract mean and std for control and treatment for the given measurement
+        control_mean = row['Control']['mean']
+        control_std = row['Control']['std']
+        treatment_mean = row['Treatment']['mean']
+        treatment_std = row['Treatment']['std']
+        
+        # Calculate the p-value using the function
+        p_value = compute_difference_p_value(control_mean, control_std, treatment_mean, treatment_std)
+        
+        p_values.append(p_value)
+    
+    df['P-Value'] = p_values
+    return df
+
 
 # Compute averaged DataFrames for sleep and dexmedetomidine
 sleep_avg_df = compute_mean_std(sleep_df)
 dex_avg_df = compute_mean_std(dex_df)
+
+# Add p-values to the averaged DataFrames
+sleep_avg_df_with_p_value = add_p_values(sleep_avg_df)
+dex_avg_df_with_p_value = add_p_values(dex_avg_df)
 
 print(f"Control: {control_list}, Treatment: {treatment_list}, Ratios: {ratios}")
 
