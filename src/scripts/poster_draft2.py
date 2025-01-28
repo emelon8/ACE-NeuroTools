@@ -45,13 +45,13 @@ selections = {
     35: [10, 51],
     37: [58, 101],
     38: [32, 78],
-    83: [10, 20],
+    83: [10, 126],
     90: [21, 103],
     92: [120, 100],
     46: [5, 30],
     47: [5, 34],
     101: [10, 75],
-    97: [10, 60],
+    97: [10, 33],
     64: [20, 40],
     88: [10, 50],
 }
@@ -60,7 +60,7 @@ selections = {
 
 #%% Load experiment 
 def loadExperiment(line, meanFluorescenceFilePath):
-    obj = miniscope_ephys.miniscopeEphys(lineNum) 
+    obj = miniscope_ephys.miniscopeEphys(lineNum, filename='C:/Users/ericm/Desktop/experiments.csv', analysisFilename='C:/Users/ericm/Desktop/analysis_parameters.csv') 
     fr = obj.experiment['frameRate']
     obj.importEphysData(channels=channel)
     obj.importNeuralynxEvents()
@@ -98,8 +98,7 @@ def plotLinesPlt(lineNum, plt):
 def plotSpectrogramEphys(line, obj, fr):
     
     
-    h, ax = obj.computeSpectrogram(windowLength=5, windowStep=5, freqLims=[0.01, 20])
-    plt.figure(figsize=(10,6))
+    h, ax = obj.computeSpectrogram(channel=channel, windowLength=5, windowStep=5, freqLims=[0.01, 20])
     
     # Add title with line number and associated drug
     drug = number_to_drug.get(line, "Unknown")
@@ -330,6 +329,7 @@ def computeXC(eeg_signal, calcium_signal, line, exp_type, fr, plot=True):
     nxcorr = nxcorr[lag_mask]
     
     # Find the maximum absolute cross-correlation and the lag at that point
+    #nxcorr = np.abs(nxcorr)
     max_xc = nxcorr[np.argmax(nxcorr)]
     lag_at_max_xc = lags[np.argmax(nxcorr)]
     
@@ -351,7 +351,7 @@ def computeXC(eeg_signal, calcium_signal, line, exp_type, fr, plot=True):
         
         # Set axis limits
         plt.xlim([-10, 10])  # Show 20 seconds total on x-axis
-        plt.ylim([-0.6, 0.6])  # Standardize y-axis scale
+        plt.ylim([-0.8, 0.8])  # Standardize y-axis scale
         
         plt.show()
 
@@ -392,7 +392,7 @@ def filterFrequency(obj, meanFluorescence, frameRate, channel, cut):
 #%%
     
     
-def computePower(line, fr, data=None, windowLength=30, windowStep=3, freqLims=[0,20], timeBandwidth=2, plotSpectrogram=True):
+def computePower(line, fr, data=None, windowLength=30, windowStep=3, freqLims=[0,20], timeBandwidth=2, plotSpectrogram=True, lf=0.5, hf=4):
     """Estimate (and plot) the multi-taper spectrogram (of the mean miniscope fluorescence). Developed with Mike Prerau's function."""
     print('Computing spectrogram of average miniscope fluorescence...')
     # Set spectrogram params
@@ -414,8 +414,8 @@ def computePower(line, fr, data=None, windowLength=30, windowStep=3, freqLims=[0
     power_matrix, times, frequencies = multitaper_spectrogram(data, fs, freqLims, timeBandwidth, numTapers, windowParams, minNfft, detrendOpt, multiprocess, nJobs, weighting, plotOn, returnFig, climScale, verbose, xyflip)
     power_array = 10 * np.log10(power_matrix) # convert to decibels
     
-    low_freq = 0.5
-    high_freq = 4.0
+    low_freq = lf
+    high_freq = hf
 
     # Find indices corresponding to the desired frequency band
     freq_indices = np.where((frequencies >= low_freq) & (frequencies <= high_freq))[0]
@@ -435,7 +435,6 @@ def computePower(line, fr, data=None, windowLength=30, windowStep=3, freqLims=[0
     # Plot the multitaper spectrogram
     if plotSpectrogram:
         h, ax = misc_functions.spectrogram(times/60, frequencies, power_array, xLabel='Time (min)')
-        plt.figure(figsize=(10,6))
         
         # Add title with line number and associated drug
         drug = number_to_drug.get(line, "Unknown")
@@ -461,16 +460,17 @@ rows = ["EEG Power", "Calcium Power", "Coherence", "XC", "Lag", "XC P-Value"]
 
 for lineNum in lineNums:
     drug = number_to_drug.get(lineNum)
-    meanFluorescenceFilePath = f'/Users/lukerichards/Desktop/Correlation Project/npzFiles/{drug}/meanFluorescence_{str(lineNum)}.npz'
+    meanFluorescenceFilePath = f'C:/Users/ericm/Desktop/meanFluorescence/{drug}/meanFluorescence_{str(lineNum)}.npz'
     obj, fr, meanFluorescence = loadExperiment(lineNum, meanFluorescenceFilePath)
     
     # Grab the signals
     eeg_signal = obj.ephys[channel]
     calcium_signal = meanFluorescence['meanFluorescence']
+    CUT = [0.5,4]
     
     # Plot comprehensive graphs
     plotSpectrogramEphys(lineNum, obj, fr)
-    computePower(lineNum, fr, calcium_signal)
+    computePower(lineNum, fr, calcium_signal, lf=CUT[0], hf=CUT[1])
     plotCoherogram(lineNum, drug, eeg_signal, calcium_signal, fr)
     
     # Slice signals
@@ -479,12 +479,26 @@ for lineNum in lineNums:
     
     #update objects to reflect sliced signals
     obj.ephys[channel] = control_eeg
-    CUT = [0.5,4]
     filtered_control_calcium, filtered_control_eeg = filterFrequency(obj, control_calcium, fr, channel, cut=CUT)
     
     obj.ephys[channel] = treatment_eeg
     filtered_treatment_calcium, filtered_treatment_eeg = filterFrequency(obj, treatment_calcium, fr, channel, cut=CUT)
- 
+
+    plt.figure()
+    plt.plot(np.arange(0,5,1/30),filtered_control_calcium[:150]/max(np.abs(filtered_control_calcium[:150])), color='green',label='Miniscope')
+    plt.plot(np.arange(0,5,1/30),filtered_control_eeg[:150]/max(np.abs(filtered_control_eeg[:150])), color='black',label='LFP')
+    plt.legend()
+    plt.title(str(lineNum) + ' Control')
+    plt.ylabel('Amplitude (normalized)')
+    plt.xlabel('Time (s)')
+    
+    plt.figure()
+    plt.plot(np.arange(0,5,1/30),filtered_treatment_calcium[150:300]/max(np.abs(filtered_treatment_calcium[150:300])), color='green',label='Miniscope')
+    plt.plot(np.arange(0,5,1/30),filtered_treatment_eeg[150:300]/max(np.abs(filtered_treatment_eeg[150:300])), color='black',label='LFP')
+    plt.legend()
+    plt.title(str(lineNum) + ' Treatment')
+    plt.ylabel('Amplitude (normalized)')
+    plt.xlabel('Time (s)')
     
     # Compute stats for control and treatment
     control_list = computeStats(filtered_control_eeg, filtered_control_calcium, lineNum, "Control", fr)
