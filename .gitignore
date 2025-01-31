@@ -2,3 +2,4 @@
 *.egg-info/
 *.pyc
 experiments.csv
+analysis_parameters.csv
