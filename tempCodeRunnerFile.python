@@ -1,5 +1,0 @@
-
-from src2.ephys_workflow import EphysWorkflow
-
-e = EphysWorkflow(97)
-e.run_analysis()

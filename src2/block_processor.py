@@ -5,6 +5,29 @@ Created on Sun Feb  2 11:20:05 2025
  
 @author: lukerichards
 """
+
+
+"""
+For reference, this is the structure of the neo object:
+
+
+Block (entire experiment)
+│
+└── Segment 0 (e.g., baseline period)
+    │
+    ├── AnalogSignal 0 (Channel 1: e.g., "EMG.ncs")
+    ├── AnalogSignal 1 (Channel 2: e.g., "PFCLFPvsCBEEG.ncs")
+    └── Event (e.g., "StimulusTriggers")
+│
+├── Segment 1 (e.g., drug application)
+│   ├── AnalogSignal 0
+│   └── ...
+│
+└── ...
+
+An event object in neo contains info like "light turned on: 5:48" or "drug applied: 6:00"
+
+"""
 import numpy as np
 from scipy.signal.windows import hann
 from src2.channel import Channel
