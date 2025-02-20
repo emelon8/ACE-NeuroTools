@@ -70,7 +70,19 @@ class EphysDataManager(DataManager):
             channel.signal_filtered = filtered_data
 
         return filtered_data
-        
+    
+    def get_channels(self):
+        return self.channels
+    
+    def get_channel(self, channel_name):
+        return self.channels[channel_name]
+
+
+
+
+
+
+
 
 
 
