@@ -20,6 +20,7 @@ import matplotlib.animation as animation
 from src import misc_functions
 import sys
 import pandas as pd
+import math
 
 class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
     """This is the class definition for handling miniscopes and simultaneous ephys data."""
@@ -370,8 +371,9 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                         self.CaEventsPhasesMiniscope[k].append(self.instantaneousPhaseMiniscope[self.CaEventsIdx[k][j]])
                     self.CaEventsPhasesMiniscope[k] = np.array(self.CaEventsPhasesMiniscope[k])
 
+                            
 
-    def phaseCaEventsHistogram(self, channel=None, neuron='all', bins=18, histRange=(-np.pi,np.pi), density=False, meanDensity=True, plotHistogram=False, combined=False):
+    def phaseCaEventsHistogramManager(self, channel=None, neuron='all', bins=18, histRange=(-np.pi,np.pi), density=False, meanDensity=True, combined=False, plotHistogram=True, polar=False):
         """Compute the histogram of calcium events/probability density vs phase.
         CHANNEL is the channel to compare the timing of calcium events to.
         NEURON is a list of the neuron indexes to compare. All neurons can be selected with 'all'.
@@ -380,7 +382,8 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
         DENSITY determines whether the data will be bins will represent a probability density or a count.
         MEANDENSITY provides the mean of the density histograms of all specified neurons.
         PLOTHISTOGRAM chooses whether or not to plot the computed histogram.
-        COMBINED is a boolean that determines whether to combine the data from all of the specified neurons or whether to create histograms for each of the specified neurons."""
+        COMBINED is a boolean that determines whether to combine the data from all of the specified neurons or whether to create histograms for each of the specified neurons.
+        polar if enabled, polar will plot the data in polar coordinates instead of a histogram"""
         try:
             if channel is None:
                 print('Creating a histogram of the phases of the mean fluorescence of the (cropped) miniscope recording relative to the calcium events...')
@@ -405,110 +408,181 @@ class miniscopeEphys(ephys.NeuralynxEphys, miniscope.UCLAMiniscope):
                     if neuron == 'all':
                         if density:
                             if meanDensity:
-                                # Mean density histogram across neurons
-                                CaEventsPhasesHist = np.empty((0, bins))
-                                meanCaEventsVectors = np.empty((0, 2))
-                                self.meanCaEventsVectorTheta = []
-                                self.meanCaEventsVectorRadius = []
-                                for i, k in enumerate(list(CaEventsPhases.keys())):
-                                    hist, self.binEdges = np.histogram(CaEventsPhases[k], bins=bins, range=histRange, density=True)
-                                    CaEventsPhasesHist = np.concatenate((CaEventsPhasesHist, hist.reshape((1,-1))), axis=0)
-                                    # Find the mean vector for each neuron's calcium events
-                                    CaEventsVectors = np.concatenate((np.cos(CaEventsPhases[k]).reshape((-1,1)), np.sin(CaEventsPhases[k]).reshape((-1,1))), axis=1)
-                                    meanCaEventsVectors = np.concatenate((meanCaEventsVectors, np.mean(CaEventsVectors,axis=0).reshape((1,2))), axis=0)
-                                    self.meanCaEventsVectorTheta.append(np.arctan2(meanCaEventsVectors[i,1], meanCaEventsVectors[i,0]))
-                                    self.meanCaEventsVectorRadius.append(np.sqrt(meanCaEventsVectors[i,0]**2 + meanCaEventsVectors[i,1]**2))
-                                self.hist = np.mean(CaEventsPhasesHist, axis=0) # Take the mean across the neurons at each bin.
-                                self.histError = np.std(CaEventsPhasesHist, axis=0) / np.sqrt(np.shape(CaEventsPhasesHist)[0]) # Take the standard error of the mean at each bin.
-                                h, ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Mean Event Probability', title='Neuron(s): '+str(neuron))
-                                ax.hist(self.binEdges[:-1], self.binEdges, weights=self.hist)
-                                binMidpoints = (self.binEdges[1:] + self.binEdges[:-1]) / 2
-                                ax.errorbar(binMidpoints, self.hist, yerr=self.histError, fmt='none', capsize=3)
-                                # Find the mean vector of all of the neurons
-                                meanNeuronVector = np.mean(meanCaEventsVectors, axis=0)
-                                self.meanNeuronVectorTheta = np.arctan2(meanNeuronVector[1], meanNeuronVector[0])
-                                self.meanNeuronVectorRadius = np.sqrt(meanNeuronVector[0]**2 + meanNeuronVector[1]**2)
+                                #plot the mean of the density histogram of phases of all neurons
+                                self.helperMeanDensityHistogram(CaEventsPhases=CaEventsPhases, neuron=neuron, bins=bins, histRange=histRange, plotPolar=polar)
                             else:
-                                # Barstacked density histogram across neurons
-                                CaEventsPhasesHist = list(CaEventsPhases.values())
-                                h, ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Probability', title='Neuron(s): '+str(neuron))
-                                self.hist, self.binEdges, _ = ax.hist(CaEventsPhasesHist, bins=bins, range=histRange, density=True, histtype='barstacked')
+                                #plot the probability density of phases of all neurons
+                                self.helperDensityHistogram(CaEventsPhases=CaEventsPhases, neuron=neuron, bins=bins, histRange=histRange, plotPolar=polar)
                         else:
-                            for k in list(CaEventsPhases.keys()):
-                                allCaEventsPhases = np.concatenate((allCaEventsPhases, CaEventsPhases[k]))
-                            h, ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Count', title='Neuron(s): '+str(neuron))
-                            self.hist, self.binEdges, _ = ax.hist(allCaEventsPhases, bins=bins, range=histRange)
+                            #plot the counts of each phase of all neurons
+                            self.helperCountsHistogram(CaEventsPhases=CaEventsPhases, allCaEventsPhases=allCaEventsPhases, neuron=neuron, bins=bins, histRange=histRange, plotPolar=polar)
                     else:
                         if type(neuron) != list:
                             neuron = [neuron]
                         if density:
-                            CaEventsPhasesHist = {}
-                            for k in neuron:
-                                CaEventsPhasesHist[k] = CaEventsPhases[k]
-                            # Barstacked density histogram across neurons
-                            CaEventsPhasesHist = list(CaEventsPhases.values())
-                            h, ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Probability', title='Neuron(s): '+str(neuron))
-                            self.hist, self.binEdges, _ = ax.hist(CaEventsPhasesHist, bins=bins, range=histRange, density=True, histtype='barstacked')
+                            #plot probability density of phases of your selected neurons WARNING THIS FUNCTION MAY NOT WORK AS INTENDED
+                            self.helperNeuronSubsetDensityHistogram(CaEventsPhases=CaEventsPhases, neuron=neuron, bins=bins, histRange=histRange, plotPolar=polar)
                         else:
-                            for k in neuron:
-                                allCaEventsPhases = np.concatenate((allCaEventsPhases, CaEventsPhases[k]))
-                            h, ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Count', title='Neuron(s): '+str(neuron))
-                            self.hist, self.binEdges, _ = ax.hist(allCaEventsPhases, bins=bins, range=histRange)
-                else:
-                    # Plot each of the neurons as separate histograms
-                    ax = []
-                    self.hist = {}
-                    self.binEdges = {}
+                            #plot the counts of each phase of your selected neurons
+                            self.helperNeuronSubsetCountsHistogram(CaEventsPhases=CaEventsPhases, allCaEventsPhases=allCaEventsPhases, neuron=neuron, bins=bins, histRange=histRange, plotPolar=polar)
+                elif not combined:
+                    # Plot each of the neurons as separate histograms either all together or a subset of the neurons
                     if neuron == 'all':
-                        for i, k in enumerate(list(CaEventsPhases.keys())):
-                            if density:
-                                newH, newAx = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Probability', title='Neuron(s): '+str(k))
-                            else:
-                                newH, newAx = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Count', title='Neuron(s): '+str(k))
-                            ax.append(newAx)
-                            self.hist[k], self.binEdges[k], _ = ax[i].hist(CaEventsPhases[k], bins=bins, range=histRange, density=density)
+                        self.helperIndividualNeuronHistograms(CaEventsPhases=CaEventsPhases, bins=bins, histRange=histRange, plotPolar=polar, density=density)
                     else:
-                        if type(neuron) != list:
-                            neuron = [neuron]
-                        for i, k in enumerate(neuron):
-                            if density:
-                                newH, newAx = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Probability', title='Neuron(s): '+str(k))
-                            else:
-                                newH, newAx = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Count', title='Neuron(s): '+str(k))
-                            ax.append(newAx)
-                            self.hist[k], self.binEdges[k], _ = ax[i].hist(CaEventsPhases[k], bins=bins, range=histRange, density=density)
+                        self.helperNeuronSubsetIndividualNeuronHistograms(CaEventsPhases=CaEventsPhases, neuron=neuron, bins=bins, histRange=histRange, plotPolar=polar, density=density)
+            elif not plotHistogram:
+                #calculates histograms but does not plot them
+                self.helperCalculateHistogramsWithoutPlotting(CaEventsPhases=CaEventsPhases, neuron=neuron, bins=bins, histRange=histRange, density=density, combined=combined)
+
+    #helper methods for HistogramManager
+    def helperMeanDensityHistogram(self, CaEventsPhases, neuron, bins, histRange, plotPolar):
+        # Mean density histogram across neurons
+        CaEventsPhasesHist = np.empty((0, bins))
+        meanCaEventsVectors = np.empty((0, 2))
+        self.meanCaEventsVectorTheta = []
+        self.meanCaEventsVectorRadius = []
+        for i, k in enumerate(list(CaEventsPhases.keys())):
+            hist, self.binEdges = np.histogram(CaEventsPhases[k], bins=bins, range=histRange, density=True)
+            CaEventsPhasesHist = np.concatenate((CaEventsPhasesHist, hist.reshape((1,-1))), axis=0)
+            # Find the mean vector for each neuron's calcium events
+            CaEventsVectors = np.concatenate((np.cos(CaEventsPhases[k]).reshape((-1,1)), np.sin(CaEventsPhases[k]).reshape((-1,1))), axis=1)
+            meanCaEventsVectors = np.concatenate((meanCaEventsVectors, np.mean(CaEventsVectors,axis=0).reshape((1,2))), axis=0)
+            self.meanCaEventsVectorTheta.append(np.arctan2(meanCaEventsVectors[i,1], meanCaEventsVectors[i,0]))
+            self.meanCaEventsVectorRadius.append(np.sqrt(meanCaEventsVectors[i,0]**2 + meanCaEventsVectors[i,1]**2))
+        self.hist = np.mean(CaEventsPhasesHist, axis=0) # Take the mean across the neurons at each bin.
+        self.histError = np.std(CaEventsPhasesHist, axis=0) / np.sqrt(np.shape(CaEventsPhasesHist)[0]) # Take the standard error of the mean at each bin.
+        # Find the mean vector of all of the neurons
+        meanNeuronVector = np.mean(meanCaEventsVectors, axis=0)
+        self.meanNeuronVectorTheta = np.arctan2(meanNeuronVector[1], meanNeuronVector[0])
+        self.meanNeuronVectorRadius = np.sqrt(meanNeuronVector[0]**2 + meanNeuronVector[1]**2)
+        if plotPolar:
+            try:
+                h, ax = misc_functions._prepAxes(xLabel='Phase (deg), Mean Event Probability, Neuron(s): ' + str(neuron), polar=True)
+                binMidpoints = (self.binEdges[1:] + self.binEdges[:-1]) / 2
+                bar_width = (histRange[1] - histRange[0]) / bins
+                ax.bar(binMidpoints, self.hist, width=bar_width, bottom=0, align='center', color='b', alpha=0.7, edgecolor='black')
+                ax.arrow(0, 0, self.meanNeuronVectorTheta, self.meanNeuronVectorRadius, color='red', width=0.05, head_width=0.15, head_length=0.1)
+            except:
+                print("self.hist may be empty... or this code just isn't working how I thought. Turn off plotPolar to just plot the regular histogram")
+        else:
+            h, ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Mean Event Probability', title='Neuron(s): '+str(neuron))
+            ax.hist(self.binEdges[:-1], self.binEdges, weights=self.hist)
+            binMidpoints = (self.binEdges[1:] + self.binEdges[:-1]) / 2
+            ax.errorbar(binMidpoints, self.hist, yerr=self.histError, fmt='none', capsize=3)
+            
+        
+    def helperDensityHistogram(self, CaEventsPhases, neuron, bins, histRange, plotPolar):
+        if plotPolar:
+            CaEventsPhasesHist = list(CaEventsPhases.values())
+            h, ax = misc_functions._prepAxes(xLabel="Phase (deg), Event Probability, Neurons: " + str(neuron), polar=True)
+            self.hist, self.binEdges = np.histogram(np.concatenate(CaEventsPhasesHist), bins=bins, range=histRange, density=True)
+            binMidpoints = (self.binEdges[:-1] + self.binEdges[1:]) / 2  # θ values
+            bar_width = (histRange[1] - histRange[0]) / bins  # Bin width in radians
+            ax.grid(color='grey', linewidth=0.5)
+            ax.set_thetagrids(range(0, 360, 45), fontsize=8, color='grey')  # Theta grids
+            ax.set_rgrids(np.arange(0, max(self.hist), 0.2), angle=90, fontsize=6, color='black')  # Radial grids
+            ax.bar(binMidpoints, self.hist, width=bar_width, bottom=0, align='center', color='b', alpha=0.7, edgecolor='black')
+        else:
+            # Barstacked density histogram across neurons
+            CaEventsPhasesHist = list(CaEventsPhases.values())
+            h, ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Probability', title='Neuron(s): '+str(neuron))
+            self.hist, self.binEdges, _ = ax.hist(CaEventsPhasesHist, bins=bins, range=histRange, density=True, histtype='barstacked')
+    
+    def helperCountsHistogram(self, CaEventsPhases, allCaEventsPhases, neuron, bins, histRange, plotPolar):
+        for k in list(CaEventsPhases.keys()):
+            allCaEventsPhases = np.concatenate((allCaEventsPhases, CaEventsPhases[k]))
+        if plotPolar:
+            h, ax = misc_functions._prepAxes(xLabel='Phase (deg), Event Count, Neuron(s): ' + str(neuron), polar=True)
+            hist, bin_edges = np.histogram(allCaEventsPhases, bins=bins, range=histRange)
+            bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+            ax.set_thetagrids(range(0, 360, 45), fontsize=8, color='grey')  # Theta grids
+            ax.set_rgrids(np.arange(0, max(hist)+1, round(max(hist)/10) if max(hist) > 10 else 1), angle=90, fontsize=6, color='black')  # Radial grids
+            ax.bar(bin_centers, hist, width=(2*np.pi/bins), bottom=0)
+        else:
+            h, ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Count', title='Neuron(s): '+str(neuron))
+            self.hist, self.binEdges, _ = ax.hist(allCaEventsPhases, bins=bins, range=histRange)
+    
+    def helperNeuronSubsetDensityHistogram(self, CaEventsPhases, neuron, bins, histRange, plotPolar):
+        CaEventsPhasesHist = {}
+        for k in neuron:
+            CaEventsPhasesHist[k] = CaEventsPhases[k]
+        # Barstacked density histogram across neurons
+        CaEventsPhasesHist = list(CaEventsPhases.values()) #this line seems to undo the previous for loop? I think Eric copied and pasted the last code block where it also says "Barstacked Density Histogram..."
+        if plotPolar:
+            h, ax = misc_functions._prepAxes(xLabel='Phase (deg), Event Probability, Neuron(s): '+str(neuron), polar=True)
+            self.hist, self.binEdges, _ = ax.hist(CaEventsPhasesHist, bins=bins, range=histRange, density=True, histtype='barstacked')
+            binMidpoints = (self.binEdges[:-1] + self.binEdges[1:]) / 2  # θ values
+            bar_width = (histRange[1] - histRange[0]) / bins  # Bin width in radians
+            bar_width = float(bar_width)
+            ax.grid(color='grey', linewidth=0.5)
+            ax.set_thetagrids(range(0, 360, 45), fontsize=8, color='grey')  # Theta grids
+            ax.set_rgrids(np.arange(0, max(self.hist.flatten()), 0.2), angle=90, fontsize=6, color='black')  # Radial grids
+            ax.bar(binMidpoints, self.hist, width=bar_width, bottom=0, align='center', color='b', alpha=0.7, edgecolor='black') #Will raise an error but still correctly plots the data
+        else:
+            h, ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Probability', title='Neuron(s): '+str(neuron))
+            self.hist, self.binEdges, _ = ax.hist(CaEventsPhasesHist, bins=bins, range=histRange, density=True, histtype='barstacked')
+    
+    def helperNeuronSubsetCountsHistogram(self, CaEventsPhases, allCaEventsPhases, neuron, bins, histRange, plotPolar):
+        for k in neuron:
+            allCaEventsPhases = np.concatenate((allCaEventsPhases, CaEventsPhases[k]))
+        h, ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Count', title='Neuron(s): '+str(neuron))
+        self.hist, self.binEdges, _ = ax.hist(allCaEventsPhases, bins=bins, range=histRange)
+    
+    def helperIndividualNeuronHistograms(self, CaEventsPhases, bins, histRange, plotPolar, density):
+        ax = []
+        self.hist = {}
+        self.binEdges = {}
+        for i, k in enumerate(list(CaEventsPhases.keys())):
+            if density:
+                newH, newAx = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Probability', title='Neuron(s): '+str(k))
             else:
-                if combined:
-                    allCaEventsPhases = np.array([])
-                    # Flatten the dictionary of numpy arrays so that all calcium events are contained in the same array
-                    if neuron == 'all':
-                        for k in list(CaEventsPhases.keys()):
-                            allCaEventsPhases = np.concatenate((allCaEventsPhases, CaEventsPhases[k]))
-                        self.hist, self.binEdges = np.histogram(allCaEventsPhases, bins=bins, range=histRange, density=density)
-                    else:
-                        if type(neuron) != list:
-                            neuron = [neuron]
-                        for k in neuron:
-                            allCaEventsPhases = np.concatenate((allCaEventsPhases, CaEventsPhases[k]))
-                        self.hist, self.binEdges = np.histogram(allCaEventsPhases, bins=bins, range=histRange, density=density)
-                else:
-                    # Plot each of the neurons as separate histograms
-                    self.hist = {}
-                    self.binEdges = {}
-                    if neuron == 'all':
-                        for k in list(CaEventsPhases.keys()):
-                            self.hist[k], self.binEdges[k] = np.histogram(CaEventsPhases[k], bins=bins, range=histRange, density=density)
-                    else:
-                        if type(neuron) != list:
-                            neuron = [neuron]
-                        for k in neuron:
-                            self.hist[k], self.binEdges[k] = np.histogram(CaEventsPhases[k], bins=bins, range=histRange, density=density)
-
-
-    def phaseCaEventsPolarPlot(self, channel='PFCLFPvsCBEEG', neuron='all', bins=18, plotMeanVector=True):
-        """"""
-        plt.subplot() #TODO Figure out why misc_functions._prepAxes won't work with this method.
-        self.hist
+                newH, newAx = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Count', title='Neuron(s): '+str(k))
+            ax.append(newAx)
+            self.hist[k], self.binEdges[k], _ = ax[i].hist(CaEventsPhases[k], bins=bins, range=histRange, density=density)
+    
+    def helperNeuronSubsetIndividualNeuronHistograms(self, CaEventsPhases, neuron, bins, histRange, plotPolar, density):
+        ax = []
+        self.hist = {}
+        self.binEdges = {}
+        if type(neuron) != list:
+            neuron = [neuron]
+        for i, k in enumerate(neuron):
+            if density:
+                newH, newAx = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Probability', title='Neuron(s): '+str(k))
+            else:
+                newH, newAx = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Count', title='Neuron(s): '+str(k))
+            ax.append(newAx)
+            self.hist[k], self.binEdges[k], _ = ax[i].hist(CaEventsPhases[k], bins=bins, range=histRange, density=density)
+    
+    def helperCalculateHistogramsWithoutPlotting(self, CaEventsPhases, neuron, bins, histRange, density, combined):
+        if combined:
+            allCaEventsPhases = np.array([])
+            # Flatten the dictionary of numpy arrays so that all calcium events are contained in the same array
+            if neuron == 'all':
+                for k in list(CaEventsPhases.keys()):
+                    allCaEventsPhases = np.concatenate((allCaEventsPhases, CaEventsPhases[k]))
+                self.hist, self.binEdges = np.histogram(allCaEventsPhases, bins=bins, range=histRange, density=density)
+            else:
+                if type(neuron) != list:
+                    neuron = [neuron]
+                for k in neuron:
+                    allCaEventsPhases = np.concatenate((allCaEventsPhases, CaEventsPhases[k]))
+                self.hist, self.binEdges = np.histogram(allCaEventsPhases, bins=bins, range=histRange, density=density)
+        else:
+            # Plot each of the neurons as separate histograms
+            self.hist = {}
+            self.binEdges = {}
+            if neuron == 'all':
+                for k in list(CaEventsPhases.keys()):
+                    self.hist[k], self.binEdges[k] = np.histogram(CaEventsPhases[k], bins=bins, range=histRange, density=density)
+            else:
+                if type(neuron) != list:
+                    neuron = [neuron]
+                for k in neuron:
+                    self.hist[k], self.binEdges[k] = np.histogram(CaEventsPhases[k], bins=bins, range=histRange, density=density)
+        
+        
 
 
     def saveData(self, filename='neuron_phase.csv'):

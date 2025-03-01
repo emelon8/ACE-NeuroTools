@@ -28,7 +28,7 @@ import csv
 from scipy import stats
 
 
-def _prepAxes(title='', xLabel='', yLabel='', subPlots=None):
+def _prepAxes(title='', xLabel='', yLabel='', subPlots=None, polar=False):
     """
     Prepare figure and axis/axes for plotting. Returns the figure handle and either the axis handle or a list of axes handles.
     TITLE is the title of the axis or list of titles (in order) for the axes.
@@ -56,7 +56,7 @@ def _prepAxes(title='', xLabel='', yLabel='', subPlots=None):
     h = plt.figure()
     # h.set_layout_engine('constrained')
     if subPlots is None:
-        ax = h.add_subplot()
+        ax = h.add_subplot(projection='polar' if polar else None)
         ax.set_title(title)
         ax.set_xlabel(xLabel)
         ax.set_ylabel(yLabel)
@@ -69,14 +69,15 @@ def _prepAxes(title='', xLabel='', yLabel='', subPlots=None):
         if type(yLabel) is str:
             yLabel = [yLabel] * (subPlots[0] * subPlots[1])
         for k in range(subPlots[0] * subPlots[1]):
-            ax.append(h.add_subplot(subPlots[0], subPlots[1], k + 1))
+            ax.append(h.add_subplot(subPlots[0], subPlots[1], k + 1, projection='polar' if polar else None))
             if k <= len(title):
                 ax[k].set_title(title[k])
             if k <= len(xLabel):
                 ax[k].set_xlabel(xLabel[k])
             if k <= len(yLabel):
                 ax[k].set_ylabel(yLabel[k])
-    h.tight_layout() # incompatible with the 'constrained' layout engine
+    if not polar:
+        h.tight_layout() # incompatible with the 'constrained' layout engine
     return h, ax
 
 
