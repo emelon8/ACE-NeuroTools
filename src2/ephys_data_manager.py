@@ -13,6 +13,7 @@ import os
 from src2.data_manager import DataManager
 from src2.block_processor import BlockProcessor
 from src2.channel import Channel
+import logging
 
 class EphysDataManager(DataManager):
     """
@@ -24,7 +25,7 @@ class EphysDataManager(DataManager):
     """
 
 
-    def __init__(self, line_num, auto_import_ephys_block=True, auto_process_block=True):
+    def __init__(self, line_num, auto_import_ephys_block=True, auto_process_block=True, level = "CRITICAL"):
         super().__init__(line_num)
         self.channels = {}  # Processed channels
         self.ephys_block = None  # Raw data storage
@@ -34,6 +35,9 @@ class EphysDataManager(DataManager):
 
         if (auto_process_block):
             self.process_ephys_block_to_channels()
+
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(level)
         
 
     def import_ephys_block(self):
@@ -45,20 +49,20 @@ class EphysDataManager(DataManager):
         self.ephys_block = file_reader.read_block(signal_group_mode='split-all')
 
 
-    def process_ephys_block_to_channels(self, channels='all'):
+    def process_ephys_block_to_channels(self, remove_artifacts=False, channels='all'):
         """Process raw ephys data into channels."""
         if channels == 'all':
             channels = self.metadata['LFP and EEG CSCs'].split(';')
 
         processor = BlockProcessor(self.ephys_block)
-        self.channels = processor.process_raw_ephys(channels)
+        self.channels = processor.process_raw_ephys(channels, remove_artifacts=remove_artifacts)
 
 
     
 
     def filter_ephys(self, channel_name, n=2, cut=[0.5, 4], ftype='butter', btype='bandpass', replace_signal=True):
         """Filter the ephys data."""
-        print('Filtering ' + channel_name + ' with a(n) ' + ftype + ' filter ...')
+        self.logger.info('Filtering ' + channel_name + ' with a(n) ' + ftype + ' filter ...')
         try:
             channel: Channel = self.channels[channel_name]
         except KeyError:

@@ -48,24 +48,26 @@ class BlockProcessor:
 
         channels_dict = {}
 
-        for channel_name in channels:
-
+        if type(channels) == str:
             new_channel = self._process_single_channel(channel_name)
-
-            if remove_artifacts:
-                self.remove_artifacts(new_channel)
-
             channels_dict[channel_name] = new_channel
+            return channels_dict
+        
+        else: # it's a list of strings
+            for channel_name in channels:
 
-        return channels_dict
+                new_channel = self._process_single_channel(channel_name)
+
+                if remove_artifacts:
+                    self.remove_artifacts(new_channel)
+
+                channels_dict[channel_name] = new_channel
+
+            return channels_dict
             
 
             
-            
-            
-    
-
-    def _remove_artifacts(self, channel: Channel, volt_threshold=1500, time_threshold=60, hannNum=75):
+    def remove_artifacts(self, channel: Channel, volt_threshold=1500, time_threshold=60, hannNum=75):
         """Remove artifacts from the specified channel."""
         print('Removing artifacts from ' + channel.name + '...')
         dt = channel.time_vector[1] - channel.time_vector[0]
@@ -79,9 +81,17 @@ class BlockProcessor:
         self._apply_hann_window(channel, mask, han_window, dt)
         
             
+
+
+
+
+
+
+
             
             
     def _process_single_channel(self, channel_name):
+        print(f"Channel name: {channel_name}")
         """Process a single channel from raw data."""
         # Get the first and last segments
         first_segment = self.ephys_block.segments[0].analogsignals
@@ -160,7 +170,7 @@ class BlockProcessor:
         
         for start in starts:
             end = np.where(diff[start:] == 1)[0]
-            if end and (end[0] * dt) < threshold:
+            if end.size > 0 and (end[0] * dt) < threshold:
                 mask[start:start + end[0] + 1] = True
         return mask
         
