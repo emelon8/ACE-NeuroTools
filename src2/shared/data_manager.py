@@ -7,7 +7,7 @@ Created on Sun Feb  2 11:20:05 2025
 """
 import json
 from datetime import datetime
-from src2.paths import ANALYSIS_PARAMS, EXPERIMENTS
+from src2.shared.paths import ANALYSIS_PARAMS, EXPERIMENTS
 import pickle
 import pandas as pd
 import ast

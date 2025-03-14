@@ -1,38 +1,19 @@
-import caiman as cm
-import numpy as np
-from projections import Projections
 import numpy as np
 import matplotlib.pyplot as plt
+import io
+import base64
 import logging
 from scipy.signal import detrend
 from caiman import movie as cm_movie
-from misc_functions import updateCSVCell, denoiseMovie, _prepAxes
+from src2.shared.misc_functions import updateCSVCell, denoiseMovie, _prepAxes
 import PySimpleGUI as sg
 
-class MiniscopeProcessor():
-    def __init__(self, movie: cm.movie):
-        self.movie = movie
+logging.basicConfig(level=logging.INFO)
+
+class CaMovieProcessor:
 
 
-
-
-    def computeProjections(self, time=False):
-        """Calculates the projections of self.movie and stores the result in self.projections."""
-
-        assert self.movie is not None
-        
-        max = np.amax(self.movie, axis=0)
-        std = np.std(self.movie, axis=0)
-        min = np.amin(self.movie, axis=0)
-        mean = np.mean(self.movie, axis=0)
-        median = np.median(self.movie, axis=0)
-        range = max - min
-        time = self.movie.mean(axis=(1,2))
-
-        return Projections(max, std, min, mean, median, range, time)
-    
-
-    def preprocess_movie(self, crop=False, square=False,
+    def preprocess_movie(self, save_movie=False, crop=False, square=False,
                          crop_gui=False, denoise=False, detrend=False,
                          df_over_f=False):
         """Run preprocessing steps based on provided flags."""
@@ -56,16 +37,11 @@ class MiniscopeProcessor():
             self.compute_df_over_f()
             steps_applied.append('_dFoverF')
 
-
-        ## TODO: save movie outside of this class!
-
-        # if save_movie:
-        #     processing_step = ''.join(steps_applied)
-        #     self.save_ca_movie(processing_step=processing_step)
-
-
+        if save_movie:
+            processing_step = ''.join(steps_applied)
+            self.save_ca_movie(processing_step=processing_step)
     
-    # TODO 
+
     def crop_movie(self, col, gui=False):
         """Crop movie using saved coordinates or GUI."""
         self.compute_projections()
@@ -85,12 +61,9 @@ class MiniscopeProcessor():
             lineNum=self.lineNum,
             csvFile=self.analysisParamsFilename)
 
-
     def denoise_movie(self):
         """Denoise the calcium imaging movie."""
         denoiseMovie(self.experiment['calcium imaging directory'], mode='display', jobID=self.jobID)
-
-        # TODO: this is tough... denoise needs the directory of all the mini videos.  But aren't they already put together in a movie?
 
     def detrend_movie(self, method='median', plot_trend=False):
         """Detrend fluorescence data from the movie."""

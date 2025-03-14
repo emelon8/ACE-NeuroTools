@@ -30,7 +30,7 @@ An event object in neo contains info like "light turned on: 5:48" or "drug appli
 """
 import numpy as np
 from scipy.signal.windows import hann
-from src2.channel import Channel
+from src2.ephys.channel import Channel
 from neo.core import Block
 
 class BlockProcessor:

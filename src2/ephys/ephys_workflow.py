@@ -6,8 +6,8 @@ Created on Sun Feb  2 11:20:05 2025
 @author: lukerichards
 """
 
-from src2.ephys_data_manager import EphysDataManager
-from src2.visualizer import Visualizer
+from src2.ephys.ephys_data_manager import EphysDataManager
+from src2.ephys.visualizer import Visualizer
 from typing import List
 
 

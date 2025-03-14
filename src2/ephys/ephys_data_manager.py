@@ -8,11 +8,11 @@ Created on Sun Feb  2 11:20:05 2025
 import numpy as np
 import matplotlib.pyplot as plt
 from neo.io import NeuralynxIO
-from src2.path_finder import PathFinder
+from src2.shared.path_finder import PathFinder
 import os
-from src2.data_manager import DataManager
-from src2.block_processor import BlockProcessor
-from src2.channel import Channel
+from src2.shared.data_manager import DataManager
+from src2.ephys.block_processor import BlockProcessor
+from src2.ephys.channel import Channel
 import logging
 
 class EphysDataManager(DataManager):

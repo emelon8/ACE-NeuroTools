@@ -8,7 +8,7 @@ Created on Sun Feb  2 11:20:05 2025
 import numpy as np
 import matplotlib.pyplot as plt
 from src.multitaper_spectrogram_python import multitaper_spectrogram
-from src2.channel import  Channel
+from src2.ephys.channel import  Channel
 import logging
 
 

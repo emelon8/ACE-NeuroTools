@@ -8,7 +8,7 @@ Created on Sun Feb  2 11:20:05 2025
 
 from src2.miniscope_data_manager import MiniscopeDataManager
 from src2.miniscope_processor import MiniscopeProcessor
-from src2.visualizer import Visualizer
+from src2.ephys.visualizer import Visualizer
 from typing import List
 
 
