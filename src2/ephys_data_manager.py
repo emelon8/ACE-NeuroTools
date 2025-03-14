@@ -15,22 +15,31 @@ from src2.block_processor import BlockProcessor
 from src2.channel import Channel
 
 class EphysDataManager(DataManager):
-    """Manages raw ephys data import and storage. Processes data via Processor."""
-    
+    """
+    Inhereits from DataManager.
+    Manages the import of raw ephys data (neo's high level object is called a "Block").
+    Processes raw ephys data via EphysBlockProcessor.
+    EphysBlockProcessor returns a dictionary of channels.
+    Stores the processed channels in self.channels, where the key is the channel name and the value is a Channel object.
+    """
 
-    def __init__(self, line_num, auto_import_ephys_block=True):
+
+    def __init__(self, line_num, auto_import_ephys_block=True, auto_process_block=True):
         super().__init__(line_num)
         self.channels = {}  # Processed channels
         self.ephys_block = None  # Raw data storage
 
         if (auto_import_ephys_block):
             self.import_ephys_block()
+
+        if (auto_process_block):
+            self.process_ephys_block_to_channels()
         
 
     def import_ephys_block(self):
         """Load raw Neuralynx data without processing."""
         print('Importing raw ephys data...')
-        ephys_file_path = self._find_ephys_file_path()[0] # get most recently edited Events.nev file
+        ephys_file_path = self._find_ephys_file_path() # get most recently edited Events.nev file
         ephys_dir_path = os.path.dirname(ephys_file_path) # get its parent directory
         file_reader = NeuralynxIO(dirname=ephys_dir_path)
         self.ephys_block = file_reader.read_block(signal_group_mode='split-all')
@@ -93,7 +102,7 @@ class EphysDataManager(DataManager):
                         suffix=".nev",
                         prefix="Events"
             )
-        return events_path
+        return events_path[0]
 
     def _filter_data(self, data, n, cut, ftype, btype, fs, bodePlot=False):
         from scipy.signal import butter, freqz, filtfilt, firwin, bode

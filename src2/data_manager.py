@@ -15,7 +15,17 @@ import json
 import ast
 from datetime import datetime
 
+
 class DataManager:
+    """
+    This class manages the import and storage of metadata and analysis parameters.  Formerly the experiment class.
+
+    metadata: a row, indexed by line_num of the experiments.csv document.  Each column is a key, and each cell is a value in the metadata dictionary.  Formerly self.experiment
+    analysis_params: A similarly dictionary constructed dictionary, but with the corresponding row taken from analysis_parameters.csv.
+    """
+
+
+
     def __init__(self, line_num, auto_import_metadata=True, auto_import_analysis_params=True):
         self.line_num = line_num
         self.metadata = None
@@ -43,7 +53,7 @@ class DataManager:
         if filename is None:
             components = []
             if include_subject_id:
-                components.append(str(self.experiment['id']))
+                components.append(str(self.metadata['id']))
             components.append(self.__class__.__name__)
             if include_timestamp:
                 components.append(datetime.now().strftime("%Y%m%d_%H%M%S"))

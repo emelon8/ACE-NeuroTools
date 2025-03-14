@@ -5,12 +5,12 @@ Created on Sun Feb  2 11:20:05 2025
  
 @author: lukerichards
 """
+import numpy as np
 
 class Channel:
-    def __init__(self, name, signal, sampling_rate, time_vector):
-        self.name = name
-        self.signal = signal
+    def __init__(self, name: str, signal: np.array, sampling_rate: float, time_vector: np.array):
+        self.name = name # for example, "PFCLFPvsCBEEG"
+        self.signal = signal # [0.4, 0.5, 0.6, 0.5, 0.4, 0.5]
         self.sampling_rate = sampling_rate
         self.time_vector = time_vector
         self.signal_filtered = None
-        

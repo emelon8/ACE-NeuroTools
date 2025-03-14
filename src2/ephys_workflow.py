@@ -26,12 +26,11 @@ class EphysWorkflow:
         v = Visualizer(channel)
 
         v.plot_channel()
-        v.plot_spectrogram()
+        # v.plot_spectrogram()
     
 
     def run_workflow2(self):
         pass
-    
     
     
     
