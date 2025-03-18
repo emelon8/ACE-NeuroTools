@@ -14,9 +14,10 @@ import ast
 import json
 import ast
 from datetime import datetime
+import logging
 
 
-class DataManager:
+class ExperimentDataManager:
     """
     This class manages the import and storage of metadata and analysis parameters.  Formerly the experiment class.
 
@@ -26,16 +27,20 @@ class DataManager:
 
 
 
-    def __init__(self, line_num, auto_import_metadata=True, auto_import_analysis_params=True):
+    def __init__(self, line_num, auto_import_metadata=True, auto_import_analysis_params=True, logging_level = "CRITICAL"):
         self.line_num = line_num
         self.metadata = None
         self.analysis_params = None
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging_level)
 
         if auto_import_metadata:
             self.import_metadata()
 
         if auto_import_analysis_params:
             self.import_analysis_parameters()
+
+
 
     def import_metadata(self):
         metadata_unconverted = self._csv_row_to_dict(EXPERIMENTS, self.line_num)
@@ -98,15 +103,18 @@ class DataManager:
         
         for key, value in params_dict.items():
             if key in non_numeric_keys:
+                if key == 'LFP and EEG CSCs':
+                    converted_params[key] = params_dict[key].split(";")
                 converted_params[key] = value
                 continue
             
             converted_value = self._convert_value(value, key)
             converted_params[key] = converted_value
 
+        self.logger.debug(f"params_dict = {params_dict}")
+    
         return converted_params
 
- 
     def _convert_value(self, raw_value, key):
         """
         Converts a raw string value to its appropriate data type.

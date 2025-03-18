@@ -10,14 +10,12 @@ import matplotlib.pyplot as plt
 from neo.io import NeuralynxIO
 from src2.shared.path_finder import PathFinder
 import os
-from src2.shared.data_manager import DataManager
 from src2.ephys.block_processor import BlockProcessor
 from src2.ephys.channel import Channel
 import logging
 
-class EphysDataManager(DataManager):
+class EphysDataManager():
     """
-    Inhereits from DataManager.
     Manages the import of raw ephys data (neo's high level object is called a "Block").
     Processes raw ephys data via EphysBlockProcessor.
     EphysBlockProcessor returns a dictionary of channels.
@@ -25,36 +23,34 @@ class EphysDataManager(DataManager):
     """
 
 
-    def __init__(self, line_num, auto_import_ephys_block=True, auto_process_block=True, level = "CRITICAL"):
-        super().__init__(line_num)
+    def __init__(self, ephys_directory=None, auto_import_ephys_block=True, auto_process_block=True, level = "CRITICAL"):
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(level)
+        
         self.channels = {}  # Processed channels
         self.ephys_block = None  # Raw data storage
 
         if (auto_import_ephys_block):
-            self.import_ephys_block()
+            assert ephys_directory is not None
+            self.import_ephys_block(ephys_directory)
 
         if (auto_process_block):
             self.process_ephys_block_to_channels()
-
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(level)
         
 
-    def import_ephys_block(self):
+    def import_ephys_block(self, ephys_directory):
         """Load raw Neuralynx data without processing."""
         print('Importing raw ephys data...')
-        ephys_file_path = self._find_ephys_file_path() # get most recently edited Events.nev file
+        ephys_file_path = self._find_ephys_file_path(ephys_directory) # get most recently edited Events.nev file
         ephys_dir_path = os.path.dirname(ephys_file_path) # get its parent directory
         file_reader = NeuralynxIO(dirname=ephys_dir_path)
         self.ephys_block = file_reader.read_block(signal_group_mode='split-all')
 
 
-    def process_ephys_block_to_channels(self, remove_artifacts=False, channels='all'):
+    def process_ephys_block_to_channels(self, channels, remove_artifacts=False):
         """Process raw ephys data into channels."""
-        if channels == 'all':
-            channels = self.metadata['LFP and EEG CSCs'].split(';')
 
-        processor = BlockProcessor(self.ephys_block)
+        processor = BlockProcessor(self.ephys_block, self.logger)
         self.channels = processor.process_raw_ephys(channels, remove_artifacts=remove_artifacts)
 
 
@@ -99,10 +95,10 @@ class EphysDataManager(DataManager):
 
 
 
-    def _find_ephys_file_path(self):        
+    def _find_ephys_file_path(self, ephys_directory):        
         path_finder = PathFinder()
         events_path = path_finder.find( 
-                        directory=self.metadata['ephys directory'],
+                        directory=ephys_directory,
                         suffix=".nev",
                         prefix="Events"
             )

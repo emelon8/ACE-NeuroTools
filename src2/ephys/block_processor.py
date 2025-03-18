@@ -32,12 +32,15 @@ import numpy as np
 from scipy.signal.windows import hann
 from src2.ephys.channel import Channel
 from neo.core import Block
+import logging
 
 class BlockProcessor:
     """Processes an Ephys Block into channels."""
     
-    def __init__(self, ephys_block: Block):
+    def __init__(self, ephys_block: Block, logger: logging.Logger):
+        self.logger = logger
         self.ephys_block = ephys_block
+
         
     def process_raw_ephys(self, channels, remove_artifacts=False):
         """Convert raw ephys data into processed Channel objects."""
@@ -54,8 +57,11 @@ class BlockProcessor:
             return channels_dict
         
         else: # it's a list of strings
+            print(f"channels: {channels}")
             for channel_name in channels:
-
+                # self.logger.info(f"channel_name = {channel_name}")
+                print(f"channel_name = {channel_name}")
+                assert type(channel_name) == str
                 new_channel = self._process_single_channel(channel_name)
 
                 if remove_artifacts:

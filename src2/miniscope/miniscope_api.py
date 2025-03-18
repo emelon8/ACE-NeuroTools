@@ -6,14 +6,14 @@ Created on Sun Feb  2 11:20:05 2025
 @author: lukerichards
 """
 
-from src2.miniscope_data_manager import MiniscopeDataManager
-from src2.miniscope_processor import MiniscopeProcessor
+from src2.miniscope.miniscope_data_manager import MiniscopeDataManager
+from src2.miniscope.miniscope_processor import MiniscopeProcessor
 from src2.ephys.visualizer import Visualizer
 from typing import List
 
 
 
-class MiniscopeWorkflow:
+class MiniscopeAPI:
     """Main workflow class."""
 
     def __init__(self):

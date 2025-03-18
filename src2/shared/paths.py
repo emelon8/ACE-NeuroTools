@@ -9,7 +9,7 @@ Created on Sat Feb  1 14:27:32 2025
 from pathlib import Path
 
 # Define project root (assuming paths.py is in the project root or a config/ directory)
-PROJECT_ROOT = Path(__file__).parent.parent  # Adjust ".parent" depth as needed
+PROJECT_ROOT = Path(__file__).parent.parent.parent  # Adjust ".parent" depth as needed
 
 # Directory definitions
 DATA_DIR = PROJECT_ROOT / "data"
