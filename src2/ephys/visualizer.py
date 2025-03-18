@@ -14,32 +14,31 @@ import logging
 
 class Visualizer:
     """Class for visualizing ephys data."""
-    def __init__(self, channel:Channel, level='CRITICAL'):
-        self.channel = channel
+    def __init__(self, level='CRITICAL'):
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(level)
 
 
-    def plot_channel(self, use_filtered=False):
+    def plot_channel(self, channel:Channel, use_filtered=False):
         """Visualize the processed channel."""
         self.logger.info(f"Plotting channel...")
 
-        signal = self.channel.signal_filtered if use_filtered else self.channel.signal
+        signal = channel.signal_filtered if use_filtered else channel.signal
         self.logger.debug(f"signal to be plotted: {signal}")
         plt.figure()
-        plt.plot(self.channel.time_vector, signal)
-        plt.title(self.channel.name)
+        plt.plot(channel.time_vector, signal)
+        plt.title(channel.name)
         plt.xlabel('Time (s)')
         plt.ylabel('Voltage (µV)')
         plt.show()
     
 
-    def plot_spectrogram(self, window_length=30, window_step=3,
+    def plot_spectrogram(self, channel:Channel, window_length=30, window_step=3,
                            freq_limits=[0, 50], time_bandwidth=2, plot_events=False, use_filtered=False):
         
-        signal = self.channel.signal_filtered if use_filtered else self.channel.signal
+        signal = channel.signal_filtered if use_filtered else channel.signal
         
-        fs = int(self.channel.sampling_rate)
+        fs = int(channel.sampling_rate)
 
         # Spectrogram parameters
         num_tapers = time_bandwidth * 2 - 1  

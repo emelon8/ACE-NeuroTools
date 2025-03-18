@@ -50,15 +50,10 @@ class BlockProcessor:
         print('Processing raw ephys data into channels...')
 
         channels_dict = {}
+        print(f"channels: {channels}")
 
-        if type(channels) == str:
-            new_channel = self._process_single_channel(channel_name)
-            channels_dict[channel_name] = new_channel
-            return channels_dict
-        
-        else: # it's a list of strings
-            print(f"channels: {channels}")
-            for channel_name in channels:
+        for channel_list in channels:
+            for channel_name in channel_list:
                 # self.logger.info(f"channel_name = {channel_name}")
                 print(f"channel_name = {channel_name}")
                 assert type(channel_name) == str
@@ -69,7 +64,8 @@ class BlockProcessor:
 
                 channels_dict[channel_name] = new_channel
 
-            return channels_dict
+                return channels_dict
+
             
 
             

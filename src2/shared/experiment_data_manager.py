@@ -105,6 +105,7 @@ class ExperimentDataManager:
             if key in non_numeric_keys:
                 if key == 'LFP and EEG CSCs':
                     converted_params[key] = params_dict[key].split(";")
+                    continue
                 converted_params[key] = value
                 continue
             
