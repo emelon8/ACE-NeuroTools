@@ -11,6 +11,8 @@ from src2.miniscope.miniscope_processor import MiniscopeProcessor
 from src2.ephys.visualizer import Visualizer
 from typing import List
 
+from src2.shared.experiment_data_manager import ExperimentDataManager
+
 
 
 class MiniscopeAPI:
@@ -32,8 +34,17 @@ class MiniscopeAPI:
             ):
         
 
+        experiment_data_manager = ExperimentDataManager(line_num, logging_level = logging_level)
+
+        # Extract the one relevant piece of information that EphysDataManager needs from metadata--the path to the ephys directory
+        miniscope_directory = experiment_data_manager.get_miniscope_directory()
+        analysis_params = experiment_data_manager.analysis_params
+        
+        # Create instance of EphysDataManager, process the block into channels
+        miniscope_data_manager = MiniscopeDataManager(miniscope_directory, analysis_params, auto_import_ephys_block=True, auto_process_block=False)
+        
         dm = MiniscopeDataManager()
-        p = MinicopeProcessor(dm.)
+        # p = MinicopeProcessor(dm.)
 
         # this is tough.  
 

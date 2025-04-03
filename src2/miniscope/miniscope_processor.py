@@ -1,6 +1,6 @@
 import caiman as cm
 import numpy as np
-from projections import Projections
+from miniscope.projections import Projections
 import numpy as np
 import matplotlib.pyplot as plt
 import logging

@@ -47,24 +47,26 @@ class BlockProcessor:
         if not self.ephys_block:
             raise ValueError("Load raw data first using EphysDataManager.import_ephys_data()")
         
+        if type(channels) == str:
+            channels = [channels]
+        
         print('Processing raw ephys data into channels...')
 
         channels_dict = {}
         print(f"channels: {channels}")
 
-        for channel_list in channels:
-            for channel_name in channel_list:
-                # self.logger.info(f"channel_name = {channel_name}")
-                print(f"channel_name = {channel_name}")
-                assert type(channel_name) == str
-                new_channel = self._process_single_channel(channel_name)
+        for channel_name in channels:
+            # self.logger.info(f"channel_name = {channel_name}")
+            print(f"channel_name = {channel_name}")
+            assert type(channel_name) == str
+            new_channel = self._process_single_channel(channel_name)
 
-                if remove_artifacts:
-                    self.remove_artifacts(new_channel)
+            if remove_artifacts:
+                self.remove_artifacts(new_channel)
 
-                channels_dict[channel_name] = new_channel
+            channels_dict[channel_name] = new_channel
 
-                return channels_dict
+            return channels_dict
 
             
 

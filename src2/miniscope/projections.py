@@ -1,7 +1,9 @@
 
 
+import numpy as np
+
 class Projections():
-    def __init__(self, max: float, std: float, min: float, mean: float, median: float, range: float, time: float):
+    def __init__(self, max: np.ndarray, std: np.ndarray, min: np.ndarray, mean: np.ndarray, median: np.ndarray, range: np.ndarray, time: np.ndarray):
         self.max = max
         self.std = std
         self.min = min

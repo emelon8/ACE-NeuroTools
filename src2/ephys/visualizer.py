@@ -33,39 +33,22 @@ class Visualizer:
         plt.show()
     
 
-    def plot_spectrogram(self, channel:Channel, window_length=30, window_step=3,
-                           freq_limits=[0, 50], time_bandwidth=2, plot_events=False, use_filtered=False):
-        
-        signal = channel.signal_filtered if use_filtered else channel.signal
-        
-        fs = int(channel.sampling_rate)
-
-        # Spectrogram parameters
-        num_tapers = time_bandwidth * 2 - 1  
-        window_params = [window_length, window_step]  # [window length (s), step size (s)]
-
-        power_spectrum, time_points, freq_points = multitaper_spectrogram(
-            signal, fs, freq_limits, time_bandwidth, num_tapers, window_params
-        )
-        
-        # Convert to decibel scale (dB re 1 µV²/Hz)
-        power_db = 10 * np.log10(power_spectrum)
-
-
-
-        # Plot spectrogram
+    def plot_spectrogram(psd_matrix_db, time_points, freq_points, plot_events=False):
         
         fig, ax = plt.subplots()
-        mesh = ax.pcolormesh(time_points / 60, freq_points, power_db,
+        mesh = ax.pcolormesh(time_points / 60, freq_points, psd_matrix_db,
                             shading='gouraud', cmap='inferno')
         plt.colorbar(mesh, ax=ax, label='Power (dB)')
         ax.set_xlabel('Time (min)')
         ax.set_ylabel('Frequency (Hz)')
         
-        if plot_events and hasattr(self.data_manager, 'events'):
-            self._mark_events_on_spectrogram(ax)
+        # if plot_events and hasattr(self.data_manager, 'events'):
+        #     self._mark_events_on_spectrogram(ax)
             
         plt.show()
         return fig, ax
     
+    def plot_spectrogram(self, spectrogram, plot_events=False):
+        """Plot the spectrogram."""
+        self.plot_spectrogram(spectrogram.psd_matrix_db, spectrogram.time_points, spectrogram.freq_points, plot_events=plot_events)
     

@@ -13,9 +13,9 @@ from caiman.base.movies import movie
 import numpy as np
 import matplotlib.pyplot as plt
 from src2.shared.path_finder import PathFinder
-from src2.shared.experiment_data_manager import DataManager
+from src2.shared.experiment_data_manager import ExperimentDataManager
 
-class MiniscopeDataManager(DataManager):
+class MiniscopeDataManager(ExperimentDataManager):
     """Manages raw Miniscope data import and storage. Processes data via Processor."""
     
     def __init__(self, line_num, auto_import_data=True):
