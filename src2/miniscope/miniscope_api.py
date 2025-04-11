@@ -5,14 +5,12 @@ Created on Sun Feb  2 11:20:05 2025
  
 @author: lukerichards
 """
-
+from src2.shared.paths import ANALYSIS_PARAMS
+from src2.shared.misc_functions import updateCSVCell
 from src2.miniscope.miniscope_data_manager import MiniscopeDataManager
-from src2.miniscope.miniscope_processor import MiniscopeProcessor
+from src2.miniscope.miniscope_preprocessor import MiniscopePreprocessor
 from src2.ephys.visualizer import Visualizer
 from typing import List
-
-from src2.shared.experiment_data_manager import ExperimentDataManager
-
 
 
 class MiniscopeAPI:
@@ -24,30 +22,48 @@ class MiniscopeAPI:
     def run(
             self, 
             line_num,
-            channel_name = 'PFCLFPvsCBEEG',
-            remove_artifacts = False,
-            filter_type = None, # if desired, enter the type, eg "butter"
-            filter_range = [0.5, 4],
-            plot_channel = False,
-            plot_spectrogram = False,
-            logging_level = "CRITICAL"
+            crop = False,
+            square = False
             ):
         
-
-        experiment_data_manager = ExperimentDataManager(line_num, logging_level = logging_level)
-
-        # Extract the one relevant piece of information that EphysDataManager needs from metadata--the path to the ephys directory
-        miniscope_directory = experiment_data_manager.get_miniscope_directory()
-        analysis_params = experiment_data_manager.analysis_params
-        
         # Create instance of EphysDataManager, process the block into channels
-        miniscope_data_manager = MiniscopeDataManager(miniscope_directory, analysis_params, auto_import_ephys_block=True, auto_process_block=False)
+        self.dm = MiniscopeDataManager(line_num, auto_import_data=True)
+        self.p = MiniscopePreprocessor(self.dm.movie)
+
+        coords: str
+        crop_type: str
+        if square:
+            coords = self.dm.analysis_params['crop']
+            crop_type = 'square'
+        else:
+            coords = self.dm.analysis_params['crop_square']
+            crop_type = 'crop'
         
-        dm = MiniscopeDataManager()
-        # p = MinicopeProcessor(dm.)
+        # unpack coords
+        coords_dict = {
+            'x0': coords[0],
+            'y0': coords[1],
+            'x1': coords[2],
+            'y1': coords[3]
+            }
+        
+        movie, processing_steps, coords = self.p.preprocess_movie(coords_dict, crop=crop)
+        updateCSVCell( data=coords, columnTitle=crop_type, lineNum=line_num, csvFile=ANALYSIS_PARAMS)
 
-        # this is tough.  
 
+
+
+        projections = self.p.computeProjections()
+        print(f'Projections: {projections}')
+
+
+if __name__ == "__main__":      
+    # run the API
+    api = MiniscopeAPI()
+    api.run(
+        line_num=97,
+        crop=True
+    )
         
     
     

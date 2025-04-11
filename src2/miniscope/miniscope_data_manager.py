@@ -29,9 +29,9 @@ class MiniscopeDataManager(ExperimentDataManager):
             
 
     def load_attributes(self):
-        self.metadata.update(self._import_miniscope_metadata()) # add miniscope metadata to overall metadata
-        self.time_stamps, self.frame_numbers = self._import_timestamps()  # import timestamps and frame numbers
-        self.movie: movie = self._import_movies()  # import calcium imaging data
+        self.metadata.update(self._get_miniscope_metadata()) # add miniscope metadata to overall metadata
+        self.time_stamps, self.frame_numbers = self._get_timestamps()  # import timestamps and frame numbers
+        self.movie: movie = self._get_movies()  # import calcium imaging data
 
 
 
@@ -190,7 +190,7 @@ class MiniscopeDataManager(ExperimentDataManager):
 
 
 
-    def _import_miniscope_metadata(self) -> dict:
+    def _get_miniscope_metadata(self) -> dict:
         """
         Imports miniscope metadata from a JSON file located at the path returned by self._find_metadata_path().
         Converts the 'frameRate' value to a float (removing any 'FPS' suffix if necessary).
@@ -224,7 +224,7 @@ class MiniscopeDataManager(ExperimentDataManager):
 
 
 
-    def _import_timestamps(self):
+    def _get_timestamps(self):
          #print('Reading miniscope software timestamps from ' + os.path.abspath(timeStampsFilename) + '...')
         file_path = self._find_timestamps_path()
         time_stamps = []
@@ -239,7 +239,7 @@ class MiniscopeDataManager(ExperimentDataManager):
         return time_stamps, frame_numbers
 
 
-    def _import_movies(self, filenames=None):
+    def _get_movies(self, filenames=None):
         """Import calcium imaging data. Not necessary if using processCaMovies().
         FILENAMES can be a single movie file or a list of movie files (in the order that you want them). If FILENAMES doesn't point to a file (either absolute or relative path from the PWD), it will append the path to the calcium imaging directory to the front of the filename."""
         if filenames == None:
