@@ -40,12 +40,13 @@ class MiniscopeAPI:
             crop_type = 'crop'
         
         # unpack coords
-        coords_dict = {
-            'x0': coords[0],
-            'y0': coords[1],
-            'x1': coords[2],
-            'y1': coords[3]
-            }
+        if coords is not None:
+            coords_dict = {
+                'x0': coords[0],
+                'y0': coords[1],
+                'x1': coords[2],
+                'y1': coords[3]
+                }
         
         movie, processing_steps, coords = self.p.preprocess_movie(coords_dict, crop=crop)
         updateCSVCell( data=coords, columnTitle=crop_type, lineNum=line_num, csvFile=ANALYSIS_PARAMS)
