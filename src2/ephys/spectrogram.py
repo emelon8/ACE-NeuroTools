@@ -4,3 +4,4 @@ class Spectrogram():
         self.psd_matrix_db = psd_matrix_db
         self.time_points = time_points
         self.freq_points = freq_points
+

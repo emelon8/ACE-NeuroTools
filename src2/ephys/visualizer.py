@@ -33,7 +33,8 @@ class Visualizer:
         plt.show()
     
 
-    def plot_spectrogram(psd_matrix_db, time_points, freq_points, plot_events=False):
+    def plot_spectrogram_helper(self, psd_matrix_db, time_points, freq_points, events):
+        self.logger.info(f"Plotting spectrogram...")
         
         fig, ax = plt.subplots()
         mesh = ax.pcolormesh(time_points / 60, freq_points, psd_matrix_db,
@@ -42,13 +43,30 @@ class Visualizer:
         ax.set_xlabel('Time (min)')
         ax.set_ylabel('Frequency (Hz)')
         
-        # if plot_events and hasattr(self.data_manager, 'events'):
-        #     self._mark_events_on_spectrogram(ax)
+        if events:
+            self._markEvents(ax, events)
             
         plt.show()
         return fig, ax
     
-    def plot_spectrogram(self, spectrogram, plot_events=False):
+    def plot_spectrogram(self, spectrogram, events = None):
         """Plot the spectrogram."""
-        self.plot_spectrogram(spectrogram.psd_matrix_db, spectrogram.time_points, spectrogram.freq_points, plot_events=plot_events)
+        self.plot_spectrogram_helper(spectrogram.psd_matrix_db, spectrogram.time_points, spectrogram.freq_points, events)
     
+    def _markEvents(self, axisHandle, events):
+        """Mark events with labels on a given plot."""
+        self.logger.info(f"Marking events on plot...")
+        yLimits = axisHandle.get_ylim()
+        xLimits = axisHandle.get_xlim()
+        lineLength = np.diff(yLimits)
+        lineOffset = yLimits[0] + (lineLength / 2)
+
+        events = events[:10]
+        
+        for label, timestamp in events:
+            # Plot the event line
+            axisHandle.axvline(x=timestamp, color='k', linestyle='--', alpha=0.7)
+            # Add the label
+            axisHandle.text(timestamp, yLimits[1], label, rotation=90, verticalalignment='bottom', fontsize=8)
+        
+        axisHandle.axis([xLimits[0], xLimits[1], yLimits[0], yLimits[1]])

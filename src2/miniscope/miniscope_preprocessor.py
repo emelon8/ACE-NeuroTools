@@ -3,7 +3,7 @@ import io
 import caiman as cm
 import numpy as np
 from src2.miniscope.projections import Projections
-from src2.miniscope.cropMovieGUI import cropMovieGUI
+from src2.miniscope.crop_movie_gui import CropMovieGUI
 import numpy as np
 import matplotlib.pyplot as plt
 import logging
@@ -13,6 +13,7 @@ from src2.shared.misc_functions import updateCSVCell, denoiseMovie, _prepAxes
 import PySimpleGUI as sg
 import numpy as np
 from tqdm import tqdm
+from src2.miniscope.movie_io import MovieIO
 
 
 class MiniscopePreprocessor():
@@ -68,12 +69,12 @@ class MiniscopePreprocessor():
 
     
 
-    def preprocess_movie(self, coords_dict, crop=False, square=False, coords=None,
+    def preprocess_movie(self, coords_dict, miniscope_dir_path, crop=False, square=False, coords=None,
                          crop_gui=False, denoise=False, detrend=False,
                          df_over_f=False):
         """Run preprocessing steps based on provided flags."""
         movie = self.movie
-        steps_applied = []
+        steps_applied = ['preprocessed']
 
         if crop:
             col = 'crop_square' if square else 'crop'                           # TODO I eliminated this option deeper down, do I have to add it back?
@@ -93,14 +94,16 @@ class MiniscopePreprocessor():
             movie = self.compute_df_over_f(movie)
             steps_applied.append('_dFoverF')
 
-        processing_step = ''.join(steps_applied)
+        movie_file_name = ''.join(steps_applied)
 
-        return movie, processing_step, coords
+        # save movie!
+        movie_file_path = MovieIO.save_movie(movie, miniscope_dir_path, movie_file_name)
+        return movie_file_path, coords
     
 
     def crop_movie(self, coords_dict, projections, movie_height, movie_width, gui=False, coords=None):
         if gui or coords is None:
-            gui = cropMovieGUI(coords_dict, projections, movie_height, movie_width)
+            gui = CropMovieGUI(coords_dict, projections, movie_height, movie_width)
             coords = gui.coords_dict
 
         x0, x1 = sorted([coords['x0'], coords['x1']])

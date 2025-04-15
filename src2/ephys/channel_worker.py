@@ -20,7 +20,8 @@ class ChannelWorker:
         
         spectrogram: Spectrogram = self.compute_spectrogram(self.channel, window_length, window_step, freq_limits, time_bandwidth, use_filtered)
 
-        self.visualizer.plot_spectrogram(spectrogram, plot_events=plot_events)
+        events = None if not plot_events else self.channel.events
+        self.visualizer.plot_spectrogram(spectrogram, events = events)
         return self.spectrogram
     
 

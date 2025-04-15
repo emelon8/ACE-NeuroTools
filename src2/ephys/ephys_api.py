@@ -14,7 +14,6 @@ from typing import List
 import logging
 
 
-
 class EphysAPI:
     """Main workflow class."""
 
@@ -23,20 +22,10 @@ class EphysAPI:
     
 
 
-
-
-
-
-
-
-
-
-
-
-
     def run(
             self, 
-            line_num,
+            line_num,   # TODO change to experiment_id
+                        # TODO add in analysis_id
             channel_name = 'PFCLFPvsCBEEG',
             remove_artifacts = False,
             filter_type = None, # if desired, enter the type, eg "butter"
@@ -78,7 +67,7 @@ class EphysAPI:
             channel_worker.plot_channel(use_filtered = filter)
 
         if plot_spectrogram:
-            channel_worker.plot_spectrogram(use_filtered = filter)    
+            channel_worker.plot_spectrogram(use_filtered = filter, plot_events=False)    
 
 
 

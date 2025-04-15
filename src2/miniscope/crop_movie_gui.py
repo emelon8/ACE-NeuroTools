@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
    The coordinates for the crop box that you select is stored in self.coords_dict
 """
 
-class cropMovieGUI:
+class CropMovieGUI:
     
     def __init__(self, coords_dict, projections, movie_height, movie_width):
         self.coords_dict = self._crop_window(coords_dict, projections, movie_height, movie_width)

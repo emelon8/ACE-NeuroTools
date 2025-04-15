@@ -112,14 +112,14 @@ class EphysDataManager():
         logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s') # turn to DEBUG for more info
         
         # Log input variables
-        logging.debug(f"Input variables:")
-        logging.debug(f"- data: {data}")
-        logging.debug(f"- n: {n}")
-        logging.debug(f"- cut: {cut}")
-        logging.debug(f"- ftype: {ftype}")
-        logging.debug(f"- btype: {btype}")
-        logging.debug(f"- fs: {fs}")
-        logging.debug(f"- bodePlot: {bodePlot}")
+        logging.info(f"Input variables:")
+        logging.info(f"- data: {data}")
+        logging.info(f"- n: {n}")
+        logging.info(f"- cut: {cut}")
+        logging.info(f"- ftype: {ftype}")
+        logging.info(f"- btype: {btype}")
+        logging.info(f"- fs: {fs}")
+        logging.info(f"- bodePlot: {bodePlot}")
 
         """ Use ftype to indicate FIR or Butterworth filter.
         

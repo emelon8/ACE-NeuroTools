@@ -128,35 +128,54 @@ class BlockProcessor:
             t_stop -= 0.51 * dt
         time_vector = np.arange(t_start, t_stop, dt)
 
-        # Build signal array using the index from the first segment
-        signal = self._make_ephys_array(channel_index, channel_name, time_vector)
+        # Build signal array using the index from the first segment, and extract events
+        signal, events = self._scan_segments(channel_index, channel_name, time_vector)
 
         # Return processed channel
-        return Channel(channel_name, signal, sampling_rate, time_vector)
-        
-    def _make_ephys_array(self, channel_index, channel_name, time_vector):
+        return Channel(channel_name, signal, sampling_rate, time_vector, events)
+
+
+
+    def _scan_segments(self, channel_index, channel_name, time_vector):
         """Construct continuous signal from raw segments."""
         n_points = len(time_vector)
         signal = np.full(n_points, np.nan)
+        events = []
         
         for seg in self.ephys_block.segments:
+
+
+            # signal processing
+
             sig = seg.analogsignals[channel_index]
             signal_data = sig.magnitude.squeeze()  # NEW: Flatten to 1D
-            
             # Calculate start/end indices
             start_idx = np.argmin(np.abs(time_vector - sig.t_start.magnitude))
             end_idx = start_idx + signal_data.size  # Use flattened data size
-            
             # Avoid overfilling
             end_idx = min(end_idx, n_points)  # NEW: Prevent index overflow
-            
             if start_idx > 0 and np.isnan(signal[start_idx - 1]):
                 self._interpolate_missing_data(channel_name, signal, start_idx, time_vector, sig.t_start.magnitude)
-            
             # Assign flattened data
             signal[start_idx:end_idx] = signal_data[:end_idx-start_idx]  # MODIFIED
+
+
+            # event processing Luke's: 
+            for event in seg.events:
+                for t in event.times:
+                    events.append((event.name, t.magnitude.item()))
+
+            # Eric's:
+            # for e in seg.events:
+            #     for k, l in enumerate(e.labels.astype(str)):
+            #         events.append((l, e.times[k].magnitude))
+
+        # Sort all of the events
+        events.sort(key=lambda pair: pair[1])
+
+
         
-        return signal
+        return signal, events
         
     def _interpolate_missing_data(self, channel_name, signal, start_idx, time_vector, t_start):
         """Fill gaps between segments with interpolation."""

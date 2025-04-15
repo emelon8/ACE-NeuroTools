@@ -11,6 +11,7 @@ from src2.miniscope.miniscope_data_manager import MiniscopeDataManager
 from src2.miniscope.miniscope_preprocessor import MiniscopePreprocessor
 from src2.ephys.visualizer import Visualizer
 from typing import List
+from src2.miniscope.movie_io import MovieIO
 
 
 class MiniscopeAPI:
@@ -28,6 +29,7 @@ class MiniscopeAPI:
         
         # Create instance of EphysDataManager, process the block into channels
         self.dm = MiniscopeDataManager(line_num, auto_import_data=True)
+        miniscope_dir_path = self.dm.metadata['calcium imaging directory']
         self.p = MiniscopePreprocessor(self.dm.movie)
 
         coords: str
@@ -40,22 +42,26 @@ class MiniscopeAPI:
             crop_type = 'crop'
         
         # unpack coords
-        if coords is not None:
-            coords_dict = {
-                'x0': coords[0],
-                'y0': coords[1],
-                'x1': coords[2],
-                'y1': coords[3]
-                }
+        coords_dict = { 'x0': coords[0], 'y0': coords[1], 'x1': coords[2], 'y1': coords[3] }
         
-        movie, processing_steps, coords = self.p.preprocess_movie(coords_dict, crop=crop)
+        file_path, coords = self.p.preprocess_movie(coords_dict, miniscope_dir_path, crop=False)
         updateCSVCell( data=coords, columnTitle=crop_type, lineNum=line_num, csvFile=ANALYSIS_PARAMS)
+        
+        movie = MovieIO.load_movie(miniscope_dir_path, file_path)
+        print(movie)
 
 
+        # file_path = MovieIO.save_movie(self.dm.movie, miniscope_dir_path, "unpreprocessed_movie")
+
+        # projections = self.p.computeProjections()
+        # print(f'Projections: {projections}')
 
 
-        projections = self.p.computeProjections()
-        print(f'Projections: {projections}')
+    # def nathans_function(self, line_num):
+    #     self.dm = MiniscopeDataManager(line_num, auto_import_data=True, avi_range= [5])
+    #     miniscope_dir_path = self.dm.metadata['calcium imaging directory']
+    #     file_path = MovieIO.save_movie(self.dm.movie, miniscope_dir_path, "unpreprocessed_movie")
+    #     processor()
 
 
 if __name__ == "__main__":      
