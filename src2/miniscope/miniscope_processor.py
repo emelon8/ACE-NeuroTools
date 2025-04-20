@@ -38,19 +38,20 @@ class MiniscopeProcessor():
             motion_correction_object, bord_px = self._motion_correction(dview, save_motion_correction)
             if save_motion_correction:
                 print('Saving motion corrected movies...')
-                new_file = cm.save_memmap(motion_correction_object.mmap_file, base_name=self.file_path + "MC", order='C', border_to_0=bord_px) #caiman doesn't like underscores in their file naming logic, Figure out how to save the mmap to our saved file folder
-                self.optsCaImAn.change_params({'fnames': new_file})
+                motion_corrected_mmap_filepath = cm.save_memmap(motion_correction_object.mmap_file, base_name=self.file_path + "motioncorrectedMMAP", order='C', border_to_0=bord_px) #caiman doesn't like underscores in their file naming logic, Figure out how to save the mmap to our saved file folder
+                self.opts_caiman.change_params({'fnames': motion_corrected_mmap_filepath})
             if inspect_motion_correction:
                 self._inspect_motion_correction(motion_correction_object)
         else:
-            #if no motion correction, create a memory map of our original files
-            new_file = cm.save_memmap(self.optsCaImAn.get('data', 'fnames'), base_name=self.file_path + "MC", order='C',
+            #if no motion correction, create a memory map of our original file
+            #currently saves the mmap file to wherever self.filepath is with MMAP appended
+            mmap_filepath = cm.save_memmap(self.opts_caiman.get('data', 'fnames'), base_name=self.file_path + "MMAP", order='C',
                                        border_to_0=0,
                                        dview=dview)
-            self.optsCaImAn.change_params({'fnames': new_file})
+            self.opts_caiman.change_params({'fnames': mmap_filepath})
             
-        Yr, dims_new, T = cm.load_memmap(self.optsCaImAn.get('data', 'fnames')[0])
-        self.optsCaImAn.change_params({'dims': dims_new})
+        Yr, dims_new, T = cm.load_memmap(self.opts_caiman.get('data', 'fnames')[0])
+        self.opts_caiman.change_params({'dims': dims_new})
         self.images = Yr.T.reshape((T,) + dims_new, order='F')
         
         if inspect_corr_PNR:
@@ -66,12 +67,13 @@ class MiniscopeProcessor():
         if save_CNMFE_estimates_filepath:
             self.CNMFE_file = os.path.join(self.data_manager.metadata['calcium imaging directory'], self.jobID + save_CNMFE_estimates_filepath) #figure out how to save this to our svaed file folder
             print('Saving CNMF-E estimates in ' + self.CNMFE_file)
-            CNMFE_object.save(self.CNMFE_file) #saves the estimates from CNMFE to a file
+            filepath = CNMFE_object.save(self.CNMFE_file) #saves the estimates from CNMFE to a file
         
         try:
             cm.stop_server(dview=dview)
         except:
             raise("Error, could't stop caiman processing")
+        return filepath, self.opts_caiman
             
         
         
@@ -94,24 +96,24 @@ class MiniscopeProcessor():
     def _motion_correction(self, dview=None, save_movie=False):
         """Use motion correction to correct for movement during the calcium movies."""
         print('Setting up motion correction object...')
-        mc = cm.motion_correction.MotionCorrect(self.optsCaImAn.get('data', 'fnames'), dview=dview,
-                                                **self.optsCaImAn.get_group('motion'))
+        mc = cm.motion_correction.MotionCorrect(self.opts_caiman.get('data', 'fnames'), dview=dview,
+                                                **self.opts_caiman.get_group('motion'))
         print('Motion correcting...')
         mc.motion_correct(save_movie=save_movie)
-        if self.optsCaImAn.get('motion', 'pw_rigid'):
+        if self.opts_caiman.get('motion', 'pw_rigid'):
             bord_px = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)), np.max(np.abs(mc.y_shifts_els)))).astype(int)
         else:
             bord_px = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(int)
-        bord_px = 0 if self.optsCaImAn.get('motion', 'border_nan') == 'copy' else bord_px
-        self.optsCaImAn.change_params({'border_pix': bord_px})
+        bord_px = 0 if self.opts_caiman.get('motion', 'border_nan') == 'copy' else bord_px
+        self.opts_caiman.change_params({'border_pix': bord_px})
         return mc, bord_px
 
 
-    def _CNMFE(self, nProcesses, dview, saveCNMFEFilename):
+    def _CNMFE(self, nProcesses, dview):
         """Segments neurons, demixes spatially overlapping neurons, and denoises the calcium activity from calcium movies.
         See paper describing the method: https://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3"""
         print('Setting up CNMF-E object...')
-        cnm = cm.source_extraction.cnmf.CNMF(n_processes=nProcesses, dview=dview, Ain=None, params=self.optsCaImAn)
+        cnm = cm.source_extraction.cnmf.CNMF(n_processes=nProcesses, dview=dview, Ain=None, params=self.opts_caiman)
         print('Running CNMF-E...')
         cnm.fit(self.images)
         return cnm
@@ -123,15 +125,15 @@ class MiniscopeProcessor():
         constrained foopsi.
         """
         print('Setting up for deconvolution...')
-        p = (self.optsCaImAn.get('preprocess', 'p')
+        p = (self.opts_caiman.get('preprocess', 'p')
              if p is None else p)
-        method_deconvolution = (self.optsCaImAn.get('temporal', 'method_deconvolution')
+        method_deconvolution = (self.opts_caiman.get('temporal', 'method_deconvolution')
                                 if method_deconvolution is None else method_deconvolution)
-        bas_nonneg = (self.optsCaImAn.get('temporal', 'bas_nonneg')
+        bas_nonneg = (self.opts_caiman.get('temporal', 'bas_nonneg')
                       if bas_nonneg is None else bas_nonneg)
-        noise_method = (self.optsCaImAn.get('temporal', 'noise_method')
+        noise_method = (self.opts_caiman.get('temporal', 'noise_method')
                         if noise_method is None else noise_method)
-        s_min = self.optsCaImAn.get('temporal', 's_min') if s_min is None else s_min
+        s_min = self.opts_caiman.get('temporal', 's_min') if s_min is None else s_min
 
         F = self.estimates.C + self.estimates.YrA
         args = dict()
@@ -141,15 +143,15 @@ class MiniscopeProcessor():
         args['noise_method'] = noise_method
         args['s_min'] = s_min
         args['optimize_g'] = optimize_g
-        args['noise_range'] = self.optsCaImAn.get('temporal', 'noise_range')
-        args['fudge_factor'] = self.optsCaImAn.get('temporal', 'fudge_factor')
+        args['noise_range'] = self.opts_caiman.get('temporal', 'noise_range')
+        args['fudge_factor'] = self.opts_caiman.get('temporal', 'fudge_factor')
 
         args_in = [(F[jj], None, jj, None, None, None, None,
                     args) for jj in range(F.shape[0])]
 
         print('Deconvolving...')
         if 'multiprocessing' in str(type(self.dview)):
-            fluor = self.optsCaImAn
+            fluor = self.opts_caiman
             results = self.dview.map_async(cm.deconvolve.constrained_foopsi(fluor, p=p,
                                                                             method_deconvolution=method_deconvolution,
                                                                             noise_method=noise_method,
@@ -193,7 +195,7 @@ class MiniscopeProcessor():
             ax[1].legend(['X Shifts', 'Y Shifts'])
 
         if plot_shifts:
-            if self.optsCaImAn.get('motion', 'pw_rigid'):
+            if self.opts_caiman.get('motion', 'pw_rigid'):
                 h, ax = misc_functions._prepAxes(xLabel='Frames', yLabel='Pixels')
                 ax.plot(mc.shifts_rig)
                 ax.legend(['X Shifts', 'Y Shifts'])
@@ -209,7 +211,7 @@ class MiniscopeProcessor():
                 cm.concatenate([self.movie.resize(1, 1, down_sample_ratio) - mc.min_mov * mc.nonneg_movie,
                                 mcMovie.resize(1, 1, down_sample_ratio)], axis=2).play(fr=self.data_manager.metadata['frameRate'],
                                                                                      q_max=99.5, magnification=2,
-                                                                                     bord_px=self.optsCaImAn.get(
+                                                                                     bord_px=self.opts_caiman.get(
                                                                                          'patch', 'border_pix'))
             if plot_correlation:
                 h, ax = misc_functions._prepAxes(xLabel=['', 'Frames'], yLabel=['', 'Pixels'], subPlots=[1, 2])
@@ -217,7 +219,7 @@ class MiniscopeProcessor():
                 ax[1].imshow(mcMovie.local_correlations(eight_neighbours=True, swap_dim=False))
 
         if plot_advanced_MC_inspection:
-            final_size = np.subtract(self.optsCaImAn.get('data', 'dims'),
+            final_size = np.subtract(self.opts_caiman.get('data', 'dims'),
                                      2 * mc.border_to_0)  # remove pixels in the boundaries
             winsize = 100
             swap_dim = False
@@ -276,7 +278,7 @@ class MiniscopeProcessor():
         """Create the correlation and peak-noise-ratio (PNR) images and, if desired, inspect them with an interactive plot to determine min_corr and min_pnr."""
         print('Creating correlation and peak-noise-ratio images...')
         self.cn_filter, self.pnr = cm.summary_images.correlation_pnr(self.images[::down_sample_for_corr_PNR],
-                                                                     gSig=self.optsCaImAn.get('init', 'gSig')[0],
+                                                                     gSig=self.opts_caiman.get('init', 'gSig')[0],
                                                                      swap_dim=False)
         if inspect_corr_PNR:
             cm.utils.visualization.inspect_correlation_pnr(self.cn_filter, self.pnr)
