@@ -12,8 +12,14 @@ class MiniscopeProcessor():
     
     def __init__(self, data_manager: MiniscopeDataManager, file_path, jobID=""):
         self.data_manager = data_manager
+        self.__convert_analysis_params_to_ints()
         self.file_path = file_path
         self.jobID = jobID
+        self.data_manager.analysis_params['fnames'] = self.file_path
+        self.movie = cm.load(self.file_path)
+        self.data_manager.analysis_params['dims'] = self.movie.shape[1:]
+        self.data_manager.analysis_params['frame rate'] = self.data_manager.metadata['frameRate']
+        self.opts_caiman = cm.source_extraction.cnmf.params.CNMFParams(params_dict=self.data_manager.analysis_params)
         
     
     def process_calcium_movies(self, parallel=True, n_processes=12, apply_motion_correction=True, save_motion_correction=True, 
@@ -21,12 +27,6 @@ class MiniscopeProcessor():
                                save_CNMFE_estimates_filepath='estimates.hdf5', deconvolve=False):
         
         """Method for organizing how the calcium movie will be processed"""
-        steps_applied = []
-        self.data_manager.analysis_params['fnames'] = self.file_path
-        self.movie = cm.load(self.file_path)
-        self.data_manager.analysis_params['dims'] = self.movie.shape[1:]
-        self.data_manager.analysis_params['frame rate'] = self.data_manager.metadata['frameRate']
-        self.opts_caiman = cm.source_extraction.cnmf.params.CNMFParams(params_dict=self.data_manager.analysis_params)
         
         if parallel:
             print('Setting up cluster for caiman parallel processing on your computer')
@@ -35,47 +35,50 @@ class MiniscopeProcessor():
             dview = None
             n_processes = 1
             
+            
         if apply_motion_correction:
             motion_correction_object, bord_px = self._motion_correction(dview, save_motion_correction)
-            if save_motion_correction:
-                print('Saving motion corrected movies...')
-                motion_corrected_mmap_filepath = cm.save_memmap(motion_correction_object.mmap_file, base_name=self.file_path + "motioncorrectedMMAP", order='C', border_to_0=bord_px) #caiman doesn't like underscores in their file naming logic, Figure out how to save the mmap to our saved file folder
-                self.opts_caiman.change_params({'fnames': motion_corrected_mmap_filepath})
+            if save_motion_correction: #This if-block does not save anything to disk. It turns our motion_corrected.npz fileninto a temporary mmap that will be used for CNMFE       
+                self._create_temporary_motion_corrected_mmap(motion_correction_object.mmap_file, bord_px)
             if inspect_motion_correction:
                 self._inspect_motion_correction(motion_correction_object)
         else:
-            #if no motion correction, create a memory map of our original file
-            #currently saves the mmap file to wherever self.filepath is with MMAP appended
-            mmap_filepath = cm.save_memmap(self.opts_caiman.get('data', 'fnames'), base_name=self.file_path + "MMAP", order='C',
+            mmap_filepath = cm.save_memmap(self.opts_caiman.get('data', 'fnames'), order='C',
                                        border_to_0=0,
                                        dview=dview)
             self.opts_caiman.change_params({'fnames': mmap_filepath})
             
+        
         Yr, dims_new, T = cm.load_memmap(self.opts_caiman.get('data', 'fnames')[0])
         self.opts_caiman.change_params({'dims': dims_new})
         self.images = Yr.T.reshape((T,) + dims_new, order='F')
+        print(self.opts_caiman.get('patch', 'rf'))
+        print(self.opts_caiman.get('patch', 'stride'))
         
         if inspect_corr_PNR:
             self._corr_PNR(inspect_corr_PNR, downsample_for_corr_PNR)
+            
             
         if run_CNMFE:
             CNMFE_object = self._CNMFE(n_processes, dview=dview)
             self.estimates = CNMFE_object.estimates
                     
+            
         if deconvolve:
-            self._deconvolve()
+            self.estimates.deconvolve(self.opts_caiman, dview=dview)
             
         
         if save_CNMFE_estimates_filepath:
-            self.CNMFE_filepath = os.path.join(self.data_manager.metadata['calcium imaging directory'], self.jobID + save_CNMFE_estimates_filepath) #figure out how to save this to our saved file folder, MovieIO currently is not robust enough
+            self.CNMFE_filepath = os.path.join(self.data_manager.metadata['calcium imaging directory'],"saved_movies", self.jobID + save_CNMFE_estimates_filepath) #figure out how to save this to our saved file folder, MovieIO currently is not robust enough
             print('Saving CNMF-E estimates in ' + self.CNMFE_filepath)
-            filepath = CNMFE_object.save(self.CNMFE_file) #saves the estimates from CNMFE to a file
+            estimates_filepath = CNMFE_object.save(self.CNMFE_filepath) #saves the estimates from CNMFE to a file
+        
         
         try:
             cm.stop_server(dview=dview)
         except:
             raise("Error, could't stop caiman processing")
-        return filepath, self.opts_caiman
+        return estimates_filepath, self.opts_caiman
             
         
         
@@ -97,10 +100,10 @@ class MiniscopeProcessor():
 
     def _motion_correction(self, dview=None, save_movie=False):
         """Use motion correction to correct for movement during the calcium movies."""
-        print('Setting up motion correction object...')
         mc = cm.motion_correction.MotionCorrect(self.opts_caiman.get('data', 'fnames'), dview=dview,
                                                 **self.opts_caiman.get_group('motion'))
         print('Motion correcting...')
+        #save_movie=True below saves the a .npz file for the motion corrected movie to the same folder as the original file
         mc.motion_correct(save_movie=save_movie)
         if self.opts_caiman.get('motion', 'pw_rigid'):
             bord_px = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)), np.max(np.abs(mc.y_shifts_els)))).astype(int)
@@ -109,77 +112,21 @@ class MiniscopeProcessor():
         bord_px = 0 if self.opts_caiman.get('motion', 'border_nan') == 'copy' else bord_px
         self.opts_caiman.change_params({'border_pix': bord_px})
         return mc, bord_px
+    
+    def _create_temporary_motion_corrected_mmap(self, filepath, bord_px):
+        motion_corrected_mmap_filepath = cm.save_memmap(filepath, base_name="", order='C', border_to_0=bord_px)
+        self.opts_caiman.change_params({'fnames': motion_corrected_mmap_filepath}) 
 
-
-    def _CNMFE(self, nProcesses, dview):
+    def _CNMFE(self, n_processes, dview):
         """Segments neurons, demixes spatially overlapping neurons, and denoises the calcium activity from calcium movies.
         See paper describing the method: https://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3"""
         print('Setting up CNMF-E object...')
-        cnm = cm.source_extraction.cnmf.CNMF(n_processes=nProcesses, dview=dview, Ain=None, params=self.opts_caiman)
+        cnm = cm.source_extraction.cnmf.CNMF(n_processes=n_processes, dview=dview, Ain=None, params=self.opts_caiman)
         print('Running CNMF-E...')
         cnm.fit(self.images)
         return cnm
 
-
-    def _deconvolve(self, p=None, method_deconvolution=None, bas_nonneg=None,
-                    noise_method=None, optimize_g=0, s_min=None, **kwargs):
-        """Performs deconvolution on already extracted traces using
-        constrained foopsi.
-        """
-        print('Setting up for deconvolution...')
-        p = (self.opts_caiman.get('preprocess', 'p')
-             if p is None else p)
-        method_deconvolution = (self.opts_caiman.get('temporal', 'method_deconvolution')
-                                if method_deconvolution is None else method_deconvolution)
-        bas_nonneg = (self.opts_caiman.get('temporal', 'bas_nonneg')
-                      if bas_nonneg is None else bas_nonneg)
-        noise_method = (self.opts_caiman.get('temporal', 'noise_method')
-                        if noise_method is None else noise_method)
-        s_min = self.opts_caiman.get('temporal', 's_min') if s_min is None else s_min
-
-        F = self.estimates.C + self.estimates.YrA
-        args = dict()
-        args['p'] = p
-        args['method_deconvolution'] = method_deconvolution
-        args['bas_nonneg'] = bas_nonneg
-        args['noise_method'] = noise_method
-        args['s_min'] = s_min
-        args['optimize_g'] = optimize_g
-        args['noise_range'] = self.opts_caiman.get('temporal', 'noise_range')
-        args['fudge_factor'] = self.opts_caiman.get('temporal', 'fudge_factor')
-
-        args_in = [(F[jj], None, jj, None, None, None, None,
-                    args) for jj in range(F.shape[0])]
-
-        print('Deconvolving...')
-        if 'multiprocessing' in str(type(self.dview)):
-            fluor = self.opts_caiman
-            results = self.dview.map_async(cm.deconvolve.constrained_foopsi(fluor, p=p,
-                                                                            method_deconvolution=method_deconvolution,
-                                                                            noise_method=noise_method,
-                                                                            optimize_g=optimize_g,
-                                                                            s_min=s_min), args_in).get(4294967)
-        elif self.dview is not None:
-            results = self.dview.map_sync(cm.deconvolve.constrained_foopsi_parallel(), args_in)
-        else:
-            results = list(map(cm.deconvolve.constrained_foopsi_parallel(), args_in))
-
-        if sys.version_info >= (3, 0):
-            results = list(zip(*results))
-        else:  # python 2
-            results = zip(*results)
-
-        order = list(results[7])
-        self.estimates.C = np.stack([results[0][i] for i in order])
-        self.estimates.S = np.stack([results[1][i] for i in order])
-        self.estimates.bl = [results[3][i] for i in order]
-        self.estimates.c1 = [results[4][i] for i in order]
-        self.estimates.g = [results[6][i] for i in order]
-        self.estimates.neurons_sn = [results[5][i] for i in order]
-        self.estimates.lam = [results[8][i] for i in order]
-        self.estimates.YrA = F - self.estimates.C
-
-    def _inspectMotionCorrection(self, mc, plot_rigid_motion_correction=True, plot_shifts=True, play_concatenated_movies=True,
+    def _inspect_motion_correction(self, mc, plot_rigid_motion_correction=True, plot_shifts=True, play_concatenated_movies=True,
                                  down_sample_ratio=0.2, plot_correlation=True, plot_advanced_MC_inspection=True):
         """Various plots and movies to help with the inspection of motion correction effectiveness.
         MC is the motion correction object obtained from SELF._MOTIONCORRECTION().
@@ -255,6 +202,9 @@ class MiniscopeProcessor():
                                              xLabel=['Original', '', '', 'Motion Corrected', '', ''], yLabel=['', '', '', '', '', ''],
                                              subPlots=[2, 3])
 
+            """
+            This code block throws an error in both src and src2 on my mac when running the same data. It can't find any .npz files in /Users/nathan/caiman_data/temp'
+            
             for cnt, fl in zip(range(len(fls)), fls):
                 with np.load(fl) as ld:
                     print(str(np.mean(ld['norms'])) + '+/-' + str(np.std(ld['norms'])) +
@@ -274,7 +224,8 @@ class MiniscopeProcessor():
                     if len(ax) > (3 * cnt + 3):
                         mappable = ax[3 * cnt + 3].imshow(np.mean(
                             np.sqrt(ld['flows'][:, :, :, 0] ** 2 + ld['flows'][:, :, :, 1] ** 2), 0), vmin=0, vmax=0.3)
-                        plt.colorbar(mappable=mappable, ax=ax[3 * cnt + 3]) #FIXME colorbar() is NOT an attribute of ax. It is of plt though
+                        plt.colorbar(mappable=mappable, ax=ax[3 * cnt + 3]) #FIXME colorbar() is NOT an attribute of ax. It is of plt though"
+            """
 
     def _corr_PNR(self, inspect_corr_PNR, down_sample_for_corr_PNR):
         """Create the correlation and peak-noise-ratio (PNR) images and, if desired, inspect them with an interactive plot to determine min_corr and min_pnr."""
@@ -284,3 +235,15 @@ class MiniscopeProcessor():
                                                                      swap_dim=False)
         if inspect_corr_PNR:
             cm.utils.visualization.inspect_correlation_pnr(self.cn_filter, self.pnr)
+            
+            
+            
+            
+    def __convert_analysis_params_to_ints(self):
+        for key, value in self.data_manager.analysis_params.items():
+            if isinstance(value, float):
+                try:
+                    self.data_manager.analysis_params[key] = int(value)
+                except:
+                    continue
+        

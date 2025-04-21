@@ -154,35 +154,35 @@ class MiniscopeDataManager(ExperimentDataManager):
 
     def _metaDataConverter(self):  
         # Suggestion: it might be good to start combining the metaDatas and marking them with the animalID or some experiment identifier (not sure how this program will work if you have a lot of different videos/metaData)
-        fileExt = self._find_metadata_path()
-
-        with open(fileExt) as f:
-            data = json.loads(f.read())
-            if 'animalID' in data:
-                ext = fileExt.replace('\\metaData.json', '\\Miniscope\\metaData.json')
-                animalID = data['animalID']
-                timeStamp = data['recordingStartTime']
-                year = str(timeStamp['year'])
-                month = str('%02d' % timeStamp['month'])
-                day = str('%02d' % timeStamp['day'])
-                second = str('%02d' % timeStamp['second'])
-                minute = str('%02d' % timeStamp['minute'])
-                hour = str('%02d' % timeStamp['hr'])
-                date = year + month + day + '_' + hour + minute + second
-                with open(ext) as d:
-                    data2 = json.loads(d.read())
-                    if 'frameRate' in data2:
-                        try:
-                            frameRate = float(data2['frameRate'])
-                        except ValueError:
-                            frameRate = float(data2['frameRate'].replace('FPS', ''))
-                    jdict = {'origin': animalID, 'fps': frameRate, 'date': date,
-                                'orig_meta': [data, data2]}
-                    jsonFile = json.dumps(jdict, indent=4)
-                    newFileName = ext.replace('\\metaData.json', '\\metaDataTif.json')
-                    n = open(newFileName, 'w')
-                    n.write(jsonFile)
-                    n.close()
+        fileExts = self._find_metadata_paths()
+        for fileExt in fileExts:
+            with open(fileExt) as f:
+                data = json.loads(f.read())
+                if 'animalID' in data:
+                    ext = fileExt.replace('\\metaData.json', '\\Miniscope\\metaData.json')
+                    animalID = data['animalID']
+                    timeStamp = data['recordingStartTime']
+                    year = str(timeStamp['year'])
+                    month = str('%02d' % timeStamp['month'])
+                    day = str('%02d' % timeStamp['day'])
+                    second = str('%02d' % timeStamp['second'])
+                    minute = str('%02d' % timeStamp['minute'])
+                    hour = str('%02d' % timeStamp['hr'])
+                    date = year + month + day + '_' + hour + minute + second
+                    with open(ext) as d:
+                        data2 = json.loads(d.read())
+                        if 'frameRate' in data2:
+                            try:
+                                frameRate = float(data2['frameRate'])
+                            except ValueError:
+                                frameRate = float(data2['frameRate'].replace('FPS', ''))
+                        jdict = {'origin': animalID, 'fps': frameRate, 'date': date,
+                                    'orig_meta': [data, data2]}
+                        jsonFile = json.dumps(jdict, indent=4)
+                        newFileName = ext.replace('\\metaData.json', '\\metaDataTif.json')
+                        n = open(newFileName, 'w')
+                        n.write(jsonFile)
+                        n.close()
 
 
 
@@ -192,34 +192,33 @@ class MiniscopeDataManager(ExperimentDataManager):
 
     def _get_miniscope_metadata(self) -> dict:
         """
-        Imports miniscope metadata from a JSON file located at the path returned by self._find_metadata_path().
+        Imports miniscope metadata from a JSON file or multiple located at the paths returned by self._find_metadata_paths().
         Converts the 'frameRate' value to a float (removing any 'FPS' suffix if necessary).
 
         Returns:
-            Dict: The metadata dictionary with a converted 'frameRate' value if present.
+            Dict: The metadata dictionary with a converted 'frameRate' value if present and converts any whole numbers to ints.
         """
-        metadata_path = self._find_metadata_path()
-        print(f"Reading metadata from {metadata_path}...")
-
-        try:
-            with open(metadata_path, 'r') as file:
-                metadata = json.load(file)
-        except (IOError, json.JSONDecodeError) as e:
-            raise RuntimeError(f"Error reading or parsing metadata file '{metadata_path}': {e}")
-
-        # If 'frameRate' exists, try to convert it to a float
-        if 'frameRate' in metadata:
-            value = metadata['frameRate']
+        metadata_paths = self._find_metadata_paths()
+        print(f"Reading metadata from {metadata_paths}...")
+        for metadata_path in metadata_paths:
             try:
-                metadata['frameRate'] = float(value)
-            except ValueError:
-                # Remove 'FPS' and any surrounding whitespace, then convert again
-                cleaned_value = value.replace('FPS', '').strip()
+                with open(metadata_path, 'r') as file:
+                    metadata = json.load(file)
+            except (IOError, json.JSONDecodeError) as e:
+                raise RuntimeError(f"Error reading or parsing metadata file '{metadata_path}': {e}")
+    
+            # If 'frameRate' exists, try to convert it to a float
+            if 'frameRate' in metadata:
+                value = metadata['frameRate']
                 try:
-                    metadata['frameRate'] = float(cleaned_value)
+                    metadata['frameRate'] = float(value)
                 except ValueError:
-                    raise ValueError(f"Unable to convert frameRate value '{value}' to float.")
-
+                    # Remove 'FPS' and any surrounding whitespace, then convert again
+                    cleaned_value = value.replace('FPS', '').strip()
+                    try:
+                        metadata['frameRate'] = float(cleaned_value)
+                    except ValueError:
+                        raise ValueError(f"Unable to convert frameRate value '{value}' to float.")
         return metadata
 
 
@@ -259,6 +258,7 @@ class MiniscopeDataManager(ExperimentDataManager):
             movie = cm.load(filenames)
 
         return movie
+    
 
 
 
@@ -275,9 +275,9 @@ class MiniscopeDataManager(ExperimentDataManager):
             prefix=prefix
         )
 
-    def _find_metadata_path(self) -> str:
+    def _find_metadata_paths(self) -> list:
         """Finds and returns the metadata JSON file path."""
-        return self._find_file_paths(suffix=".json", prefix="metaData")[0]
+        return self._find_file_paths(suffix=".json", prefix="metaData")
 
     def _find_timestamps_path(self) -> str:
         """Finds and returns the timestamps CSV file path."""

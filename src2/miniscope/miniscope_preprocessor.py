@@ -116,7 +116,7 @@ class MiniscopePreprocessor():
 
     def denoise_movie(self, movie):
         """Denoise the calcium imaging movie."""
-        denoised_movie = denoiseMovie(movie)
+        denoised_movie = denoiseMovie(movie) #denoiseMovie need a file directory, not a movie
         return denoised_movie
 
     def detrend_movie(self, movie, method='median', plot_trend=False):
