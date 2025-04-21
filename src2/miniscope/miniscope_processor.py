@@ -1,4 +1,5 @@
 from src2.miniscope.miniscope_data_manager import MiniscopeDataManager
+from src2.miniscope.movie_io import MovieIO
 from src2.shared.path_finder import PathFinder
 import src2.shared.misc_functions as misc_functions
 import caiman as cm
@@ -15,7 +16,7 @@ class MiniscopeProcessor():
         self.jobID = jobID
         
     
-    def process_calcium_movies(self, parallel=True, n_processes=12, motion_correction=True, save_motion_correction=True, 
+    def process_calcium_movies(self, parallel=True, n_processes=12, apply_motion_correction=True, save_motion_correction=True, 
                                inspect_motion_correction=False, inspect_corr_PNR=False, downsample_for_corr_PNR=1, run_CNMFE=True, 
                                save_CNMFE_estimates_filepath='estimates.hdf5', deconvolve=False):
         
@@ -34,7 +35,7 @@ class MiniscopeProcessor():
             dview = None
             n_processes = 1
             
-        if motion_correction:
+        if apply_motion_correction:
             motion_correction_object, bord_px = self._motion_correction(dview, save_motion_correction)
             if save_motion_correction:
                 print('Saving motion corrected movies...')
@@ -63,10 +64,11 @@ class MiniscopeProcessor():
                     
         if deconvolve:
             self._deconvolve()
+            
         
         if save_CNMFE_estimates_filepath:
-            self.CNMFE_file = os.path.join(self.data_manager.metadata['calcium imaging directory'], self.jobID + save_CNMFE_estimates_filepath) #figure out how to save this to our svaed file folder
-            print('Saving CNMF-E estimates in ' + self.CNMFE_file)
+            self.CNMFE_filepath = os.path.join(self.data_manager.metadata['calcium imaging directory'], self.jobID + save_CNMFE_estimates_filepath) #figure out how to save this to our saved file folder, MovieIO currently is not robust enough
+            print('Saving CNMF-E estimates in ' + self.CNMFE_filepath)
             filepath = CNMFE_object.save(self.CNMFE_file) #saves the estimates from CNMFE to a file
         
         try:
