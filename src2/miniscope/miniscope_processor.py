@@ -38,7 +38,7 @@ class MiniscopeProcessor():
             
         if apply_motion_correction:
             motion_correction_object, bord_px = self._motion_correction(dview, save_motion_correction)
-            if save_motion_correction: #This if-block does not save anything to disk. It turns our motion_corrected.npz fileninto a temporary mmap that will be used for CNMFE       
+            if save_motion_correction: #This if-block does not save anything to disk. It turns our motion_corrected.npz file into a temporary mmap that will be used for CNMFE       
                 self._create_temporary_motion_corrected_mmap(motion_correction_object.mmap_file, bord_px)
             if inspect_motion_correction:
                 self._inspect_motion_correction(motion_correction_object)
@@ -63,22 +63,23 @@ class MiniscopeProcessor():
             CNMFE_object = self._CNMFE(n_processes, dview=dview)
             self.estimates = CNMFE_object.estimates
                     
+            if deconvolve:
+                self.estimates.deconvolve(self.opts_caiman, dview=dview)
+    
             
-        if deconvolve:
-            self.estimates.deconvolve(self.opts_caiman, dview=dview)
-            
-        
-        if save_CNMFE_estimates_filepath:
-            self.CNMFE_filepath = os.path.join(self.data_manager.metadata['calcium imaging directory'],"saved_movies", self.jobID + save_CNMFE_estimates_filepath) #figure out how to save this to our saved file folder, MovieIO currently is not robust enough
-            print('Saving CNMF-E estimates in ' + self.CNMFE_filepath)
-            estimates_filepath = CNMFE_object.save(self.CNMFE_filepath) #saves the estimates from CNMFE to a file
+            if save_CNMFE_estimates_filepath:
+                self.CNMFE_filepath = os.path.join(self.data_manager.metadata['calcium imaging directory'],"saved_movies", self.jobID + save_CNMFE_estimates_filepath) #figure out how to save this to our saved file folder, MovieIO currently is not robust enough
+                print('Saving CNMF-E estimates in ' + self.CNMFE_filepath)
+                estimates_filepath = CNMFE_object.save(self.CNMFE_filepath) #saves the estimates from CNMFE to a file
         
         
         try:
             cm.stop_server(dview=dview)
         except:
-            raise("Error, could't stop caiman processing")
-        return estimates_filepath, self.opts_caiman
+            raise RuntimeError("Error, couldn't stop CaImAn processing")
+        
+        if run_CNMFE:
+            return estimates_filepath, self.opts_caiman
             
         
         
@@ -246,4 +247,8 @@ class MiniscopeProcessor():
                     self.data_manager.analysis_params[key] = int(value)
                 except:
                     continue
+        
+
+        
+
         
