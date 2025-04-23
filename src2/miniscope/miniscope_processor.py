@@ -10,21 +10,21 @@ import sys
 
 class MiniscopeProcessor():
     
-    def __init__(self, data_manager: MiniscopeDataManager, file_path, jobID=""):
+    def __init__(self, data_manager: MiniscopeDataManager, filepath, jobID=""):
         self.data_manager = data_manager
-        self.__convert_analysis_params_to_ints()
-        self.file_path = file_path
+        self.__convert_analysis_params_to_ints() #A TypeValue error is thrown during CNMFE without this method call on Nathan's PC
+        self.filepath = filepath
         self.jobID = jobID
-        self.data_manager.analysis_params['fnames'] = self.file_path
-        self.movie = cm.load(self.file_path)
+        self.data_manager.analysis_params['fnames'] = self.filepath
+        self.movie = cm.load(self.filepath)
         self.data_manager.analysis_params['dims'] = self.movie.shape[1:]
         self.data_manager.analysis_params['frame rate'] = self.data_manager.metadata['frameRate']
         self.opts_caiman = cm.source_extraction.cnmf.params.CNMFParams(params_dict=self.data_manager.analysis_params)
         
     
-    def process_calcium_movies(self, parallel=True, n_processes=12, apply_motion_correction=True, save_motion_correction=True, 
+    def process_calcium_movies(self, parallel=True, n_processes=12, apply_motion_correction=True, 
                                inspect_motion_correction=False, inspect_corr_PNR=False, downsample_for_corr_PNR=1, run_CNMFE=True, 
-                               save_CNMFE_estimates_filepath='estimates.hdf5', deconvolve=False):
+                               CNMFE_estimates_filepath_name='estimates.hdf5', deconvolve=False):
         
         """Method for organizing how the calcium movie will be processed"""
         
@@ -37,23 +37,20 @@ class MiniscopeProcessor():
             
             
         if apply_motion_correction:
-            motion_correction_object, bord_px = self._motion_correction(dview, save_motion_correction)
-            if save_motion_correction: #This if-block does not save anything to disk. It turns our motion_corrected.npz file into a temporary mmap that will be used for CNMFE       
-                self._create_temporary_motion_corrected_mmap(motion_correction_object.mmap_file, bord_px)
+            motion_correction_object, bord_px = self._motion_correction(dview)
+            mmap_filepath = self._create_temporary_mmap(motion_correction_object.mmap_file, bord_px)  
             if inspect_motion_correction:
                 self._inspect_motion_correction(motion_correction_object)
         else:
-            mmap_filepath = cm.save_memmap(self.opts_caiman.get('data', 'fnames'), order='C',
-                                       border_to_0=0,
-                                       dview=dview)
-            self.opts_caiman.change_params({'fnames': mmap_filepath})
+            mmap_filepath = self._create_temporary_mmap(self.opts_caiman.get('data', 'fnames'), bord_px, dview)
             
-        
+            
         Yr, dims_new, T = cm.load_memmap(self.opts_caiman.get('data', 'fnames')[0])
         self.opts_caiman.change_params({'dims': dims_new})
         self.images = Yr.T.reshape((T,) + dims_new, order='F')
         print(self.opts_caiman.get('patch', 'rf'))
         print(self.opts_caiman.get('patch', 'stride'))
+        
         
         if inspect_corr_PNR:
             self._corr_PNR(inspect_corr_PNR, downsample_for_corr_PNR)
@@ -64,22 +61,22 @@ class MiniscopeProcessor():
             self.estimates = CNMFE_object.estimates
                     
             if deconvolve:
-                self.estimates.deconvolve(self.opts_caiman, dview=dview)
-    
+                self.estimates.deconvolve(self.opts_caiman, dview=dview)    
             
-            if save_CNMFE_estimates_filepath:
-                self.CNMFE_filepath = os.path.join(self.data_manager.metadata['calcium imaging directory'],"saved_movies", self.jobID + save_CNMFE_estimates_filepath) #figure out how to save this to our saved file folder, MovieIO currently is not robust enough
+            if CNMFE_estimates_filepath_name:
+                self.CNMFE_filepath = os.path.join(self.data_manager.metadata['calcium imaging directory'],"saved_movies", self.jobID + CNMFE_estimates_filepath_name) #figure out how to save this to our saved file folder, MovieIO currently is not robust enough
                 print('Saving CNMF-E estimates in ' + self.CNMFE_filepath)
                 estimates_filepath = CNMFE_object.save(self.CNMFE_filepath) #saves the estimates from CNMFE to a file
         
         
+        self._delete_temp_files(mmap_filepath)
         try:
             cm.stop_server(dview=dview)
         except:
             raise RuntimeError("Error, couldn't stop CaImAn processing")
         
         if run_CNMFE:
-            return estimates_filepath, self.opts_caiman
+            return estimates_filepath, self.data_manager, self.opts_caiman
             
         
         
@@ -99,13 +96,13 @@ class MiniscopeProcessor():
         
 
 
-    def _motion_correction(self, dview=None, save_movie=False):
+    def _motion_correction(self, dview=None):
         """Use motion correction to correct for movement during the calcium movies."""
         mc = cm.motion_correction.MotionCorrect(self.opts_caiman.get('data', 'fnames'), dview=dview,
                                                 **self.opts_caiman.get_group('motion'))
         print('Motion correcting...')
-        #save_movie=True below saves the a .npz file for the motion corrected movie to the same folder as the original file
-        mc.motion_correct(save_movie=save_movie)
+        #save_movie=True below saves the motion corrected .npz file to the same folder as the original file that was passed into this class: filepath
+        mc.motion_correct(save_movie=True)
         if self.opts_caiman.get('motion', 'pw_rigid'):
             bord_px = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)), np.max(np.abs(mc.y_shifts_els)))).astype(int)
         else:
@@ -114,9 +111,23 @@ class MiniscopeProcessor():
         self.opts_caiman.change_params({'border_pix': bord_px})
         return mc, bord_px
     
-    def _create_temporary_motion_corrected_mmap(self, filepath, bord_px):
-        motion_corrected_mmap_filepath = cm.save_memmap(filepath, base_name="", order='C', border_to_0=bord_px)
-        self.opts_caiman.change_params({'fnames': motion_corrected_mmap_filepath}) 
+    def _create_temporary_mmap(self, filepath, bord_px, dview=None):
+        """creates a temporary mmap on your machine in the caiman folder: caiman/data/temp or similar"""
+        motion_corrected_mmap_filepath = cm.save_memmap(filepath, base_name="", order='C', border_to_0=bord_px, dview=dview)
+        self.opts_caiman.change_params({'fnames': motion_corrected_mmap_filepath})
+        return motion_corrected_mmap_filepath
+    
+    def _delete_temp_files(self, filepath: str):
+        """Deletes temporary mmap files in your caiman temp folder"""
+        folder = os.path.dirname(filepath)
+        for filename in os.listdir(folder):
+            file_path = os.path.join(folder, filename)
+            if os.path.isfile(file_path):
+                try:
+                    os.remove(file_path)
+                    print(f"Deleted: {file_path}")
+                except Exception as e:
+                    print(f"Error deleting {file_path}: {e}")
 
     def _CNMFE(self, n_processes, dview):
         """Segments neurons, demixes spatially overlapping neurons, and denoises the calcium activity from calcium movies.
@@ -197,16 +208,18 @@ class MiniscopeProcessor():
             print('Crispness motion corrected: ' + str(int(crispness_mc)))
 
             # plot the results of Residual Optical Flow
-            fls = [mc.fname[0][:-4] + '_metrics.npz', mc.mmap_file[0][:-4] + '_metrics.npz']
+            """This code block below didn't work in old miniscope on Nathan's mac. I got it to run here, but I suspect it still does not work as intended"""
+            fls = [os.path.splitext(mc.fname[0])[0] + '_metrics.npz',
+       os.path.splitext(mc.mmap_file[0])[0] + '_metrics.npz']
 
             h, ax = misc_functions._prepAxes(title=['Mean', 'Corr Image', 'Mean Optical Flow', '', '', ''],
                                              xLabel=['Original', '', '', 'Motion Corrected', '', ''], yLabel=['', '', '', '', '', ''],
                                              subPlots=[2, 3])
 
-            """
-            This code block throws an error in both src and src2 on my mac when running the same data. It can't find any .npz files in /Users/nathan/caiman_data/temp'
+            
             
             for cnt, fl in zip(range(len(fls)), fls):
+                print(f"loading file into numpy: {fl}")
                 with np.load(fl) as ld:
                     print(str(np.mean(ld['norms'])) + '+/-' + str(np.std(ld['norms'])) +
                           '; ' + str(ld['smoothness']) + '; ' + str(ld['smoothness_corr']))
@@ -226,7 +239,7 @@ class MiniscopeProcessor():
                         mappable = ax[3 * cnt + 3].imshow(np.mean(
                             np.sqrt(ld['flows'][:, :, :, 0] ** 2 + ld['flows'][:, :, :, 1] ** 2), 0), vmin=0, vmax=0.3)
                         plt.colorbar(mappable=mappable, ax=ax[3 * cnt + 3]) #FIXME colorbar() is NOT an attribute of ax. It is of plt though"
-            """
+            
 
     def _corr_PNR(self, inspect_corr_PNR, down_sample_for_corr_PNR):
         """Create the correlation and peak-noise-ratio (PNR) images and, if desired, inspect them with an interactive plot to determine min_corr and min_pnr."""
@@ -240,6 +253,7 @@ class MiniscopeProcessor():
             
             
             
+    
     def __convert_analysis_params_to_ints(self):
         for key, value in self.data_manager.analysis_params.items():
             if isinstance(value, float):
@@ -247,8 +261,4 @@ class MiniscopeProcessor():
                     self.data_manager.analysis_params[key] = int(value)
                 except:
                     continue
-        
-
-        
-
-        
+                

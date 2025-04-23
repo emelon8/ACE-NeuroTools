@@ -26,6 +26,7 @@ from os import path
 from matplotlib import pyplot as plt
 import csv
 from scipy import stats
+from src2.shared.path_finder import PathFinder
 
 
 def _prepAxes(title='', xLabel='', yLabel='', subPlots=None):
@@ -219,11 +220,11 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
     '''
     difVideos = []
 
-    dataDir = _findFilePaths(directory=dataDir, fileExtensions='.avi',
-                             fileStartsWith=None, removeFile=True, printPath=False)
-
+    if not isinstance(dataDir, list):
+        dataDir = [dataDir]
+    print(f"This is our dataDir: {dataDir}")
     for filePath in dataDir:
-
+        print(f"This is our filePath: {filePath}")
         if (filePath + '\Denoised') in dataDir:
             print('already denoised')
             print('skip=' + filePath)

@@ -28,23 +28,23 @@ class MiniscopeAPI:
             ):
         
         # Create instance of EphysDataManager, process the block into channels
-        self.dm = MiniscopeDataManager(line_num, auto_import_data=True)
-        miniscope_dir_path = self.dm.metadata['calcium imaging directory']
-        self.p = MiniscopePreprocessor(self.dm.movie)
+        self.data_manager = MiniscopeDataManager(line_num, auto_import_data=True)
+        miniscope_dir_path = self.data_manager.metadata['calcium imaging directory']
+        self.preprocessor = MiniscopePreprocessor(self.data_manager.movie)
 
         coords: str
         crop_type: str
         if square:
-            coords = self.dm.analysis_params['crop']
+            coords = self.data_manager.analysis_params['crop']
             crop_type = 'square'
         else:
-            coords = self.dm.analysis_params['crop_square']
+            coords = self.data_manager.analysis_params['crop_square']
             crop_type = 'crop'
         
         # unpack coords
         coords_dict = { 'x0': coords[0], 'y0': coords[1], 'x1': coords[2], 'y1': coords[3] }
         
-        file_path, coords = self.p.preprocess_movie(coords_dict, miniscope_dir_path, crop=False)
+        file_path, coords = self.preprocessor.preprocess_movie(coords_dict, miniscope_dir_path, crop=False)
         updateCSVCell( data=coords, columnTitle=crop_type, lineNum=line_num, csvFile=ANALYSIS_PARAMS)
         
         movie = MovieIO.load_movie(miniscope_dir_path, file_path)
