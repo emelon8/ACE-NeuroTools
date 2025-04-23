@@ -52,17 +52,18 @@ class MiniscopePreprocessor():
             results['range'],
             results['time']
         )
+    
 
-    def preprocess_movie(self, miniscope_dir_path, coords_dict=None, crop=False,
-                         crop_with_gui=False, denoise=False, detrend=False, df_over_f=False, crop_job_name_for_file=""):
+    def preprocess_calcium_movie(self, miniscope_dir_path, coords_dict=None, crop=False, denoise=False, detrend=False, df_over_f=False, crop_job_name_for_file=""):
         """Run preprocessing steps based on provided flags.
            coords_dict: is passed in and represents what you want the final coordinates for the movie to be in the form {'x0': A, 'y0': B, 'x1': C, 'y1': D}"""
         movie = self.movie
         steps_applied = ['preprocessed']
+        coords_dict_final = coords_dict
 
         if crop:
             projections = self.computeProjections(movie)
-            movie, coords_dict_final = self.crop_movie(coords_dict, projections, movie.shape[1], movie.shape[2], gui=crop_with_gui)
+            movie, coords_dict_final = self.crop_movie(coords_dict, projections, movie.shape[1], movie.shape[2])
             if crop_job_name_for_file:
                 steps_applied.append(f'_{crop_job_name_for_file}')
             else:
@@ -87,9 +88,8 @@ class MiniscopePreprocessor():
         return movie_file_path, coords_dict_final
     
 
-
-    def crop_movie(self, coords_dict, projections, movie_height, movie_width, gui=False):
-        if gui or coords_dict is None:
+    def crop_movie(self, coords_dict, projections, movie_height, movie_width):
+        if coords_dict is None:
             gui = CropMovieGUI(coords_dict, projections, movie_height, movie_width)
             coords_dict = gui.coords_dict
         x0, x1 = sorted([coords_dict['x0'], coords_dict['x1']])
@@ -100,12 +100,14 @@ class MiniscopePreprocessor():
         print(coords)
         print(cropped_movie.shape)
         return cropped_movie, coords
+    
 
     def denoise_movie(self, movie, miniscope_dir_path, mode='save'):
-        """denoiseMovie() takes in a directory, not a caiman movie, so I had to do some file handling. Feel free to adjust the logic if it doesn't work on your machine
-           Makes a temporary folder in your miniscope directory, converts the passed in movie into a file in the temp folder, denoises the file,
-           then converts the denoised file back into a caiman movie and deletes the temporary folder and anything in it.
-           You may need to denoise your movies first before calling preprocess_movie if I/O becomes too slow
+        """The miscellaneous function denoiseMovie() takes in a directory, not a caiman movie, so I had to do some file handling to turn the passed in movie into a file. 
+           Feel free to adjust the logic if it doesn't work on your machine. You can also directly call the miscellaneous fucntion denoiseMovie in your script to denoise a directory directly
+           
+           This method makes a temporary folder in your miniscope directory, converts the movie into a file in the temp folder, denoises the file,
+           then converts the denoised file back into a caiman movie and deletes the temporary folder and anything in it. Returns the denoised movie
         """
         temp_movie_dir = os.path.join(miniscope_dir_path, 'temp')
         os.makedirs(temp_movie_dir, exist_ok=False)
