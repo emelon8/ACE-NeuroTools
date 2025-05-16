@@ -14,6 +14,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from src2.shared.path_finder import PathFinder
 from src2.shared.experiment_data_manager import ExperimentDataManager
+from src2.miniscope.projections import Projections
+from tqdm import tqdm
 
 class MiniscopeDataManager(ExperimentDataManager):
     """Manages raw Miniscope data import and storage. Processes data via Processor."""
@@ -22,7 +24,6 @@ class MiniscopeDataManager(ExperimentDataManager):
         super().__init__(line_num)
         self.time_stamps: list = None
         self.frame_numbers: list = None
-        self.path_finder = PathFinder()
 
         if (auto_import_data):
             self.load_attributes()
@@ -31,10 +32,11 @@ class MiniscopeDataManager(ExperimentDataManager):
     def load_attributes(self):
         self.metadata.update(self._get_miniscope_metadata()) # add miniscope metadata to overall metadata
         self.time_stamps, self.frame_numbers = self._get_timestamps()  # import timestamps and frame numbers
+        self.movie_filepaths = [str(path) for path in self._find_file_paths('.avi')]
         self.movie: movie = self._get_movies()  # import calcium imaging data
 
 
-
+    
 
     def download_ca_movie(self, processing_step: str = '') -> None:
         """
@@ -74,8 +76,6 @@ class MiniscopeDataManager(ExperimentDataManager):
 
 
 
-
-
             # Save the movie using the new filename.
             self.movie.save(new_filename, compress=0)
             #self.movieFilePaths = new_filename
@@ -83,8 +83,6 @@ class MiniscopeDataManager(ExperimentDataManager):
 
         except AttributeError:
             print('No movies have been imported.')
-
-
 
 
     def convert_ca_movies(self, filenames=None, new_file_type='.tif', join_movies=False, metadata_convert=True):
@@ -188,8 +186,6 @@ class MiniscopeDataManager(ExperimentDataManager):
 
 
 
-
-
     def _get_miniscope_metadata(self) -> dict:
         """
         Imports miniscope metadata from a JSON file or multiple located at the paths returned by self._find_metadata_paths().
@@ -220,7 +216,6 @@ class MiniscopeDataManager(ExperimentDataManager):
                     except ValueError:
                         raise ValueError(f"Unable to convert frameRate value '{value}' to float.")
         return metadata
-
 
 
     def _get_timestamps(self):
@@ -269,7 +264,7 @@ class MiniscopeDataManager(ExperimentDataManager):
 
     def _find_file_paths(self, suffix: str, prefix: str = ""):
         """Generalized helper to find files with the given suffix and prefix."""
-        return self.path_finder.find(
+        return PathFinder.find(
             directory=self._calcium_imaging_directory,
             suffix=suffix,
             prefix=prefix

@@ -9,20 +9,58 @@ import matplotlib.pyplot as plt
 import logging
 from scipy.signal import detrend
 from caiman import movie as cm_movie
-from src2.shared.misc_functions import updateCSVCell, denoiseMovie, _prepAxes
+import src2.shared.misc_functions as misc_functions
 import PySimpleGUI as sg
 import numpy as np
 from tqdm import tqdm
 from src2.miniscope.movie_io import MovieIO
 import os
+from src2.miniscope.gui_utils import crop_gui
 
 
-class MiniscopePreprocessor():
+class MiniscopePreprocessor:
 
-    def __init__(self, movie:cm.movie):
+    def __init__(self, movie, miniscope_dir_path):
         self.movie = movie
+        self.miniscope_dir_path = miniscope_dir_path
+    
 
-    def computeProjections(self, movie: cm.movie=None):
+    def preprocess_calcium_movie(self, coords_dict=None, crop=False, denoise=False, detrend=False, df_over_f=False, crop_job_name_for_file="_cropped"):
+        """Run preprocessing steps based on provided flags.
+           coords_dict: is passed in and represents what you want the final coordinates for the movie to be in the form {'x0': A, 'y0': B, 'x1': C, 'y1': D}"""
+        
+        miniscope_dir_path = self.miniscope_dir_path
+        movie = self.movie
+        steps_applied = ['preprocessed']
+        
+        if crop:
+            projections = self.compute_projections(movie)
+            movie, coords_dict = self.crop_movie(movie, coords_dict, projections, movie.shape[1], movie.shape[2])
+            steps_applied.append(f'_{crop_job_name_for_file}')
+
+        if denoise:
+            movie = self.denoise_movie(movie, miniscope_dir_path)
+            steps_applied.append('_denoised')
+
+        if detrend:
+            movie = self.detrend_movie(movie)
+            steps_applied.append('_detrended')
+
+        if df_over_f:
+            movie = self.compute_df_over_f(movie)
+            steps_applied.append('_dFoverF')
+
+        movie_file_name = ''.join(steps_applied)
+
+        # save movie!
+        movie_filepath = MovieIO.save_movie(movie, miniscope_dir_path, movie_file_name)
+        return movie_filepath, coords_dict
+    
+    
+    
+    
+    
+    def compute_projections(self, movie: cm.movie=None):
         if movie is None:
             movie = self.movie
         """Calculates the projections of self.movie with progress bar."""
@@ -51,51 +89,16 @@ class MiniscopePreprocessor():
             results['median'],
             results['range'],
             results['time']
-        )
+        )    
     
 
-    def preprocess_calcium_movie(self, miniscope_dir_path, coords_dict=None, crop=False, denoise=False, detrend=False, df_over_f=False, crop_job_name_for_file=""):
-        """Run preprocessing steps based on provided flags.
-           coords_dict: is passed in and represents what you want the final coordinates for the movie to be in the form {'x0': A, 'y0': B, 'x1': C, 'y1': D}"""
-        movie = self.movie
-        steps_applied = ['preprocessed']
-        coords_dict_final = coords_dict
-
-        if crop:
-            projections = self.computeProjections(movie)
-            movie, coords_dict_final = self.crop_movie(coords_dict, projections, movie.shape[1], movie.shape[2])
-            if crop_job_name_for_file:
-                steps_applied.append(f'_{crop_job_name_for_file}')
-            else:
-                steps_applied.append('_cropped')
-
-        if denoise:
-            movie = self.denoise_movie(movie, miniscope_dir_path)
-            steps_applied.append('_denoised')
-
-        if detrend:
-            movie = self.detrend_movie(movie)
-            steps_applied.append('_detrended')
-
-        if df_over_f:
-            movie = self.compute_df_over_f(movie)
-            steps_applied.append('_dFoverF')
-
-        movie_file_name = ''.join(steps_applied)
-
-        # save movie!
-        movie_file_path = MovieIO.save_movie(movie, miniscope_dir_path, movie_file_name)
-        return movie_file_path, coords_dict_final
-    
-
-    def crop_movie(self, coords_dict, projections, movie_height, movie_width):
+    def crop_movie(self, movie, coords_dict, projections, movie_height, movie_width):
         if coords_dict is None:
-            gui = CropMovieGUI(coords_dict, projections, movie_height, movie_width)
-            coords_dict = gui.coords_dict
+            coords_dict = crop_gui(coords_dict, projections, movie_height, movie_width)
         x0, x1 = sorted([coords_dict['x0'], coords_dict['x1']])
         y0, y1 = sorted([coords_dict['y0'], coords_dict['y1']])
 
-        cropped_movie = self.movie[:, y0:y1, x0:x1]
+        cropped_movie = movie[:, y0:y1, x0:x1]
         coords = f'({x0},{y0},{x1},{y1})'
         print(coords)
         print(cropped_movie.shape)
@@ -110,10 +113,10 @@ class MiniscopePreprocessor():
            then converts the denoised file back into a caiman movie and deletes the temporary folder and anything in it. Returns the denoised movie
         """
         temp_movie_dir = os.path.join(miniscope_dir_path, 'temp')
-        os.makedirs(temp_movie_dir, exist_ok=False)
+        os.makedirs(temp_movie_dir, exist_ok=True)
         temp_movie_filepath = os.path.join(temp_movie_dir, '0.avi')
         movie.save(temp_movie_filepath, compress=0)
-        denoiseMovie(temp_movie_dir, mode=mode)
+        misc_functions.denoiseMovie(temp_movie_dir, mode=mode)
         denoised_filepath = os.path.join(temp_movie_dir, 'Denoised', 'denoised0.avi')
         movie = cm.load(denoised_filepath)
         try:
@@ -123,38 +126,54 @@ class MiniscopePreprocessor():
             os.rmdir(temp_movie_dir)
         except:
             print("Error: Could not successfully delete the temp folder in your miniscope directory")
+            
         return movie
         
 
-    def detrend_movie(self, movie, method='median', plot_trend=False):
-        try:    
-            if plot_trend:
-                    fig, ax = _prepAxes(xLabel='Frames', yLabel='Mean Fluorescence')
-                    ax.plot(np.mean(movie, axis=(1, 2)), label='Original Data')
-                    
+    def detrend_movie(self, movie, method='median', plot_trend=True):
+        try:                    
             if method == 'linear':
                 detrended_movie = detrend(movie, axis=0)
             elif method == 'median':
                 detrended_movie = movie.debleach()
             else:
                 raise ValueError(f"Unsupported detrending method '{method}'.")
-    
-            if plot_trend:
-                ax.plot(np.mean(detrended_movie, axis=(1, 2)), label='Detrended Data')
-                ax.legend()
-                plt.show()
-            return detrended_movie
+                return movie
+        except:
+            print("Detrending failed, returning original movie")
+            return movie
         
-        except Exception as e:
-            print(f"[Error] Failed to detrend movie with method '{method}': {e}. Are all of the pixels positive in your cropped movie?")
-            return None
+        if plot_trend and detrended_movie is not None:
+            fig, ax = plt.subplots()
+            ax.set_xlabel('Frames')
+            ax.set_ylabel('Mean Fluorescence')
+            
+            # Plot original data
+            original_mean = np.mean(movie, axis=(1, 2))
+            ax.plot(original_mean, label='Original Data', color='blue')
+            
+            # Plot detrended data
+            detrended_mean = np.mean(detrended_movie, axis=(1, 2))
+            ax.plot(detrended_mean, label='Detrended Data', color='red', linestyle='--')
+            
+            ax.legend()
+            ax.grid(True)
+            plt.tight_layout()
+            plt.show()
+            
+        return detrended_movie
+        
 
-    def compute_df_over_f(self, movie, secs_window=5, quantile_min=8,
-                          method='delta_f_over_sqrt_f'):
-        movie_positive = movie + 1  # Avoid zero values
-        processed_movie, _ = cm_movie.computeDFF(movie_positive,
-                                                 secs_window,
-                                                 quantile_min,
-                                                 method)
-        return processed_movie
+    def compute_df_over_f(self, movie, secs_window=5, quantile_min=8, method='delta_f_over_sqrt_f'):
+        try:
+            #ensure all pixels are positive
+            if np.min(movie) < 0:
+                movie = movie - np.min(movie)
+            if np.min(movie) == 0:
+                movie = movie + 1
+            processed_movie, _ = cm_movie.computeDFF(movie, secs_window, quantile_min, method)
+            return processed_movie
+        except:
+            raise ValueError("Your movie has pixels with non-positive brightness as a result of another preprocessing step, computing df over f failed")
+            return movie
 

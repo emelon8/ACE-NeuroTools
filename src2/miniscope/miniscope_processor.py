@@ -5,26 +5,24 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
-class MiniscopeProcessor():
+
+class MiniscopeProcessor:
     
-    def __init__(self, data_manager: MiniscopeDataManager, file_path):
+    def __init__(self, data_manager: MiniscopeDataManager, movie_filepath):
         self.data_manager = data_manager
-        self.__convert_analysis_params_to_ints()
-        self.data_manager.analysis_params['fnames'] = file_path
-        self.movie = cm.load(file_path)
-        self.data_manager.analysis_params['dims'] = self.movie.shape[1:]
-        self.data_manager.analysis_params['frame rate'] = self.data_manager.metadata['frameRate']
+        self.movie_filepath = movie_filepath
+        self.movie = cm.load(movie_filepath)
+        self._prepare_params()
         self.opts_caiman = cm.source_extraction.cnmf.params.CNMFParams(params_dict=self.data_manager.analysis_params)
         
     
     def process_calcium_movie(self, parallel=True, n_processes=12, apply_motion_correction=True, 
                                inspect_motion_correction=False, inspect_corr_PNR=False, downsample_for_corr_PNR=1, run_CNMFE=True, 
-                               save_CNMFE_estimates_filename='estimates.hdf5', deconvolve=False):
+                               save_CNMFE_estimates_filename='estimates.hdf5'):
         
         """Method for organizing how the calcium movie will be processed"""
         opts_caiman = self.opts_caiman
-        
-        
+
         
         if parallel:
             print('Setting up cluster for caiman parallel processing on your computer')
@@ -34,56 +32,45 @@ class MiniscopeProcessor():
             n_processes = 1
             
             
-            
         if apply_motion_correction:
             motion_correction_object, opts_caiman = self.apply_motion_correction(opts_caiman, dview)
             opts_caiman = self.create_temporary_mmap(motion_correction_object.mmap_file, opts_caiman, opts_caiman.get('patch', 'border_pix'))
-            
-            if inspect_motion_correction:
-                self.inspect_motion_correction(motion_correction_object, opts_caiman, self.movie, self.data_manager.metadata['frameRate'])
-                
         else:
             opts_caiman = self.create_temporary_mmap(opts_caiman.get('data', 'fnames'), opts_caiman, opts_caiman.get('patch', 'border_pix'), dview)
-            
-            
         
+        if inspect_motion_correction and apply_motion_correction:
+            self.inspect_motion_correction(motion_correction_object, opts_caiman, self.movie, self.data_manager.metadata['frameRate'])
+            
+            
         Yr, dims_new, T = cm.load_memmap(self.opts_caiman.get('data', 'fnames')[0])
         opts_caiman.change_params({'dims': dims_new})
         self.images = Yr.T.reshape((T,) + dims_new, order='F')
-        print(opts_caiman.get('patch', 'rf'))
-        print(opts_caiman.get('patch', 'stride'))
-        
-        
         
         
         if inspect_corr_PNR:
             self.corr_PNR(inspect_corr_PNR, downsample_for_corr_PNR, opts_caiman, self.images)
+            
         
-            
-            
+        CNMFE_object = None
         if run_CNMFE:
             CNMFE_object = self.run_CNMFE(n_processes, opts_caiman, self.images, dview=dview)
-            estimates = CNMFE_object.estimates
-                    
-            if deconvolve:
-                estimates.deconvolve(opts_caiman, dview=dview)
             
-            if save_CNMFE_estimates_filename:
-                CNMFE_filepath = os.path.join(self.data_manager.metadata['calcium imaging directory'],"saved_movies", save_CNMFE_estimates_filename)
-                print('Saving CNMF-E estimates in ' + CNMFE_filepath)
-                estimates_filepath = CNMFE_object.save(CNMFE_filepath) #saves the estimates from CNMFE to a file
+            #save estimates to disk
+            CNMFE_object_filepath = os.path.join(self.data_manager.metadata['calcium imaging directory'],"saved_movies", save_CNMFE_estimates_filename)
+            print('Saving CNMF-E estimates in ' + CNMFE_object_filepath)
+            CNMFE_object.save(CNMFE_object_filepath) #saves the estimates from CNMFE to a file
         
         
+        #save opts_caiman information to disk
+        opts_caiman_json_filepath = os.path.join(self.data_manager.metadata['calcium imaging directory'],"saved_movies", "opts_caiman.json")
+        opts_caiman.to_jsonfile(targfn=opts_caiman_json_filepath)
         
         try:
             cm.stop_server(dview=dview)
         except:
             raise RuntimeError("Error, couldn't stop CaImAn processing")
         
-        try:
-            return estimates_filepath, opts_caiman
-        except:
-            return opts_caiman
+        return CNMFE_object_filepath if CNMFE_object else None, opts_caiman_json_filepath, self.data_manager, dview
         
         
         
@@ -241,14 +228,13 @@ class MiniscopeProcessor():
         return cn_filter, pnr
             
             
-            
-            
-            
-    def __convert_analysis_params_to_ints(self):
+    def _prepare_params(self):
+        #convert any analysis_params ending in .0 to integers, adds any needed params
         for key, value in self.data_manager.analysis_params.items():
-            if isinstance(value, float):
-                try:
-                    self.data_manager.analysis_params[key] = int(value)
-                except:
-                    continue
+            if isinstance(value, float) and value.is_integer():
+                self.data_manager.analysis_params[key] = int(value)
+        
+        self.data_manager.analysis_params['fnames'] = self.movie_filepath
+        self.data_manager.analysis_params['dims'] = self.movie.shape[1:]
+        self.data_manager.analysis_params['fr'] = self.data_manager.metadata['frameRate']       
                 

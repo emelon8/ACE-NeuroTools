@@ -1,7 +1,8 @@
 from pathlib import Path
 
 class PathFinder:
-    def find(self, directory=None, suffix=None, prefix=None, file_and_directory=False):
+    @staticmethod
+    def find(directory=None, suffix=None, prefix=None, file_and_directory=False):
         """
         Modernized file finder using pathlib.
         Returns a sorted list of matching Path objects.
@@ -35,6 +36,9 @@ class PathFinder:
         for path in dir_path.rglob('*'):
             if not path.is_file():
                 continue
+            
+            if 'saved_movies' in path.parts:
+                    continue
 
             # Check file extension if provided.
             if ext_tuple and path.suffix not in ext_tuple:
