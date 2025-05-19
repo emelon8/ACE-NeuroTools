@@ -10,7 +10,7 @@ timestamps recorded by the UCLA Miniscope software, for the purpose of finding
 the indices of dropped frames.
 """
 
-import miniscope_ephys
+from src.classes import miniscope_ephys
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -20,7 +20,7 @@ alternating = []
 driftFit = []
 meanDifftCaIm = []
 
-for k in [115]:#[35,36,37,38,39,40,41,42,43,44,45,46,47,48,64,83,85,86,87,88,90,92,93,94,96,97,99,101,103,104,105,107,108,112]:
+for k in [97]:#[35,36,37,38,39,40,41,42,43,44,45,46,47,48,64,83,85,86,87,88,90,92,93,94,96,97,99,101,103,104,105,107,108,112]:
     obj = miniscope_ephys.miniscopeEphys(k)
     obj.importEphysData(channels=['PFCEEGvsCBEEG'])
     obj.importNeuralynxEvents()
