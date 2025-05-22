@@ -54,6 +54,10 @@ class Visualizer:
         self.plot_spectrogram_helper(spectrogram.psd_matrix_db, spectrogram.time_points, spectrogram.freq_points, events)
     
     def _markEvents(self, axisHandle, events):
+
+        # TODO this should only mark user-made events.  Also the structure of events has changed, and will probably change again before we ever use this function
+
+
         """Mark events with labels on a given plot."""
         self.logger.info(f"Marking events on plot...")
         yLimits = axisHandle.get_ylim()

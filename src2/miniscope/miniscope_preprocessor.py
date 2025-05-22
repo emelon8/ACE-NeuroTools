@@ -3,7 +3,6 @@ import io
 import caiman as cm
 import numpy as np
 from src2.miniscope.projections import Projections
-from src2.miniscope.crop_movie_gui import CropMovieGUI
 import numpy as np
 import matplotlib.pyplot as plt
 import logging
@@ -25,7 +24,7 @@ class MiniscopePreprocessor:
         self.miniscope_dir_path = miniscope_dir_path
     
 
-    def preprocess_calcium_movie(self, coords_dict=None, crop=False, denoise=False, detrend=False, df_over_f=False, crop_job_name_for_file="_cropped"):
+    def preprocess_calcium_movie(self, coords_dict=None, crop=False, detrend=False, df_over_f=False, crop_job_name_for_file="_cropped"):
         """Run preprocessing steps based on provided flags.
            coords_dict: is passed in and represents what you want the final coordinates for the movie to be in the form {'x0': A, 'y0': B, 'x1': C, 'y1': D}"""
         
@@ -37,10 +36,6 @@ class MiniscopePreprocessor:
             projections = self.compute_projections(movie)
             movie, coords_dict = self.crop_movie(movie, coords_dict, projections, movie.shape[1], movie.shape[2])
             steps_applied.append(f'_{crop_job_name_for_file}')
-
-        if denoise:
-            movie = self.denoise_movie(movie, miniscope_dir_path)
-            steps_applied.append('_denoised')
 
         if detrend:
             movie = self.detrend_movie(movie)
@@ -103,31 +98,6 @@ class MiniscopePreprocessor:
         print(coords)
         print(cropped_movie.shape)
         return cropped_movie, coords
-    
-
-    def denoise_movie(self, movie, miniscope_dir_path, mode='save'):
-        """The miscellaneous function denoiseMovie() takes in a directory, not a caiman movie, so I had to do some file handling to turn the passed in movie into a file. 
-           Feel free to adjust the logic if it doesn't work on your machine. You can also directly call the miscellaneous fucntion denoiseMovie in your script to denoise a directory directly
-           
-           This method makes a temporary folder in your miniscope directory, converts the movie into a file in the temp folder, denoises the file,
-           then converts the denoised file back into a caiman movie and deletes the temporary folder and anything in it. Returns the denoised movie
-        """
-        temp_movie_dir = os.path.join(miniscope_dir_path, 'temp')
-        os.makedirs(temp_movie_dir, exist_ok=True)
-        temp_movie_filepath = os.path.join(temp_movie_dir, '0.avi')
-        movie.save(temp_movie_filepath, compress=0)
-        misc_functions.denoiseMovie(temp_movie_dir, mode=mode)
-        denoised_filepath = os.path.join(temp_movie_dir, 'Denoised', 'denoised0.avi')
-        movie = cm.load(denoised_filepath)
-        try:
-            os.remove(denoised_filepath)
-            os.rmdir(os.path.join(temp_movie_dir, 'Denoised'))
-            os.remove(temp_movie_filepath)
-            os.rmdir(temp_movie_dir)
-        except:
-            print("Error: Could not successfully delete the temp folder in your miniscope directory")
-            
-        return movie
         
 
     def detrend_movie(self, movie, method='median', plot_trend=True):

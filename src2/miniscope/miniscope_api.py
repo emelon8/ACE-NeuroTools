@@ -1,6 +1,5 @@
 # Set the current working directory to this script's directory
 import os
-os.chdir('/Users/nathan/Desktop/Neuro/experiment_analysis')
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -31,7 +30,6 @@ class MiniscopeAPI:
               crop_square = False,
               crop_with_crop = False,
               crop_with_gui = False,
-            denoise = False,
             detrend = False,
             df_over_f = False,
 
@@ -43,7 +41,6 @@ class MiniscopeAPI:
             inspect_corr_PNR = False,
             downsample_for_corr_PNR = 1,
             run_CNMFE = False,
-            deconvolve = False,
             save_CNMFE_estimates_filename = 'estimates.hdf5',
             
             #post processing parameters
@@ -71,12 +68,13 @@ class MiniscopeAPI:
                 coords = self.data_manager.analysis_params['crop']
                 coords_dict = { 'x0': coords[0], 'y0': coords[1], 'x1': coords[2], 'y1': coords[3]}
                 crop_job_name = '_crop'
-            else:
+            elif crop_with_gui:
                 coords_dict = None
                 crop_job_name = '_cropped'
         
-        preprocessed_movie_filepath, movie_coords = self.preprocessor.preprocess_calcium_movie(coords_dict, crop=crop, denoise=denoise, detrend=detrend, df_over_f=df_over_f, crop_job_name_for_file=crop_job_name)
+        preprocessed_movie_filepath, movie_coords = self.preprocessor.preprocess_calcium_movie(coords_dict, crop=crop, detrend=detrend, df_over_f=df_over_f, crop_job_name_for_file=crop_job_name)
         
+        print(f"This is what is stored in estimates name in miniscope_api: {save_CNMFE_estimates_filename}")
         self.processor = MiniscopeProcessor(self.data_manager, preprocessed_movie_filepath)
         estimates_filepath, opts_caiman_filepath, self.data_manager, dview = self.processor.process_calcium_movie(parallel=parallel, n_processes=n_processes, apply_motion_correction=apply_motion_correction, 
                                                                                                             inspect_motion_correction=inspect_motion_correction, inspect_corr_PNR=inspect_corr_PNR, 
@@ -92,7 +90,7 @@ if __name__ == "__main__":
     # run the API
     api = MiniscopeAPI()
     api.run(
-        97, #line number of the experiment you are analyzing
+        line_num = 97, #line number of the experiment you are analyzing
         
         #preprocessing parameters
         crop = True,
@@ -100,7 +98,6 @@ if __name__ == "__main__":
             crop_square = True,
             crop_with_crop = False,
             crop_with_gui = False,
-        denoise = False,
         detrend = True,
         df_over_f = False,
 
@@ -112,7 +109,6 @@ if __name__ == "__main__":
         inspect_corr_PNR = False,
         downsample_for_corr_PNR = 1,
         run_CNMFE = True,
-        deconvolve = True,
         save_CNMFE_estimates_filename = 'estimates.hdf5',
         
         #post-processing parameters

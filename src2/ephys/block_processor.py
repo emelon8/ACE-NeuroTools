@@ -129,7 +129,7 @@ class BlockProcessor:
         time_vector = np.arange(t_start, t_stop, dt)
 
         # Build signal array using the index from the first segment, and extract events
-        signal, events = self._scan_segments(channel_index, channel_name, time_vector)
+        signal, events= self._scan_segments(channel_index, channel_name, time_vector)
 
         # Return processed channel
         return Channel(channel_name, signal, sampling_rate, time_vector, events)
@@ -140,7 +140,10 @@ class BlockProcessor:
         """Construct continuous signal from raw segments."""
         n_points = len(time_vector)
         signal = np.full(n_points, np.nan)
-        events = []
+        # events = []
+
+        unsorted_labels = []
+        unsorted_timestamps = []
         
         for seg in self.ephys_block.segments:
 
@@ -160,20 +163,29 @@ class BlockProcessor:
             signal[start_idx:end_idx] = signal_data[:end_idx-start_idx]  # MODIFIED
 
 
+            # PREVIOUSLY IMPORTNEURALYNXEVENTS()
             # event processing Luke's: 
-            for event in seg.events:
-                for t in event.times:
-                    events.append((event.name, t.magnitude.item()))
+            # for event in seg.events:
+            #     for t in event.times:
+            #         events.append((event.name, t.magnitude.item()))
 
-            # Eric's:
-            # for e in seg.events:
-            #     for k, l in enumerate(e.labels.astype(str)):
-            #         events.append((l, e.times[k].magnitude))
 
+
+            for e in seg.events:
+                for k, l in enumerate(e.labels.astype(str)):
+                    unsorted_labels.append(l)
+                    unsorted_timestamps.append(e.times[k].magnitude)
         # Sort all of the events
-        events.sort(key=lambda pair: pair[1])
+        np_unsorted_labels = np.array(unsorted_labels)
+        np_unsorted_timestamps = np.array(unsorted_timestamps)
+        reordered_indices = np.argsort(np_unsorted_timestamps)
+        event_labels = np_unsorted_labels[reordered_indices]
+        event_timestamps = np_unsorted_timestamps[reordered_indices] # - self.zeroTime[next(iter(self.zeroTime))]
 
-
+        events = {
+            'labels': event_labels,
+            'timestamps': event_timestamps
+        }
         
         return signal, events
         

@@ -58,7 +58,7 @@ class EphysDataManager():
 
     def filter_ephys(self, channel_name, n=2, cut=[0.5, 4], ftype='butter', btype='bandpass', replace_signal=True):
         """Filter the ephys data."""
-        self.logger.info('Filtering ' + channel_name + ' with a(n) ' + ftype + ' filter ...')
+        # self.logger.info('Filtering ' + channel_name + ' with a(n) ' + ftype + ' filter ...')
         try:
             channel: Channel = self.channels[channel_name]
         except KeyError:

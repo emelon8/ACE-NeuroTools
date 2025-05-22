@@ -37,7 +37,7 @@ class EphysAPI:
         
         logger = logging.getLogger(__name__)
         logger.setLevel(logging_level)
-        
+
         # set the filter boolean based on if filter_type is None
         filter: bool = True if filter_type is not None else False
 
@@ -45,29 +45,36 @@ class EphysAPI:
 
         # Extract the one relevant piece of information that EphysDataManager needs from metadata--the path to the ephys directory
         ephys_directory = experiment_data_manager.get_ephys_directory()
-        
-        # Create instance of EphysDataManager, process the block into channels
-        ephys_data_manager = EphysDataManager(ephys_directory, auto_import_ephys_block=True, auto_process_block=False)
-        ephys_data_manager.process_ephys_block_to_channels(remove_artifacts=remove_artifacts, channels = channel_name)
-    
 
-        logger.debug(ephys_data_manager.channels)
+        # Create instance of EphysDataManager, process the block into channels
+        self.ephys_data_manager = EphysDataManager(ephys_directory, auto_import_ephys_block=True, auto_process_block=False)
+        self.ephys_data_manager.process_ephys_block_to_channels(remove_artifacts=remove_artifacts, channels = channel_name)
+
+
+        logger.debug(self.ephys_data_manager.channels)
 
         # If filter_type is not None, filter the signal and add it to ephys_data_manager.channels[channel_name].signal_filtered
         if filter:
-            ephys_data_manager.filter_ephys(channel_name, ftype=filter_type, cut = filter_range, replace_signal=False)
+            self.ephys_data_manager.filter_ephys(channel_name, ftype=filter_type, cut = filter_range, replace_signal=False)
 
 
         # Extract correct channel and visualize
         logger.info(f"Visualizing channel: {channel_name}")
-        channel = ephys_data_manager.get_channel(channel_name)
+        channel = self.ephys_data_manager.get_channel(channel_name)
         channel_worker = ChannelWorker(channel)
 
-        if plot_channel:
-            channel_worker.plot_channel(use_filtered = filter)
+        # Extract the neuralynx events
 
-        if plot_spectrogram:
-            channel_worker.plot_spectrogram(use_filtered = filter, plot_events=False)    
+
+        frameAcqIdx = (channel.events['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0000).') | (channel.events['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0001).')
+
+        print(f"printing framecaidx: {frameAcqIdx}")
+
+        # if plot_channel:
+        #     channel_worker.plot_channel(use_filtered = filter)
+
+        # if plot_spectrogram:
+        #     channel_worker.plot_spectrogram(use_filtered = filter, plot_events=False)    
 
 
 

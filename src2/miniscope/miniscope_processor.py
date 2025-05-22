@@ -20,6 +20,7 @@ class MiniscopeProcessor:
                                inspect_motion_correction=False, inspect_corr_PNR=False, downsample_for_corr_PNR=1, run_CNMFE=True, 
                                save_CNMFE_estimates_filename='estimates.hdf5'):
         
+        print(f"In processor before anything else, this is what is stored in estimates filename: {save_CNMFE_estimates_filename}")
         """Method for organizing how the calcium movie will be processed"""
         opts_caiman = self.opts_caiman
 
@@ -51,18 +52,25 @@ class MiniscopeProcessor:
             self.corr_PNR(inspect_corr_PNR, downsample_for_corr_PNR, opts_caiman, self.images)
             
         
+        print(f"In processor, this is what is stored in estimates filename: {save_CNMFE_estimates_filename}", flush=True)
         CNMFE_object = None
         if run_CNMFE:
-            CNMFE_object = self.run_CNMFE(n_processes, opts_caiman, self.images, dview=dview)
+            try:
+                CNMFE_object = self.run_CNMFE(n_processes, opts_caiman, self.images, dview=dview)
+
+                #save estimates to disk
+                print(self.data_manager.metadata['calcium imaging directory'], flush=True)
+                print(f"This is what is stored in save_CNMFE_estimates_filename: {save_CNMFE_estimates_filename}", flush=True)
+                CNMFE_object_filepath = os.path.join(self.data_manager.metadata['calcium imaging directory'], "saved_movies", save_CNMFE_estimates_filename)
+                print('Saving CNMF-E estimates in ' + CNMFE_object_filepath)
+                CNMFE_object.save(CNMFE_object_filepath) #saves the estimates from CNMFE to a file
+            except:
+                print('CNMFE failed to run. Please check the parameters and try again.')
             
-            #save estimates to disk
-            CNMFE_object_filepath = os.path.join(self.data_manager.metadata['calcium imaging directory'],"saved_movies", save_CNMFE_estimates_filename)
-            print('Saving CNMF-E estimates in ' + CNMFE_object_filepath)
-            CNMFE_object.save(CNMFE_object_filepath) #saves the estimates from CNMFE to a file
         
         
         #save opts_caiman information to disk
-        opts_caiman_json_filepath = os.path.join(self.data_manager.metadata['calcium imaging directory'],"saved_movies", "opts_caiman.json")
+        opts_caiman_json_filepath = os.path.join(self.data_manager.metadata['calcium imaging directory'], "saved_movies", "opts_caiman.json")
         opts_caiman.to_jsonfile(targfn=opts_caiman_json_filepath)
         
         try:
