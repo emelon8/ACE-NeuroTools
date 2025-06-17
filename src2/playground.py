@@ -1,71 +1,1 @@
-
-def convert_ca_movies(self, filenames=None, new_file_type='.tif',
-join_movies=False, metadata_convert=True):
-    """"
-    Parameters:
-  filenames: Optional list (or single) of filenames to convert. If None,
-      try to load filenames from self.find_movie_file_paths() (using the
-      'calcium imaging directory' in self.experiment).
-  new_file_type: The file extension/type to which to convert (supported by CaImAn).
-  join_movies: If True, all movie files will be joined and converted into one file.
-  metadata_convert: If True, the metaData will be converted/combined
-      using the _meta_data_converter() method.
-
-    The new filename is based on the first filename with the new extension appended.
-    """
-
-    print('Converting movies...')
-
-    # Preserve any passed filenames value for later checks.
-    original_filenames = filenames
-    failed_videos = []
-
-    # If no filenames are provided, load them from the experiment directory.
-    if filenames is None:
-        if hasattr(self, 'movie'):
-            print("self.movie exists, but no filenames were provided; "
-                "loading movie file paths from the experiment directory.")
-        self.find_movie_file_paths()
-        filenames = self.movieFilePaths
-
-    # Ensure we have a list.
-    if not isinstance(filenames, list):
-        filenames = [filenames]
-
-    # If a "movie" attribute exists and no filenames were explicitly provided,
-    # use self.movie and save directly.
-    if hasattr(self, 'movie') and original_filenames is None:
-        new_filename = os.path.splitext(filenames) + new_file_type
-        self.movie.save(new_filename)
-    else:
-        if join_movies:
-            try:
-                # load_movie_chain joins all movies into one
-                movies = cm.load_movie_chain(filenames)
-                new_filename = os.path.splitext(filenames) + new_file_type
-                movies.save(new_filename)
-            except Exception as e:
-                print(f"Error joining and saving movies: {e}")
-                failed_videos.extend(filenames)
-        else:
-            for fname in filenames:
-                # If the file does not exist, try prepending the known directory.
-                if not os.path.isfile(fname):
-                    fname = os.path.join(self.experiment['calcium imaging directory'],
-                                        'Miniscope', fname)
-                try:
-                    movie = cm.load(fname)
-                    new_filename = os.path.splitext(fname) + new_file_type
-                    movie.save(new_filename)
-                except Exception as e:
-                    print(f"Error processing {fname}: {e}")
-                    failed_videos.append(fname)
-
-    if metadata_convert:
-        self._meta_data_converter()
-
-    if failed_videos:
-        print('Errors occurred with the following videos:')
-        for failed in failed_videos:
-            print(f"  {failed}")
-        print('Consider investigating these issues.')
+from src2.miniscope.miniscope_preprocessor import MiniscopePreprocessorfrom src2.shared.misc_functions import get_coords_dict_from_analysis_paramsfrom src2.miniscope.miniscope_data_manager import MiniscopeDataManagerfrom src2.miniscope.miniscope_processor import MiniscopeProcessorfrom src2.miniscope.movie_io import MovieIOfrom src.classes.miniscope import UCLAMiniscopeimport caiman as cmimport numpy as npfrom copy import deepcopyfrom scipy.sparse import issparsefrom src.classes.miniscope_ephys import miniscopeEphysfrom src2.miniscope.miniscope_postprocessor import MiniscopePostprocessorfrom src2.miniscope.gui_utils import component_guiimport tkinterimport matplotlibfrom src2.miniscope.gui_utils import component_guifrom src2.shared.misc_functions import updateCSVCellfrom caiman.source_extraction.cnmf.cnmf import load_CNMFdm = MiniscopeDataManager(97)dm.movie = cm.load('/Users/nathan/Desktop/K99/miniscope_data/dexmedetomidine/R230706A/2023_09_04/15_06_16/saved_movies/preprocessed_crop_square.avi')dm.CNMFE_obj = load_CNMF('/Users/nathan/Desktop/K99/miniscope_data/dexmedetomidine/R230706A/2023_09_04/15_06_16/saved_movies/estimates.hdf5')post = MiniscopePostprocessor(dm)cm.play_movie(post.calculate_removed_component_movie(dm))    

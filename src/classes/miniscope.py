@@ -626,7 +626,8 @@ class UCLAMiniscope(experiment.experiment):
             h, ax = misc_functions._prepAxes(xLabel='Frames', yLabel='Mean Fluorescence')
             ax.plot(np.mean(np.mean(self.movie, axis=1), axis=1), label='Original Data')
         if detrendType == 'linear':
-            detrend(self.movie, axis=0, overwrite_data=True)
+            self.movie = detrend(self.movie, axis=0)
+            self.movie = cm.movie(self.movie, fr=self.experiment['frameRate'])
         elif detrendType == 'median':
             self.movie.debleach()
         else:

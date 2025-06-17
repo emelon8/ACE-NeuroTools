@@ -15,3 +15,4 @@ class Channel:
         self.time_vector = time_vector
         self.events = events
         self.signal_filtered = None
+        self.phases = None

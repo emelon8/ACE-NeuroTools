@@ -24,14 +24,14 @@ class EphysAPI:
 
     def run(
             self, 
-            line_num,   # TODO change to experiment_id
-                        # TODO add in analysis_id
+            line_num,
             channel_name = 'PFCLFPvsCBEEG',
             remove_artifacts = False,
             filter_type = None, # if desired, enter the type, eg "butter"
             filter_range = [0.5, 4],
             plot_channel = False,
             plot_spectrogram = False,
+            plot_phases = False,
             logging_level = "CRITICAL"
             ):
         
@@ -39,7 +39,7 @@ class EphysAPI:
         logger.setLevel(logging_level)
 
         # set the filter boolean based on if filter_type is None
-        filter: bool = True if filter_type is not None else False
+        filter_bool = True if filter_type is not None else False
 
         experiment_data_manager = ExperimentDataManager(line_num, logging_level = logging_level)
 
@@ -47,34 +47,34 @@ class EphysAPI:
         ephys_directory = experiment_data_manager.get_ephys_directory()
 
         # Create instance of EphysDataManager, process the block into channels
-        self.ephys_data_manager = EphysDataManager(ephys_directory, auto_import_ephys_block=True, auto_process_block=False)
+        self.ephys_data_manager = EphysDataManager(ephys_directory, auto_import_ephys_block=True, auto_process_block=False, auto_compute_phases=False)
         self.ephys_data_manager.process_ephys_block_to_channels(remove_artifacts=remove_artifacts, channels = channel_name)
 
 
         logger.debug(self.ephys_data_manager.channels)
 
         # If filter_type is not None, filter the signal and add it to ephys_data_manager.channels[channel_name].signal_filtered
-        if filter:
+        if filter_bool:
             self.ephys_data_manager.filter_ephys(channel_name, ftype=filter_type, cut = filter_range, replace_signal=False)
 
+        #compute phases after filtering
+        self.ephys_data_manager.compute_phases_all_channels()
 
         # Extract correct channel and visualize
         logger.info(f"Visualizing channel: {channel_name}")
         channel = self.ephys_data_manager.get_channel(channel_name)
         channel_worker = ChannelWorker(channel)
+        
 
-        # Extract the neuralynx events
+        if plot_channel:
+            channel_worker.plot_channel(use_filtered = filter_bool)
 
-
-        frameAcqIdx = (channel.events['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0000).') | (channel.events['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0001).')
-
-        print(f"printing framecaidx: {frameAcqIdx}")
-
-        # if plot_channel:
-        #     channel_worker.plot_channel(use_filtered = filter)
-
-        # if plot_spectrogram:
-        #     channel_worker.plot_spectrogram(use_filtered = filter, plot_events=False)    
+        if plot_spectrogram:
+            channel_worker.plot_spectrogram(use_filtered = filter_bool, plot_events=False)  
+            
+        if plot_phases:
+            channel_worker.plot_phases()
+            
 
 
 
@@ -129,13 +129,13 @@ if __name__ == "__main__":
     e.run(
           line_num=97,
           channel_name = 'PFCLFPvsCBEEG',
-        #   channel_name = 'all',
-          remove_artifacts=True,
+          remove_artifacts = True,
           filter_type = "butter",
           filter_range = [0.3,0.5],
           plot_channel = True,
-         plot_spectrogram = True,
-         logging_level="DEBUG"
+          plot_spectrogram = False,
+          plot_phases = True,
+          logging_level="DEBUG"
     )
     # main()
     

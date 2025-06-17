@@ -1,63 +1,53 @@
-import base64
-import io
 import caiman as cm
 import numpy as np
 from src2.miniscope.projections import Projections
-import numpy as np
 import matplotlib.pyplot as plt
-import logging
 from scipy.signal import detrend
 from caiman import movie as cm_movie
-import src2.shared.misc_functions as misc_functions
-import PySimpleGUI as sg
-import numpy as np
 from tqdm import tqdm
-from src2.miniscope.movie_io import MovieIO
-import os
 from src2.miniscope.gui_utils import crop_gui
-
+from src2.miniscope.movie_io import MovieIO
+tqdm.monitor_interval = 0 #may not be necessary
 
 class MiniscopePreprocessor:
 
-    def __init__(self, movie, miniscope_dir_path):
-        self.movie = movie
-        self.miniscope_dir_path = miniscope_dir_path
+    def __init__(self, data_manager):
+        self.data_manager = data_manager
+        self.frame_rate = data_manager.movie.fr
     
 
-    def preprocess_calcium_movie(self, coords_dict=None, crop=False, detrend=False, df_over_f=False, crop_job_name_for_file="_cropped"):
+    def preprocess_calcium_movie(self, coords_dict=None, crop=False, detrend_method=None, df_over_f=False, crop_job_name_for_file="_cropped",
+                                 secs_window=5, quantile_min=8, df_over_f_method='delta_f_over_sqrt_f'):
         """Run preprocessing steps based on provided flags.
            coords_dict: is passed in and represents what you want the final coordinates for the movie to be in the form {'x0': A, 'y0': B, 'x1': C, 'y1': D}"""
         
-        miniscope_dir_path = self.miniscope_dir_path
-        movie = self.movie
         steps_applied = ['preprocessed']
         
         if crop:
-            projections = self.compute_projections(movie)
-            movie, coords_dict = self.crop_movie(movie, coords_dict, projections, movie.shape[1], movie.shape[2])
-            steps_applied.append(f'_{crop_job_name_for_file}')
+            self.data_manager.projections = self.compute_projections(self.data_manager.movie)
+            self.data_manager.movie, self.data_manager.coords = self.crop_movie(self.data_manager.movie, coords_dict, self.data_manager.projections)
+            steps_applied.append(f'{crop_job_name_for_file}')
 
-        if detrend:
-            movie = self.detrend_movie(movie)
+        if detrend_method:
+            self.data_manager.movie = self.detrend_movie(self.data_manager.movie, method=detrend_method)
             steps_applied.append('_detrended')
 
         if df_over_f:
-            movie = self.compute_df_over_f(movie)
+            self.data_manager.movie = self.compute_df_over_f(self.data_manager.movie, secs_window=secs_window, quantile_min=quantile_min, method=df_over_f_method)
             steps_applied.append('_dFoverF')
 
         movie_file_name = ''.join(steps_applied)
-
-        # save movie!
-        movie_filepath = MovieIO.save_movie(movie, miniscope_dir_path, movie_file_name)
-        return movie_filepath, coords_dict
+        
+        self.data_manager.preprocessed_movie_filepath = MovieIO.save_movie(self.data_manager, movie_file_name)
+        
+        
+        return self.data_manager
     
     
     
     
     
     def compute_projections(self, movie: cm.movie=None):
-        if movie is None:
-            movie = self.movie
         """Calculates the projections of self.movie with progress bar."""
         print("\n\nComputing projections...\n")
         
@@ -87,20 +77,32 @@ class MiniscopePreprocessor:
         )    
     
 
-    def crop_movie(self, movie, coords_dict, projections, movie_height, movie_width):
-        if coords_dict is None:
-            coords_dict = crop_gui(coords_dict, projections, movie_height, movie_width)
-        x0, x1 = sorted([coords_dict['x0'], coords_dict['x1']])
-        y0, y1 = sorted([coords_dict['y0'], coords_dict['y1']])
-
+    def crop_movie(self, movie, coords_dict, projections):
+        print('Cropping...')
+        movie_height = movie.shape[1]
+        movie_width = movie.shape[2]
+        new_coords_dict = crop_gui(coords_dict, projections, movie_height, movie_width)
+        
+        # Flip y-coordinates (GUI origin is bottom-left; numpy origin is top-left)
+        y0_flipped = movie.shape[1] - new_coords_dict['y1']
+        y1_flipped = movie.shape[1] - new_coords_dict['y0']
+        
+        # Sort coordinates
+        y0, y1 = sorted([y0_flipped, y1_flipped])
+        x0, x1 = sorted([new_coords_dict['x0'], new_coords_dict['x1']])
+        
+        #crop movie
         cropped_movie = movie[:, y0:y1, x0:x1]
         coords = f'({x0},{y0},{x1},{y1})'
-        print(coords)
-        print(cropped_movie.shape)
+        
+        print(f'After sorting, I cropped the calcium movie with these coordinates: {coords}.')
+        print('Generally, when an error is thrown here, it is because you forgot to unpack coords from this method')
+        
         return cropped_movie, coords
         
 
     def detrend_movie(self, movie, method='median', plot_trend=True):
+        print('Detrending...')
         try:                    
             if method == 'linear':
                 detrended_movie = detrend(movie, axis=0)
@@ -131,19 +133,32 @@ class MiniscopePreprocessor:
             plt.tight_layout()
             plt.show()
             
+        if isinstance(detrended_movie, np.ndarray):
+            print("Ensuring that the movie that is returned is a caiman movie, not a numpy array...")
+            detrended_movie = cm.movie(detrended_movie, fr=self.frame_rate)
+        
+        print('Detrending was successful')
         return detrended_movie
         
 
     def compute_df_over_f(self, movie, secs_window=5, quantile_min=8, method='delta_f_over_sqrt_f'):
+        print("Attempting to compute_df_over of movie...")
         try:
-            #ensure all pixels are positive
             if np.min(movie) < 0:
-                movie = movie - np.min(movie)
+                min_val = np.min(movie)
+                movie = movie - min_val
             if np.min(movie) == 0:
                 movie = movie + 1
+            
+            if isinstance(movie, np.ndarray):
+                print("Ensuring that movie is turned back into a caiman object, not a numpy array...")
+                movie = cm.movie(movie, fr=self.frame_rate)
+            
             processed_movie, _ = cm_movie.computeDFF(movie, secs_window, quantile_min, method)
+            print("Computing df over f / sqrt f was successful")
             return processed_movie
+        
         except:
-            raise ValueError("Your movie has pixels with non-positive brightness as a result of another preprocessing step, computing df over f failed")
+            raise ValueError("Computing df over f failed, returning original movie")
             return movie
 

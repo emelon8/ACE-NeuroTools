@@ -51,7 +51,8 @@ class PathFinder:
             matches.append(path)
 
         if not matches:
-            raise FileNotFoundError(f"No files found matching criteria in {dir_path}")
+            print(f"No files found matching criteria in {dir_path}. Returning None...")
+            return
 
         # Sort by modification time.
         sorted_paths = sorted(matches, key=lambda p: p.stat().st_mtime)

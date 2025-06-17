@@ -1,18 +1,14 @@
-# Set the current working directory to this script's directory
-import os
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from src2.shared.paths import ANALYSIS_PARAMS
 from src2.shared.misc_functions import updateCSVCell
 from src2.miniscope.miniscope_data_manager import MiniscopeDataManager
 from src2.miniscope.miniscope_preprocessor import MiniscopePreprocessor
 from src2.miniscope.miniscope_processor import MiniscopeProcessor
 from src2.miniscope.miniscope_postprocessor import MiniscopePostprocessor
-from src2.ephys.visualizer import Visualizer
-from typing import List
+from src2.shared.paths import ANALYSIS_PARAMS
+import caiman as cm
+from src2.shared.misc_functions import get_coords_dict_from_analysis_params
 from src2.miniscope.movie_io import MovieIO
-
+import matplotlib
+import tkinter
 
 class MiniscopeAPI:
     """Main workflow class for non-technical users. Adjust the paramters at the bottom and press run."""
@@ -23,67 +19,87 @@ class MiniscopeAPI:
     def run(
             self, 
             line_num: int,
+            filenames = [],
             
             #preprocessing parameters
-            crop = False,
-              #These should only be true/contain values if crop=True
-              crop_square = False,
+            crop = True,
+              #These should only be true if crop=True, and only one should be True or niether
               crop_with_crop = False,
-              crop_with_gui = False,
-            detrend = False,
+              crop_square = False,
+            detrend_method = 'median',
             df_over_f = False,
+              #if df_over_f = True
+              secs_window=5,                     
+              quantile_min=8,
+              df_over_f_method='delta_f_over_sqrt_f',
 
             #processing parameters    
             parallel = False,
             n_processes = 12,
             apply_motion_correction = False,
             inspect_motion_correction = False,
-            inspect_corr_PNR = False,
-            downsample_for_corr_PNR = 1,
+            plot_params = False,
             run_CNMFE = False,
-            save_CNMFE_estimates_filename = 'estimates.hdf5',
+            save_estimates=True,
+              save_CNMFE_estimates_filename = 'estimates.hdf5',
+            save_CNMFE_params = False,
             
             #post processing parameters
-            remove_components_with_gui=True, 
-            evaluate_components=False, 
-            find_calcium_events=True, 
-            compute_miniscope_spectrogram=True, 
+            remove_components_with_gui=True,  
+            find_calcium_events=True,
+              derivative_for_estimates='first', 
+              event_height = 5, 
             compute_miniscope_phase=True, 
-            filter_miniscope_data=False    
+            filter_miniscope_data=True,
+              n=2, 
+              cut=[0.1,1.5], 
+              ftype='butter', 
+              btype='bandpass', 
+              inline=False,
+            compute_miniscope_spectrogram=True,
+              window_length = 30, 
+              window_step = 3, 
+              freq_lims = [0,15], 
+              time_bandwidth = 2
             ):
         
-        # Create instance of EphysDataManager, process the block into channels
-        self.data_manager = MiniscopeDataManager(line_num, auto_import_data=True)
-        miniscope_dir_path = self.data_manager.metadata['calcium imaging directory']
-        self.preprocessor = MiniscopePreprocessor(self.data_manager.movie, miniscope_dir_path)
+        
+        self.miniscope_data_manager = MiniscopeDataManager(line_num, filenames, auto_import_data=True)
+        
+        
+        #get previous cropping coordinates from analysis_params in case we want to use our last crop
+        coords_dict, crop_job_name = get_coords_dict_from_analysis_params(self.miniscope_data_manager, crop_with_crop, crop_square)
+        
+        self.preprocessor = MiniscopePreprocessor(self.miniscope_data_manager)
+        self.miniscope_data_manager = self.preprocessor.preprocess_calcium_movie(coords_dict, crop=crop, detrend_method=detrend_method, df_over_f=df_over_f, 
+                                                                                 crop_job_name_for_file=crop_job_name, secs_window=secs_window, 
+                                                                                 quantile_min=quantile_min, df_over_f_method=df_over_f_method)
+        
+        #Update analysis_parameters.csv with our latest cropping coordinates for future use
+        updateCSVCell(self.miniscope_data_manager.coords, 'crop' if crop_with_crop else 'crop_square', line_num, ANALYSIS_PARAMS)
+        
+        
+        #Ensure self.miniscope.data_manager has 'movie' and 'preprocessed_movie_filepath' filled in with the movie that you want to process before you process
+        
+        self.processor = MiniscopeProcessor(self.miniscope_data_manager)
+        self.miniscope_data_manager = self.processor.process_calcium_movie(parallel, n_processes, apply_motion_correction, 
+                                   inspect_motion_correction, plot_params, run_CNMFE,
+                                   save_estimates, save_CNMFE_estimates_filename, save_CNMFE_params)
+        
+        
+        
+        if self.miniscope_data_manager.CNMFE_obj is not None:
+            if tkinter._default_root:  # Check if Tkinter root exists
+                tkinter._default_root.destroy()  # Force close any Tkinter root
+            matplotlib.use('Qt5Agg')  # Switch to Qt backend so that we can use interactive plotting during estimate evaluation
+            
+            self.postprocessor = MiniscopePostprocessor(self.miniscope_data_manager)
+            self.miniscope_data_manager = self.postprocessor.postprocess_calcium_movie(remove_components_with_gui, find_calcium_events, derivative_for_estimates, 
+                                                                                       event_height, compute_miniscope_phase, filter_miniscope_data,n, cut, ftype, 
+                                                                                       btype, inline, compute_miniscope_spectrogram, window_length, window_step, 
+                                                                                       freq_lims, time_bandwidth)
 
-        coords_dict = None
-        crop_job_name = ''
-        if crop:
-            if crop_square:
-                coords = self.data_manager.analysis_params['crop_square']
-                coords_dict = { 'x0': coords[0], 'y0': coords[1], 'x1': coords[2], 'y1': coords[3]}
-                crop_job_name = '_crop_square'
-            elif crop_with_crop:
-                coords = self.data_manager.analysis_params['crop']
-                coords_dict = { 'x0': coords[0], 'y0': coords[1], 'x1': coords[2], 'y1': coords[3]}
-                crop_job_name = '_crop'
-            elif crop_with_gui:
-                coords_dict = None
-                crop_job_name = '_cropped'
-        
-        preprocessed_movie_filepath, movie_coords = self.preprocessor.preprocess_calcium_movie(coords_dict, crop=crop, detrend=detrend, df_over_f=df_over_f, crop_job_name_for_file=crop_job_name)
-        
-        print(f"This is what is stored in estimates name in miniscope_api: {save_CNMFE_estimates_filename}")
-        self.processor = MiniscopeProcessor(self.data_manager, preprocessed_movie_filepath)
-        estimates_filepath, opts_caiman_filepath, self.data_manager, dview = self.processor.process_calcium_movie(parallel=parallel, n_processes=n_processes, apply_motion_correction=apply_motion_correction, 
-                                                                                                            inspect_motion_correction=inspect_motion_correction, inspect_corr_PNR=inspect_corr_PNR, 
-                                                                                                            downsample_for_corr_PNR=downsample_for_corr_PNR, run_CNMFE=run_CNMFE, 
-                                                                                                            save_CNMFE_estimates_filename=save_CNMFE_estimates_filename)
-        if estimates_filepath:
-            self.postprocessor = MiniscopePostprocessor(preprocessed_movie_filepath, estimates_filepath, opts_caiman_filepath, dview=dview)
-            self.postprocessor.postprocess_calcium_movie(remove_components_with_gui=remove_components_with_gui, evaluate_components=evaluate_components, find_calcium_events=find_calcium_events, 
-                                                     compute_miniscope_spectrogram=compute_miniscope_spectrogram, compute_miniscope_phase=compute_miniscope_phase, filter_miniscope_data=filter_miniscope_data)
+
 
 
 if __name__ == "__main__":
@@ -91,33 +107,48 @@ if __name__ == "__main__":
     api = MiniscopeAPI()
     api.run(
         line_num = 97, #line number of the experiment you are analyzing
+        filenames = [],
         
         #preprocessing parameters
         crop = True,
-            #These should only be true/contain values if crop=True
-            crop_square = True,
+            #Only one below should be True if crop=True
             crop_with_crop = False,
-            crop_with_gui = False,
-        detrend = True,
+            crop_square = True,
+        detrend_method = None,
         df_over_f = False,
+          #if df_over_f = True
+          secs_window = 5,                     
+          quantile_min = 8,
+          df_over_f_method = 'delta_f_over_sqrt_f',
 
         #processing parameters    
         parallel = True,
-        n_processes = 12,
+        n_processes = 6,
         apply_motion_correction = False,
         inspect_motion_correction = True,
-        inspect_corr_PNR = False,
-        downsample_for_corr_PNR = 1,
+        plot_params = True,
         run_CNMFE = True,
-        save_CNMFE_estimates_filename = 'estimates.hdf5',
+        save_estimates=True,
+          save_CNMFE_estimates_filename = 'estimates.hdf5',
+        save_CNMFE_params = True,
         
         #post-processing parameters
-        remove_components_with_gui=True, 
-        evaluate_components=False, 
-        find_calcium_events=True, 
-        compute_miniscope_spectrogram=True, 
+        remove_components_with_gui=True,  
+        find_calcium_events=True,
+          derivative_for_estimates='first', 
+          event_height = 5, 
         compute_miniscope_phase=True, 
-        filter_miniscope_data=True
+        filter_miniscope_data=True,
+          n=2, 
+          cut=[0.1,1.5], 
+          ftype='butter', 
+          btype='bandpass', 
+          inline=True,
+        compute_miniscope_spectrogram=True,
+          window_length = 30, 
+          window_step = 3, 
+          freq_lims = [0,15], 
+          time_bandwidth = 2
         )
         
     

@@ -1,58 +1,77 @@
 import src2.shared.misc_functions as misc_functions
 import caiman as cm
 import numpy as np
-import matplotlib.pyplot as plt
-import os
 from tqdm import tqdm
 from src2.miniscope.projections import Projections
-from scipy.signal import detrend, find_peaks, hilbert
+from scipy.signal import find_peaks, hilbert
 from src2.miniscope.gui_utils import component_gui
 from src2.shared.multitaper_spectrogram_python import multitaper_spectrogram
 from src2.miniscope.filtered_miniscope_data import FilterMiniscopeData
+import cv2
+import time
+import matplotlib.pyplot as plt
+from src2.miniscope.movie_io import MovieIO
 
 #Methods for loading and manipulating components after CNMF-E is run
 #The movie file path that is passed into this class should be the same movie that was passed into MiniscopeProcessor
 class MiniscopePostprocessor:
     
     
-    def __init__(self, movie_filepath, estimates_filepath, opts_caiman_filepath, dview=None):
-        self.movie = cm.load(movie_filepath)
-        self.estimates_filepath = estimates_filepath
-        self.projections = self.compute_projections(self.movie)
-        self.opts_caiman = cm.source_extraction.cnmf.params.CNMFParams(params_from_file=opts_caiman_filepath)
-        self.CNMFE_obj = cm.source_extraction.cnmf.cnmf.load_CNMF(self.estimates_filepath)
-        self.frame_rate = self.opts_caiman.get('data', 'fr')
-        self.dview = dview
+    def __init__(self, data_manager):
+        self.data_manager = data_manager
+        self.data_manager.projections = self.compute_projections(self.data_manager.movie)
+        self.frame_rate = self.data_manager.fr
+        self.dview = self.data_manager.dview
     
     
-    def postprocess_calcium_movie(self, remove_components_with_gui=True, evaluate_components=False, find_calcium_events=True, compute_miniscope_spectrogram=True, compute_miniscope_phase=True, filter_miniscope_data=False):
+    def postprocess_calcium_movie(self, remove_components_with_gui=True,  
+                                        find_calcium_events=True,
+                                          derivative_for_estimates='first', 
+                                          event_height = 5, 
+                                        compute_miniscope_phase=True, 
+                                        filter_miniscope_data=True,
+                                          n=2, 
+                                          cut=[0.1,1.5], 
+                                          ftype='butter', 
+                                          btype='bandpass', 
+                                          inline=False,
+                                        compute_miniscope_spectrogram=True,
+                                          window_length = 30, 
+                                          window_step = 3, 
+                                          freq_lims = [0,15], 
+                                          time_bandwidth = 2):
+        
         if remove_components_with_gui:
-            self.CNMFE_obj.estimates.plot_contours()
-            self.CNMFE_obj.estimates = component_gui(self.movie, self.CNMFE_obj.estimates, self.projections)
-            print("These are the components")
-            print(self.CNMFE_obj.estimates.idx_components)
+            self.data_manager.CNMFE_obj.estimates.plot_contours()
+            self.data_manager.CNMFE_obj.estimates = component_gui(self.data_manager.movie, self.data_manager.CNMFE_obj.estimates, self.data_manager.projections)
             
         if find_calcium_events:
-            ca_events_idx = self.find_calcium_events_with_deconvolution(self.CNMFE_obj.estimates, self.opts_caiman, dview=self.dview, dff_flag=False)
+            self.data_manager.ca_events_idx = self.find_calcium_events_with_derivatives(self.data_manager.CNMFE_obj.estimates, derivative_for_estimates, event_height)
         
         if compute_miniscope_spectrogram:
-            data = np.mean(self.CNMFE_obj.estimates.C, axis=0)  # Fallback to all components
-            PSDSpectMiniscope, tSpect, freqsSpect, pSpectMiniscope = self.compute_miniscope_spectrogram(data, frame_rate=self.frame_rate)
+            data = np.mean(self.data_manager.CNMFE_obj.estimates.C, axis=0)  # Fallback to all components
+            PSDSpectMiniscope, tSpect, freqsSpect, pSpectMiniscope = self.compute_miniscope_spectrogram(data, frame_rate=self.frame_rate, window_length=window_length, window_step=window_step, freq_lims=freq_lims, time_bandwidth=time_bandwidth)
             h, ax = misc_functions.spectrogram(tSpect/60, freqsSpect, pSpectMiniscope, xLabel='Time (min)')
+            self.data_manager.PSD_spect, self.data_manager.t_spect, self.data_manager.freqs_spect, self.data_manager.p_spect = PSDSpectMiniscope, tSpect, freqsSpect, pSpectMiniscope
             
         if compute_miniscope_phase:
-            miniscope_phase = self.compute_miniscope_phase(self.projections.time)
+            self.data_manager.miniscope_phases = self.compute_miniscope_phase(self.data_manager.projections.time)
             
         if filter_miniscope_data:
-            filter_object = FilterMiniscopeData(self.projections, self.frame_rate)
+            filter_object = FilterMiniscopeData(self.data_manager.projections, self.frame_rate, n=n, cut=cut, ftype=ftype, btype=btype)
             filter_object.filter_miniscope_data
-            self.filtered_miniscope_data = filter_object.filtered_data
+            self.data_manager.filter_object = filter_object
+            
+            if inline == True:
+                self.data_manager.projections.time = filter_object.filtered_data
+        
+        no_neuron_movie_filepath = MovieIO.save_movie(self.data_manager, "no_neuron_movie", self.calculate_removed_component_movie(self.data_manager))
+        
+        return self.data_manager
             
 
 
     def compute_projections(self, movie: cm.movie=None):
-        if movie is None:
-            movie = self.movie
         """Calculates the projections of self.movie with progress bar."""
         print("\n\nComputing projections...\n")
         
@@ -106,24 +125,15 @@ class MiniscopePostprocessor:
         return ca_events_idx
     
       
-    def find_calcium_events_with_derivatives(self, estimates, neuron='all', derivative='first', height=5):
+    def find_calcium_events_with_derivatives(self, estimates, derivative='first', event_height=5):
         #I am not sure this function works as intended for first and second derivatives. I need to reseach the math better
         #This method looks for calcium events in self.estimates.C.
         #DERIVATIVE is the number of times to take the derivative before thresholding.
         #HEIGHT is the threshold above which to detect calcium events. The units depend on the DERIVATIVE used.
         print('Finding indices of calcium events...')
         n_components = estimates.C.shape[0]
-        if neuron == 'all':
-            neuron_indices = range(n_components)
-        else:
-            if isinstance(neuron, int):
-                neuron = [neuron]
-            if not isinstance(neuron, list) or not all(isinstance(i, int) for i in neuron):
-                raise ValueError("neuron must be 'all', an integer, or a list of integers")
-            if not all(0 <= i < n_components for i in neuron):
-                raise ValueError(f"neuron indices must be between 0 and {n_components-1}")
-            neuron_indices = neuron
-        
+        neuron_indices = range(n_components)
+
         if derivative not in ['zeroth', 'first', 'second']:
             raise ValueError("derivative must be 'zeroth', 'first', or 'second'")
             
@@ -138,7 +148,7 @@ class MiniscopePostprocessor:
                 data = np.diff(trace, n=2)
             # Ensure data is at least 1D and has enough points for find_peaks
             if data.size > 0:
-                peaks, _ = find_peaks(data, height=height)
+                peaks, _ = find_peaks(data, height=event_height)
                 ca_events_idx[k] = peaks.astype(int)  # Ensure integer indices
             else:
                 ca_events_idx[k] = np.array([], dtype=int)  # Empty array for no peaks
@@ -174,5 +184,34 @@ class MiniscopePostprocessor:
     def compute_miniscope_phase(self, data):
         analytic_signal_miniscope = hilbert(data)
         return np.angle(analytic_signal_miniscope)
+    
+    
+    def calculate_removed_component_movie(self, dm):
+        #Ensure all needed attributes are defined in your data manager object before you pass it to this function, dm.movie should be the movie that is memory mapped and passed into CNMF() in processor
+        Yr, dims, T = cm.load_memmap(dm.opts_caiman.get('data', 'fnames')[0])
+        print(type(Yr))
+        neural_activity = dm.CNMFE_obj.estimates.A @ dm.CNMFE_obj.estimates.C  # AC
+        neural_movie = cm.movie(neural_activity).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
+        background_model = dm.CNMFE_obj.estimates.compute_background(Yr);  # build in function -- explore source code for details
+        bg_movie = cm.movie(background_model).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
+        
+        movie_no_components = dm.movie - neural_movie
+        
+        return movie_no_components
+    
+    def calculate_black_component_movie(self, dm):
+        estimates = dm.CNMFE_obj.estimates
+        num_frames, movie_height, movie_width = dm.movie.shape
+        neuron_mask = np.sum(estimates.A.toarray(), axis=1) > 0  # True where any neuron has non-zero value
+        neuron_mask = neuron_mask.reshape(movie_height, movie_width, order='F')  # Reshape to 2D
+        movie_without_neurons = dm.movie.copy()
+        for frame in range(num_frames):
+            movie_without_neurons[frame][neuron_mask] = 0
+        
+        print("Calculations complete. Attempting to play movie...", flush=True)
+        return movie_without_neurons
+    
+    
+
     
     

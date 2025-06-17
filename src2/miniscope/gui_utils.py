@@ -1,13 +1,12 @@
 import numpy as np
-import PySimpleGUI as sg
+import FreeSimpleGUI as sg
 import matplotlib.pyplot as plt
 import caiman as cm
 import io
 import base64
-import io
 import sys
-import base64
 from src2.miniscope.projections import Projections
+from PIL import Image
 
 
 def component_gui(movie, estimates, projections):
@@ -47,9 +46,7 @@ def component_gui(movie, estimates, projections):
 
     # adds image to window
     graph = window['-GRAPH-']
-    _component_image(estimates, projections, movie, graph, estimates.idx_components_bad, max=True)
     
-    # calls view_components to view temporal data
     plt.figure(2)
     estimates.view_components(img = projections.range)
     plt.close(2)
@@ -187,9 +184,9 @@ def _create_contour_fig(sfootprints, background, current_selected, thr=None, thr
     return fig
 
 
-def _component_image(estimates, projections, movie, graph, current_selected,  max=False, min=False, STD=False, mean=False, median=False, range=False,
-                 cmap='viridis'):
+def _component_image(estimates, projections, movie, graph, current_selected,  max=False, min=False, STD=False, mean=False, median=False, range=False, cmap='viridis'):
     """Adds projection to GUI."""
+    graph.erase()
     pic_IObytes = io.BytesIO()
     if max:
         _create_contour_fig(estimates.A, projections.max, current_selected, cmap=cmap).figure.savefig(pic_IObytes, format='png', bbox_inches='tight', pad_inches = 0)
@@ -208,13 +205,14 @@ def _component_image(estimates, projections, movie, graph, current_selected,  ma
     pic_hash = base64.b64encode(pic_IObytes.read())
     # Draw image in graph
     graph.draw_image(data=pic_hash, location=(0, movie.shape[1]))
+        
     
     
     
     
     
     
-def crop_gui(coords_dict, projections: Projections, movie_height, movie_width) -> dict:
+def crop_gui(coords_dict, projections: Projections, movie_height, movie_width, previous_coords=None) -> dict:
     """
     Creates and handles all events for the pysimplegui cropping application.  Returns a dictionary of coordinates!
     """
@@ -259,10 +257,13 @@ def crop_gui(coords_dict, projections: Projections, movie_height, movie_width) -
 
     #adds image to window
     _update_image(graph, movie_height, projections.max,)
-    if coords_dict:
-        box = graph.draw_rectangle((coords_dict['x0'], coords_dict['y0']),
-                               (coords_dict['x1'], coords_dict['y1']),
-                               line_color=colors[index])
+    if coords_dict is not None:
+        try:
+            box = graph.draw_rectangle((coords_dict['x0'], coords_dict['y0']),
+                                   (coords_dict['x1'], coords_dict['y1']),
+                                   line_color=colors[index])
+        except:
+            print("Failed to draw intial box on GUI with the given coords")
     else:
         if coords_dict is None or not coords_dict:
             coords_dict = {
@@ -368,7 +369,8 @@ def crop_gui(coords_dict, projections: Projections, movie_height, movie_width) -
                 index = not index
         elif event.endswith('+UP'):
              x0, y0 = None, None
-
+    
+    plt.close()
     window.close()
 
     return coords_dict

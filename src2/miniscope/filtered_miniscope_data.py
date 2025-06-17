@@ -3,7 +3,7 @@ from src2.shared.misc_functions import filterData
 
 class FilterMiniscopeData:
     """Class in which to store filtered miniscope data during post-processing"""
-    def __init__(self, projections, frame_rate, n=2, cut=[0.1,1.5], ftype='butter', btype='bandpass', inline=False):
+    def __init__(self, projections, frame_rate, n=2, cut=[0.1,1.5], ftype='butter', btype='bandpass'):
         self.data = projections.time
         self.filtered_data = []
         self.frame_rate = frame_rate
@@ -11,7 +11,6 @@ class FilterMiniscopeData:
         self.cut = cut
         self.ftype = ftype
         self.btype = btype
-        self.inline = inline
     
 
 

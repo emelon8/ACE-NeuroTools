@@ -11,78 +11,51 @@ import os
 import caiman as cm
 from caiman.base.movies import movie
 import numpy as np
-import matplotlib.pyplot as plt
 from src2.shared.path_finder import PathFinder
 from src2.shared.experiment_data_manager import ExperimentDataManager
-from src2.miniscope.projections import Projections
-from tqdm import tqdm
 
 class MiniscopeDataManager(ExperimentDataManager):
     """Manages raw Miniscope data import and storage. Processes data via Processor."""
     
-    def __init__(self, line_num, auto_import_data=True):
+    def __init__(self, line_num: int, filenames: list=[], auto_import_data=True):
         super().__init__(line_num)
+        self.line_num = line_num
         self.time_stamps: list = None
         self.frame_numbers: list = None
-
+        self.all_movie_filepaths = self._find_movie_file_paths()
+        self.chosen_movie_filepaths = self._get_specific_filepaths(filenames)
+        
         if (auto_import_data):
-            self.load_attributes()
+            self.load_attributes(self.chosen_movie_filepaths if self.chosen_movie_filepaths else self.all_movie_filepaths)
+            
+        #Attributes below are filled in automatically during the miniscope_api pipeline: preprocessing->processing->postprocessing
+        
+        self.projections = None
+        self.preprocessed_movie_filepath = None #Your preprocessed movie must be saved to disk and its filepath stored here before processing
+        self.coords = None #contains the coordinates/shape of your cropped movie
+        self.motion_corrected_movie_filepath = None
+        self.CNMFE_obj = None
+        self.estimates_filepath = None
+        self.dview = None
+        self.opts_caiman = None
+        self.ca_events_idx = None
+        self.PSD_spect = None
+        self.t_spect = None
+        self.freqs_spect = None
+        self.p_spect = None
+        self.miniscope_phases = None
+        self.filter_object = None
             
 
-    def load_attributes(self):
+    def load_attributes(self, filepaths):
         self.metadata.update(self._get_miniscope_metadata()) # add miniscope metadata to overall metadata
         self.time_stamps, self.frame_numbers = self._get_timestamps()  # import timestamps and frame numbers
-        self.movie_filepaths = [str(path) for path in self._find_file_paths('.avi')]
-        self.movie: movie = self._get_movies()  # import calcium imaging data
-
-
-    
-
-    def download_ca_movie(self, processing_step: str = '') -> None:
-        """
-        Saves the calcium movie currently stored in self.movie.
-        
-        For a single movie file (or a single-element list in self.movieFilePaths), the new filename is built 
-        by concatenating self.jobID, the original filename, and the processing_step.
-        
-        For multiple movie files, the new filename is constructed using the numeric portions extracted from 
-        the first and last filenames, separated by an underscore, with processing_step appended to the last portion.
-        
-        After saving, self.movieFilePaths is updated to the new filename.
-        """
-        try:
-
-            # Generate the new filename based on the original filename(s) and the processing step.
-
-            if not isinstance(self.movieFilePaths, list) or (isinstance(self.movieFilePaths, list) and len(self.movieFilePaths) == 1):
-                # If it's a list with one element, take that element.
-                movie_path = self.movieFilePaths[0] if isinstance(self.movieFilePaths, list) else self.movieFilePaths
-                dir_path, full_filename = os.path.split(movie_path)
-                name, ext = os.path.splitext(full_filename)
-                new_filename = os.path.join(dir_path, f"{self.jobID}{name}{processing_step}{ext}")
-            else:
-                # For multiple movie files, use the first and last file names.
-                dir_path, first_full_filename = os.path.split(self.movieFilePaths[0])
-                first_name, ext = os.path.splitext(first_full_filename)
-                _, last_full_filename = os.path.split(self.movieFilePaths[-1])
-                last_name, _ = os.path.splitext(last_full_filename)
-
-                # Extract numeric parts from the filenames.
-                filenum_first = self._extract_numeric_suffix(first_name)
-                filenum_last = self._extract_numeric_suffix(last_name) + processing_step
-
-                new_filename = os.path.join(dir_path, f"{self.jobID}{filenum_first}_{filenum_last}{ext}")
+        self.movie: movie = self._get_movies(filepaths)  # import calcium imaging data
+        self.miniscope_events = self._get_miniscope_events()
+        self.fr = self.metadata['frameRate']
 
 
 
-
-            # Save the movie using the new filename.
-            self.movie.save(new_filename, compress=0)
-            #self.movieFilePaths = new_filename
-            print(f"Movie saved as '{new_filename}'")
-
-        except AttributeError:
-            print('No movies have been imported.')
 
 
     def convert_ca_movies(self, filenames=None, new_file_type='.tif', join_movies=False, metadata_convert=True):
@@ -143,14 +116,14 @@ class MiniscopeDataManager(ExperimentDataManager):
                         error_videos.append(filename)
 
         if metadata_convert:
-            self._metaDataConverter()
+            self._meta_data_converter()
 
         if error_videos:
             print(f"ERRORS with: {error_videos}")
             print("Consider investigating")
 
 
-    def _metaDataConverter(self):  
+    def _meta_data_converter(self):  
         # Suggestion: it might be good to start combining the metaDatas and marking them with the animalID or some experiment identifier (not sure how this program will work if you have a lot of different videos/metaData)
         fileExts = self._find_metadata_paths()
         for fileExt in fileExts:
@@ -181,9 +154,6 @@ class MiniscopeDataManager(ExperimentDataManager):
                         n = open(newFileName, 'w')
                         n.write(jsonFile)
                         n.close()
-
-
-
 
 
     def _get_miniscope_metadata(self) -> dict:
@@ -235,16 +205,21 @@ class MiniscopeDataManager(ExperimentDataManager):
 
     def _get_movies(self, filenames=None):
         """Import calcium imaging data. Not necessary if using processCaMovies().
-        FILENAMES can be a single movie file or a list of movie files (in the order that you want them). If FILENAMES doesn't point to a file (either absolute or relative path from the PWD), it will append the path to the calcium imaging directory to the front of the filename."""
+        FILENAMES can be a single movie file or a list of movie files (in the order that you want them). 
+        If FILENAMES doesn't point to a file (either absolute or relative path from the PWD), 
+        it will append the path to the calcium imaging directory to the front of the filename."""
+        
+        print(f"Converting these filepaths into caiman movies: {filenames}")
         if filenames == None:
-            filenames = self._find_movie_file_paths()
+            filenames = self.all_movie_filepaths
 
         # Convert PosixPath objects to strings if necessary.
         if isinstance(filenames, list):
             filenames = [str(f) for f in filenames]
         else:
             filenames = str(filenames)
-
+        
+        print(f"Converting these filepaths into caiman movies: {filenames}")
         # Load a movie chain if there are multiple files, otherwise load a single movie.
         if type(filenames) is list:
             print(filenames)
@@ -253,6 +228,43 @@ class MiniscopeDataManager(ExperimentDataManager):
             movie = cm.load(filenames)
 
         return movie
+    
+    def _get_specific_filepaths(self, filenames):
+        if filenames is None or not isinstance(filenames, list) or len(filenames) == 0:
+            return None
+        
+        matched_paths = []
+        for path in self.all_movie_filepaths:
+            basename = os.path.basename(path)  # Extract basename (e.g., '0.avi' from '/path/to/0.avi')
+            if basename in filenames:
+                matched_paths.append(path)
+        return matched_paths
+
+
+    def _get_miniscope_events(self):
+        """Import calcium imaging experiment events."""
+        miniscope_events_filepaths = PathFinder.find(self.metadata['calcium imaging directory'], '.csv', 'notes')
+
+        if len(miniscope_events_filepaths) == 1:
+            miniscope_events_filepath = str(miniscope_events_filepaths[0])
+        else:
+            raise ValueError('Found zero or multiple event files')
+            
+        miniscope_events = {}
+        miniscope_events['timestamps'] = []
+        miniscope_events['labels'] = []
+        try:
+            with open(miniscope_events_filepath, newline='') as t:
+                next(t)
+                reader = csv.reader(t)
+                for row in reader:
+                    miniscope_events['timestamps'].append(int(row[0]))
+                    miniscope_events['labels'].append(row[1])
+            miniscope_events['timestamps'] = np.divide(np.asarray(miniscope_events['timestamps']), 1000)  # converts from ms to s
+        except:
+            print("Failed to extract events from notes.csv. Storing an empty dictionary in miniscope_dm.miniscope_events...")
+        return miniscope_events
+            
     
 
 
@@ -264,11 +276,13 @@ class MiniscopeDataManager(ExperimentDataManager):
 
     def _find_file_paths(self, suffix: str, prefix: str = ""):
         """Generalized helper to find files with the given suffix and prefix."""
-        return PathFinder.find(
-            directory=self._calcium_imaging_directory,
-            suffix=suffix,
-            prefix=prefix
-        )
+        filepaths = PathFinder.find(directory=self._calcium_imaging_directory, suffix=suffix, prefix=prefix)
+        
+        #handle the case where filepaths is a list with only one item
+        if len(filepaths) == 1 and isinstance(filepaths, list):
+            filepaths = str(filepaths[0])
+            
+        return filepaths
 
     def _find_metadata_paths(self) -> list:
         """Finds and returns the metadata JSON file path."""
@@ -276,7 +290,7 @@ class MiniscopeDataManager(ExperimentDataManager):
 
     def _find_timestamps_path(self) -> str:
         """Finds and returns the timestamps CSV file path."""
-        return self._find_file_paths(suffix=".csv", prefix="timeStamps")[0]
+        return self._find_file_paths(suffix=".csv", prefix="timeStamps")
 
     def _find_movie_file_paths(self) -> list:
         """Finds and returns the list of movie file paths (.avi)."""

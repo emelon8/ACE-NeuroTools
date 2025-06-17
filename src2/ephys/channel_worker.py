@@ -46,3 +46,21 @@ class ChannelWorker:
         self.spectrogram = Spectrogram(psd_matrix_db, time_points, freq_points)
         return self.spectrogram
 
+    def plot_phases(self):
+        # Step 1: Verify data and sampling rate
+        print("Sampling rate:", self.channel.sampling_rate)
+        print("Length of phases:", len(self.channel.phases))
+        print("Min and Max phase:", np.min(self.channel.phases), np.max(self.channel.phases))
+        print("Any NaN values?", np.any(np.isnan(self.channel.phases)))
+        print("Any infinite values?", np.any(np.isinf(self.channel.phases)))
+    
+        # Step 2: Plot a histogram of phase values
+        plt.figure(figsize=(10, 6), facecolor='white')  # Create a figure with white background
+        plt.hist(self.channel.phases, bins=50, color='blue', alpha=0.7, label=f'Phase Distribution of {self.channel.name}')
+        plt.title(f"Histogram of Phase Values for {self.channel.name}")
+        plt.xlabel("Phase (radians)")
+        plt.ylabel("Frequency")
+        plt.xlim(-np.pi, np.pi)  # Phase range: -π to +π
+        plt.grid(True, alpha=0.3)  # Light grid for readability
+        plt.legend(loc='upper right')  # Explicit legend location
+        plt.show()

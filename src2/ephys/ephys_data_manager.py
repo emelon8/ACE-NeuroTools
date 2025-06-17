@@ -13,6 +13,7 @@ import os
 from src2.ephys.block_processor import BlockProcessor
 from src2.ephys.channel import Channel
 import logging
+from scipy.signal import hilbert
 
 class EphysDataManager():
     """
@@ -23,7 +24,7 @@ class EphysDataManager():
     """
 
 
-    def __init__(self, ephys_directory=None, auto_import_ephys_block=True, auto_process_block=True, level = "CRITICAL"):
+    def __init__(self, ephys_directory=None, auto_import_ephys_block=True, auto_process_block=True, auto_compute_phases=True, level = "CRITICAL"):
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(level)
         
@@ -36,6 +37,9 @@ class EphysDataManager():
 
         if (auto_process_block):
             self.process_ephys_block_to_channels()
+            
+        if auto_compute_phases:
+            self.compute_phases_all_channels()
         
 
     def import_ephys_block(self, ephys_directory):
@@ -53,7 +57,16 @@ class EphysDataManager():
         processor = BlockProcessor(self.ephys_block, self.logger)
         self.channels = processor.process_raw_ephys(channels, remove_artifacts=remove_artifacts)
 
+    def compute_phases_all_channels(self):
+        for key, value in self.channels.items():
+            self.channels[key] = self.compute_phase(value)
+            
 
+    def compute_phase(self, channel):
+        print(f"Computing phase for {channel.name}")
+        analytic_signal = hilbert(channel.signal)
+        channel.phases = np.angle(analytic_signal)
+        return channel
     
 
     def filter_ephys(self, channel_name, n=2, cut=[0.5, 4], ftype='butter', btype='bandpass', replace_signal=True):
@@ -63,6 +76,8 @@ class EphysDataManager():
             channel: Channel = self.channels[channel_name]
         except KeyError:
             raise ValueError("Channel not found in data_manager. Please import the data first.")
+            
+        print(f"Filtering the ephys signal: {channel_name}")
             
         filtered_data = self._filter_data(
             channel.signal,
@@ -74,9 +89,9 @@ class EphysDataManager():
         )
         
         if (replace_signal):
-            channel.signal = filtered_data
+            self.channels[channel_name].signal = filtered_data
         else:
-            channel.signal_filtered = filtered_data
+            self.channels[channel_name].signal_filtered = filtered_data
 
         return filtered_data
     
