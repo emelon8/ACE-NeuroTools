@@ -165,6 +165,8 @@ class MiniscopeDataManager(ExperimentDataManager):
             Dict: The metadata dictionary with a converted 'frameRate' value if present and converts any whole numbers to ints.
         """
         metadata_paths = self._find_metadata_paths()
+        if not isinstance(metadata_paths, list):
+            metadata_paths = [metadata_paths]
         print(f"Reading metadata from {metadata_paths}...")
         for metadata_path in metadata_paths:
             try:
@@ -244,8 +246,8 @@ class MiniscopeDataManager(ExperimentDataManager):
     def _get_miniscope_events(self):
         """Import calcium imaging experiment events."""
         miniscope_events_filepaths = PathFinder.find(self.metadata['calcium imaging directory'], '.csv', 'notes')
-
-        if len(miniscope_events_filepaths) == 1:
+        
+        if miniscope_events_filepaths is not None and len(miniscope_events_filepaths) == 1:
             miniscope_events_filepath = str(miniscope_events_filepaths[0])
         else:
             raise ValueError('Found zero or multiple event files')

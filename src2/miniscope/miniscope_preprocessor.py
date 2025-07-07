@@ -40,6 +40,7 @@ class MiniscopePreprocessor:
         
         self.data_manager.preprocessed_movie_filepath = MovieIO.save_movie(self.data_manager, movie_file_name)
         
+        print(f"This is the movie shape after preprocessing: {self.data_manager.movie.shape}")
         
         return self.data_manager
     

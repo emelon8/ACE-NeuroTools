@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 from src2.miniscope.movie_io import MovieIO
 
 #Methods for loading and manipulating components after CNMF-E is run
-#The movie file path that is passed into this class should be the same movie that was passed into MiniscopeProcessor
 class MiniscopePostprocessor:
     
     
@@ -64,8 +63,6 @@ class MiniscopePostprocessor:
             
             if inline == True:
                 self.data_manager.projections.time = filter_object.filtered_data
-        
-        no_neuron_movie_filepath = MovieIO.save_movie(self.data_manager, "no_neuron_movie", self.calculate_removed_component_movie(self.data_manager))
         
         return self.data_manager
             
@@ -154,9 +151,9 @@ class MiniscopePostprocessor:
                 ca_events_idx[k] = np.array([], dtype=int)  # Empty array for no peaks
         return ca_events_idx
     
-
-# Signal processing methods for the mean fluorescence over time
-    def compute_miniscope_spectrogram(self, data, frame_rate, window_length=30, window_step=3, freq_lims=[0,15], time_bandwidth=2):
+    
+    @staticmethod
+    def compute_miniscope_spectrogram(self, data, frame_rate, window_length=30, window_step=3, freq_lims=[0,15], time_bandwidth=2, plot_spectrogram=True):
         """Estimate (and plot) the multi-taper spectrogram (of the mean miniscope fluorescence). Developed with Mike Prerau's function."""
         print('Computing spectrogram of average miniscope fluorescence...')
         # Set spectrogram params
@@ -177,6 +174,9 @@ class MiniscopePostprocessor:
         # Compute the multitaper spectrogram and convert the output to decibels
         PSDSpectMiniscope, tSpect, freqsSpect = multitaper_spectrogram(data, fs, freq_lims, time_bandwidth, num_tapers, window_params, minNfft, detrend_opt, multiprocess, n_jobs, weighting, plot_on, return_fig, clim_scale, verbose, xyflip)
         pSpectMiniscope = 10 * np.log10(PSDSpectMiniscope)
+        
+        if plot_spectrogram:
+            h, ax = misc_functions.spectrogram(tSpect/60, freqsSpect, pSpectMiniscope, xLabel='Time (min)')        
     
         return PSDSpectMiniscope, tSpect, freqsSpect, pSpectMiniscope
 
@@ -186,18 +186,15 @@ class MiniscopePostprocessor:
         return np.angle(analytic_signal_miniscope)
     
     
-    def calculate_removed_component_movie(self, dm):
-        #Ensure all needed attributes are defined in your data manager object before you pass it to this function, dm.movie should be the movie that is memory mapped and passed into CNMF() in processor
+    def calculate_component_movie(self, dm):
+        #Ensure what is stored in dm.opts_caiman's attribute 'fnames' is the same memory mapped file used for CNMFE
         Yr, dims, T = cm.load_memmap(dm.opts_caiman.get('data', 'fnames')[0])
-        print(type(Yr))
         neural_activity = dm.CNMFE_obj.estimates.A @ dm.CNMFE_obj.estimates.C  # AC
         neural_movie = cm.movie(neural_activity).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
         background_model = dm.CNMFE_obj.estimates.compute_background(Yr);  # build in function -- explore source code for details
         bg_movie = cm.movie(background_model).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
         
-        movie_no_components = dm.movie - neural_movie
-        
-        return movie_no_components
+        return neural_movie, bg_movie
     
     def calculate_black_component_movie(self, dm):
         estimates = dm.CNMFE_obj.estimates

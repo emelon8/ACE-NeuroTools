@@ -1,1 +1,10 @@
-from src2.miniscope.miniscope_preprocessor import MiniscopePreprocessorfrom src2.shared.misc_functions import get_coords_dict_from_analysis_paramsfrom src2.miniscope.miniscope_data_manager import MiniscopeDataManagerfrom src2.miniscope.miniscope_processor import MiniscopeProcessorfrom src2.miniscope.movie_io import MovieIOfrom src.classes.miniscope import UCLAMiniscopeimport caiman as cmimport numpy as npfrom copy import deepcopyfrom scipy.sparse import issparsefrom src.classes.miniscope_ephys import miniscopeEphysfrom src2.miniscope.miniscope_postprocessor import MiniscopePostprocessorfrom src2.miniscope.gui_utils import component_guiimport tkinterimport matplotlibfrom src2.miniscope.gui_utils import component_guifrom src2.shared.misc_functions import updateCSVCellfrom caiman.source_extraction.cnmf.cnmf import load_CNMFdm = MiniscopeDataManager(97)dm.movie = cm.load('/Users/nathan/Desktop/K99/miniscope_data/dexmedetomidine/R230706A/2023_09_04/15_06_16/saved_movies/preprocessed_crop_square.avi')dm.CNMFE_obj = load_CNMF('/Users/nathan/Desktop/K99/miniscope_data/dexmedetomidine/R230706A/2023_09_04/15_06_16/saved_movies/estimates.hdf5')post = MiniscopePostprocessor(dm)cm.play_movie(post.calculate_removed_component_movie(dm))    
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Jun 29 14:44:53 2025
+
+@author: nathan
+"""
+import caiman as cm
+mov = cm.load('/Users/nathan/Desktop/K99/miniscope_data/dexmedetomidine/R230706A/2023_09_04/15_06_16/Miniscope/0.avi')
+time = mov.mean(axis=(1,2))
