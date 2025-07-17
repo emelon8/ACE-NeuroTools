@@ -13,18 +13,18 @@ from src2.ephys.ephys_api import EphysAPI
 from src2.ephys.ephys_data_manager import EphysDataManager
 from src2.multimodal.miniscope_ephys_alignment_utils import sync_neuralynx_miniscope_timestamps, find_ephys_idx_of_TTL_events
 from src2.ephys.channel_worker import ChannelWorker
-import caiman as cm
-import cv2
 
 
 #%% metadata
 
-line_nums = [35, 37, 38, 83, 90, 46, 47, 97, 64, 88]
+line_nums = [35, 83, 64, 97, 88, 104, 105, 107, 108, 91]
 channel = 'PFCLFPvsCBEEG'
 
 data = {
-    "sleep": [37, 38, 83, 90, 35],
-    "dexmedetomidine": [46, 47, 97, 64, 88],
+    "sleep": [35, 83],
+    "dexmedetomidine": [64, 97, 88],
+    "isoflurane": [91],
+    "propofol": [104, 105, 107, 108]
 }
 
 # Create a reverse mapping from numbers to drug types
@@ -36,17 +36,18 @@ number_to_drug = {num: drug for drug, numbers in data.items() for num in numbers
 
 
 # Time range mapping for each line number as pairs of numbers
+#time period in minutes, first number is
 selections = {
     35: [10, 51],
-    37: [58, 101],
-    38: [32, 78],
-    83: [10, 20],
-    90: [21, 103],
-    46: [5, 30],
-    47: [5, 34],
-    97: [10, 60],
-    64: [20, 40],
-    88: [10, 50],
+    64: [58, 101],
+    83: [32, 78],
+    88: [10, 20],
+    91: [21, 103],
+    97: [5, 30],
+    104: [5, 34],
+    105: [10, 60],
+    107: [20, 40],
+    108: [10, 50],
 }
 
 
@@ -57,8 +58,12 @@ def load_experiment(line_num, calcium_signal_filepath=None):
     
     #load miniscope data
     miniscope_data_manager = MiniscopeDataManager(line_num=line_num, filenames=[], auto_import_data=False)
-    miniscope_data_manager.metadata.update(miniscope_data_manager._get_miniscope_metadata())
-    fr = miniscope_data_manager.metadata['frameRate']
+    metadata = miniscope_data_manager._get_miniscope_metadata()
+    if metadata:
+        miniscope_data_manager.metadata.update(metadata)
+        fr = miniscope_data_manager.metadata['frameRate']
+    else:
+        fr = 30
     
     #load ephys data
     ephys_api = EphysAPI()
@@ -377,7 +382,7 @@ def filter_frequency(eeg_signal, calcium_signal, fr, cut):
         tuple: Filtered fluorescence data and filtered ephys data aligned with TTL events.
     """
     filtered_calcium_signal = misc_functions.filterData(calcium_signal, n=2, cut=cut, ftype='butter', btype='bandpass', fs=fr)
-    filtered_eeg_signal = EphysDataManager._filter_data(eeg_signal, n=2, cut=cut, ftype='butter', fs=fr)
+    filtered_eeg_signal = EphysDataManager._filter_data(data=eeg_signal, n=2, cut=cut, ftype='butter', fs=fr, btype='bandpass', bodePlot=False)
     
     return filtered_eeg_signal, filtered_calcium_signal
     
@@ -452,20 +457,14 @@ sleep_data, dex_data = [], []
 rows = ["EEG Power", "Calcium Power", "Coherence", "XC", "Lag"]
 
 for line_num in line_nums:
+    print(f'Running line number: {line_num}')
     drug = number_to_drug.get(line_num)
-    calcium_signal_filepath = f'C:/Users/ericm/Desktop/meanFluorescence/{drug}/meanFluorescence_{str(line_num)}.npz'
-    channel_object, miniscope_data_manager, fr = load_experiment(97, calcium_signal_filepath=None)
+    calcium_signal_filepath = f'/Users/nathan/Desktop/meanFluorescence/meanFluorescence_{str(line_num)}.npz'
+    channel_object, miniscope_data_manager, fr = load_experiment(line_num, calcium_signal_filepath)
     
-    mov = cm.load_movie_chain(['/Users/nathan/Desktop/rest_of_movies/6.avi', '/Users/nathan/Desktop/rest_of_movies/7.avi', '/Users/nathan/Desktop/rest_of_movies/8.avi', '/Users/nathan/Desktop/rest_of_movies/9.avi', '/Users/nathan/Desktop/rest_of_movies/10.avi'])
-    print(mov.shape)
-    mov = np.array(mov)
-    print(mov.shape)
-    calcium_signal = np.mean(mov, axis=(1, 2))
-    print(len(calcium_signal))
-    print(type(calcium_signal))
     # Grab the signals
     eeg_signal = channel_object.signal
-    #calcium_signal = miniscope_data_manager.mean_fluorescence_dict['meanFluorescence']
+    calcium_signal = miniscope_data_manager.mean_fluorescence_dict['meanFluorescence']
     
     # Plot comprehensive graphs
     plot_spectrogram_ephys(line_num, channel_object, fr)

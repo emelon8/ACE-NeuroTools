@@ -168,6 +168,12 @@ class MiniscopeDataManager(ExperimentDataManager):
         if not isinstance(metadata_paths, list):
             metadata_paths = [metadata_paths]
         print(f"Reading metadata from {metadata_paths}...")
+        
+        if metadata_paths[0] is None:
+            print("No metadata paths found in your miniscope directory")
+            return None
+        
+        
         for metadata_path in metadata_paths:
             try:
                 with open(metadata_path, 'r') as file:
@@ -281,7 +287,7 @@ class MiniscopeDataManager(ExperimentDataManager):
         filepaths = PathFinder.find(directory=self._calcium_imaging_directory, suffix=suffix, prefix=prefix)
         
         #handle the case where filepaths is a list with only one item
-        if len(filepaths) == 1 and isinstance(filepaths, list):
+        if isinstance(filepaths, list) and len(filepaths) == 1:
             filepaths = str(filepaths[0])
             
         return filepaths

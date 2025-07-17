@@ -48,7 +48,7 @@ class MiniscopePostprocessor:
             self.data_manager.ca_events_idx = self.find_calcium_events_with_derivatives(self.data_manager.CNMFE_obj.estimates, derivative_for_estimates, event_height)
         
         if compute_miniscope_spectrogram:
-            data = np.mean(self.data_manager.CNMFE_obj.estimates.C, axis=0)  # Fallback to all components
+            data = self.data.projections.time
             PSDSpectMiniscope, tSpect, freqsSpect, pSpectMiniscope = self.compute_miniscope_spectrogram(data, frame_rate=self.frame_rate, window_length=window_length, window_step=window_step, freq_lims=freq_lims, time_bandwidth=time_bandwidth)
             h, ax = misc_functions.spectrogram(tSpect/60, freqsSpect, pSpectMiniscope, xLabel='Time (min)')
             self.data_manager.PSD_spect, self.data_manager.t_spect, self.data_manager.freqs_spect, self.data_manager.p_spect = PSDSpectMiniscope, tSpect, freqsSpect, pSpectMiniscope

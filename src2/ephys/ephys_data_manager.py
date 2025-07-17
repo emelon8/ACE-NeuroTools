@@ -120,7 +120,7 @@ class EphysDataManager():
         return events_path[0]
     
     @staticmethod
-    def _filter_data(self, data, n, cut, ftype, btype, fs, bodePlot=False):
+    def _filter_data(data, n, cut, ftype, btype, fs, bodePlot=False):
         from scipy.signal import butter, freqz, filtfilt, firwin, bode
         import logging
 

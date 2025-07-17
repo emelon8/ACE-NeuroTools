@@ -22,7 +22,9 @@ def sync_neuralynx_miniscope_timestamps(channel: Channel, miniscope_dm: EphysDat
     
     # delete the TTL events that correspond to dropped frames in the saved calcium movie, specified in analysis_parameters.csv. This currently assumes that any gaps in the TTL events have been corrected already.
     #TODO Add a method that plots the 3 figures of the timestamps for help in deciding which events to drop, then writes to analysis_parameters.csv and self._analysisParamsDict['indices of TTL events to delete'].
-    if delete_TTLs:
+    
+    #make sure there are indices stored for deletion, then delete them from tCaIm
+    if delete_TTLs and miniscope_dm.analysis_params.get('indices of TTL events to delete', None) is not None:
         tCaIm = np.delete(tCaIm, miniscope_dm.analysis_params['indices of TTL events to delete'])
 
     return tCaIm, low_confidence_periods, channel, miniscope_dm     

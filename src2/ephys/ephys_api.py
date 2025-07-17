@@ -29,6 +29,7 @@ class EphysAPI:
             remove_artifacts = False,
             filter_type = None, # if desired, enter the type, eg "butter"
             filter_range = [0.5, 4],
+            compute_phases = False,
             plot_channel = False,
             plot_spectrogram = False,
             plot_phases = False,
@@ -55,10 +56,12 @@ class EphysAPI:
 
         # If filter_type is not None, filter the signal and add it to ephys_data_manager.channels[channel_name].signal_filtered
         if filter_bool:
+            print('Filtering eohys data with filter type "{filter_type}" and cut {filter_range}')
             self.ephys_data_manager.filter_ephys(channel_name, ftype=filter_type, cut = filter_range, replace_signal=False)
-
-        #compute phases after filtering
-        self.ephys_data_manager.compute_phases_all_channels()
+        
+        if compute_phases:
+            #compute phases after filtering
+            self.ephys_data_manager.compute_phases_all_channels()
 
         # Extract correct channel and visualize
         logger.info(f"Visualizing channel: {channel_name}")
@@ -132,6 +135,7 @@ if __name__ == "__main__":
           remove_artifacts = True,
           filter_type = "butter",
           filter_range = [0.3,0.5],
+          compute_phases = False,
           plot_channel = True,
           plot_spectrogram = False,
           plot_phases = True,

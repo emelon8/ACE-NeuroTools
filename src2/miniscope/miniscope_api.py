@@ -128,7 +128,7 @@ if __name__ == "__main__":
         #processing parameters    
         parallel = True,
         n_processes = 6,
-        apply_motion_correction = True,
+        apply_motion_correction = False,
         inspect_motion_correction = True,
         plot_params = False,
         run_CNMFE = True,
