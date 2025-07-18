@@ -59,7 +59,7 @@ def load_experiment(line_num, calcium_signal_filepath=None):
     #load miniscope data
     miniscope_data_manager = MiniscopeDataManager(line_num=line_num, filenames=[], auto_import_data=False)
     metadata = miniscope_data_manager._get_miniscope_metadata()
-    if metadata:
+    if metadata: # fr defaults to 30fps if you don't have any miniscope experiments downloaded with metaData.json files in them
         miniscope_data_manager.metadata.update(metadata)
         fr = miniscope_data_manager.metadata['frameRate']
     else:
@@ -111,7 +111,6 @@ def plot_spectrogram_ephys(line, channel_object, fr):
     spectrogram = channel_worker.compute_spectrogram(channel_object, window_length=5, window_step=5, freq_limits=[0.01, 20])
     h, ax = misc_functions.spectrogram(spectrogram.time_points/60, spectrogram.freq_points, spectrogram.psd_matrix_db, xLabel='Time (min)')
     plt.figure(figsize=(10,6))
-    
     # Add title with line number and associated drug
     drug = number_to_drug.get(line, "Unknown")
     ax.set_title(f"Ephys | Line Number: {line} | Drug: {drug}", fontsize=9)
@@ -468,6 +467,7 @@ for line_num in line_nums:
     
     # Plot comprehensive graphs
     plot_spectrogram_ephys(line_num, channel_object, fr)
+    continue
     compute_power(line_num, fr, calcium_signal)
     plot_coherogram(line_num, drug, eeg_signal, calcium_signal, fr)
     

@@ -36,7 +36,7 @@ class ChannelWorker:
         window_params = [window_length, window_step]  # [window length (s), step size (s)]
 
         psd_matrix, time_points, freq_points = multitaper_spectrogram( # psd_matrix = power_spectral_density_matrix
-            signal, fs, freq_limits, time_bandwidth, num_tapers, window_params
+            signal, fs, freq_limits, time_bandwidth, num_tapers, window_params, plot_on=False
         )
         
         # Convert to decibel scale (dB re 1 µV²/Hz)
