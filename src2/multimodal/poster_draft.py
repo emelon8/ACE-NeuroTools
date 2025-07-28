@@ -12,23 +12,36 @@ from src2.miniscope.miniscope_data_manager import MiniscopeDataManager
 from src2.ephys.ephys_api import EphysAPI
 from src2.ephys.ephys_data_manager import EphysDataManager
 from src2.multimodal.miniscope_ephys_alignment_utils import sync_neuralynx_miniscope_timestamps, find_ephys_idx_of_TTL_events
-from src2.ephys.channel_worker import ChannelWorker
+import sys
+sys.maxsize
 
 
 #%% metadata
+"""
+line_num: dex dose
+46: 0.0045 (high dose)
+47: 0.0045
+64: 0.0045
+88: 0.0045
+97: 0.0045
+"""
 
-line_nums = [35, 83, 64, 97, 88, 104, 105, 107, 108, 91]
-channel = 'PFCLFPvsCBEEG'
+
+line_nums = [46, 47, 64, 88, 97]
+channel = 'PCvsPFCEEG'
 
 data = {
-    "sleep": [35, 83],
-    "dexmedetomidine": [64, 97, 88],
+    "dexmedetomidine": [46, 47, 64, 88, 97],
     "isoflurane": [91],
-    "propofol": [104, 105, 107, 108]
+    "propofol": [104, 105, 107, 108],
+    "sleep": [35, 83]
 }
 
 # Create a reverse mapping from numbers to drug types
 number_to_drug = {num: drug for drug, numbers in data.items() for num in numbers}
+
+#These times in minutes are filled in automatically in load_experiment
+drug_infusion_start = {}
 
 
 
@@ -36,18 +49,13 @@ number_to_drug = {num: drug for drug, numbers in data.items() for num in numbers
 
 
 # Time range mapping for each line number as pairs of numbers
-#time period in minutes, first number is
+#time period in minutes
 selections = {
-    35: [10, 51],
-    64: [58, 101],
-    83: [32, 78],
-    88: [10, 20],
-    91: [21, 103],
-    97: [5, 30],
-    104: [5, 34],
-    105: [10, 60],
-    107: [20, 40],
-    108: [10, 50],
+    46:  [[1,20], [28.24, 83.24]],
+    47:  [[1,20], [27.53, 82.24]],
+    64:  [[1,20], [28.06, 83.06]],
+    88:  [[1,20], [29, 84]],
+    97:  [[1,20], [27.81, 82.81]],
 }
 
 
@@ -71,6 +79,17 @@ def load_experiment(line_num, calcium_signal_filepath=None):
                   filter_range = [0.5, 4], plot_channel = False, plot_spectrogram = False, plot_phases = False, logging_level = "CRITICAL")
     channel_object = ephys_api.ephys_data_manager.get_channel(channel_name=channel)
     
+    #updates drug_infusion_start above with when the anesthesia starts to be administered
+    print()
+    if number_to_drug[line_num] != 'sleep':
+        for idx, label in enumerate(channel_object.events['labels']):
+            if 'heat' in label:
+                print(f"This is what it thinks the start drug time label is: {label}")
+                start_time = channel_object.events['timestamps'][idx]
+                drug_infusion_start[line_num] = start_time
+                break
+    
+    
     #sync timestamps
     tCaIm, low_confidence_periods, channel_object, miniscope_data_manager = sync_neuralynx_miniscope_timestamps(channel_object, miniscope_data_manager, delete_TTLs=True, 
                                                                                                fix_TTL_gaps=False, only_experiment_events=True)
@@ -87,50 +106,50 @@ def load_experiment(line_num, calcium_signal_filepath=None):
 WIDTH = 0.5
 
 def plot_lines_ax(line_num, ax):
-    a = ax.axvline(x=selections[line_num][0], color='red', linestyle='--', linewidth=WIDTH)
-    ax.axvline(x=selections[line_num][0] + 0.33, color='red', linestyle='--', linewidth=WIDTH)
+    "The two functions in this cell help to draw lines on graphs to mark different events"
     
-    b = ax.axvline(x=selections[line_num][1], color='orange', linestyle='--', linewidth=WIDTH)
-    ax.axvline(x=selections[line_num][1] + 0.33, color='orange', linestyle='--', linewidth=WIDTH)
+    a = ax.axvline(x=selections[line_num][0][0], color='red', linestyle='--', linewidth=WIDTH)
+    ax.axvline(x=selections[line_num][0][0] + 0.33, color='red', linestyle='--', linewidth=WIDTH)
+    x = ax.axvline(x=selections[line_num][0][1], color='red', linestyle='--', linewidth=WIDTH)
+    ax.axvline(x=selections[line_num][0][1] + 0.33, color='red', linestyle='--', linewidth=WIDTH)
     
-    ax.legend([a, b], ['Control', 'Treatment'])
+    b = ax.axvline(x=selections[line_num][1][0], color='orange', linestyle='--', linewidth=WIDTH)
+    ax.axvline(x=selections[line_num][1][0] + 0.33, color='orange', linestyle='--', linewidth=WIDTH)
+    y = ax.axvline(x=selections[line_num][1][1], color='orange', linestyle='--', linewidth=WIDTH)
+    ax.axvline(x=selections[line_num][1][1] + 0.33, color='orange', linestyle='--', linewidth=WIDTH)
+    
+    if number_to_drug[line_num] != 'sleep':
+        c =  ax.axvline(x=drug_infusion_start[line_num]/60, color='red', linestyle='-', linewidth=1)
+        ax.axvline(x=drug_infusion_start[line_num]/60, color='red', linestyle='-', linewidth=1)
+        ax.legend([a, b, c], ['Control', 'Treatment', 'Start of Drug Infusion'])
+    else:
+        ax.legend([a, b], ['Control', 'Treatment'])
 
 def plot_lines_plt(line_num, plt):
-    a = plt.axvline(x=selections[line_num][0], color='red', linestyle='--', linewidth=WIDTH)
-    plt.axvline(x=selections[line_num][0] + 0.33, color='red', linestyle='--', linewidth=WIDTH)
+    a = plt.axvline(x=selections[line_num][0][0], color='red', linestyle='--', linewidth=WIDTH)
+    plt.axvline(x=selections[line_num][0][0] + 0.33, color='red', linestyle='--', linewidth=WIDTH)
+    x = plt.axvline(x=selections[line_num][0][1], color='red', linestyle='--', linewidth=WIDTH)
+    plt.axvline(x=selections[line_num][0][1] + 0.33, color='red', linestyle='--', linewidth=WIDTH)
     
-    b = plt.axvline(x=selections[line_num][1], color='orange', linestyle='--', linewidth=WIDTH)
-    plt.axvline(x=selections[line_num][1] + 0.33, color='orange', linestyle='--', linewidth=WIDTH)
+    b = plt.axvline(x=selections[line_num][1][0], color='orange', linestyle='--', linewidth=WIDTH)
+    plt.axvline(x=selections[line_num][1][0] + 0.33, color='orange', linestyle='--', linewidth=WIDTH)
+    b = plt.axvline(x=selections[line_num][1][1], color='orange', linestyle='--', linewidth=WIDTH)
+    plt.axvline(x=selections[line_num][1][1] + 0.33, color='orange', linestyle='--', linewidth=WIDTH)
     
-    plt.legend([a, b], ['Control', 'Treatment'])
-
-#%% Plot Spectrogram
-
-def plot_spectrogram_ephys(line, channel_object, fr):
-    channel_worker = ChannelWorker(channel_object)
-    spectrogram = channel_worker.compute_spectrogram(channel_object, window_length=5, window_step=5, freq_limits=[0.01, 20])
-    h, ax = misc_functions.spectrogram(spectrogram.time_points/60, spectrogram.freq_points, spectrogram.psd_matrix_db, xLabel='Time (min)')
-    plt.figure(figsize=(10,6))
-    # Add title with line number and associated drug
-    drug = number_to_drug.get(line, "Unknown")
-    ax.set_title(f"Ephys | Line Number: {line} | Drug: {drug}", fontsize=9)
-    
-    # Plot red lines using the mapping
-    plot_lines_ax(line, ax)
-    
-
-    plt.tight_layout()
-    plt.show()  # Display the graph
-    
-    
-    
+    if number_to_drug[line_num] != 'sleep':
+        c =  plt.axvline(x=drug_infusion_start[line_num]/60, color='red', linestyle='-', linewidth=1)
+        plt.axvline(x=drug_infusion_start[line_num]/60, color='red', linestyle='-', linewidth=1)
+        plt.legend([a, b, c], ['Control', 'Treatment', 'Start of Drug Infusion'])
+    else:
+        plt.legend([a, b], ['Control', 'Treatment'])
+ 
 
     
     
 #%% Plot Coherogram
     
 def plot_coherogram(line_num, drug, eeg_signal, calcium_signal, fr): 
-
+    """Plots the coherogram of two signals"""
     
 
     # Define the spectrogram parameters
@@ -196,8 +215,10 @@ def plot_coherogram(line_num, drug, eeg_signal, calcium_signal, fr):
 #%%
 
 def compute_stats(eeg_signal, calcium_signal, line, exp_type, fr):
-    eeg_power = compute_power(line, fr, eeg_signal, windowLength=20, plotSpectrogram=False)
-    calcium_power = compute_power(line, fr, calcium_signal, windowLength=20, plotSpectrogram=False)
+    """High level function that computes the various statistics of our two signals"""
+    
+    eeg_power = compute_power(line, fr, eeg_signal, windowLength=60, plotSpectrogram=False)
+    calcium_power = compute_power(line, fr, calcium_signal, windowLength=60, plotSpectrogram=False)
     xc, lag = compute_xc(eeg_signal, calcium_signal, line, exp_type, fr)
     coherence = compute_coherence(eeg_signal, calcium_signal, lag, fr)
     return [eeg_power, calcium_power, coherence, xc, lag]
@@ -208,35 +229,74 @@ def compute_stats(eeg_signal, calcium_signal, line, exp_type, fr):
 
 
 #%%
+def plot_signal_with_slices(signal, line_num, title="No title"):
+    """This function plots the full signal with the slices in selections shaded with red and blue"""
+    
+    # Slice the signal into control and treatment segments
+    sliced_control, sliced_treatment = slice_signal(signal, line_num, fr)
+    
+    # Create time arrays for plotting (in minutes)
+    total_samples = len(signal)
+    time_full = np.arange(total_samples) / (fr * 60)  # Convert samples to minutes
+    
+    # Get the start and end indices for control and treatment from slice_signal
+    control_start_idx = int(selections[line_num][0][0] * fr * 60)  # Start of control (samples)
+    control_end_idx = int(selections[line_num][0][1] * fr * 60)    # End of control (samples)
+    treatment_start_idx = int(selections[line_num][1][0] * fr * 60) # Start of treatment (samples)
+    treatment_end_idx = int(selections[line_num][1][1] * fr * 60)   # End of treatment (samples)
+    
+    # Create time arrays for control and treatment segments
+    time_control = np.arange(control_start_idx, control_end_idx) / (fr * 60)  # Time for control segment
+    time_treatment = np.arange(treatment_start_idx, treatment_end_idx) / (fr * 60)  # Time for treatment segment
+    
+    # Create the plot
+    plt.figure(figsize=(12, 6))
+    
+    # Plot the original signal
+    plt.plot(time_full, signal, color='gray', label='Original Signal', alpha=0.5)
+    
+    # Overlay the control segment
+    plt.plot(time_control, sliced_control, color='blue', label='Control Segment', linewidth=2)
+    
+    # Overlay the treatment segment
+    plt.plot(time_treatment, sliced_treatment, color='red', label='Treatment Segment', linewidth=2)
+    
+    # Add labels, title, and legend
+    plt.xlabel('Time (minutes)')
+    plt.ylabel('Signal Amplitude')
+    plt.title(f'{title} Signal with Control and Treatment Segments (Line {line_num})')
+    plt.legend()
+    plt.grid(True)
+    
+    # Show the plot
+    plt.show()
 
-def slice_signal(signal, fr, slice_length=20):
+
+
+def slice_signal(signal, line_num, fr):
     """
     Slices the signal into control and treatment segments based on time ranges.
     
     Args:
     - signal: The signal data to be sliced (assumes 1D array or list).
     - fr: Sampling frequency in Hz.
-    - slice_length: Length of each slice in seconds.
     
     Returns:
     - sliced_control: The sliced portion of the signal for the control range.
     - sliced_treatment: The sliced portion of the signal for the treatment range.
     """
-    
-    # Convert slice length from seconds to sample indices
-    slice_samples = int(slice_length * fr )  
 
     # Determine start indices for control and treatment
-    control_start_idx = int(selections[line_num][0] * fr * 60)
-    treatment_start_idx = int(selections[line_num][1] * fr * 60)
+    control_start_idx = int(selections[line_num][0][0] * fr * 60)
+    control_end_idx = int(selections[line_num][0][1] * fr * 60)
+    treatment_start_idx = int(selections[line_num][1][0] * fr * 60)
+    treatment_end_idx = int(selections[line_num][1][1] * fr * 60)
     
     # Extract slices from the signal
-    sliced_control = signal[control_start_idx:control_start_idx + slice_samples]
-    sliced_treatment = signal[treatment_start_idx:treatment_start_idx + slice_samples]
+    sliced_control = signal[control_start_idx:control_end_idx]
+    sliced_treatment = signal[treatment_start_idx:treatment_end_idx]
     
     return sliced_control, sliced_treatment
-
-    
 
 #%%
 
@@ -388,7 +448,7 @@ def filter_frequency(eeg_signal, calcium_signal, fr, cut):
 #%%
     
     
-def compute_power(line, fr, data=None, windowLength=30, windowStep=3, freqLims=[0,20], timeBandwidth=2, plotSpectrogram=True):
+def compute_power(line, fr, data=None, windowLength=30, windowStep=3, freqLims=[0,20], timeBandwidth=2, plotSpectrogram=True, plot_mean_power=False, title="No title"):
     """Estimate (and plot) the multi-taper spectrogram (of the mean miniscope fluorescence). Developed with Mike Prerau's function."""
     print('Computing spectrogram of average miniscope fluorescence...')
     # Set spectrogram params
@@ -423,10 +483,11 @@ def compute_power(line, fr, data=None, windowLength=30, windowStep=3, freqLims=[
     
     # Slice the spectral power array for the desired frequency band
     mean= 0
-    if (power_array.shape[1] == 1):
-        sliced_power_array = power_array[freq_indices]
-        mean = np.mean(sliced_power_array)
-        print(f"mean shape: {mean.shape}")
+    sliced_power_array = power_array[freq_indices]      
+    mean = np.mean(sliced_power_array)
+    
+    if plot_mean_power: 
+        plot_mean_power_across_time(sliced_power_array, times, line, title)
     
     # Plot the multitaper spectrogram
     if plotSpectrogram:
@@ -435,7 +496,8 @@ def compute_power(line, fr, data=None, windowLength=30, windowStep=3, freqLims=[
         
         # Add title with line number and associated drug
         drug = number_to_drug.get(line, "Unknown")
-        ax.set_title(f"Miniscope | Line Number: {line} | Drug: {drug}", fontsize=9)
+            
+        ax.set_title(f"{title} | Line Number: {line} | Drug: {drug}", fontsize=9)
         
         # Plot red lines using the mapping
         plot_lines_ax(line, ax)
@@ -445,6 +507,67 @@ def compute_power(line, fr, data=None, windowLength=30, windowStep=3, freqLims=[
         plt.show()  # Display the graph
     
     return float(mean)
+
+
+def plot_mean_power_across_time(sliced_power_array, times, line_num, title):
+    """Plot the mean power array with the sliced signals we will be taking overlapped
+    This function is called by the function above, as it needs the power matrix of the signal to be computed
+    """
+    mean_power_across_time = np.mean(sliced_power_array, axis=0)
+    
+    
+    # For spectrogram data, use time points to find closest indices
+    control_start_time = selections[line_num][0][0] * 60  # Convert minutes to seconds
+    control_end_time = selections[line_num][0][1] * 60    # Convert minutes to seconds
+    treatment_start_time = selections[line_num][1][0] * 60  # Convert minutes to seconds
+    treatment_end_time = selections[line_num][1][1] * 60    # Convert minutes to seconds
+    
+    # Find indices in spectrogram_times closest to the desired times
+    control_start_idx = np.argmin(np.abs(times - control_start_time))
+    control_end_idx = np.argmin(np.abs(times - control_end_time))
+    treatment_start_idx = np.argmin(np.abs(times - treatment_start_time))
+    treatment_end_idx = np.argmin(np.abs(times - treatment_end_time))
+
+    # Slice the signal into control and treatment segments
+    sliced_control = mean_power_across_time[control_start_idx:control_end_idx]
+    sliced_treatment = mean_power_across_time[treatment_start_idx:treatment_end_idx]
+    
+    # Create time arrays for plotting (in minutes)
+    time_full = times / 60  # Convert spectrogram times (in seconds) to minutes
+    
+    # Create time arrays for control and treatment segments
+    time_control = times[control_start_idx:control_end_idx] / 60  # Convert to minutes
+    time_treatment = times[treatment_start_idx:treatment_end_idx] / 60  # Convert to minutes
+    
+    # Create the plot
+    plt.figure(figsize=(12, 6))
+    
+    # Plot the original signal
+    plt.plot(time_full, mean_power_across_time, color='gray', label='Original Signal', alpha=0.5)
+    
+    # Overlay the control segment if not empty
+    if len(sliced_control) > 0 and len(time_control) > 0:
+        plt.plot(time_control, sliced_control, color='blue', label='Control Segment', linewidth=2)
+    else:
+        print(f"Warning: Control segment is empty for line {line_num}")
+    
+    # Overlay the treatment segment if not empty
+    if len(sliced_treatment) > 0 and len(time_treatment) > 0:
+        plt.plot(time_treatment, sliced_treatment, color='red', label='Treatment Segment', linewidth=2)
+    else:
+        print(f"Warning: Treatment segment is empty for line {line_num}")
+    
+    # Add labels, title, and legend
+    plt.xlabel('Time (minutes)')
+    plt.ylabel('Signal Amplitude (dB)')
+    plt.title(f'{title} Signal of mean slow wave power (Line {line_num})')
+    plt.legend()
+    plt.grid(True)
+    
+    # Show the plot
+    plt.show()
+    plt.close()
+    
     
 
 
@@ -452,28 +575,33 @@ def compute_power(line, fr, data=None, windowLength=30, windowStep=3, freqLims=[
 #%% main
 
 # Initialize data lists
-sleep_data, dex_data = [], []
+sleep_data, dex_data, iso_data, prop_data = [], [], [], []
 rows = ["EEG Power", "Calcium Power", "Coherence", "XC", "Lag"]
 
-for line_num in line_nums:
-    print(f'Running line number: {line_num}')
-    drug = number_to_drug.get(line_num)
-    calcium_signal_filepath = f'/Users/nathan/Desktop/meanFluorescence/meanFluorescence_{str(line_num)}.npz'
-    channel_object, miniscope_data_manager, fr = load_experiment(line_num, calcium_signal_filepath)
+for line in line_nums:
+    print(f'Running line number: {line}')
+    drug = number_to_drug.get(line)
+    calcium_signal_filepath = f'/Users/nathan/Desktop/meanFluorescence/meanFluorescence_{str(line)}.npz'
+    channel_object, miniscope_data_manager, fr = load_experiment(line, calcium_signal_filepath)
     
     # Grab the signals
     eeg_signal = channel_object.signal
     calcium_signal = miniscope_data_manager.mean_fluorescence_dict['meanFluorescence']
     
-    # Plot comprehensive graphs
-    plot_spectrogram_ephys(line_num, channel_object, fr)
-    continue
-    compute_power(line_num, fr, calcium_signal)
-    plot_coherogram(line_num, drug, eeg_signal, calcium_signal, fr)
+    #plot both entire signals with the slices that are stored in selections overlapped
+    plot_signal_with_slices(eeg_signal, line, title="Ephys")
+    plot_signal_with_slices(calcium_signal, line, title="Miniscope")
     
-    # Slice signals
-    control_eeg, treatment_eeg = slice_signal(eeg_signal, fr)
-    control_calcium, treatment_calcium = slice_signal(calcium_signal, fr)
+    # Plot ephys spectrogram and mean power signal
+    compute_power(line, fr, channel_object.signal, plot_mean_power=True, title="Ephys")
+    #Plot just calcium spectrogram
+    compute_power(line, fr, calcium_signal, plot_mean_power=False, title="Miniscope")
+    #Plot coherence of both signals
+    plot_coherogram(line, drug, eeg_signal, calcium_signal, fr)
+    
+    # Slice signals into small segments to use for data analysis
+    control_eeg, treatment_eeg = slice_signal(eeg_signal, line, fr)
+    control_calcium, treatment_calcium = slice_signal(calcium_signal, line, fr)
     
     #Filter the control/treatment signals
     CUT = [0.5,4]
@@ -482,18 +610,21 @@ for line_num in line_nums:
  
     
     # Compute stats for control and treatment
-    control_list = compute_stats(filtered_control_eeg, filtered_control_calcium, line_num, "Control", fr)
-    treatment_list = compute_stats(filtered_treatment_eeg, filtered_treatment_calcium, line_num, "Treatment", fr)
+    control_list = compute_stats(filtered_control_eeg, filtered_control_calcium, line, "Control", fr)
+    treatment_list = compute_stats(filtered_treatment_eeg, filtered_treatment_calcium, line, "Treatment", fr)
     
     # Compute the ratio for each pair of control and treatment values    
     ratios = []
     
     for control, treatment in zip(control_list, treatment_list):
-        ratios.append(treatment / control)
+        if abs(control) < 1e-10:  # Use a small threshold instead of int(control)
+            ratios.append(np.nan)  # Use NaN for invalid ratios
+        else:
+            ratios.append(treatment / control)
     
     # Combine into a row with columns ["lineNum", "Control", "Treatment", "Ratio"]
     combined_data = {
-        "line_num": [line_num] * len(rows),
+        "line_num": [line] * len(rows),
         "Measurement": rows,
         "Control": control_list,
         "Treatment": treatment_list,
@@ -503,13 +634,12 @@ for line_num in line_nums:
     # Convert to DataFrame row format and append to appropriate list
     row_df = pd.DataFrame(combined_data)
     
-    if line_num in data["sleep"]:
-        sleep_data.append(row_df)
-    elif line_num in data["dexmedetomidine"]:
+
+    if line in data["dexmedetomidine"]:
         dex_data.append(row_df)
 
-# Combine all rows into final DataFrames for sleep and dexmedetomidine
-sleep_df = pd.concat(sleep_data, ignore_index=True)
+# Combine all rows into final DataFrames
+
 dex_df = pd.concat(dex_data, ignore_index=True)
 
 # Function to compute mean ± std for each measurement
@@ -520,94 +650,57 @@ def compute_mean_std(df):
     return result
 
 
-# Compute averaged DataFrames for sleep and dexmedetomidine
-sleep_avg_df = compute_mean_std(sleep_df)
+# Compute averaged DataFrames
+
 dex_avg_df = compute_mean_std(dex_df)
 
 print(f"Control: {control_list}, Treatment: {treatment_list}, Ratios: {ratios}")
 
 
-# Print the resulting DataFrames
-print("Sleep DataFrame:")
-print(sleep_df)
+#Print the resulting DataFrames
+
+#print("\nSleep DataFrame:")
+#print(sleep_df)
 
 print("\nDexmedetomidine DataFrame:")
 print(dex_df)
 
-print("\nAveraged Sleep DataFrame (Mean ± Std):")
-print(sleep_avg_df)
+#print("\nIsoflurane DataFrame:")
+#print(iso_df)
+
+#print("\nPropofol DataFrame:")
+#print(prop_df)
+
+#print("\nAveraged Sleep DataFrame (Mean ± Std):")
+#print(sleep_avg_df)
 
 print("\nAveraged Dexmedetomidine DataFrame (Mean ± Std):")
 print(dex_avg_df)
+
+#print("\nAveraged Isoflurane DataFrame (Mean ± Std):")
+#print(iso_avg_df)
+
+#print("\nAveraged Propofol DataFrame (Mean ± Std):")
+#print(prop_avg_df)
+
+
+
 
 # Create directory for results if it doesn't exist
 results_dir = os.path.join(os.pardir, "Poster Results")
 os.makedirs(results_dir, exist_ok=True)
 
 # Save DataFrames as CSV files
-sleep_df.to_csv(os.path.join(results_dir, "sleep_data.csv"), index=False)
+#sleep_df.to_csv(os.path.join(results_dir, "sleep_data.csv"), index=False)
 dex_df.to_csv(os.path.join(results_dir, "dex_data.csv"), index=False)
-sleep_avg_df.to_csv(os.path.join(results_dir, "sleep_avg_data.csv"), index=False)
+#sleep_avg_df.to_csv(os.path.join(results_dir, "sleep_avg_data.csv"), index=False)
 dex_avg_df.to_csv(os.path.join(results_dir, "dex_avg_data.csv"), index=False)
 
-print(f"DataFrames saved to '{results_dir}' directory.")
-
-
-
-
-
-
-# NOTES
-
-# need to include before AND after stats...
-    
-
-# lables on cross correlation graphs
-# Update dataframe to be as eric proposed
-# make XC charts a standard scale from -0.4 - 0.4
+#print(f"DataFrames saved to '{results_dir}' directory.")
     
     
     
     
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-
 
     
