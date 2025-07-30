@@ -130,15 +130,15 @@ class EphysAPI:
 if __name__ == "__main__":
     e = EphysAPI()
     e.run(
-          line_num=97,
+          line_num=101,
           channel_name = 'PFCLFPvsCBEEG',
-          remove_artifacts = True,
-          filter_type = "butter",
+          remove_artifacts = False,
+          filter_type = None,
           filter_range = [0.3,0.5],
           compute_phases = False,
           plot_channel = True,
-          plot_spectrogram = False,
-          plot_phases = True,
+          plot_spectrogram = True,
+          plot_phases = False,
           logging_level="DEBUG"
     )
     # main()
