@@ -8,7 +8,7 @@ class CSVWorker:
     def csv_row_to_dict(csv_file, line_num):
         try:
             df = pd.read_csv(csv_file)
-            line_num_str = str(line_num)
+            line_num_str = line_num
             row = df.loc[df['line number'] == line_num_str]
             if row.empty:
                 raise ValueError(f"Line number {line_num} (as string: '{line_num_str}') not found")
@@ -110,6 +110,8 @@ class CSVWorker:
         try:
             if isinstance(date_str, float):
                 date_str = str(int(date_str))
+            if not isinstance(date_str, str):
+                date_str = str(date_str)
             return datetime.strptime(date_str, '%y%m%d')
         except ValueError as e:
             return date_str

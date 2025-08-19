@@ -763,14 +763,17 @@ def zScore(dataArray, frameWindow = 1000):
 def get_coords_dict_from_analysis_params(miniscope_data_manager, crop=False, crop_square=False):
     coords_dict = None
     crop_job_name = ''
-    if crop:
-        previous_coords = miniscope_data_manager.analysis_params['crop']
-        coords_dict = { 'x0': previous_coords[0], 'y0': previous_coords[1], 'x1': previous_coords[2], 'y1': previous_coords[3]}
-        crop_job_name = '_crop'
-    elif crop_square:
-        previous_coords = miniscope_data_manager.analysis_params['crop_square']
-        coords_dict = { 'x0': previous_coords[0], 'y0': previous_coords[1], 'x1': previous_coords[2], 'y1': previous_coords[3]}
-        crop_job_name = '_crop_square'
+    try:
+        if crop:
+            previous_coords = miniscope_data_manager.analysis_params['crop']
+            coords_dict = { 'x0': previous_coords[0], 'y0': previous_coords[1], 'x1': previous_coords[2], 'y1': previous_coords[3]}
+            crop_job_name = '_crop'
+        elif crop_square:
+            previous_coords = miniscope_data_manager.analysis_params['crop_square']
+            coords_dict = { 'x0': previous_coords[0], 'y0': previous_coords[1], 'x1': previous_coords[2], 'y1': previous_coords[3]}
+            crop_job_name = '_crop_square'
+    except:
+        print("Did not find any coords under ", 'crop' if crop else 'crop_square')
     
     return coords_dict, crop_job_name
         

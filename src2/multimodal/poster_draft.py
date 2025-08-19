@@ -12,29 +12,60 @@ from src2.miniscope.miniscope_data_manager import MiniscopeDataManager
 from src2.ephys.ephys_api import EphysAPI
 from src2.ephys.ephys_data_manager import EphysDataManager
 from src2.multimodal.miniscope_ephys_alignment_utils import sync_neuralynx_miniscope_timestamps, find_ephys_idx_of_TTL_events
-import sys
-sys.maxsize
+from scipy.stats import wilcoxon
 
 
 #%% metadata
-"""
-line_num: dex dose
-46: 0.0045 (high dose)
-47: 0.0045
-64: 0.0045
-88: 0.0045
-97: 0.0045
-"""
-
-
-line_nums = [46, 47, 64, 88, 97]
-channel = 'PCvsPFCEEG'
-
+#35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 64, 83, 85, 86, 87, 88, 90, 92, 93, 94, 96, 97, 99, 101, 103, 104, 105, 107, 108, 112
+ 
+line_nums = [46, 47, 64, 88, 97, 101]
+channel = 'PFCLFPvsCBEEG'
+CUT = [0.5, 4] #frequency range to analyze
 data = {
-    "dexmedetomidine": [46, 47, 64, 88, 97],
-    "isoflurane": [91],
-    "propofol": [104, 105, 107, 108],
-    "sleep": [35, 83]
+    "dexmedetomidine: 0.00045": [46, 47, 64, 88, 97, 101],
+    "dexmedetomidine: 0.0003": [40, 41, 48, 87, 93, 94],
+    "propofol": [36, 43, 44, 86, 99, 103],
+    "sleep": [35, 37, 38, 83, 90, 92],
+    "ketamine": [39, 42, 45, 85, 96, 112]
+}
+
+# Time range mapping for each line number as pairs of numbers
+#time period in minutes
+selections = { 
+    46:  [[1,20], [28.24, 75]], 
+    47:  [[1,20], [28.24, 75]],  
+    64:  [[4,17], [28.24, 75]], 
+    88:  [[1,8], [28.24, 83.24]],
+    97:  [[1,13], [28.24, 83.24]], 
+    101:  [[1,25], [37, 90]],
+    
+    40:  [[8,20], [55, 75]], 
+    41:  [[10,19], [60, 68]],
+    48:  [[1,20], [25, 35]],
+    87:  [[5,13], [73, 85]],
+    93:  [[18,28], [75, 95]],
+    94:  [[1,20], [75, 90]], 
+    
+    36:  [[1,11], [55, 67]],
+    43:  [[15, 20], [40, 60]], 
+    44:  [[0,21], [40, 65]],
+    86:  [[5,16], [33, 65]],
+    99:  [[0,19], [33, 45]],
+    103:  [[1,17], [38, 65]], 
+    
+    35:  [[1,20], [28.24, 83.24]], 
+    37:  [[1,20], [28.24, 83.24]], 
+    38:  [[1,20], [28.24, 83.24]],
+    83:  [[1,20], [28.24, 83.24]],
+    90:  [[1,20], [28.24, 83.24]], 
+    92:  [[1,20], [28.24, 83.24]], 
+    
+    39:  [[10,20], [38, 50]], 
+    42:  [[1,20], [40, 51]], 
+    45:  [[1,15], [40, 60]], 
+    85:  [[14,24], [30, 50]], 
+    96:  [[1,12], [38, 55]],
+    112:  [[1,10], [40, 60]]
 }
 
 # Create a reverse mapping from numbers to drug types
@@ -42,22 +73,6 @@ number_to_drug = {num: drug for drug, numbers in data.items() for num in numbers
 
 #These times in minutes are filled in automatically in load_experiment
 drug_infusion_start = {}
-
-
-
-
-
-
-# Time range mapping for each line number as pairs of numbers
-#time period in minutes
-selections = {
-    46:  [[1,20], [28.24, 83.24]],
-    47:  [[1,20], [27.53, 82.24]],
-    64:  [[1,20], [28.06, 83.06]],
-    88:  [[1,20], [29, 84]],
-    97:  [[1,20], [27.81, 82.81]],
-}
-
 
 
 #%% Load experiment 
@@ -92,13 +107,19 @@ def load_experiment(line_num, calcium_signal_filepath=None):
     
     #sync timestamps
     tCaIm, low_confidence_periods, channel_object, miniscope_data_manager = sync_neuralynx_miniscope_timestamps(channel_object, miniscope_data_manager, delete_TTLs=True, 
-                                                                                               fix_TTL_gaps=False, only_experiment_events=True)
+                                                                                               fix_TTL_gaps=True, only_experiment_events=True)
     ephys_idx_all_TTL_events, ephys_idx_ca_events = find_ephys_idx_of_TTL_events(tCaIm, channel=channel_object, frame_rate=fr, ca_events_idx=None, all_TTL_events=True)
     channel_object.signal = channel_object.signal[ephys_idx_all_TTL_events] # downsample
     
     channel_object.sampling_rate = np.array(fr)
     if calcium_signal_filepath:
         miniscope_data_manager.mean_fluorescence_dict = np.load(calcium_signal_filepath)
+      
+    #syncing timestamps for ketamine is resulting in NaN values, so I am replacing them here with zero
+    if np.any(np.isnan(channel_object.signal)):
+        print(f"Line {line_num}: Replacing NaNs in EEG with zeros...")
+        channel_object.signal = np.nan_to_num(channel_object.signal, nan=0.0)
+    
     return channel_object, miniscope_data_manager, fr
     
 
@@ -219,8 +240,8 @@ def compute_stats(eeg_signal, calcium_signal, line, exp_type, fr):
     
     eeg_power = compute_power(line, fr, eeg_signal, windowLength=60, plotSpectrogram=False)
     calcium_power = compute_power(line, fr, calcium_signal, windowLength=60, plotSpectrogram=False)
-    xc, lag = compute_xc(eeg_signal, calcium_signal, line, exp_type, fr)
-    coherence = compute_coherence(eeg_signal, calcium_signal, lag, fr)
+    xc, lag, abs_xc, abs_lag = compute_xc(eeg_signal, calcium_signal, line, exp_type, fr)
+    coherence = compute_coherence(eeg_signal, calcium_signal, fr)
     return [eeg_power, calcium_power, coherence, xc, lag]
 
 
@@ -331,7 +352,7 @@ def align_signals(signal1, signal2, lag, fr):
     return aligned_signal1, aligned_signal2
 
 
-def compute_coherence(signal1, signal2, ideal_lag, fr):
+def compute_coherence(signal1, signal2, fr):
     """
     Computes coherence between two signals after aligning them by an ideal lag.
     
@@ -344,10 +365,13 @@ def compute_coherence(signal1, signal2, ideal_lag, fr):
     Returns:
     - mean_coherence: Mean coherence value across frequencies.
     """
-    aligned_signal1, aligned_signal2 = align_signals(signal1, signal2, ideal_lag, fr)
     
     # Compute coherence using Welch's method
-    f, Cxy = coherence(aligned_signal1, aligned_signal2, fs=fr)
+    f, Cxy = coherence(signal1, signal2, fs=fr)
+    
+    freq_indices = np.where((f >= CUT[0]) & (f <= CUT[1]))[0]
+    
+    Cxy = Cxy[freq_indices]
     mean_coherence = np.mean(Cxy)
     
     return mean_coherence
@@ -392,6 +416,9 @@ def compute_xc(eeg_signal, calcium_signal, line, exp_type, fr, plot=True):
     max_xc = nxcorr[np.argmax(nxcorr)]
     lag_at_max_xc = lags[np.argmax(nxcorr)]
     
+    abs_xc = nxcorr[np.argmax(np.abs(nxcorr))]
+    lag_at_abs_xc = lags[np.argmax(np.abs(nxcorr))]
+    
     if plot:
         # Plot the cross-correlation
         plt.figure(figsize=(10, 6))
@@ -410,12 +437,12 @@ def compute_xc(eeg_signal, calcium_signal, line, exp_type, fr, plot=True):
         
         # Set axis limits
         plt.xlim([-10, 10])  # Show 20 seconds total on x-axis
-        plt.ylim([-0.6, 0.6])  # Standardize y-axis scale
+        plt.ylim([-0.7, 0.7])  # Standardize y-axis scale
         
         plt.show()
 
         
-    return max_xc, lag_at_max_xc
+    return max_xc, lag_at_max_xc, abs_xc, lag_at_abs_xc
 
 
     
@@ -475,10 +502,6 @@ def compute_power(line, fr, data=None, windowLength=30, windowStep=3, freqLims=[
 
     # Find indices corresponding to the desired frequency band
     freq_indices = np.where((frequencies >= low_freq) & (frequencies <= high_freq))[0]
-    
-    print(f"power_array: {power_array.shape}")
-    print(f"frequency_array: {frequencies.shape}")
-    print(f"indices: {freq_indices}")
 
     
     # Slice the spectral power array for the desired frequency band
@@ -568,6 +591,60 @@ def plot_mean_power_across_time(sliced_power_array, times, line_num, title):
     plt.show()
     plt.close()
     
+
+def compute_mean_std(df):
+    try:
+        result = df.groupby("Measurement")[["Control", "Treatment", "Ratio"]].agg(["mean", "std"]).reset_index()
+        result[('Ratio', 'mean')] = result[('Treatment', 'mean')] / result[('Control', 'mean')]
+    except:
+        result = None
+    return result
+
+
+#compute p-values with a wilcoxon test
+def add_p_values(df, averaged_df):
+    if df is None or averaged_df is None:
+        return None
+    
+    
+    # Create a dictionary to store p-values for each measurement
+    p_value_map = {}
+
+    # Group by Measurement to compute p-values for each measurement type
+    for measurement, group in df.groupby("Measurement"):
+        
+        # Skip p-value computation for 'Lag'
+        if measurement.lower() == "lag":
+            p_value_map[measurement] = np.nan # Assign NaN or a specific placeholder
+            continue # Move to the next measurement
+        
+        control = group["Control"].values
+        treatment = group["Treatment"].values
+
+        # Ensure there are enough paired samples and no NaN values
+        valid_pairs = ~np.isnan(control) & ~np.isnan(treatment)
+        control = control[valid_pairs]
+        treatment = treatment[valid_pairs]
+
+        if len(control) > 0 and len(treatment) > 0:
+            # Perform Wilcoxon signed-rank test
+            try:
+                stat, p_value = wilcoxon(control, treatment, zero_method='wilcox', correction=False)
+            except ValueError:
+                # Handle cases where all differences are zero, which wilcoxon can't handle
+                p_value = np.nan
+        else:
+            # If insufficient data, assign NaN
+            p_value = np.nan
+        p_value_map[measurement] = p_value
+    
+    # Map the computed p-values back to the averaged_df
+    averaged_df["P-value"] = averaged_df["Measurement"].map(p_value_map)
+    return averaged_df
+
+
+
+    
     
 
 
@@ -575,20 +652,20 @@ def plot_mean_power_across_time(sliced_power_array, times, line_num, title):
 #%% main
 
 # Initialize data lists
-sleep_data, dex_data, iso_data, prop_data = [], [], [], []
+sleep_data, dex_30_data, dex_45_data, iso_data, prop_data, ketamine_data = [], [], [], [], [], []
 rows = ["EEG Power", "Calcium Power", "Coherence", "XC", "Lag"]
 
 for line in line_nums:
-    print(f'Running line number: {line}')
+    print(f'\nRunning line number: {line}')
     drug = number_to_drug.get(line)
-    calcium_signal_filepath = f'/Users/nathan/Desktop/meanFluorescence/meanFluorescence_{str(line)}.npz'
+    calcium_signal_filepath = f"C:/Users/ericm/Desktop/meanFluorescence/meanFluorescence_{str(line)}.npz"
     channel_object, miniscope_data_manager, fr = load_experiment(line, calcium_signal_filepath)
     
     # Grab the signals
     eeg_signal = channel_object.signal
     calcium_signal = miniscope_data_manager.mean_fluorescence_dict['meanFluorescence']
     
-    #plot both entire signals with the slices that are stored in selections overlapped
+    #plot both entire signals with the slices that are stored in selections, overlapped
     plot_signal_with_slices(eeg_signal, line, title="Ephys")
     plot_signal_with_slices(calcium_signal, line, title="Miniscope")
     
@@ -604,9 +681,8 @@ for line in line_nums:
     control_calcium, treatment_calcium = slice_signal(calcium_signal, line, fr)
     
     #Filter the control/treatment signals
-    CUT = [0.5,4]
-    filtered_control_calcium, filtered_control_eeg = filter_frequency(control_eeg, control_calcium, fr, cut=CUT)
-    filtered_treatment_calcium, filtered_treatment_eeg = filter_frequency(treatment_eeg, treatment_calcium, fr, cut=CUT)
+    filtered_control_eeg, filtered_control_calcium = filter_frequency(control_eeg, control_calcium, fr, cut=CUT)
+    filtered_treatment_eeg, filtered_treatment_calcium = filter_frequency(treatment_eeg, treatment_calcium, fr, cut=CUT)
  
     
     # Compute stats for control and treatment
@@ -635,72 +711,66 @@ for line in line_nums:
     row_df = pd.DataFrame(combined_data)
     
 
-    if line in data["dexmedetomidine"]:
-        dex_data.append(row_df)
+    if line in data["dexmedetomidine: 0.00045"]:
+        dex_45_data.append(row_df)
+    elif line in data["dexmedetomidine: 0.0003"]:
+        dex_30_data.append(row_df)
+    elif line in data['propofol']:
+        prop_data.append(row_df)
+    elif line in data['sleep']:
+        sleep_data.append(row_df)
+    elif line in data["ketamine"]:
+        ketamine_data.append(row_df)
+    else:
+        raise("Key error. Is this number correct?")
+        
 
 # Combine all rows into final DataFrames
-
-dex_df = pd.concat(dex_data, ignore_index=True)
-
-# Function to compute mean ± std for each measurement
-def compute_mean_std(df):
-    result = df.groupby("Measurement")[["Control", "Treatment", "Ratio"]].agg(
-        ["mean", "std"]
-    ).reset_index()
-    return result
+dex_45_df = pd.concat(dex_45_data, ignore_index=True) if dex_45_data else None
+dex_30_df = pd.concat(dex_30_data, ignore_index=True) if dex_30_data else None
+sleep_df = pd.concat(sleep_data, ignore_index=True) if sleep_data else None
+ketamine_df = pd.concat(ketamine_data, ignore_index=True) if ketamine_data else None
+prop_df = pd.concat(prop_data, ignore_index=True) if prop_data else None
 
 
 # Compute averaged DataFrames
+dex_45_avg_df = compute_mean_std(dex_45_df)
+dex_30_avg_df = compute_mean_std(dex_30_df)
+sleep_avg_df = compute_mean_std(sleep_df)
+ketamine_avg_df = compute_mean_std(ketamine_df)
+prop_avg_df = compute_mean_std(prop_df)
 
-dex_avg_df = compute_mean_std(dex_df)
+
+#add p-values to each averaged dataframe
+dex_45_avg_df = add_p_values(dex_45_df, dex_45_avg_df)
+dex_30_avg_df = add_p_values(dex_30_df, dex_30_avg_df)
+sleep_avg_df = add_p_values(sleep_df, sleep_avg_df)
+ketamine_avg_df = add_p_values(ketamine_df, ketamine_avg_df)
+prop_avg_df = add_p_values(prop_df, prop_avg_df)
 
 print(f"Control: {control_list}, Treatment: {treatment_list}, Ratios: {ratios}")
-
-
-#Print the resulting DataFrames
-
-#print("\nSleep DataFrame:")
-#print(sleep_df)
-
-print("\nDexmedetomidine DataFrame:")
-print(dex_df)
-
-#print("\nIsoflurane DataFrame:")
-#print(iso_df)
-
-#print("\nPropofol DataFrame:")
-#print(prop_df)
-
-#print("\nAveraged Sleep DataFrame (Mean ± Std):")
-#print(sleep_avg_df)
-
-print("\nAveraged Dexmedetomidine DataFrame (Mean ± Std):")
-print(dex_avg_df)
-
-#print("\nAveraged Isoflurane DataFrame (Mean ± Std):")
-#print(iso_avg_df)
-
-#print("\nAveraged Propofol DataFrame (Mean ± Std):")
-#print(prop_avg_df)
-
-
-
 
 # Create directory for results if it doesn't exist
 results_dir = os.path.join(os.pardir, "Poster Results")
 os.makedirs(results_dir, exist_ok=True)
 
 # Save DataFrames as CSV files
-#sleep_df.to_csv(os.path.join(results_dir, "sleep_data.csv"), index=False)
-dex_df.to_csv(os.path.join(results_dir, "dex_data.csv"), index=False)
-#sleep_avg_df.to_csv(os.path.join(results_dir, "sleep_avg_data.csv"), index=False)
-dex_avg_df.to_csv(os.path.join(results_dir, "dex_avg_data.csv"), index=False)
+if dex_45_df is not None and dex_45_avg_df is not None:
+    dex_45_df.to_csv(os.path.join(results_dir, "dex_45_data.csv"), index=False)
+    dex_45_avg_df.to_csv(os.path.join(results_dir, "dex_45_avg_data.csv"), index=False)
 
-#print(f"DataFrames saved to '{results_dir}' directory.")
-    
-    
-    
-    
-    
+elif dex_30_df is not None and dex_30_avg_df is not None:
+    dex_30_df.to_csv(os.path.join(results_dir, "dex_30_data.csv"), index=False)
+    dex_30_avg_df.to_csv(os.path.join(results_dir, "dex_30_avg_data.csv"), index=False)
 
-    
+elif prop_df is not None and prop_avg_df is not None:
+    prop_df.to_csv(os.path.join(results_dir, "prop_data.csv"), index=False)
+    prop_avg_df.to_csv(os.path.join(results_dir, "prop_avg_data.csv"), index=False)
+
+elif sleep_df is not None and sleep_avg_df is not None:
+    sleep_df.to_csv(os.path.join(results_dir, "sleep_data.csv"), index=False)
+    sleep_avg_df.to_csv(os.path.join(results_dir, "sleep_avg_data.csv"), index=False)
+
+elif ketamine_df is not None and ketamine_avg_df is not None:
+    ketamine_df.to_csv(os.path.join(results_dir, "ketamine_data.csv"), index=False)
+    ketamine_avg_df.to_csv(os.path.join(results_dir, "ketamine_avg_data.csv"), index=False)

@@ -92,14 +92,13 @@ class MiniscopePreprocessor:
         y0, y1 = sorted([y0_flipped, y1_flipped])
         x0, x1 = sorted([new_coords_dict['x0'], new_coords_dict['x1']])
         
-        #crop movie
+        #crop movie using our numpy coordinates
         cropped_movie = movie[:, y0:y1, x0:x1]
-        coords = f'({x0},{y0},{x1},{y1})'
         
-        print(f'After sorting, I cropped the calcium movie with these coordinates: {coords}.')
-        print('Generally, when an error is thrown here, it is because you forgot to unpack coords from this method')
+        #Keep new_coords_dict in GUI notation so that it will display properly in the GUI if you want to view them again
+        new_coords_dict = f'({new_coords_dict["x0"]},{new_coords_dict["y0"]}, {new_coords_dict["x1"]},{new_coords_dict["y1"]})'
         
-        return cropped_movie, coords
+        return cropped_movie, new_coords_dict
         
 
     def detrend_movie(self, movie, method='median', plot_trend=True):

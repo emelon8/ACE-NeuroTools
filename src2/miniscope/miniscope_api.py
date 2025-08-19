@@ -110,7 +110,7 @@ if __name__ == "__main__":
     # run the API
     api = MiniscopeAPI()
     api.run(
-        line_num = 97, #line number of the experiment you are analyzing
+        line_num = 35, #line number of the experiment you are analyzing
         filenames = ['0.avi'],
         
         #preprocessing parameters

@@ -256,6 +256,7 @@ def crop_gui(coords_dict, projections: Projections, movie_height, movie_width, p
     _update_image(graph, movie_height, projections.max,)
     if coords_dict is not None:
         try:
+            #This code seems like we are changing the coords, but only temporarily so the rectangle is drawn correctly. This function correctly saves crop coords
             box = graph.draw_rectangle((coords_dict['x0'], coords_dict['y0']),
                                    (coords_dict['x1'], coords_dict['y1']),
                                    line_color=colors[index])
