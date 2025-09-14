@@ -757,5 +757,3 @@ def zScore(dataArray, frameWindow = 1000):
             zScoreArray[:][i*frameWindow:] = stats.zscore(dataArray[:][i*frameWindow:], axis=1)
     zScoreArray = np.nan_to_num(zScoreArray)
     return zScoreArray
-
-# josie was here
