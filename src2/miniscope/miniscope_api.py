@@ -11,8 +11,9 @@ import matplotlib
 import tkinter
 import os
 
-#Adjust the path below to where you would like Caiman to store temporary files that it uses during the miniscope pipeline
-os.environ["CAIMAN_DATA"] = '/Users/nathan/Desktop/K99/miniscope_data/dexmedetomidine/R230706A/2023_09_04/15_06_16/saved_movies'
+# Adjust the path below to where you would like Caiman to store temporary files that it uses during the miniscope pipeline
+# os.environ["CAIMAN_DATA"] = '/Users/nathan/Desktop/K99/miniscope_data/dexmedetomidine/R230706A/2023_09_04/15_06_16/saved_movies'
+os.environ["CAIMAN_DATA"] = "/Users/josieallred/Downloads/research/miniscope_tmp"
 
 class MiniscopeAPI:
     """Main workflow class for non-technical users. Adjust the paramters at the bottom and press run."""
@@ -110,22 +111,22 @@ if __name__ == "__main__":
     # run the API
     api = MiniscopeAPI()
     api.run(
-        line_num = 97, #line number of the experiment you are analyzing
+        line_num = 97, # line number of the experiment you are analyzing
         filenames = ['0.avi'],
         
-        #preprocessing parameters
+        # preprocessing parameters
         crop = True,
-            #Only one below should be True if crop=True
+            # Only one below should be True if crop=True
             crop_with_crop = False,
             crop_square = True,
         detrend_method = None,
         df_over_f = False,
-          #if df_over_f = True
+          # if df_over_f = True
           secs_window = 5,                     
           quantile_min = 8,
           df_over_f_method = 'delta_f_over_sqrt_f',
 
-        #processing parameters    
+        # processing parameters    
         parallel = True,
         n_processes = 6,
         apply_motion_correction = False,
@@ -136,7 +137,7 @@ if __name__ == "__main__":
           save_CNMFE_estimates_filename = 'estimates.hdf5',
         save_CNMFE_params = True,
         
-        #post-processing parameters
+        # post-processing parameters
         remove_components_with_gui=True,  
         find_calcium_events=True,
           derivative_for_estimates='first', 

@@ -27,7 +27,7 @@ class EphysAPI:
             line_num,
             channel_name = 'PFCLFPvsCBEEG',
             remove_artifacts = False,
-            filter_type = None, # if desired, enter the type, eg "butter"
+            filter_type = None, # If desired, enter the type, eg "butter"
             filter_range = [0.5, 4],
             compute_phases = False,
             plot_channel = False,
@@ -39,7 +39,7 @@ class EphysAPI:
         logger = logging.getLogger(__name__)
         logger.setLevel(logging_level)
 
-        # set the filter boolean based on if filter_type is None
+        # Set the filter boolean based on if filter_type is None
         filter_bool = True if filter_type is not None else False
 
         experiment_data_manager = ExperimentDataManager(line_num, logging_level = logging_level)
@@ -60,7 +60,7 @@ class EphysAPI:
             self.ephys_data_manager.filter_ephys(channel_name, ftype=filter_type, cut = filter_range, replace_signal=False)
         
         if compute_phases:
-            #compute phases after filtering
+            # Compute phases after filtering
             self.ephys_data_manager.compute_phases_all_channels()
 
         # Extract correct channel and visualize
