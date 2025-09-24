@@ -79,29 +79,6 @@ class EphysAPI:
             channel_worker.plot_phases()
             
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     def run_all_channels(
             self, 
             line_num,
@@ -123,8 +100,6 @@ class EphysAPI:
 
         channels_str = experiment_data_manager.metadata['LFP and EEG CSCs']
         channels_list: List = [*channels_str] # unpack
-
-
 
 
 if __name__ == "__main__":
