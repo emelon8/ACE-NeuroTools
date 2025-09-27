@@ -12,8 +12,7 @@ import tkinter
 import os
 
 # Adjust the path below to where you would like Caiman to store temporary files that it uses during the miniscope pipeline
-# os.environ["CAIMAN_DATA"] = '/Users/nathan/Desktop/K99/miniscope_data/dexmedetomidine/R230706A/2023_09_04/15_06_16/saved_movies'
-os.environ["CAIMAN_DATA"] = "/Users/josieallred/Downloads/research/test_data"
+os.environ["CAIMAN_DATA"] = '/Users/nathan/Desktop/K99/miniscope_data/dexmedetomidine/R230706A/2023_09_04/15_06_16/saved_movies'
 
 class MiniscopeAPI:
     """Main workflow class for non-technical users. Adjust the paramters at the bottom and press run."""
@@ -139,7 +138,7 @@ if __name__ == "__main__":
         
         # post-processing parameters
         remove_components_with_gui=True,  
-        find_calcium_events=True,  # try this out to make the code run
+        find_calcium_events=True,
           derivative_for_estimates='first', 
           event_height = 5, 
         compute_miniscope_phase=True, 
