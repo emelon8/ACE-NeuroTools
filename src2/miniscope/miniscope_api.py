@@ -13,7 +13,7 @@ import os
 
 # Adjust the path below to where you would like Caiman to store temporary files that it uses during the miniscope pipeline
 # os.environ["CAIMAN_DATA"] = '/Users/nathan/Desktop/K99/miniscope_data/dexmedetomidine/R230706A/2023_09_04/15_06_16/saved_movies'
-os.environ["CAIMAN_DATA"] = "/Users/josieallred/Downloads/research/test_data/miniscope"
+os.environ["CAIMAN_DATA"] = "/Users/josieallred/Downloads/research/test_data"
 
 class MiniscopeAPI:
     """Main workflow class for non-technical users. Adjust the paramters at the bottom and press run."""
