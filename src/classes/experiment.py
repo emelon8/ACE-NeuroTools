@@ -33,8 +33,6 @@ class experiment:
     JOBID is a string that will be appended to the end of the filenames of saved files."""
     def __init__(self, lineNum, filename='data/experiments.csv', jobID=''):
         self.lineNum = lineNum
-    
-
 
         # Dynamically locate the project root
         project_root = Path(__file__).resolve().parent.parent.parent

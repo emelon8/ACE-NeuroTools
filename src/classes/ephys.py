@@ -279,3 +279,4 @@ class NeuralynxEphys(experiment.experiment):
                 except AttributeError:
                     self.fdata = []
                     self.fdata.append(fdata)
+    
