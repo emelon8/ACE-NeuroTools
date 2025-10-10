@@ -3,6 +3,7 @@
 *.pyc
 experiments.csv
 analysis_parameters.csv
+/data/downloaded_data/
 
 # macOS
 .DS_Store
