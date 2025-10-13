@@ -6,6 +6,7 @@ def main(token: str):
     client: BoxClient = BoxClient(auth=auth)
     for item in client.folders.get_folder_items('0').entries:
         print(item.name)
+    
 
 if __name__ == '__main__':
     main(dev_token)
