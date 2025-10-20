@@ -6,6 +6,9 @@ from os import path as os_path, makedirs
     - rewrite all CSVs to have standard relative paths to the base folder
     - Add box folder IDs to all CSVs so filereader can download it.
     - Work with teammates to develop standardized nomenclature and use of this file.
+    - Make Authorization permanant using Client Credentials Grant
+    - Add command line compatibility
+    - Maybe Modularize as a class?
 """
         
 client = None
