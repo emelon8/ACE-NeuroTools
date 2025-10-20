@@ -2,6 +2,12 @@ from box_credentials import dev_token, base_file_path
 from box_sdk_gen import BoxClient, BoxDeveloperTokenAuth
 from os import path
 
+"""TO DO:
+    - rewrite all CSVs to have standard relative paths to the base folder
+    - Add box folder IDs to all CSVs so filereader can download it.
+    - Work with teammates to develop standardized nomenclature and use of this file.
+"""
+
 def main(token: str):
     auth: BoxDeveloperTokenAuth = BoxDeveloperTokenAuth(token=token)
     client: BoxClient = BoxClient(auth=auth)
@@ -34,10 +40,17 @@ def download_file(path: str, ID):
     client: BoxClient = BoxClient(auth=auth)
     
     try:
+        for item in client.folders.get_folder_items(ID).entries:
+            print(item.name)
+            if item.type == 'folder':
+                print("Found a folder")
+            with open(f"{base_file_path}/{path}/{item.name}", "wb") as output_file:
+                pass
+        
+        # file = client.downloads.download_file(ID)
         pass
     except Exception as e:
-        pass
-    #Try to download, if error then raise an appropriate error
+        print(e)
     
     #Download path: f"{base_file_path}/{path}
     
@@ -48,4 +61,4 @@ def download_file(path: str, ID):
 
 
 if __name__ == '__main__':
-    main(dev_token)
+    download_file("K99/R221107A/2023_03_09/15_52_17",274171379379)
