@@ -9,5 +9,12 @@ To properly set up this file:
     tbd 
 3. You're done!"""
 
+from pathlib import Path
+
 dev_token = 'PUT_YOUR_BOX_DEVELOPER_TOKEN_HERE'
-base_file_path = "/downloaded_data"
+
+PROJECT_ROOT = Path(__file__).parent.parent
+DATA_DIR = PROJECT_ROOT / "data"
+
+# Replace DATA_DIR / "downloaded_data" with a different path if you're storing your data elsewhere
+BASE_FILE_PATH = DATA_DIR / "downloaded_data" 
