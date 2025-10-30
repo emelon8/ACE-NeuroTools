@@ -8,6 +8,8 @@ Created on Sun Feb  2 11:20:05 2025
 from src2.shared.paths import ANALYSIS_PARAMS, EXPERIMENTS
 import logging
 from src2.shared.csv_worker import CSVWorker
+import data.file_downloader
+from data.box_credentials import BASE_FILE_PATH
 
 
 class ExperimentDataManager:
@@ -37,6 +39,8 @@ class ExperimentDataManager:
         metadata_unconverted = CSVWorker.csv_row_to_dict(EXPERIMENTS, self.line_num)
         metadata_converted = CSVWorker.convert_data_types(metadata_unconverted)
         self.metadata = metadata_converted
+        self.metadata['ephys directory'] = BASE_FILE_PATH / self.metadata['ephys directory']
+        self.metadata['calcium imaging directory'] = BASE_FILE_PATH / self.metadata['calcium imaging directory']
 
     def import_analysis_parameters(self):
         analysis_params_unconverted = CSVWorker.csv_row_to_dict(ANALYSIS_PARAMS, self.line_num)

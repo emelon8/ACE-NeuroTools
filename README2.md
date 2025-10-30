@@ -57,7 +57,7 @@ You can install the .yml file found in the package, but that comes with many unn
 
 * EEG, Calcium imaging, and other channel data is stored in the lab Box account
 * The experiment class reads experiments.csv to find the file paths for such data.
-* You'll need to download files from box (they're massive, so only download those you need) into some directory on your computer,then change all file paths in experiments.csv to match the one on your local computer.  We recommend maintaining as similar a project structure as possible (e.g. change Box/Brown/K99/miniscope_data/test/R220606/2022_07_21/14_40_42 to /Users/lukerichards/Desktop/K99/miniscope_data/test/R220606/2022_07_21/14_40_42	via a find and replace command)
+* Copy the file in experiment_analysis/data titled BLANK_box_credentials.py and rename it to box_credentials.py and follow the instructions in it. This will guide you through connecting your codebase to Box so we can efficiently download and verify our data.
 
 ## Help
 
