@@ -10,8 +10,16 @@ To properly set up this file:
 3. You're done!"""
 
 from pathlib import Path
+from box_sdk_gen import BoxCCGAuth, CCGConfig
 
 dev_token = 'PUT_YOUR_BOX_DEVELOPER_TOKEN_HERE'
+
+auth = CCGConfig(
+  client_id="YOUR_CLIENT_ID",
+  client_secret="YOUR_CLIENT_SECRET",
+  user_id="YOUR_USER_ID"
+)
+
 
 PROJECT_ROOT = Path(__file__).parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
