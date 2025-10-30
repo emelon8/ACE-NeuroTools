@@ -1,6 +1,6 @@
 from box_credentials import dev_token, BASE_FILE_PATH, auth
-from box_sdk_gen import BoxClient, BoxDeveloperTokenAuth, BoxCCGAuth
-from os import path as os_path, makedirs
+from box_sdk_gen import BoxClient, BoxDeveloperTokenAuth
+from os import path as os_path, makedirs, listdir
 import sys
 from pathlib import Path
 import pandas as pd
@@ -13,8 +13,6 @@ import pandas as pd
     - Add command line compatibility
     - Maybe Modularize as a class?
 """
-        
-client = None
 
 PROJECT_ROOT = Path(__file__).parent.parent
 
@@ -40,7 +38,9 @@ def verify_path(path: str):
     If a folder doesn't exist, break the search and call download_file(path) to download and store the file
     """
     if os_path.exists(f"{BASE_FILE_PATH}/{path}"): # If we already have the folder, then we don't need to download anything
-        return True # NOTE: This will still return True even if the downloads are incomplete or the folder is empty
+        if not listdir(f"{BASE_FILE_PATH}/{path}"):
+            return False #If the folder is empty (i.e., the download connection failed), it will still return false so verify_file will download it.
+        return True # This will  return True even if the downloads are incomplete
     else:
         makedirs(f"{BASE_FILE_PATH}/{path}") # Makes a folder for our downloads
         return False
@@ -54,7 +54,7 @@ def verify_file_by_line(row, csv_path: str, do_type="both"):
     # Verify the arguments
     row = str(row)
     if not do_type in ["both", "miniscope", "ephys"]:
-        raise ValueError("variable 'do_type' must be 'y', 'miniscope', or 'ephys' in order to work")
+        raise ValueError("variable 'do_type' must be 'both', 'miniscope', or 'ephys' in order to work")
     
     
     print("Getting path and ID from CSV")
@@ -70,18 +70,24 @@ def verify_file_by_line(row, csv_path: str, do_type="both"):
     ephys_id = df.at[row, "Box ephys folder ID"]
     ephys_path = df.at[row, "ephys directory"]
     
+    downloaded_miniscope, downloaded_ephys = False, False
     if do_type in ["both", "miniscope"]:
         if pd.isnull(miniscope_path) or pd.isnull(miniscope_id):
             print("The miniscope path or ID do not exist in the CSV file, cannot download")
         elif not verify_path(miniscope_path):
-            download_file(miniscope_path,int(miniscope_id))
+            downloaded_miniscope=download_file(miniscope_path,int(miniscope_id))
     if do_type in ["both", "ephys"]:   
         if pd.isnull(ephys_path) or pd.isnull(ephys_id):
             print("The ephys path or ID do not exist in the CSV file, cannot download") 
-        if not verify_path(ephys_path):
-            download_file(ephys_path,int(ephys_id))
+        elif not verify_path(ephys_path):
+            downloaded_ephys=download_file(ephys_path,int(ephys_id))
 
-
+    if do_type == "both":
+        return downloaded_miniscope and downloaded_miniscope
+    elif do_type == "miniscope":
+        return downloaded_miniscope
+    elif do_type == "ephys":
+        return downloaded_ephys
     
    
     
@@ -91,13 +97,14 @@ def verify_file_by_line(row, csv_path: str, do_type="both"):
 # _________________Below is the all the auth and sdk code_________________
     
 def make_auth():
-    # auth = BoxDeveloperTokenAuth(token=dev_token)
+    # auth = BoxDeveloperTokenAuth(token=dev_token) # Uncomment this line to temporarily override ccgauth with the box developer token
     try:
         client = BoxClient(auth=auth)
         print("Successfully connected to Box client")
         return client
     except Exception as e:
         print(e)
+        return None
 
 
 
@@ -106,6 +113,8 @@ def download_file(path: str, ID):
     """Called from verify_file or run manually to download a file from box and store it in a standard path
     """
     client = make_auth()
+    if not client:
+        return False
     
     try:
         for item in client.folders.get_folder_items(ID).entries: #Goes to the folder we want to download
@@ -130,4 +139,5 @@ if __name__ == '__main__': #Main function, mainly for testing.
     # client = make_auth()
     if len(sys.argv) > 1:
         verify_args(sys.argv)
-    verify_file_by_line(23,PROJECT_ROOT / "data" / "experiments.csv")
+    else:
+        verify_file_by_line(16,PROJECT_ROOT / "data" / "experiments.csv")
