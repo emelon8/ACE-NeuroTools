@@ -10,7 +10,6 @@ import pandas as pd
     - Work with teammates to develop standardized nomenclature and use of this file.
     - rewrite to use pathlib instead of os.path
     - Make Authorization permanant using Client Credentials Grant
-    - Add command line compatibility
     - Maybe Modularize as a class?
 """
 
@@ -18,19 +17,9 @@ PROJECT_ROOT = Path(__file__).parent.parent
 
 
 
+def verify_avi(miniscope_path:str,avi:str):
+    return os_path.exists(f"{BASE_FILE_PATH}/{miniscope_path}/Miniscope/{avi}")
 
-def verify_args(args):
-    """This function verifies command line arguments to run the code
-        -d: Downloads ephys or miniscope files: py filedownloader.py -d [row number, csv path, "ephys" or "miniscope"]
-        -db: Downloads both ephys and miniscope files: py filedownloader.py -db [row number, csv path]
-        -h: Help, prints out a help menu
-    
-    """
-    if len(args) == 5 and args[1] == '-d':
-        verify_file_by_line(args[2],args[3],args[4])
-    elif len(args) == 4 and args[1] == '-db':
-        verify_file_by_line(args[2],args[3])
-    pass
 
 
 def verify_path(path: str):
@@ -46,7 +35,7 @@ def verify_path(path: str):
         return False
     
 
-def verify_file_by_line(row, csv_path: str, do_type="both"):
+def verify_file_by_line(row, csv_path: str, do_type="both", avi_list=[]):
     """Checks the path where the file should be.
     Finds the path from the CSV row given and checks if it exists in our downloaded data
     If a folder doesn't exist, break the search and call download_file(path, ID) to download and store the file
@@ -71,16 +60,20 @@ def verify_file_by_line(row, csv_path: str, do_type="both"):
     ephys_path = df.at[row, "ephys directory"]
     
     downloaded_miniscope, downloaded_ephys = False, False
+    client = make_auth()
+    if not client:
+        return False
     if do_type in ["both", "miniscope"]:
         if pd.isnull(miniscope_path) or pd.isnull(miniscope_id):
             print("The miniscope path or ID do not exist in the CSV file, cannot download")
         elif not verify_path(miniscope_path):
-            downloaded_miniscope=download_file(miniscope_path,int(miniscope_id))
+            need_to_download = [avi for avi in avi_list if not verify_avi(miniscope_path, avi)]
+            downloaded_miniscope=download_file(client, miniscope_path,int(miniscope_id), need_to_download)
     if do_type in ["both", "ephys"]:   
         if pd.isnull(ephys_path) or pd.isnull(ephys_id):
             print("The ephys path or ID do not exist in the CSV file, cannot download") 
         elif not verify_path(ephys_path):
-            downloaded_ephys=download_file(ephys_path,int(ephys_id))
+            downloaded_ephys=download_file(client, ephys_path,int(ephys_id))
 
     if do_type == "both":
         return downloaded_miniscope and downloaded_miniscope
@@ -97,7 +90,7 @@ def verify_file_by_line(row, csv_path: str, do_type="both"):
 # _________________Below is the all the auth and sdk code_________________
     
 def make_auth():
-    # auth = BoxDeveloperTokenAuth(token=dev_token) # Uncomment this line to temporarily override ccgauth with the box developer token
+    auth = BoxDeveloperTokenAuth(token=dev_token) # Uncomment this line to temporarily override ccgauth with the box developer token
     try:
         client = BoxClient(auth=auth)
         print("Successfully connected to Box client")
@@ -109,21 +102,26 @@ def make_auth():
 
 
 
-def download_file(path: str, ID):
+def download_file(client, path: str, ID, need_to_download =[]):
     """Called from verify_file or run manually to download a file from box and store it in a standard path
     """
-    client = make_auth()
-    if not client:
-        return False
     
     try:
         for item in client.folders.get_folder_items(ID).entries: #Goes to the folder we want to download
             print(item.name) # Debug print statement to know what item we're currently looking at
-            if item.type == 'folder': # Additional code to recursively call download_file if our folder contains subfolders
+            if item.type == 'folder': # Additional code to download any subfolders
                 print(f"Found a folder: {item.name}")
-                makedirs(f"{BASE_FILE_PATH}/{path}/{item.name}") # Makes new directory for sub folder
-                download_file(path=f"{path}/{item.name}", ID=item.id)
-                continue # Returns to the start of the loop to avoid an error
+                if not os_path.exists(f"{BASE_FILE_PATH}/{path}/{item.name}"): # Checks if the subfolder already exists
+                    makedirs(f"{BASE_FILE_PATH}/{path}/{item.name}") # Makes new directory for sub folder
+                if item.name == "Miniscope": # Checks if the subfolder is miniscope
+                    for sub_item in client.folders.get_folder_items(item.id).entries:
+                        if sub_item.name in need_to_download or need_to_download == []:
+                            with open(f"{BASE_FILE_PATH}/{path}/Miniscope/{sub_item.name}", "wb") as output_file:
+                                client.downloads.download_file_to_output_stream(sub_item.id, output_stream=output_file)
+                                print(f"File '{item.name}' downloaded successfully to '{BASE_FILE_PATH}/{path}/Miniscope/{item.name}'")
+                else:
+                    download_file(client,f"{path}/{item.name}",item.id,need_to_download)
+                    
         
             with open(f"{BASE_FILE_PATH}/{path}/{item.name}", "wb") as output_file: # Creates a file to store the data
                 client.downloads.download_file_to_output_stream(item.id, output_stream=output_file) # Downloads data to the file
@@ -135,9 +133,17 @@ def download_file(path: str, ID):
         return False
 
 
+
+
+
+
 if __name__ == '__main__': #Main function, mainly for testing.
-    # client = make_auth()
-    if len(sys.argv) > 1:
-        verify_args(sys.argv)
-    else:
-        verify_file_by_line(16,PROJECT_ROOT / "data" / "experiments.csv")
+    
+    verify_file_by_line(
+        line_num= 16,
+        csv_path= PROJECT_ROOT / "data" / "experiments.csv",
+        do_type= "miniscope", # do_type must be "both", "miniscope", or "ephys"
+        
+        avi_list=[] # Only fill this in if you're downloading miniscope files.
+        
+    )
