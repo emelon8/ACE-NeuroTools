@@ -9,10 +9,6 @@ from src2.shared.misc_functions import get_coords_dict_from_analysis_params
 from src2.miniscope.movie_io import MovieIO
 import matplotlib
 import tkinter
-import os
-
-# Adjust the path below to where you would like Caiman to store temporary files that it uses during the miniscope pipeline
-os.environ["CAIMAN_DATA"] = '/Users/nathan/Desktop/K99/miniscope_data/dexmedetomidine/R230706A/2023_09_04/15_06_16/saved_movies'
 
 class MiniscopeAPI:
     """Main workflow class for non-technical users. Adjust the paramters at the bottom and press run."""
@@ -79,7 +75,7 @@ class MiniscopeAPI:
                                                                                  crop_job_name_for_file=crop_job_name, secs_window=secs_window, 
                                                                                  quantile_min=quantile_min, df_over_f_method=df_over_f_method)
         
-        print("updating experiment.csv with your cropping coordinates", flush=True)
+        #Update analysis_parameters.csv with our latest cropping coordinates for future use
         updateCSVCell(self.miniscope_data_manager.coords, 'crop' if crop_with_crop else 'crop_square', line_num, ANALYSIS_PARAMS)
         
         
@@ -92,7 +88,7 @@ class MiniscopeAPI:
         
         
         
-        if self.miniscope_data_manager.CNMFE_obj is not None:
+        if self.miniscope_data_manager.CNMFE_obj is not None: 
             if tkinter._default_root:  # Check if Tkinter root exists
                 tkinter._default_root.destroy()  # Force close any Tkinter root
             matplotlib.use('Qt5Agg')  # Switch to Qt backend so that we can use interactive plotting during estimate evaluation
@@ -106,37 +102,54 @@ class MiniscopeAPI:
 
 
 
+
+
 if __name__ == "__main__":
+    # DEBUG CODE - Insert this section first
+    import pandas as pd
+    from src2.shared.paths import ANALYSIS_PARAMS
+ 
+ # Read the CSV and examine the structure
+    df = pd.read_csv(ANALYSIS_PARAMS)
+    print("Column names:", df.columns.tolist())
+    print("\nRow 97 (all columns):")
+    print(df.iloc[96])  # Row 97 is index 96
+ 
+ # END DEBUG CODE
+    
+   
+    
+   
     # run the API
     api = MiniscopeAPI()
     api.run(
-        line_num = 97, # line number of the experiment you are analyzing
+        line_num = 97, #line number of the experiment you are analyzing
         filenames = ['0.avi'],
         
-        # preprocessing parameters
+        #preprocessing parameters
         crop = True,
-            # Only one below should be True if crop=True
-            crop_with_crop = False,
-            crop_square = True,
+            #Only one below should be True if crop=True
+            crop_with_crop = True,
+            crop_square = False,
         detrend_method = None,
         df_over_f = False,
-          # if df_over_f = True
+          #if df_over_f = True
           secs_window = 5,                     
           quantile_min = 8,
           df_over_f_method = 'delta_f_over_sqrt_f',
 
-        # processing parameters    
-        parallel = True,
+        #processing parameters    
+        parallel = False, #Isaac: switched from True for serial processing
         n_processes = 6,
         apply_motion_correction = False,
         inspect_motion_correction = True,
-        plot_params = False,
+        plot_params = True,
         run_CNMFE = True,
         save_estimates=True,
           save_CNMFE_estimates_filename = 'estimates.hdf5',
         save_CNMFE_params = True,
         
-        # post-processing parameters
+        #post-processing parameters
         remove_components_with_gui=True,  
         find_calcium_events=True,
           derivative_for_estimates='first', 
