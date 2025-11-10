@@ -14,6 +14,7 @@ To properly set up this file:
 
 from pathlib import Path
 from box_sdk_gen import BoxCCGAuth, CCGConfig
+from src2.shared.paths import DATA_DIR
 
 dev_token = 'PUT_YOUR_BOX_DEVELOPER_TOKEN_HERE'
 
@@ -24,9 +25,6 @@ ccgconfig = CCGConfig(
 )
 auth = BoxCCGAuth(config=ccgconfig)
 
-
-PROJECT_ROOT = Path(__file__).parent.parent
-DATA_DIR = PROJECT_ROOT / "data"
 
 # Replace DATA_DIR / "downloaded_data" with a different path if you're storing your data elsewhere
 BASE_FILE_PATH = DATA_DIR / "downloaded_data" 

@@ -10,9 +10,10 @@ from src2.miniscope.movie_io import MovieIO
 import matplotlib
 import tkinter
 import os
+from src2.shared.box_credentials import BASE_FILE_PATH
 
 # Adjust the path below to where you would like Caiman to store temporary files that it uses during the miniscope pipeline
-os.environ["CAIMAN_DATA"] = '/Users/nathan/Desktop/K99/miniscope_data/dexmedetomidine/R230706A/2023_09_04/15_06_16/saved_movies'
+os.environ["CAIMAN_DATA"] = f'{BASE_FILE_PATH}/K99/miniscope_data/ketamine/R230706B/2023_09_01/15_04_11/saved_movies'
 
 class MiniscopeAPI:
     """Main workflow class for non-technical users. Adjust the paramters at the bottom and press run."""
@@ -110,7 +111,7 @@ if __name__ == "__main__":
     # run the API
     api = MiniscopeAPI()
     api.run(
-        line_num = 97, # line number of the experiment you are analyzing
+        line_num = 96, # line number of the experiment you are analyzing
         filenames = ['0.avi'],
         
         # preprocessing parameters
