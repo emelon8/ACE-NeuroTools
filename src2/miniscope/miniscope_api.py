@@ -1,3 +1,15 @@
+import os
+import sys
+from pathlib import Path
+
+# Add project root to Python path for imports
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+# Adjust the path below to where you would like Caiman to store temporary files that it uses during the miniscope pipeline
+# IMPORTANT: This MUST be set BEFORE importing caiman
+os.environ["CAIMAN_DATA"] = '/Users/jacefranco/Documents/MEL-LAB/experiment_analysis/movies'
+
 from src2.shared.misc_functions import updateCSVCell
 from src2.miniscope.miniscope_data_manager import MiniscopeDataManager
 from src2.miniscope.miniscope_preprocessor import MiniscopePreprocessor
@@ -9,10 +21,6 @@ from src2.shared.misc_functions import get_coords_dict_from_analysis_params
 from src2.miniscope.movie_io import MovieIO
 import matplotlib
 import tkinter
-import os
-
-# Adjust the path below to where you would like Caiman to store temporary files that it uses during the miniscope pipeline
-os.environ["CAIMAN_DATA"] = '/Users/nathan/Desktop/K99/miniscope_data/dexmedetomidine/R230706A/2023_09_04/15_06_16/saved_movies'
 
 class MiniscopeAPI:
     """Main workflow class for non-technical users. Adjust the paramters at the bottom and press run."""
@@ -64,7 +72,9 @@ class MiniscopeAPI:
               window_length = 30, 
               window_step = 3, 
               freq_lims = [0,15], 
-              time_bandwidth = 2
+              time_bandwidth = 2,
+            save_filtered_estimates=True,
+              filtered_estimates_filename='estimates_filtered.hdf5'
             ):
         
         
@@ -101,7 +111,7 @@ class MiniscopeAPI:
             self.miniscope_data_manager = self.postprocessor.postprocess_calcium_movie(remove_components_with_gui, find_calcium_events, derivative_for_estimates, 
                                                                                        event_height, compute_miniscope_phase, filter_miniscope_data,n, cut, ftype, 
                                                                                        btype, inline, compute_miniscope_spectrogram, window_length, window_step, 
-                                                                                       freq_lims, time_bandwidth)
+                                                                                       freq_lims, time_bandwidth, save_filtered_estimates, filtered_estimates_filename)
 
 
 
@@ -152,7 +162,9 @@ if __name__ == "__main__":
           window_length = 30, 
           window_step = 3, 
           freq_lims = [0,15], 
-          time_bandwidth = 2
+          time_bandwidth = 2,
+        save_filtered_estimates=True,
+          filtered_estimates_filename='estimates_filtered.hdf5'
         )
         
     
@@ -166,4 +178,4 @@ if __name__ == "__main__":
     
     
     
-    
+  

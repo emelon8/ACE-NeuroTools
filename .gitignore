@@ -6,3 +6,9 @@ analysis_parameters.csv
 
 # macOS
 .DS_Store
+
+# Large data files and movies
+movies/
+*.avi
+*.mmap
+*.hdf5

@@ -15,7 +15,5 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent  # Adjust ".parent" depth as 
 DATA_DIR = PROJECT_ROOT / "data"
 
 # File paths 
-ANALYSIS_PARAMS = DATA_DIR / "analysis_parameters_correlation_project.csv"  
-EXPERIMENTS = DATA_DIR / "experiments_correlation_project.csv"
-
-print(ANALYSIS_PARAMS)
+ANALYSIS_PARAMS = DATA_DIR / "analysis_parameters.csv"  
+EXPERIMENTS = DATA_DIR / "experiments.csv"

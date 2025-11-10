@@ -11,6 +11,7 @@ import cv2
 import time
 import matplotlib.pyplot as plt
 from src2.miniscope.movie_io import MovieIO
+import os
 
 #Methods for loading and manipulating components after CNMF-E is run
 class MiniscopePostprocessor:
@@ -38,17 +39,23 @@ class MiniscopePostprocessor:
                                           window_length = 30, 
                                           window_step = 3, 
                                           freq_lims = [0,15], 
-                                          time_bandwidth = 2):
+                                          time_bandwidth = 2,
+                                        save_filtered_estimates=True,
+                                          filtered_estimates_filename='estimates_filtered.hdf5'):
         
         if remove_components_with_gui:
             self.data_manager.CNMFE_obj.estimates.plot_contours()
             self.data_manager.CNMFE_obj.estimates = component_gui(self.data_manager.movie, self.data_manager.CNMFE_obj.estimates, self.data_manager.projections)
             
+            # Save the filtered estimates after GUI selection
+            if save_filtered_estimates:
+                self.save_filtered_estimates(filtered_estimates_filename)
+            
         if find_calcium_events:
             self.data_manager.ca_events_idx = self.find_calcium_events_with_derivatives(self.data_manager.CNMFE_obj.estimates, derivative_for_estimates, event_height)
         
         if compute_miniscope_spectrogram:
-            data = self.data.projections.time
+            data = self.data_manager.projections.time
             PSDSpectMiniscope, tSpect, freqsSpect, pSpectMiniscope = self.compute_miniscope_spectrogram(data, frame_rate=self.frame_rate, window_length=window_length, window_step=window_step, freq_lims=freq_lims, time_bandwidth=time_bandwidth)
             h, ax = misc_functions.spectrogram(tSpect/60, freqsSpect, pSpectMiniscope, xLabel='Time (min)')
             self.data_manager.PSD_spect, self.data_manager.t_spect, self.data_manager.freqs_spect, self.data_manager.p_spect = PSDSpectMiniscope, tSpect, freqsSpect, pSpectMiniscope
@@ -152,7 +159,6 @@ class MiniscopePostprocessor:
         return ca_events_idx
     
     
-    @staticmethod
     def compute_miniscope_spectrogram(self, data, frame_rate, window_length=30, window_step=3, freq_lims=[0,15], time_bandwidth=2, plot_spectrogram=True):
         """Estimate (and plot) the multi-taper spectrogram (of the mean miniscope fluorescence). Developed with Mike Prerau's function."""
         print('Computing spectrogram of average miniscope fluorescence...')
@@ -209,6 +215,37 @@ class MiniscopePostprocessor:
         return movie_without_neurons
     
     
+    def save_filtered_estimates(self, filename='estimates_filtered.hdf5'):
+        """
+        Save the filtered estimates (after component selection in GUI) to disk.
+        
+        Parameters:
+        -----------
+        filename : str
+            Name of the file to save the filtered estimates
+            
+        Returns:
+        --------
+        str : Full path to the saved file
+        """
+        if self.data_manager.CNMFE_obj is None:
+            print("Warning: No CNMFE object to save!")
+            return None
+            
+        save_dir = os.path.join(self.data_manager.metadata['calcium imaging directory'], "saved_movies")
+        os.makedirs(save_dir, exist_ok=True)
+        
+        filtered_estimates_filepath = os.path.join(save_dir, filename)
+        
+        print(f'\nSaving filtered estimates to: {filtered_estimates_filepath}')
+        print(f'Number of components after filtering: {self.data_manager.CNMFE_obj.estimates.C.shape[0]}')
+        
+        self.data_manager.CNMFE_obj.save(filtered_estimates_filepath)
+        self.data_manager.filtered_estimates_filepath = filtered_estimates_filepath
+        
+        print('✓ Filtered estimates saved successfully!')
+        
+        return filtered_estimates_filepath
 
     
     

@@ -52,7 +52,17 @@ class MiniscopeDataManager(ExperimentDataManager):
         self.time_stamps, self.frame_numbers = self._get_timestamps()  # import timestamps and frame numbers
         self.movie: movie = self._get_movies(filepaths)  # import calcium imaging data
         self.miniscope_events = self._get_miniscope_events()
-        self.fr = self.metadata['frameRate']
+        
+        # Get frame rate from metadata, or calculate from timestamps if not present
+        if 'frameRate' in self.metadata:
+            self.fr = self.metadata['frameRate']
+        else:
+            # Calculate frame rate from timestamps
+            time_diffs = np.diff(self.time_stamps)
+            avg_time_diff = np.mean(time_diffs)
+            self.fr = 1.0 / avg_time_diff
+            self.metadata['frameRate'] = self.fr
+            print(f"frameRate not found in metadata. Calculated from timestamps: {self.fr:.2f} Hz")
 
 
 
@@ -294,7 +304,10 @@ class MiniscopeDataManager(ExperimentDataManager):
 
     def _find_metadata_paths(self) -> list:
         """Finds and returns the metadata JSON file path."""
-        return self._find_file_paths(suffix=".json", prefix="metaData")
+        result = self._find_file_paths(suffix=".json", prefix="metaData")
+        if isinstance(result, str):
+            return [result]
+        return result if result else []
 
     def _find_timestamps_path(self) -> str:
         """Finds and returns the timestamps CSV file path."""
