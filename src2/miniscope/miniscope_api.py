@@ -80,7 +80,7 @@ class MiniscopeAPI:
                                                                                  crop_job_name_for_file=crop_job_name, secs_window=secs_window, 
                                                                                  quantile_min=quantile_min, df_over_f_method=df_over_f_method)
         
-        print("updating experiment.csv with your cropping coordinates", flush=True)
+        print(f"updating {ANALYSIS_PARAMS} with your cropping coordinates", flush=True)
         updateCSVCell(self.miniscope_data_manager.coords, 'crop' if crop_with_crop else 'crop_square', line_num, ANALYSIS_PARAMS)
         
         

@@ -15,7 +15,9 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent  # Adjust ".parent" depth as 
 DATA_DIR = PROJECT_ROOT / "data"
 
 # File paths 
-ANALYSIS_PARAMS = DATA_DIR / "analysis_parameters_correlation_project.csv"  
-EXPERIMENTS = DATA_DIR / "experiments_correlation_project.csv"
+ANALYSIS_PARAMS = DATA_DIR / "analysis_parameters.csv"  
+EXPERIMENTS = DATA_DIR / "experiments.csv"
+# Replace DATA_DIR / "downloaded_data" with a different path if you're storing your data elsewhere
+BASE_FILE_PATH = DATA_DIR / "downloaded_data" 
 
 print(ANALYSIS_PARAMS)

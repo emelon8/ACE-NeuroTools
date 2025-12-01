@@ -1,16 +1,13 @@
-from src2.shared.box_credentials import dev_token, BASE_FILE_PATH, auth
-from src2.shared.paths import PROJECT_ROOT
+from src2.shared.box_credentials import dev_token, auth
+from src2.shared.paths import PROJECT_ROOT, BASE_FILE_PATH
 from box_sdk_gen import BoxClient, BoxDeveloperTokenAuth
 from os import path as os_path, makedirs, listdir
 from pathlib import Path
 import pandas as pd
 
 """TO DO:  
-    - Add box folder IDs to all CSVs so filereader can download it.
-    - Work with teammates to develop standardized nomenclature and use of this file.
-    - rewrite to use pathlib instead of os.path
     - Make Authorization permanant using Client Credentials Grant
-    - Maybe Modularize as a class?
+    - Add all folder IDS to CSV file
 """
 
 USING_BOX = True # Disabling this disables all the downloading data and instead will simply return None since we assume if you're not using box everthing is downloaded locally
@@ -52,12 +49,12 @@ def verify_file_by_line(line_num, csv_path: str, do_type="both", avi_list=[]):
             raise ValueError("variable 'do_type' must be 'both', 'miniscope', or 'ephys' in order to work")
         
         
-        print("Getting path and ID from CSV")
+        # print("Getting path and ID from CSV")
         try:
             df = pd.read_csv(csv_path, index_col="line number") # Tries to read the CSV
             print(f"Loaded CSV: {csv_path}")
         except Exception as e:
-            print(e)
+            # print(e)
             return False # Will return false if we can't read the CSV
         
         line_num = str(line_num)
@@ -113,7 +110,10 @@ def verify_file_by_line(line_num, csv_path: str, do_type="both", avi_list=[]):
 # _________________Below is the all the auth and sdk code for BOX_________________
     
 def make_auth():
-    auth = BoxDeveloperTokenAuth(token=dev_token) # Uncomment this line to temporarily override ccgauth with the box developer token
+    """Creates the box client object to connect to the box servers.
+    When you are using this file normally, use CCGAuth
+    When you are debugging, use the box developer token since you'll be making more API calls and most box contracts will charge extra if you make too many api calls that aren't with dev tokens"""
+    # auth = BoxDeveloperTokenAuth(token=dev_token) # Uncomment this line to temporarily override ccgauth with the box developer token
     try:
         client = BoxClient(auth=auth)
         print("Successfully connected to Box client")
