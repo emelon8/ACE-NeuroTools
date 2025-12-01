@@ -3,14 +3,13 @@ from src2.miniscope.miniscope_data_manager import MiniscopeDataManager
 from src2.miniscope.miniscope_preprocessor import MiniscopePreprocessor
 from src2.miniscope.miniscope_processor import MiniscopeProcessor
 from src2.miniscope.miniscope_postprocessor import MiniscopePostprocessor
-from src2.shared.paths import ANALYSIS_PARAMS
+from src2.shared.paths import ANALYSIS_PARAMS, BASE_FILE_PATH
 import caiman as cm
 from src2.shared.misc_functions import get_coords_dict_from_analysis_params
 from src2.miniscope.movie_io import MovieIO
 import matplotlib
 import tkinter
 import os
-from src2.shared.box_credentials import BASE_FILE_PATH
 
 # Adjust the path below to where you would like Caiman to store temporary files that it uses during the miniscope pipeline
 os.environ["CAIMAN_DATA"] = f'{BASE_FILE_PATH}/K99/miniscope_data/ketamine/R230706B/2023_09_01/15_04_11/saved_movies'

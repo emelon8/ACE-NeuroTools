@@ -5,10 +5,9 @@ Created on Sun Feb  2 11:20:05 2025
  
 @author: lukerichards
 """
-from src2.shared.paths import ANALYSIS_PARAMS, EXPERIMENTS
+from src2.shared.paths import ANALYSIS_PARAMS, EXPERIMENTS, BASE_FILE_PATH
 import logging
 from src2.shared.csv_worker import CSVWorker
-from src2.shared.box_credentials import BASE_FILE_PATH
 
 
 class ExperimentDataManager:
