@@ -3,7 +3,7 @@ from src2.miniscope.miniscope_data_manager import MiniscopeDataManager
 from src2.miniscope.miniscope_preprocessor import MiniscopePreprocessor
 from src2.miniscope.miniscope_processor import MiniscopeProcessor
 from src2.miniscope.miniscope_postprocessor import MiniscopePostprocessor
-from src2.shared.paths import ANALYSIS_PARAMS
+from src2.shared.paths import ANALYSIS_PARAMS, BASE_FILE_PATH
 import caiman as cm
 from src2.shared.misc_functions import get_coords_dict_from_analysis_params
 from src2.miniscope.movie_io import MovieIO
@@ -12,7 +12,7 @@ import tkinter
 import os
 
 # Adjust the path below to where you would like Caiman to store temporary files that it uses during the miniscope pipeline
-os.environ["CAIMAN_DATA"] = '/Users/nathan/Desktop/K99/miniscope_data/dexmedetomidine/R230706A/2023_09_04/15_06_16/saved_movies'
+os.environ["CAIMAN_DATA"] = f'{BASE_FILE_PATH}/K99/miniscope_data/ketamine/R230706B/2023_09_01/15_04_11/saved_movies'
 
 class MiniscopeAPI:
     """Main workflow class for non-technical users. Adjust the paramters at the bottom and press run."""
@@ -79,7 +79,7 @@ class MiniscopeAPI:
                                                                                  crop_job_name_for_file=crop_job_name, secs_window=secs_window, 
                                                                                  quantile_min=quantile_min, df_over_f_method=df_over_f_method)
         
-        print("updating experiment.csv with your cropping coordinates", flush=True)
+        print(f"updating {ANALYSIS_PARAMS} with your cropping coordinates", flush=True)
         updateCSVCell(self.miniscope_data_manager.coords, 'crop' if crop_with_crop else 'crop_square', line_num, ANALYSIS_PARAMS)
         
         
@@ -110,7 +110,7 @@ if __name__ == "__main__":
     # run the API
     api = MiniscopeAPI()
     api.run(
-        line_num = 97, # line number of the experiment you are analyzing
+        line_num = 96, # line number of the experiment you are analyzing
         filenames = ['0.avi'],
         
         # preprocessing parameters

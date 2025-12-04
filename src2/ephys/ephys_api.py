@@ -10,7 +10,9 @@ from src2.ephys.channel_worker import ChannelWorker
 from src2.ephys.ephys_data_manager import EphysDataManager
 from src2.ephys.visualizer import Visualizer
 from src2.shared.experiment_data_manager import ExperimentDataManager
+from src2.shared.paths import DATA_DIR
 from typing import List
+from src2.shared import file_downloader
 import logging
 
 
@@ -46,6 +48,9 @@ class EphysAPI:
 
         # Extract the one relevant piece of information that EphysDataManager needs from metadata--the path to the ephys directory
         ephys_directory = experiment_data_manager.get_ephys_directory()
+        
+        # Verify we downloaded the Ephys Data
+        file_downloader.verify_file_by_line(line_num=line_num, csv_path=DATA_DIR/"experiments.csv",do_type="ephys")
 
         # Create instance of EphysDataManager, process the block into channels
         self.ephys_data_manager = EphysDataManager(ephys_directory, auto_import_ephys_block=True, auto_process_block=False, auto_compute_phases=False)

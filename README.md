@@ -30,7 +30,7 @@ A plethora of scripts for various miniprojects can be found under src.scripts
 You can install the .yml file found in the package, but that comes with many unneeded packages.  Or you can install the following through miniforge3 or your preferred package manager:
 
 * CaImAn
-* PySimpleGui
+* FreeSimpleGui
 * Neo
 
 

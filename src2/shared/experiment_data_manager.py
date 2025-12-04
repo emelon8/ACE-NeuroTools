@@ -5,7 +5,7 @@ Created on Sun Feb  2 11:20:05 2025
  
 @author: lukerichards
 """
-from src2.shared.paths import ANALYSIS_PARAMS, EXPERIMENTS
+from src2.shared.paths import ANALYSIS_PARAMS, EXPERIMENTS, BASE_FILE_PATH
 import logging
 from src2.shared.csv_worker import CSVWorker
 
@@ -37,6 +37,8 @@ class ExperimentDataManager:
         metadata_unconverted = CSVWorker.csv_row_to_dict(EXPERIMENTS, self.line_num)
         metadata_converted = CSVWorker.convert_data_types(metadata_unconverted)
         self.metadata = metadata_converted
+        self.metadata['ephys directory'] = BASE_FILE_PATH / self.metadata['ephys directory']
+        self.metadata['calcium imaging directory'] = BASE_FILE_PATH / self.metadata['calcium imaging directory']
 
     def import_analysis_parameters(self):
         analysis_params_unconverted = CSVWorker.csv_row_to_dict(ANALYSIS_PARAMS, self.line_num)

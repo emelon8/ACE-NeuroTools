@@ -13,6 +13,8 @@ from caiman.base.movies import movie
 import numpy as np
 from src2.shared.path_finder import PathFinder
 from src2.shared.experiment_data_manager import ExperimentDataManager
+import src2.shared.file_downloader as file_downloader
+from src2.shared.paths import DATA_DIR
 
 class MiniscopeDataManager(ExperimentDataManager):
     """Manages raw Miniscope data import and storage. Processes data via Processor."""
@@ -22,6 +24,7 @@ class MiniscopeDataManager(ExperimentDataManager):
         self.line_num = line_num
         self.time_stamps: list = None
         self.frame_numbers: list = None
+        file_downloader.verify_file_by_line(line_num,DATA_DIR/"experiments.csv","miniscope",filenames)
         self.all_movie_filepaths = self._find_movie_file_paths()
         self.chosen_movie_filepaths = self._get_specific_filepaths(filenames)
         
@@ -173,11 +176,14 @@ class MiniscopeDataManager(ExperimentDataManager):
             print("No metadata paths found in your miniscope directory")
             return None
         
-        
+        metadata = None
         for metadata_path in metadata_paths:
             try:
                 with open(metadata_path, 'r') as file:
-                    metadata = json.load(file)
+                    if not metadata:
+                        metadata = json.load(file)
+                    else:
+                        metadata = {**metadata, **json.load(file)}
             except (IOError, json.JSONDecodeError) as e:
                 raise RuntimeError(f"Error reading or parsing metadata file '{metadata_path}': {e}")
     
@@ -242,6 +248,7 @@ class MiniscopeDataManager(ExperimentDataManager):
             return None
         
         matched_paths = []
+
         for path in self.all_movie_filepaths:
             basename = os.path.basename(path)  # Extract basename (e.g., '0.avi' from '/path/to/0.avi')
             if basename in filenames:
