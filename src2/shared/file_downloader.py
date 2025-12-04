@@ -2,13 +2,7 @@ from src2.shared.box_credentials import dev_token, auth
 from src2.shared.paths import PROJECT_ROOT, BASE_FILE_PATH
 from box_sdk_gen import BoxClient, BoxDeveloperTokenAuth
 from os import path as os_path, makedirs, listdir
-from pathlib import Path
 import pandas as pd
-
-"""TO DO:  
-    - Make Authorization permanant using Client Credentials Grant
-    - Add all folder IDS to CSV file
-"""
 
 USING_BOX = True # Disabling this disables all the downloading data and instead will simply return None since we assume if you're not using box everthing is downloaded locally
 
@@ -112,8 +106,8 @@ def verify_file_by_line(line_num, csv_path: str, do_type="both", avi_list=[]):
 def make_auth():
     """Creates the box client object to connect to the box servers.
     When you are using this file normally, use CCGAuth
-    When you are debugging, use the box developer token since you'll be making more API calls and most box contracts will charge extra if you make too many api calls that aren't with dev tokens"""
-    # auth = BoxDeveloperTokenAuth(token=dev_token) # Uncomment this line to temporarily override ccgauth with the box developer token
+    * When you are debugging, use the box developer token since you'll be making more API calls and most box contracts will charge extra if you make too many api calls that aren't with dev tokens"""
+    # auth = BoxDeveloperTokenAuth(token=dev_token) # UNCOMMENT THIS LINE TO TEMPORARILY OVERRIDE CCGAUTH WITH THE BOX DEVELOPER TOKEN
     try:
         client = BoxClient(auth=auth)
         print("Successfully connected to Box client")
@@ -124,6 +118,10 @@ def make_auth():
 
 
 def download_file(client, path: str, ID, need_to_download =[]): 
+    """Takes a client, a path, a folder ID and optionally a list of avi files to download.
+    Connects to the client and tries to download everything in the folder and child folders if they haven't already been downloaded.
+    If need_to_download is empty, it will download every avi file in the miniscope folder. Otherwise, it will only download the avi files listed. This does not apply to downloading from the ephys directory
+    Feel free to modify this to match your lab's cloud storage system if it is different than ours."""
     try:
         for item in client.folders.get_folder_items(ID).entries: #Goes to the folder we want to download
             print(item.name) # Debug print statement to know what item we're currently looking at
