@@ -6,8 +6,6 @@ import pandas as pd
 
 USING_BOX = True # Disabling this disables all the downloading data and instead will simply return None since we assume if you're not using box everthing is downloaded locally
 
-
-
 def verify_avi(miniscope_path:str,avi:str):
     return os_path.exists(f"{BASE_FILE_PATH}/{miniscope_path}/Miniscope/{avi}")
 

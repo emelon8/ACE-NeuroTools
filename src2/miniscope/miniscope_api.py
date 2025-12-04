@@ -1,18 +1,26 @@
+
+import os
+import sys
+from pathlib import Path
+
+# Add project root to Python path for imports
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+# Adjust the path below to where you would like Caiman to store temporary files that it uses during the miniscope pipeline
+os.environ["CAIMAN_DATA"] = '/Users/josieallred/Research/K99/miniscope_data/ketamine/R230706B/2023_09_01/15_04_11/saved_movies'
+
 from src2.shared.misc_functions import updateCSVCell
 from src2.miniscope.miniscope_data_manager import MiniscopeDataManager
 from src2.miniscope.miniscope_preprocessor import MiniscopePreprocessor
 from src2.miniscope.miniscope_processor import MiniscopeProcessor
 from src2.miniscope.miniscope_postprocessor import MiniscopePostprocessor
-from src2.shared.paths import ANALYSIS_PARAMS, BASE_FILE_PATH
+from src2.shared.paths import ANALYSIS_PARAMS
 import caiman as cm
 from src2.shared.misc_functions import get_coords_dict_from_analysis_params
 from src2.miniscope.movie_io import MovieIO
 import matplotlib
 import tkinter
-import os
-
-# Adjust the path below to where you would like Caiman to store temporary files that it uses during the miniscope pipeline
-os.environ["CAIMAN_DATA"] = f'{BASE_FILE_PATH}/K99/miniscope_data/ketamine/R230706B/2023_09_01/15_04_11/saved_movies'
 
 class MiniscopeAPI:
     """Main workflow class for non-technical users. Adjust the paramters at the bottom and press run."""
@@ -148,7 +156,7 @@ if __name__ == "__main__":
           ftype='butter', 
           btype='bandpass', 
           inline=True,
-        compute_miniscope_spectrogram=True,
+        compute_miniscope_spectrogram=False,  # turned off due to error
           window_length = 30, 
           window_step = 3, 
           freq_lims = [0,15], 
