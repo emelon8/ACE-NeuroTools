@@ -1,3 +1,11 @@
+import os
+import sys
+from pathlib import Path
+
+# Add project root to Python path for imports
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
 from src2.shared.box_credentials import dev_token, auth
 from src2.shared.paths import PROJECT_ROOT, BASE_FILE_PATH
 from box_sdk_gen import BoxClient, BoxDeveloperTokenAuth
@@ -156,7 +164,7 @@ def download_file(client, path: str, ID, need_to_download =[]):
 if __name__ == '__main__': # Runs when we run the file.
     
     verify_file_by_line(
-        line_num= 96, # The one contained in the CSV column "line number"
+        line_num= 95, # The one contained in the CSV column "line number"
         csv_path= PROJECT_ROOT / "data" / "experiments.csv", # Path to the CSV folder
         do_type= "miniscope", # do_type must be "both", "miniscope", or "ephys"
         
