@@ -8,11 +8,14 @@ This project facilitates the analysis of several input streams of data from expe
 
 ### Classes
 
-The foundation of the project lies on the following classes
-* experiment - (base class) - Refers to "experiments.csv" and "analysis_params.csv" to get file paths and metadata about an experiment, indexed by a line number.
-* ULCAMiniscope - Processes input stream from the miniscope, enabled by calcium flourescence.
-* NeuralynxEphys - Processes input stream from the EEG.
-* miniscopeEphys - Processes simultaneous miniscope and EEG data.
+The foundation of the project lies on the following classes:
+
+*   **ExperimentDataManager** - (Base class) Manages the import and storage of metadata and analysis parameters. Loads metadata from `experiments.csv` and parameters from `analysis_params.csv`.
+*   **EphysDataManager** - (Inherits from `ExperimentDataManager`) Manages the import and processing of raw electrophysiology (Neuralynx) data. Uses `BlockProcessor` to convert raw data into `Channel` objects.
+*   **MiniscopeDataManager** - (Inherits from `ExperimentDataManager`) Manages raw Miniscope data import, storage, and metadata (timestamps, frame numbers). Prepares data for processing.
+*   **MiniscopeProcessor** - Handles the processing pipeline for Miniscope data, including motion correction, parameter optimization, and CNMFE (calcium trace extraction).
+*   **BlockProcessor** - Takes a Neo block object (raw ephys data) and processes it into individual `Channel` objects, handling artifact removal and organization.
+*   **Channel** - (Data object) Represents a single ephys channel. Attributes include: `name` (string), `signal` (np.array), `sampling_rate` (int), `time_vector` (np.array), and `signal_filtered` (np.array).
 
   
 ![uml](https://github.com/user-attachments/assets/4b97fc47-240f-49c4-859e-65b2736f2d24)
