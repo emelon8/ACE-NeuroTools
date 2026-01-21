@@ -51,7 +51,10 @@ You can install the .yml file found in the package, but that comes with many unn
 
 * EEG, Calcium imaging, and other channel data is stored in the lab Box account
 * The experiment class reads experiments.csv to find the file paths for such data.
-* You'll need to download files from box (they're massive, so only download those you need) into some directory on your computer,then change all file paths in experiments.csv to match the one on your local computer.  We recommend maintaining as similar a project structure as possible (e.g. change Box/Brown/K99/miniscope_data/test/R220606/2022_07_21/14_40_42 to /Users/lukerichards/Desktop/K99/miniscope_data/test/R220606/2022_07_21/14_40_42	via a find and replace command)
+* **Manual Download:** You'll need to download files from box (they're massive, so only download those you need) into some directory on your computer,then change all file paths in experiments.csv to match the one on your local computer.  We recommend maintaining as similar a project structure as possible (e.g. change Box/Brown/K99/miniscope_data/test/R220606/2022_07_21/14_40_42 to /Users/lukerichards/Desktop/K99/miniscope_data/test/R220606/2022_07_21/14_40_42	via a find and replace command)
+* **Automated Download:** Alternatively, you can use the `src2/shared/file_downloader.py` script to automate downloads for specific experiments.
+    *   **Setup:** Copy `src2/shared/BLANK_box_credentials.py` to `src2/shared/box_credentials.py` and follow the instructions within to configure your Box authentication. Be sure not to publish your box_credentials.py file anywhere. 
+    *   **Usage:** Open `src2/shared/file_downloader.py` and modify the `verify_file_by_line` call in the `__main__` block to specify the target experiment (line number) and data type. Then run the script to download the required files to the paths defined in your `experiments.csv`.
 
 ## Help
 
