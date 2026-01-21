@@ -1,84 +1,117 @@
 # Experiment-Analysis
 
-Code for the Melonakos Lab of Neuroscience at Brigham Young University
+**A comprehensive data analysis pipeline for the Melonakos Lab of Neuroscience at Brigham Young University.**
 
-## Description
+This software facilitates the processing, analysis, and visualization of simultaneous calcium imaging (Miniscope) and electrophysiology (EEG/LFP) data from rodent experiments. It provides a modular and extensible framework for handling complex multimodal neuroscience datasets.
 
-This project facilitates the analysis of several input streams of data from experiments on rats.
+## Key Features
 
-### Classes
+*   **Miniscope Analysis:** Full pipeline for Calcium Imaging data including preprocessing (cropping, detrending, $\Delta F/F$), motion correction, source extraction (CNMF-E), and event detection.
+*   **Electrophysiology Analysis:** Tools for importing Neuralynx data, artifact removal, filtering, phase computation, and spectrogram generation.
+*   **Multimodal Integration:** Seamless alignment of Miniscope and Ephys timestamps, enabling cross-modal analysis like phase-locking of calcium events to EEG oscillations.
+*   **Automated Data Management:** Integrated tools for downloading large datasets from Box and managing experiment metadata.
 
-The foundation of the project lies on the following classes:
+## System Architecture
 
-*   **ExperimentDataManager** - (Base class) Manages the import and storage of metadata and analysis parameters. Loads metadata from `experiments.csv` and parameters from `analysis_params.csv`.
-*   **EphysDataManager** - (Inherits from `ExperimentDataManager`) Manages the import and processing of raw electrophysiology (Neuralynx) data. Uses `BlockProcessor` to convert raw data into `Channel` objects.
-*   **MiniscopeDataManager** - (Inherits from `ExperimentDataManager`) Manages raw Miniscope data import, storage, and metadata (timestamps, frame numbers). Prepares data for processing.
-*   **MiniscopeProcessor** - Handles the processing pipeline for Miniscope data, including motion correction, parameter optimization, and CNMFE (calcium trace extraction).
-*   **BlockProcessor** - Takes a Neo block object (raw ephys data) and processes it into individual `Channel` objects, handling artifact removal and organization.
-*   **Channel** - (Data object) Represents a single ephys channel. Attributes include: `name` (string), `signal` (np.array), `sampling_rate` (int), `time_vector` (np.array), and `signal_filtered` (np.array).
+The project is built on a robust set of classes designed to handle specific data streams and processing tasks:
 
-  
-![uml](https://github.com/user-attachments/assets/4b97fc47-240f-49c4-859e-65b2736f2d24)
+### Core Data Classes
+*   **`ExperimentDataManager`** (Base): Manages the import and storage of experiment metadata from `experiments.csv` and analysis parameters from `analysis_params.csv`.
+*   **`MiniscopeDataManager`**: Inherits from `ExperimentDataManager`. specialized for Miniscope data. It handles movie files, timestamps, frame numbers, and stores intermediate processing results (e.g., motion-corrected movies, CNMFE estimates).
+*   **`EphysDataManager`**: Inherits from `ExperimentDataManager`. Specialized for raw Neuralynx data. It uses `BlockProcessor` to convert raw Neo blocks into manageable `Channel` objects.
+*   **`Channel`**: A data object representing a single electrophysiology channel (e.g., PFC, EEG). Stores raw signal, filtered signal, sampling rate, and time vector.
 
+### Processing Classes
+*   **`MiniscopeProcessor`**: Orchestrates the Miniscope processing pipeline, including parallel setup, motion correction, parameter optimization, and CNMFE execution.
+*   **`BlockProcessor`**: Processes raw electrophysiology blocks into individual channels, handling artifact removal and signal cleaning.
 
-### Scripts
-A plethora of scripts for various miniprojects can be found under src.scripts
+![UML Diagram](https://github.com/user-attachments/assets/4b97fc47-240f-49c4-859e-65b2736f2d24)
 
 ## Getting Started
 
-### Dependencies
+### Prerequisites
+*   **Python Environment:** We highly encourage the use of **miniforge3** to avoid dependency conflicts with packages like `CaImAn` and `liblapack`.
 
-#### If you are on mac, do not install CaImAn through anaconda.  The default solver, libmamba, creates complex dependency errors with the liblapack package.  Instead, we highly encourage the use of miniforge3
+### Installation
 
-You can install the .yml file found in the package, but that comes with many unneeded packages.  Or you can install the following through miniforge3 or your preferred package manager:
-
-* CaImAn
-* FreeSimpleGui
-* Neo
-
-
-### Installing
-
-* Copy Repo:
-```
+1.  **Clone the Repository:**
+    ```bash
     git clone https://github.com/emelon8/experiment_analysis.git
-```
-* Navigate to repo location on local machine
-* Activate virtual environment
-* Download project as editable package:
-```
+    cd experiment_analysis
+    ```
+
+2.  **Install Dependencies:**
+    Using `miniforge3` or `mamba`, install the required packages:
+    *   `CaImAn`
+    *   `FreeSimpleGui`
+    *   `Neo`
+    *   (See `environment.yml` for a full list if available)
+
+3.  **Install the Package:**
+    ```bash
     pip install -e .
-```
+    ```
 
-### Data importing setup
+### Data Setup
 
-* EEG, Calcium imaging, and other channel data is stored in the lab Box account
-* The experiment class reads experiments.csv to find the file paths for such data.
-* **Manual Download:** You'll need to download files from box (they're massive, so only download those you need) into some directory on your computer,then change all file paths in experiments.csv to match the one on your local computer.  We recommend maintaining as similar a project structure as possible (e.g. change Box/Brown/K99/miniscope_data/test/R220606/2022_07_21/14_40_42 to /Users/lukerichards/Desktop/K99/miniscope_data/test/R220606/2022_07_21/14_40_42	via a find and replace command)
-* **Automated Download:** Alternatively, you can use the `src2/shared/file_downloader.py` script to automate downloads for specific experiments.
-    *   **Setup:** Copy `src2/shared/BLANK_box_credentials.py` to `src2/shared/box_credentials.py` and follow the instructions within to configure your Box authentication. Be sure not to publish your box_credentials.py file anywhere. 
-    *   **Usage:** Open `src2/shared/file_downloader.py` and modify the `verify_file_by_line` call in the `__main__` block to specify the target experiment (line number) and data type. Then run the script to download the required files to the paths defined in your `experiments.csv`.
+Experimental data (EEG, Calcium imaging) is typically stored in the lab's Box account. You must download the relevant files to your local machine.
 
-## Help
+1.  **Configure Experiments:**
+    Ensure `data/experiments.csv` reflects your local file paths. The `line_num` used in scripts corresponds to a row in this CSV.
 
-Good luck :)
+2.  **Download Data:**
+    *   **Automated Download (Recommended):**
+        1.  Copy `src2/shared/BLANK_box_credentials.py` to `src2/shared/box_credentials.py` and follow the instructions within to configure your Box authentication.
+        2.  Open `src2/shared/file_downloader.py`.
+        3.  Modify the `verify_file_by_line` call in the `__main__` block to specify the target experiment (`line_num`) and data type (`"miniscope"`, `"ephys"`, or `"both"`).
+        4.  Run the script: `python src2/shared/file_downloader.py`
+    *   **Manual Download:**
+        Download the necessary folders from Box. Update the paths in `experiments.csv` to match your local directory structure.
+
+## Usage
+
+The project uses "API" scripts as the primary entry points for analysis. These scripts allow you to configure parameters and run complete workflows.
+
+### 1. Miniscope Analysis
+**Script:** `src2/miniscope/miniscope_api.py`
+
+This script runs the complete calcium imaging pipeline.
+*   Open the file and scroll to the `if __name__ == "__main__":` block.
+*   Set the `line_num` to the experiment you wish to analyze.
+*   Configure flags for steps you want to run (e.g., `crop`, `run_CNMFE`, `compute_miniscope_spectrogram`).
+*   Run the script:
+    ```bash
+    python src2/miniscope/miniscope_api.py
+    ```
+
+### 2. Electrophysiology Analysis
+**Script:** `src2/ephys/ephys_api.py`
+
+This script handles loading, filtering, and visualizing EEG/LFP data.
+*   Open the file and configure the `__main__` block.
+*   Set `line_num` and `channel_name`.
+*   Enable visualization flags like `plot_spectrogram` or `plot_channel`.
+*   Run the script:
+    ```bash
+    python src2/ephys/ephys_api.py
+    ```
+
+### 3. Multimodal Analysis
+**Script:** `src2/multimodal/multimodal_api.py`
+
+This script integrates both modalities, performing alignment and cross-modal analysis.
+*   It internally calls `EphysAPI` and `MiniscopeAPI`.
+*   It computes advanced metrics like the phase of EEG oscillations during calcium events.
+*   Run the script:
+    ```bash
+    python src2/multimodal/multimodal_api.py
+    ```
 
 ## Authors
 
-Eric Melonakos
-Luke Richards
-
-## Version History
-
-* 0.1
-    * Initial Release
+*   Eric Melonakos
+*   Luke Richards
 
 ## License
 
-No license you can steal our code :)
-
-## Old Comments
-
-An analysis job is run by the following command in the command line: "python [path to scratch.py] [optional jobID]", e.g., "python Dropbox/Documents/Brown_Lab/data_analysis_code/experiment_analysis test_larger_gSig"
-
-When running the code on the ERISTwo cluster at MGH, first load your conda environment before submitting the SLURM script. The command within the SLURM script that runs your code is "python ~/data_analysis_code/experiment_analysis/<filename of script> $SLURM_JOBID"
+No license specified.
