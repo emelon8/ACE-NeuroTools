@@ -85,8 +85,6 @@ classDiagram
     MiniscopeProcessor --> MiniscopeDataManager : Processes
 ```
 
-![UML Diagram](https://github.com/user-attachments/assets/4b97fc47-240f-49c4-859e-65b2736f2d24)
-
 ## Getting Started
 
 ### Prerequisites
