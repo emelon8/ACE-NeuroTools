@@ -6,6 +6,14 @@ Created on Sun Feb  2 11:20:05 2025
 @author: lukerichards
 """
 
+import os
+import sys
+from pathlib import Path
+
+# Add project root to Python path for imports
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
 from src2.ephys.channel_worker import ChannelWorker
 from src2.ephys.ephys_data_manager import EphysDataManager
 from src2.ephys.visualizer import Visualizer
@@ -135,14 +143,14 @@ class EphysAPI:
 if __name__ == "__main__":
     e = EphysAPI()
     e.run(
-          line_num=101,
+          line_num=96,
           channel_name = 'PFCLFPvsCBEEG',
           remove_artifacts = False,
           filter_type = None,
           filter_range = [0.3,0.5],
           compute_phases = False,
           plot_channel = True,
-          plot_spectrogram = True,
+          plot_spectrogram = False,
           plot_phases = False,
           logging_level="DEBUG"
     )

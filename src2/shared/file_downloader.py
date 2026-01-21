@@ -164,9 +164,9 @@ def download_file(client, path: str, ID, need_to_download =[]):
 if __name__ == '__main__': # Runs when we run the file.
     
     verify_file_by_line(
-        line_num= 95, # The one contained in the CSV column "line number"
+        line_num= 96, # The one contained in the CSV column "line number"
         csv_path= PROJECT_ROOT / "data" / "experiments.csv", # Path to the CSV folder
-        do_type= "miniscope", # do_type must be "both", "miniscope", or "ephys"
+        do_type= "ephys", # do_type must be "both", "miniscope", or "ephys"
         
-        avi_list=["0.avi"] # Only need to fill this in if you're downloading miniscope files.
+        avi_list=["75.avi"] # Only need to fill this in if you're downloading miniscope files.
     )

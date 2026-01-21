@@ -118,8 +118,8 @@ if __name__ == "__main__":
     # run the API
     api = MiniscopeAPI()
     api.run(
-        line_num = 95, # line number of the experiment you are analyzing
-        filenames = ['0.avi'],
+        line_num = 96, # line number of the experiment you are analyzing
+        filenames = ['67.avi'],
         
         # preprocessing parameters
         crop = True,
@@ -141,7 +141,7 @@ if __name__ == "__main__":
         plot_params = False,
         run_CNMFE = True,
         save_estimates=True,
-          save_CNMFE_estimates_filename = 'estimates2.hdf5',
+          save_CNMFE_estimates_filename = 'estimates67.hdf5',
         save_CNMFE_params = True,
         
         # post-processing parameters

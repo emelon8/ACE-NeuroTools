@@ -1,7 +1,16 @@
+import os
+import sys
+from pathlib import Path
+
+# Add project root to Python path for imports
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+
 import matplotlib.pyplot as plt  # Ensure Matplotlib is imported if not already
 import numpy as np
 import xarray as xr
-from xrscipy.signal.spectral import coherogram
+# from xrscipy.signal.spectral import coherogram
 from scipy.signal import correlate, correlation_lags
 from scipy.signal import coherence
 import pandas as pd
@@ -104,7 +113,7 @@ def load_experiment(line_num, calcium_signal_filepath=None):
                 drug_infusion_start[line_num] = start_time
                 break
     
-    
+
     #sync timestamps
     tCaIm, low_confidence_periods, channel_object, miniscope_data_manager = sync_neuralynx_miniscope_timestamps(channel_object, miniscope_data_manager, delete_TTLs=True, 
                                                                                                fix_TTL_gaps=True, only_experiment_events=True)
@@ -120,8 +129,13 @@ def load_experiment(line_num, calcium_signal_filepath=None):
         print(f"Line {line_num}: Replacing NaNs in EEG with zeros...")
         channel_object.signal = np.nan_to_num(channel_object.signal, nan=0.0)
     
+    print(drug_infusion_start)
     return channel_object, miniscope_data_manager, fr
-    
+
+channel_object, _, _ = load_experiment(96) 
+print(channel_object.signal)
+
+print("done with first function")
 
 #%% Plot lines
 WIDTH = 0.5
