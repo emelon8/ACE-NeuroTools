@@ -25,6 +25,66 @@ The project is built on a robust set of classes designed to handle specific data
 *   **`MiniscopeProcessor`**: Orchestrates the Miniscope processing pipeline, including parallel setup, motion correction, parameter optimization, and CNMFE execution.
 *   **`BlockProcessor`**: Processes raw electrophysiology blocks into individual channels, handling artifact removal and signal cleaning.
 
+### System Diagram
+
+```mermaid
+classDiagram
+    class ExperimentDataManager {
+        +int line_num
+        +dict metadata
+        +dict analysis_params
+        +import_metadata()
+        +import_analysis_parameters()
+    }
+
+    class MiniscopeDataManager {
+        +list time_stamps
+        +list frame_numbers
+        +movie movie
+        +dict miniscope_events
+        +MiniscopeProcessor processor
+        +load_attributes()
+    }
+
+    class EphysDataManager {
+        +dict channels
+        +Block ephys_block
+        +import_ephys_block()
+        +process_ephys_block_to_channels()
+        +filter_ephys()
+    }
+
+    class Channel {
+        +str name
+        +np.array signal
+        +float sampling_rate
+        +np.array time_vector
+        +dict events
+        +np.array signal_filtered
+        +np.array phases
+    }
+
+    class MiniscopeProcessor {
+        +MiniscopeDataManager data_manager
+        +process_calcium_movie()
+        +motion_correction_manager()
+        +CNMFE_parameter_handler()
+    }
+
+    class BlockProcessor {
+        +Block ephys_block
+        +process_raw_ephys()
+        +remove_artifacts()
+    }
+
+    ExperimentDataManager <|-- MiniscopeDataManager : Inherits
+    ExperimentDataManager <|-- EphysDataManager : Inherits
+    EphysDataManager --> BlockProcessor : Uses
+    BlockProcessor ..> Channel : Creates
+    EphysDataManager *-- Channel : Contains
+    MiniscopeProcessor --> MiniscopeDataManager : Processes
+```
+
 ![UML Diagram](https://github.com/user-attachments/assets/4b97fc47-240f-49c4-859e-65b2736f2d24)
 
 ## Getting Started
