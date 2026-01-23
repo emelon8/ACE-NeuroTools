@@ -165,6 +165,14 @@ This script integrates both modalities, performing alignment and cross-modal ana
     python src2/multimodal/multimodal_api.py
     ```
 
+## API Outputs & Analysis Guide
+
+For detailed information on the outputs and analysis recommendations for each API, please refer to the README files in their respective directories:
+
+*   **[Miniscope Analysis Guide](src2/miniscope/README.md)**: Details on `estimates.hdf5` and the component selection GUI.
+*   **[Ephys Analysis Guide](src2/ephys/README.md)**: Information on channel plots, spectrograms, and phase analysis.
+*   **[Multimodal Analysis Guide](src2/multimodal/README.md)**: Instructions for interpreting phase-locking histograms and aligned data.
+
 ## Authors
 
 *   Eric Melonakos
