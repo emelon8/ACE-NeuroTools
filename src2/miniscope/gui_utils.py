@@ -112,7 +112,7 @@ def _create_time_series_plot(estimates, eeg_data=None, eeg_timestamps=None, sele
     frame_rate : float
         Frame rate of calcium imaging in Hz
     """
-    fig = matplotlib.figure.Figure(figsize=(8, 4.5), dpi=100)
+    fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
     
     if selected_cells_1based is None or len(selected_cells_1based) == 0:
         # No cells selected, show empty plot with instruction
@@ -324,16 +324,16 @@ def component_gui(movie, estimates, projections, eeg_data=None, eeg_timestamps=N
     # Toggle state for showing all cell contours and numbers
     show_all_contours = True
     
-    # Scale up the image display (1.5x by default)
-    img_scale = 1.5
+    # Scale up the image display (1.25x by default)
+    img_scale = 1.25
     initial_img_scale = img_scale
     
     # Store scale factor for use in image rendering
     window_scale_factor = img_scale
     
     # Viewport size (fixed window showing part of the canvas)
-    viewport_width = min(int(movie.shape[2] * 1.5) + 20, 800)  # Reasonable default
-    viewport_height = min(int(movie.shape[1] * 1.5) + 20, 600)
+    viewport_width = min(int(movie.shape[2] * 1.25) + 20, 550)  # Smaller to fit screen
+    viewport_height = min(int(movie.shape[1] * 1.25) + 20, 400)
     
     # Canvas should initially be sized for the initial zoom level
     # It will be dynamically resized when zoom changes
@@ -371,8 +371,8 @@ def component_gui(movie, estimates, projections, eeg_data=None, eeg_timestamps=N
                   auto_size_text=True, enable_events=True, font='Helvetica 12')]
     ]
     
-    # Right column: selection list
-    right_column = [
+    # Middle column: selection list
+    middle_column = [
         [sg.Text("Select components to reject:", font='Helvetica 14')],
         [sg.Listbox(values=[i + 1 for i in range(len(estimates.C))], 
                     default_values=initial_listbox_selections_1based, 
@@ -383,23 +383,18 @@ def component_gui(movie, estimates, projections, eeg_data=None, eeg_timestamps=N
                    button_color=('white', 'orange'), tooltip='Clear all selected cells')]
     ]
     
-    # Bottom row: time series plot (only if we have data to plot)
-    time_series_row = []
-    if eeg_data is not None or True:  # Always show the canvas, even if just calcium traces
-        time_series_row = [
-            [sg.Text('Time Series', font='Helvetica 16 bold')],
-            [sg.Canvas(size=(800, 450), key='-CANVAS-', pad=(5,5))]
-        ]
-    
-    # Build main content layout
-    content_layout = [
-        [sg.Column(left_column, vertical_alignment='top'), 
-         sg.Column(right_column, vertical_alignment='top')]
+    # Right column: time series plot
+    right_column = [
+        [sg.Text('Time Series', font='Helvetica 16 bold')],
+        [sg.Canvas(size=(500, 400), key='-CANVAS-', pad=(5,5))]
     ]
     
-    # Add time series plot row if enabled
-    if time_series_row:
-        content_layout.append([sg.Column(time_series_row, justification='center')])
+    # Build main content layout with three columns side by side
+    content_layout = [
+        [sg.Column(left_column, vertical_alignment='top'), 
+         sg.Column(middle_column, vertical_alignment='top'),
+         sg.Column(right_column, vertical_alignment='top')]
+    ]
     
     # Add instruction text and buttons at the bottom
     content_layout.append([sg.HorizontalSeparator()])
@@ -410,9 +405,8 @@ def component_gui(movie, estimates, projections, eeg_data=None, eeg_timestamps=N
                    sg.Button('Submit & Save', key="-SUBMIT-", size=(15, 1), font='Helvetica 14 bold', 
                              button_color=('white', 'green'), pad=(10,10))])
     
-    # Wrap everything in a scrollable column
-    layout = [[sg.Column(content_layout, scrollable=True, vertical_scroll_only=True, 
-                         size=(1100, 800), key='-MAIN_COLUMN-')]]
+    # Use content_layout directly without wrapping in a scrollable column
+    layout = content_layout
     
     window = sg.Window('Cell Component Selector', layout, finalize=True, resizable=True,
                        element_justification='center', font='Helvetica 14')
