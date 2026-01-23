@@ -5,6 +5,7 @@ experiments.csv
 analysis_parameters.csv
 /data/downloaded_data/
 box_credentials.py
+src2/shared/box_credentials.py
 
 # macOS
 .DS_Store
