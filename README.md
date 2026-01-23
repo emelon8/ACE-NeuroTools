@@ -115,16 +115,14 @@ classDiagram
 Experimental data (EEG, Calcium imaging) is typically stored in the lab's Box account. You must download the relevant files to your local machine.
 
 1.  **Configure Experiments:**
-    Ensure `data/experiments.csv` reflects your local file paths. The `line_num` used in scripts corresponds to a row in this CSV.
+    Ensure `data/experiments.csv` reflects your local file paths (this shouldn't be a concern if you use the automated download scripts as relative pathing is used by default). The `line_num` used in scripts corresponds to a row in this CSV.
 
 2.  **Download Data:**
     *   **Automated Download (Recommended):**
         1.  Copy `src2/shared/BLANK_box_credentials.py` to `src2/shared/box_credentials.py` and follow the instructions within to configure your Box authentication.
-        2.  Open `src2/shared/file_downloader.py`.
-        3.  Modify the `verify_file_by_line` call in the `__main__` block to specify the target experiment (`line_num`) and data type (`"miniscope"`, `"ephys"`, or `"both"`).
-        4.  Run the script: `python src2/shared/file_downloader.py`
+        2. Upon running your desired API script, your chosen files will be automatically downloaded and processed.
     *   **Manual Download:**
-        Download the necessary folders from Box. Update the paths in `experiments.csv` to match your local directory structure.
+        Download the necessary folders from Box. Update the base file paths in paths.py to reflect the location of downloaded files.  
 
 ## Usage
 
