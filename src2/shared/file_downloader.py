@@ -168,5 +168,5 @@ if __name__ == '__main__': # Runs when we run the file.
         csv_path= PROJECT_ROOT / "data" / "experiments.csv", # Path to the CSV folder
         do_type= "ephys", # do_type must be "both", "miniscope", or "ephys"
         
-        avi_list=["75.avi"] # Only need to fill this in if you're downloading miniscope files.
+        avi_list=[] # Only need to fill this in if you're downloading miniscope files.
     )
