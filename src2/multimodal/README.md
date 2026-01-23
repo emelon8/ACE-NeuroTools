@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Multimodal API Outputs & Analysis Guide
 
 The `multimodal_api.py` script integrates both modalities, performing alignment and cross-modal analysis.
@@ -6,3 +7,35 @@ The `multimodal_api.py` script integrates both modalities, performing alignment 
 *   **Phase-Locking Histograms:** The script calculates the EEG phase at the exact timestamps of Calcium events.
     *   **Analysis:** Examine the resulting histograms to determine if neuronal activity is modulated by specific LFP oscillations (e.g., locking to the trough of Theta).
 *   **Aligned Data:** The script produces time-aligned data structures, allowing for correlation analysis between calcium amplitude and EEG power.
+=======
+# Multimodal Module Documentation
+
+This directory contains the logic for synchronizing and analyzing the relationship between Calcium Imaging (Miniscope) and Electrophysiology (Ephys) data.
+
+## Synchronization Logic (`miniscope_ephys_alignment_utils.py`)
+
+The core challenge is aligning two different timebases. We rely on **TTL pulses** sent from the Miniscope acquisition system to the Neuralynx Ephys system.
+
+### `sync_neuralynx_miniscope_timestamps`
+*   **Input:** An Ephys `Channel` object and a `MiniscopeDataManager`.
+*   **Mechanism:**
+    1.  Extracts timestamps of "TTL Input" events from `channel.events`.
+    2.  Verifies that these TTLs alternate (High/Low) and follow the expected frame rate.
+    3.  **Gap Correction:** If `fix_TTL_gaps=True`, it detects missing pulses (dropped frames) by checking for time gaps larger than a threshold (default ~65ms) and interpolates the missing timestamps.
+*   **Output:** `tCaIm` (Corrected array of timestamps where each index corresponds to a Miniscope frame).
+
+### `find_ephys_idx_of_TTL_events`
+*   **Purpose:** Maps the continuous Ephys time vector to the discrete Miniscope frames.
+*   **Algorithm:** Nearest-neighbor search. For each Miniscope timestamp in `tCaIm`, it finds the index of the closest time point in `channel.time_vector`.
+*   **Result:** `ephys_idx_all_TTL_events` (Array of indices).
+    *   `channel.signal[ephys_idx_all_TTL_events[i]]` gives the voltage at the moment Frame `i` was captured.
+
+## Analysis Workflow
+
+1.  **Run Ephys API:** To clean and filter LFP data.
+2.  **Run Miniscope API:** To extract Calcium traces (`C`).
+3.  **Sync:** Use `sync_neuralynx_miniscope_timestamps` to align the time axes.
+4.  **Joint Analysis:**
+    *   **Phase Locking:** Compute the phase of the LFP signal at the exact indices of Calcium events (`find_ca_events`).
+    *   **Cross-Correlation:** Correlate `miniscope_data.C` with the Hilbert envelope of `channel.signal_filtered`.
+>>>>>>> 28fdc1b (added more robust documentation for each of the data analysis scripts)
