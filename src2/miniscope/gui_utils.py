@@ -193,7 +193,11 @@ def component_gui(movie, estimates, projections):
             selected_0_based_to_reject = set(estimates.idx_components_bad)
             all_indices_0_based = np.arange(len(estimates.C))
             good_components_indices = [idx for idx in all_indices_0_based if idx not in selected_0_based_to_reject]
-            estimates = estimates.select_components(idx_components=good_components_indices)
+            # select_components operates in-place in some versions and returns None, or returns self in others.
+            # We handle both by checking the return value.
+            ret = estimates.select_components(idx_components=good_components_indices)
+            if ret is not None:
+                estimates = ret
             break
             
     plt.close('all')
