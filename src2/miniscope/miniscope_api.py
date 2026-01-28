@@ -8,7 +8,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 # Adjust the path below to where you would like Caiman to store temporary files that it uses during the miniscope pipeline
-os.environ["CAIMAN_DATA"] = '/Users/josieallred/Research/K99/miniscope_data/ketamine/R230706B/2023_09_01/15_04_11/saved_movies'
+os.environ["CAIMAN_DATA"] = '/Users/josieallred/Research/K99/miniscope_data/ketamine/R230706B/2023_09_01/15_04_11'
 
 from src2.shared.misc_functions import updateCSVCell
 from src2.miniscope.miniscope_data_manager import MiniscopeDataManager
@@ -36,7 +36,7 @@ class MiniscopeAPI:
             #preprocessing parameters
             crop = True,
               #These should only be true if crop=True, and only one should be True or niether
-              crop_with_crop = False,
+              crop_with_crop = True,
               crop_square = False,
             detrend_method = 'median',
             df_over_f = False,
@@ -112,14 +112,12 @@ class MiniscopeAPI:
                                                                                        freq_lims, time_bandwidth)
 
 
-
-
 if __name__ == "__main__":
     # run the API
     api = MiniscopeAPI()
     api.run(
         line_num = 96, # line number of the experiment you are analyzing
-        filenames = [],
+        filenames = ['0.avi'],
         
         # preprocessing parameters
         crop = True,
@@ -141,7 +139,7 @@ if __name__ == "__main__":
         plot_params = False,
         run_CNMFE = True,
         save_estimates=True,
-          save_CNMFE_estimates_filename = 'estimatesbig.hdf5',
+          save_CNMFE_estimates_filename = 'estimates.hdf5',
         save_CNMFE_params = True,
         
         # post-processing parameters
@@ -156,22 +154,11 @@ if __name__ == "__main__":
           ftype='butter', 
           btype='bandpass', 
           inline=True,
-        compute_miniscope_spectrogram=False,  # turned off due to error
+        compute_miniscope_spectrogram=True,
           window_length = 30, 
           window_step = 3, 
           freq_lims = [0,15], 
           time_bandwidth = 2
         )
         
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+  
