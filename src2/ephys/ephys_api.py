@@ -14,6 +14,12 @@ from src2.shared.paths import DATA_DIR
 from typing import List
 from src2.shared import file_downloader
 import logging
+import argparse
+import sys
+import yaml
+import matplotlib
+import tkinter
+from src2.shared.config_utils import load_config, parse_ephys_config
 
 
 class EphysAPI:
@@ -35,9 +41,20 @@ class EphysAPI:
             plot_channel = False,
             plot_spectrogram = False,
             plot_phases = False,
-            logging_level = "CRITICAL"
+            logging_level = "CRITICAL",
+            headless = False
             ):
         
+        if headless:
+            print("Running in HEADLESS mode. Plotting disabled.", flush=True)
+            plot_channel = False
+            plot_spectrogram = False
+            plot_phases = False
+            matplotlib.use('Agg')
+        elif tkinter._default_root:
+            tkinter._default_root.destroy()
+            matplotlib.use('Qt5Agg')
+
         logger = logging.getLogger(__name__)
         logger.setLevel(logging_level)
 
@@ -133,28 +150,40 @@ class EphysAPI:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run Ephys Analysis Pipeline")
+    parser.add_argument('--config', type=str, help="Path to YAML configuration file")
+    parser.add_argument('--headless', action='store_true', help="Run in headless mode (no GUI)")
+    
+    args = parser.parse_args()
+    
+    # Default parameters
+    run_params = {
+        'line_num': 101,
+        'channel_name': 'PFCLFPvsCBEEG',
+        'remove_artifacts': False,
+        'filter_type': None,
+        'filter_range': [0.3, 0.5],
+        'compute_phases': False,
+        'plot_channel': True,
+        'plot_spectrogram': True,
+        'plot_phases': False,
+        'logging_level': "DEBUG"
+    }
+    
+    if args.config:
+        print(f"Loading configuration from {args.config}...", flush=True)
+        config = load_config(args.config)
+        config_params = parse_ephys_config(config)
+        run_params.update(config_params)
+        
+    if args.headless:
+        run_params['headless'] = True
+
     e = EphysAPI()
-    e.run(
-          line_num=101,
-          channel_name = 'PFCLFPvsCBEEG',
-          remove_artifacts = False,
-          filter_type = None,
-          filter_range = [0.3,0.5],
-          compute_phases = False,
-          plot_channel = True,
-          plot_spectrogram = True,
-          plot_phases = False,
-          logging_level="DEBUG"
-    )
-    # main()
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+    try:
+        e.run(**run_params)
+    except Exception as e:
+        print(f"Error occurred during execution: {e}", file=sys.stderr)
+        if args.headless:
+            sys.exit(1)
+        raise

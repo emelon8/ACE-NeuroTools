@@ -1,13 +1,3 @@
-<<<<<<< HEAD
-# Multimodal API Outputs & Analysis Guide
-
-The `multimodal_api.py` script integrates both modalities, performing alignment and cross-modal analysis.
-
-## Outputs
-*   **Phase-Locking Histograms:** The script calculates the EEG phase at the exact timestamps of Calcium events.
-    *   **Analysis:** Examine the resulting histograms to determine if neuronal activity is modulated by specific LFP oscillations (e.g., locking to the trough of Theta).
-*   **Aligned Data:** The script produces time-aligned data structures, allowing for correlation analysis between calcium amplitude and EEG power.
-=======
 # Multimodal Module Documentation
 
 This directory contains the logic for synchronizing and analyzing the relationship between Calcium Imaging (Miniscope) and Electrophysiology (Ephys) data.
@@ -16,11 +6,43 @@ This directory contains the logic for synchronizing and analyzing the relationsh
 
 ### `MultimodalAPI` (`multimodal_api.py`)
 The high-level interface for running joint analyses.
-*   **Usage:**
-    ```python
-    api = MultimodalAPI()
-    api.run(line_num=..., channel_name=..., miniscope_filenames=..., ...)
-    ```
+
+## Configuration
+
+This API uses a combined YAML configuration that includes Ephys, Miniscope, and Multimodal-specific parameters.
+
+**Template:** [`multimodal_config.yaml`](multimodal_config.yaml)
+
+### Key Parameters
+
+| Section | Parameter | Description |
+|---------|-----------|-------------|
+| `experiment` | `line_num`, `filenames` | Experiment identifier and video files |
+| `ephys` | `channel_name`, `filter_type`, `filter_range` | EEG/LFP settings |
+| `miniscope_*` | (preprocessing, processing, postprocessing) | Calcium imaging settings |
+| `multimodal` | `delete_TTLs` | Remove TTL artifacts from ephys |
+| `multimodal` | `fix_TTL_gaps` | Interpolate missing TTL pulses |
+| `multimodal` | `only_experiment_events` | Use only events during experiment |
+| `multimodal` | `all_TTL_events` | Include all TTL events |
+| `multimodal` | `ca_events` | Use calcium events for phase analysis |
+| `multimodal` | `time_range` | Optional `[start, end]` in seconds |
+
+See the template file for the complete parameter list.
+
+### Usage
+
+```bash
+# Option 1: Config file (Recommended)
+python src2/multimodal/multimodal_api.py --config src2/multimodal/multimodal_config.yaml
+
+# Option 2: Headless mode (for Slurm/remote)
+python src2/multimodal/multimodal_api.py --config multimodal_config.yaml --headless
+
+# Option 3: Parameters in code (legacy)
+api = MultimodalAPI()
+api.run(line_num=96, channel_name="PFCLFPvsCBEEG", ...)
+```
+
 *   **Workflow:**
     1.  Runs `EphysAPI` to clean and filter electrophysiology data.
     2.  Runs `MiniscopeAPI` to preprocess and extract calcium traces.
@@ -68,9 +90,11 @@ The core challenge is aligning two different timebases. We rely on **TTL pulses*
 3.  **Sync:** Use `sync_neuralynx_miniscope_timestamps` to align the time axes.
 4.  **Joint Analysis:**
     *   **Phase Locking:** Compute the phase of the LFP signal at the exact indices of Calcium events (`find_ca_events`).
-<<<<<<< HEAD
     *   **Cross-Correlation:** Correlate `miniscope_data.C` with the Hilbert envelope of `channel.signal_filtered`.
->>>>>>> 28fdc1b (added more robust documentation for each of the data analysis scripts)
-=======
-    *   **Cross-Correlation:** Correlate `miniscope_data.C` with the Hilbert envelope of `channel.signal_filtered`.
->>>>>>> b8548e9 (doc: update READMEs for miniscope, ephys, and multimodal modules)
+
+## Outputs
+
+*   **Phase-Locking Histograms:** Calculated EEG phase at the exact timestamps of Calcium events.
+    *   **Interpretation:** Examine the resulting histograms to determine if neuronal activity is modulated by specific LFP oscillations (e.g., locking to the trough of Theta).
+*   **Aligned Data:** Time-aligned data structures, allowing for correlation analysis between calcium amplitude and EEG power.
+

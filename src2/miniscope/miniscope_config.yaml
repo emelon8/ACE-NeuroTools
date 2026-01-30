@@ -1,0 +1,64 @@
+# =============================================================================
+# Miniscope API Configuration Template
+# =============================================================================
+# Usage: python src2/miniscope/miniscope_api.py --config src2/miniscope/miniscope_config.yaml
+# =============================================================================
+
+experiment:
+  line_num: 96           # Row number in experiments.csv
+  filenames:             # Video files to process
+    - "0.avi"
+
+# -----------------------------------------------------------------------------
+# Preprocessing Parameters
+# -----------------------------------------------------------------------------
+miniscope_preprocessing:
+  crop: true
+  crop_params:
+    crop_with_crop: false   # Use previously saved crop coordinates
+    crop_square: true       # Use square crop coordinates
+  detrend_method: "median"  # Detrending method: "median", "mean", or null
+  df_over_f: false          # Compute ΔF/F normalization
+  df_over_f_params:
+    secs_window: 5
+    quantile_min: 8
+    method: "delta_f_over_sqrt_f"
+
+# -----------------------------------------------------------------------------
+# Processing Parameters (CaImAn / CNMF-E)
+# -----------------------------------------------------------------------------
+miniscope_processing:
+  parallel: true
+  n_processes: 12
+  apply_motion_correction: false
+  inspect_motion_correction: true   # GUI inspection (disabled in headless)
+  plot_params: false                # Plot CNMF-E parameters
+  run_CNMFE: true                   # Run source extraction
+  save_estimates: true
+  save_CNMFE_estimates_filename: "estimates.hdf5"
+  save_CNMFE_params: true
+
+# -----------------------------------------------------------------------------
+# Postprocessing Parameters
+# -----------------------------------------------------------------------------
+miniscope_postprocessing:
+  remove_components_with_gui: true  # Interactive component selection (disabled in headless)
+  find_calcium_events: true
+  derivative_for_estimates: "first" # "first" or "second" derivative
+  event_height: 5                   # Minimum event height threshold
+  compute_miniscope_phase: true
+  filter_data: true
+  spectrogram: true
+  
+  # Filter parameters (used when filter_data: true)
+  n: 2                      # Filter order
+  cut: [0.1, 1.5]           # Cutoff frequencies [low, high] in Hz
+  ftype: "butter"           # Filter type: "butter", "cheby1", etc.
+  btype: "bandpass"         # Band type: "lowpass", "highpass", "bandpass"
+  inline: true              # Inline plotting
+  
+  # Spectrogram parameters (used when spectrogram: true)
+  window_length: 30         # Window length in seconds
+  window_step: 3            # Step size in seconds
+  freq_lims: [0, 15]        # Frequency range [min, max] in Hz
+  time_bandwidth: 2         # Multitaper time-bandwidth product

@@ -137,7 +137,17 @@ This script runs the complete calcium imaging pipeline.
 *   Configure flags for steps you want to run (e.g., `crop`, `run_CNMFE`, `compute_miniscope_spectrogram`).
 *   Run the script:
     ```bash
+    # Option A: Standard Run (Backwards Compatible)
+    # Uses the parameters hardcoded in the script's __main__ block
     python src2/miniscope/miniscope_api.py
+
+    # Option B: Config File (Recommended)
+    # Uses a YAML file to define parameters
+    python src2/miniscope/miniscope_api.py --config experiment_template.yaml
+
+    # Option C: Headless / Slurm
+    # Bypasses all GUI steps (cropping, inspection) for remote execution
+    python src2/miniscope/miniscope_api.py --config experiment_template.yaml --headless
     ```
 
 ### 2. Electrophysiology Analysis
@@ -149,7 +159,14 @@ This script handles loading, filtering, and visualizing EEG/LFP data.
 *   Enable visualization flags like `plot_spectrogram` or `plot_channel`.
 *   Run the script:
     ```bash
+    # Option A: Standard Run
     python src2/ephys/ephys_api.py
+
+    # Option B: Config File (Recommended)
+    python src2/ephys/ephys_api.py --config experiment_template.yaml
+
+    # Option C: Headless / Slurm
+    python src2/ephys/ephys_api.py --config experiment_template.yaml --headless
     ```
 
 ### 3. Multimodal Analysis
@@ -160,7 +177,15 @@ This script integrates both modalities, performing alignment and cross-modal ana
 *   It computes advanced metrics like the phase of EEG oscillations during calcium events.
 *   Run the script:
     ```bash
+    # Option A: Standard Run
     python src2/multimodal/multimodal_api.py
+
+    # Option B: Config File (Recommended)
+    # Uses 'experiment', 'miniscope_*', 'ephys', and 'multimodal' sections from config
+    python src2/multimodal/multimodal_api.py --config experiment_template.yaml
+
+    # Option C: Headless / Slurm
+    python src2/multimodal/multimodal_api.py --config experiment_template.yaml --headless
     ```
 
 ## API Outputs & Analysis Guide

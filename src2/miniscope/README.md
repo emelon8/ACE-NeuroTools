@@ -6,11 +6,39 @@ This directory contains the logic for the calcium imaging pipeline.
 
 ### `MiniscopeAPI` (`miniscope_api.py`)
 This is the main entry point for the workflow. It orchestrates the entire pipeline from data loading to post-processing.
-*   **Usage:**
-    ```python
-    api = MiniscopeAPI()
-    api.run(line_num=..., filenames=..., ...)
-    ```
+
+## Configuration
+
+This API supports YAML configuration files for reproducible experiments.
+
+**Template:** [`miniscope_config.yaml`](miniscope_config.yaml)
+
+### Key Parameters
+
+| Section | Parameter | Description |
+|---------|-----------|-------------|
+| `experiment` | `line_num` | Row number in `experiments.csv` |
+| `experiment` | `filenames` | List of video files (e.g., `["0.avi"]`) |
+| `miniscope_preprocessing` | `crop`, `detrend_method`, `df_over_f` | Movie preparation settings |
+| `miniscope_processing` | `parallel`, `n_processes`, `run_CNMFE` | CaImAn processing settings |
+| `miniscope_postprocessing` | `find_calcium_events`, `filter_data`, `spectrogram` | Analysis settings |
+
+See the template file for the complete parameter list with defaults.
+
+### Usage
+
+```bash
+# Option 1: Config file (Recommended)
+python src2/miniscope/miniscope_api.py --config src2/miniscope/miniscope_config.yaml
+
+# Option 2: Headless mode (for Slurm/remote)
+python src2/miniscope/miniscope_api.py --config miniscope_config.yaml --headless
+
+# Option 3: Parameters in code (legacy)
+api = MiniscopeAPI()
+api.run(line_num=96, filenames=["0.avi"], ...)
+```
+
 *   **Key Responsibilities:**
     *   Initializes the `MiniscopeDataManager`.
     *   Runs the preprocessing via `MiniscopePreprocessor`.
@@ -54,6 +82,9 @@ Handles analysis and visualization after the sources have been extracted.
     *   `compute_miniscope_spectrogram`: Computes and plots the spectrogram of the calcium data.
 
 ## Utilities & Helper Modules
+
+*   **`filtered_miniscope_data.py`**: Defines `FilterMiniscopeData`, a class for applying bandpass filters (Butterworth) to Miniscope time projections.
+
 
 *   **`multiple_session_utils.py`**: Contains logic for registering and tracking the same neurons across multiple imaging sessions.
 *   **`head_direction_utils.py`**: Utilities for processing and visualizing head orientation data (e.g., converting quaternions to Euler angles).

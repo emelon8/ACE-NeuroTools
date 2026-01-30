@@ -10,9 +10,15 @@ from src2.miniscope.movie_io import MovieIO
 import matplotlib
 import tkinter
 import os
+import yaml
+import argparse
+import sys
+from src2.shared.config_utils import load_config, parse_miniscope_config
 
 # Adjust the path below to where you would like Caiman to store temporary files that it uses during the miniscope pipeline
 os.environ["CAIMAN_DATA"] = f'{BASE_FILE_PATH}/K99/miniscope_data/ketamine/R230706B/2023_09_01/15_04_11/saved_movies'
+
+
 
 class MiniscopeAPI:
     """Main workflow class for non-technical users. Adjust the paramters at the bottom and press run."""
@@ -64,10 +70,18 @@ class MiniscopeAPI:
               window_length = 30, 
               window_step = 3, 
               freq_lims = [0,15], 
-              time_bandwidth = 2
+              time_bandwidth = 2,
+              headless = False
             ):
         
         
+        if headless:
+            inspect_motion_correction = False
+            remove_components_with_gui = False
+            plot_params = False
+            inline = False
+            print("Running in HEADLESS mode. GUI steps disabled.", flush=True)
+
         self.miniscope_data_manager = MiniscopeDataManager(line_num, filenames, auto_import_data=True)
         
         
@@ -93,9 +107,12 @@ class MiniscopeAPI:
         
         
         if self.miniscope_data_manager.CNMFE_obj is not None:
-            if tkinter._default_root:  # Check if Tkinter root exists
-                tkinter._default_root.destroy()  # Force close any Tkinter root
-            matplotlib.use('Qt5Agg')  # Switch to Qt backend so that we can use interactive plotting during estimate evaluation
+            if not headless:
+                if tkinter._default_root:  # Check if Tkinter root exists
+                    tkinter._default_root.destroy()  # Force close any Tkinter root
+                matplotlib.use('Qt5Agg')  # Switch to Qt backend so that we can use interactive plotting during estimate evaluation
+            else:
+                matplotlib.use('Agg')
             
             self.postprocessor = MiniscopePostprocessor(self.miniscope_data_manager)
             self.miniscope_data_manager = self.postprocessor.postprocess_calcium_movie(remove_components_with_gui, find_calcium_events, derivative_for_estimates, 
@@ -107,63 +124,69 @@ class MiniscopeAPI:
 
 
 if __name__ == "__main__":
-    # run the API
+    parser = argparse.ArgumentParser(description="Run Miniscope Analysis Pipeline")
+    parser.add_argument('--config', type=str, help="Path to YAML configuration file")
+    parser.add_argument('--headless', action='store_true', help="Run in headless mode (no GUI)")
+    
+    args = parser.parse_args()
+    
+    # Default parameters (legacy hardcoded values)
+    run_params = {
+        'line_num': 96,
+        'filenames': ['0.avi'],
+        # Preprocessing
+        'crop': True,
+        'crop_with_crop': False,
+        'crop_square': True,
+        'detrend_method': None,
+        'df_over_f': False,
+        'secs_window': 5,
+        'quantile_min': 8,
+        'df_over_f_method': 'delta_f_over_sqrt_f',
+        # Processing
+        'parallel': True,
+        'n_processes': 6,
+        'apply_motion_correction': False,
+        'inspect_motion_correction': True,
+        'plot_params': False,
+        'run_CNMFE': True,
+        'save_estimates': True,
+        'save_CNMFE_estimates_filename': 'estimates.hdf5',
+        'save_CNMFE_params': True,
+        # Post-processing
+        'remove_components_with_gui': True,
+        'find_calcium_events': True,
+        'derivative_for_estimates': 'first',
+        'event_height': 5,
+        'compute_miniscope_phase': True,
+        'filter_miniscope_data': True,
+        'n': 2,
+        'cut': [0.1, 1.5],
+        'ftype': 'butter',
+        'btype': 'bandpass',
+        'inline': True,
+        'compute_miniscope_spectrogram': True,
+        'window_length': 30,
+        'window_step': 3,
+        'freq_lims': [0, 15],
+        'time_bandwidth': 2
+    }
+    
+    if args.config:
+        print(f"Loading configuration from {args.config}...", flush=True)
+        config = load_config(args.config)
+        config_params = parse_miniscope_config(config)
+        run_params.update(config_params)
+        
+    if args.headless:
+        run_params['headless'] = True
+        
     api = MiniscopeAPI()
-    api.run(
-        line_num = 96, # line number of the experiment you are analyzing
-        filenames = ['0.avi'],
-        
-        # preprocessing parameters
-        crop = True,
-            # Only one below should be True if crop=True
-            crop_with_crop = False,
-            crop_square = True,
-        detrend_method = None,
-        df_over_f = False,
-          # if df_over_f = True
-          secs_window = 5,                     
-          quantile_min = 8,
-          df_over_f_method = 'delta_f_over_sqrt_f',
-
-        # processing parameters    
-        parallel = True,
-        n_processes = 6,
-        apply_motion_correction = False,
-        inspect_motion_correction = True,
-        plot_params = False,
-        run_CNMFE = True,
-        save_estimates=True,
-          save_CNMFE_estimates_filename = 'estimates.hdf5',
-        save_CNMFE_params = True,
-        
-        # post-processing parameters
-        remove_components_with_gui=True,  
-        find_calcium_events=True,
-          derivative_for_estimates='first', 
-          event_height = 5, 
-        compute_miniscope_phase=True, 
-        filter_miniscope_data=True,
-          n=2, 
-          cut=[0.1,1.5], 
-          ftype='butter', 
-          btype='bandpass', 
-          inline=True,
-        compute_miniscope_spectrogram=True,
-          window_length = 30, 
-          window_step = 3, 
-          freq_lims = [0,15], 
-          time_bandwidth = 2
-        )
-        
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+    try:
+        api.run(**run_params)
+    except Exception as e:
+        print(f"Error occurred during execution: {e}", file=sys.stderr)
+        if args.headless:
+            # In headless mode, ensure we exit with non-zero code on error
+            sys.exit(1)
+        raise

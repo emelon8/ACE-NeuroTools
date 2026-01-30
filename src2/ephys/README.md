@@ -6,11 +6,41 @@ This directory handles the import and processing of Electrophysiology (EEG/LFP) 
 
 ### `EphysAPI` (`ephys_api.py`)
 The main entry point for processing electrophysiology data.
-*   **Usage:**
-    ```python
-    api = EphysAPI()
-    api.run(line_num=..., channel_name=..., remove_artifacts=..., ...)
-    ```
+
+## Configuration
+
+This API supports YAML configuration files for reproducible experiments.
+
+**Template:** [`ephys_config.yaml`](ephys_config.yaml)
+
+### Parameters
+
+| Section | Parameter | Type | Description |
+|---------|-----------|------|-------------|
+| `experiment` | `line_num` | int | Row number in `experiments.csv` |
+| `ephys` | `channel_name` | string | Neuralynx CSC channel name (e.g., "PFCLFPvsCBEEG") |
+| `ephys` | `remove_artifacts` | bool | Enable artifact removal via thresholding |
+| `ephys` | `filter_type` | string/null | Filter type: "butter", "fir", or null |
+| `ephys` | `filter_range` | [float, float] | Frequency band [low, high] in Hz |
+| `ephys.visualization` | `plot_channel` | bool | Plot raw/filtered signal trace |
+| `ephys.visualization` | `plot_spectrogram` | bool | Plot multitaper spectrogram |
+| `ephys.visualization` | `plot_phases` | bool | Plot phase histogram |
+| - | `logging_level` | string | DEBUG, INFO, WARNING, ERROR, CRITICAL |
+
+### Usage
+
+```bash
+# Option 1: Config file (Recommended)
+python src2/ephys/ephys_api.py --config src2/ephys/ephys_config.yaml
+
+# Option 2: Headless mode (for Slurm/remote)
+python src2/ephys/ephys_api.py --config ephys_config.yaml --headless
+
+# Option 3: Parameters in code (legacy)
+api = EphysAPI()
+api.run(line_num=101, channel_name="PFCLFPvsCBEEG", ...)
+```
+
 *   **Key Responsibilities:**
     *   Interacts with `ExperimentDataManager` to locate the data.
     *   Verifies data integrity (via `file_downloader`).
@@ -29,6 +59,15 @@ Manages the `Neo` library interface and `Channel` storage.
     *   `filter_ephys()` uses `scipy.signal.filtfilt` (zero-phase filtering).
     *   Supports `butter` (Butterworth) and `fir` (Finite Impulse Response) filter types.
 
+
+
+### `BlockProcessor` (`block_processor.py`)
+Handles the low-level processing of Neo `Block` objects into clean `Channel` objects.
+*   **Key Responsibilities:**
+    *   `process_raw_ephys`: Iterates through requested channels and extracts them from the Neo structure.
+    *   `_scan_segments`: Stitches together non-continuous recording segments (e.g., from paused recordings) into a continuous signal, handling interpolation for gaps.
+    *   `remove_artifacts`: Optional artifact removal using thresholding and Hann window smoothing.
+
 ### `Channel` (`channel.py`)
 A lightweight data class representing a single electrode or signal source.
 *   **Attributes:**
@@ -41,6 +80,17 @@ A lightweight data class representing a single electrode or signal source.
     *   `phases` (np.array): Instantaneous phase (radians) computed via Hilbert transform.
 
 ## Helpers & Visualization
+
+
+
+### `Spectrogram` (`spectrogram.py`)
+A simple data container for spectrogram results.
+*   **Attributes:**
+    *   `psd_matrix_db` (np.array): Power Spectral Density matrix in decibels.
+    *   `time_points` (np.array): Array of time points.
+    *   `freq_points` (np.array): Array of frequency points.
+
+
 
 ### `ChannelWorker` (`channel_worker.py`)
 A helper class that wraps a `Channel` object to perform specific operations, keeping the data class clean.
