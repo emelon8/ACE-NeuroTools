@@ -16,8 +16,8 @@ class CSVWorker:
         except FileNotFoundError:
             print(f"File {csv_file} not found")
             return None
-        except Exception as e:
-            print(f"Error: {e}")
+        except (pd.errors.EmptyDataError, pd.errors.ParserError) as e:
+            print(f"Error parsing CSV: {e}")
             return None
 
 

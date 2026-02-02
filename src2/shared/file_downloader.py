@@ -47,7 +47,7 @@ def verify_file_by_line(line_num, csv_path: str, do_type="both", avi_list=[]):
         try:
             df = pd.read_csv(csv_path, index_col="line number") # Tries to read the CSV
             print(f"Loaded CSV: {csv_path}")
-        except Exception as e:
+        except (pd.errors.EmptyDataError, FileNotFoundError, pd.errors.ParserError) as e:
             # print(e)
             return False # Will return false if we can't read the CSV
         
@@ -147,7 +147,7 @@ def download_file(client, path: str, ID, need_to_download =[]):
 
         return True # Returns True once everthing is downloaded
     except Exception as e: #Catches any error
-        print(e) # Prints the error to the terminal
+        print(f"Download failed: {e}")
         return False
 
 

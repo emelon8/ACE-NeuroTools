@@ -19,6 +19,7 @@ import sys
 import yaml
 import matplotlib
 import tkinter
+import traceback
 from src2.shared.config_utils import load_config, parse_ephys_config
 
 
@@ -101,29 +102,6 @@ class EphysAPI:
             channel_worker.plot_phases()
             
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     def run_all_channels(
             self, 
             line_num,
@@ -182,8 +160,8 @@ if __name__ == "__main__":
     e = EphysAPI()
     try:
         e.run(**run_params)
-    except Exception as e:
-        print(f"Error occurred during execution: {e}", file=sys.stderr)
+    except Exception:
         if args.headless:
+            traceback.print_exc()
             sys.exit(1)
         raise

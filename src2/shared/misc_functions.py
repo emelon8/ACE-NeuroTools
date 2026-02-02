@@ -281,10 +281,10 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
                     dft = cv2.dft(np.float32(frame), flags=cv2.DFT_COMPLEX_OUTPUT)
                     dft_shift = np.fft.fftshift(dft)
 
-                    try:
-                        sumFFT = sumFFT + cv2.magnitude(dft_shift[:, :, 0], dft_shift[:, :, 1])
-                    except:
+                    if sumFFT is None:
                         sumFFT = cv2.magnitude(dft_shift[:, :, 0], dft_shift[:, :, 1])
+                    else:
+                        sumFFT = sumFFT + cv2.magnitude(dft_shift[:, :, 0], dft_shift[:, :, 1])
 
                     if (showVideo is True):
                         cv2.imshow("Vid", frame / 255)
@@ -353,10 +353,10 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
                         im_v = cv2.hconcat([frame, img_back, im_diff])
                         cv2.imshow("Raw, Filtered, Difference", im_v / 255)
 
-                        try:
-                            sumFFT = sumFFT + cv2.magnitude(dft_shift[:, :, 0], dft_shift[:, :, 1])
-                        except:
+                        if sumFFT is None:
                             sumFFT = cv2.magnitude(dft_shift[:, :, 0], dft_shift[:, :, 1])
+                        else:
+                            sumFFT = sumFFT + cv2.magnitude(dft_shift[:, :, 0], dft_shift[:, :, 1])
 
                         if cv2.waitKey(10) & 0xFF == ord('q'):
                             running = False
@@ -431,8 +431,8 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
         b, a = butter(butterOrder, cutoff / (0.5 * fs), btype='low', analog=False)
         try:
             meanFiltered = filtfilt(b, a, meanFrame)
-        except:
-            print("ERROR:" + filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum))
+        except (ValueError, Exception) as e:
+            print(f"ERROR: {e} | File: {filePath}{dataFilePrefix}{fileNum:.0f}.avi")
             difVideos.append(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum))
             continue
 
@@ -772,7 +772,7 @@ def get_coords_dict_from_analysis_params(miniscope_data_manager, crop=False, cro
             previous_coords = miniscope_data_manager.analysis_params['crop_square']
             coords_dict = { 'x0': previous_coords[0], 'y0': previous_coords[1], 'x1': previous_coords[2], 'y1': previous_coords[3]}
             crop_job_name = '_crop_square'
-    except:
+    except KeyError:
         print("Did not find any coords under ", 'crop' if crop else 'crop_square')
     
     return coords_dict, crop_job_name

@@ -15,6 +15,7 @@ from src2.shared.path_finder import PathFinder
 from src2.shared.experiment_data_manager import ExperimentDataManager
 import src2.shared.file_downloader as file_downloader
 from src2.shared.paths import DATA_DIR
+from src2.shared.exceptions import DataImportError
 
 class MiniscopeDataManager(ExperimentDataManager):
     """Manages raw Miniscope data import and storage. Processes data via Processor."""
@@ -114,7 +115,7 @@ class MiniscopeDataManager(ExperimentDataManager):
                         movie = cm.load(filename)
                         new_filename = f"{os.path.splitext(filename)[0]}{new_file_type}"
                         movie.save(new_filename, compress=0)
-                    except Exception as e:
+                    except (OSError, ValueError, MemoryError) as e:
                         print(f"Error converting movie '{filename}': {e}")
                         error_videos.append(filename)
 
@@ -185,7 +186,7 @@ class MiniscopeDataManager(ExperimentDataManager):
                     else:
                         metadata = {**metadata, **json.load(file)}
             except (IOError, json.JSONDecodeError) as e:
-                raise RuntimeError(f"Error reading or parsing metadata file '{metadata_path}': {e}")
+                raise DataImportError(f"Error reading or parsing metadata file '{metadata_path}': {e}") from e
     
             # If 'frameRate' exists, try to convert it to a float
             if 'frameRate' in metadata:
@@ -203,7 +204,6 @@ class MiniscopeDataManager(ExperimentDataManager):
 
 
     def _get_timestamps(self):
-         #print('Reading miniscope software timestamps from ' + os.path.abspath(timeStampsFilename) + '...')
         file_path = self._find_timestamps_path()
         time_stamps = []
         frame_numbers = []
@@ -276,8 +276,8 @@ class MiniscopeDataManager(ExperimentDataManager):
                     miniscope_events['timestamps'].append(int(row[0]))
                     miniscope_events['labels'].append(row[1])
             miniscope_events['timestamps'] = np.divide(np.asarray(miniscope_events['timestamps']), 1000)  # converts from ms to s
-        except:
-            print("Failed to extract events from notes.csv. Storing an empty dictionary in miniscope_dm.miniscope_events...")
+        except (IOError, IndexError, ValueError, csv.Error) as e:
+            print(f"Failed to extract events from notes.csv ({e}). Storing an empty dictionary in miniscope_dm.miniscope_events...")
         return miniscope_events
             
     

@@ -6,6 +6,7 @@ from src2.multimodal.phase_utils import ephys_phase_ca_events, miniscope_phase_c
 import argparse
 import sys
 import yaml
+import traceback
 from src2.shared.config_utils import load_config, parse_multimodal_config
 
 class MultimodalAPI:
@@ -124,16 +125,7 @@ class MultimodalAPI:
         
         
         hist2, bin_edges2 = phase_ca_events_histogram(ca_events_phases_miniscope)
-        
-        
-        
-        
-        
     
-        
-        
-        
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run Multimodal Analysis Pipeline")
@@ -214,8 +206,8 @@ if __name__ == "__main__":
     api = MultimodalAPI()
     try:
         api.run(**run_params)
-    except Exception as e:
-        print(f"Error occurred during execution: {e}", file=sys.stderr)
+    except Exception:
         if args.headless:
+            traceback.print_exc()
             sys.exit(1)
         raise
