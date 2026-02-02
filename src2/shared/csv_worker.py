@@ -9,7 +9,7 @@ class CSVWorker:
         try:
             df = pd.read_csv(csv_file)
             line_num_str = str(line_num)
-            row = df.loc[df['line number'] == line_num_str]
+            row = df.loc[df['line number'].astype(str) == line_num_str]
             if row.empty:
                 raise ValueError(f"Line number {line_num} (as string: '{line_num_str}') not found")
             return row.squeeze().to_dict()
