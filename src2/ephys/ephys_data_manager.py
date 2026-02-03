@@ -25,6 +25,15 @@ class EphysDataManager():
 
 
     def __init__(self, ephys_directory=None, auto_import_ephys_block=True, auto_process_block=True, auto_compute_phases=True, level = "CRITICAL"):
+        """Initialize the EphysDataManager and optionally load data.
+        
+        Args:
+            ephys_directory: Path to directory containing Neuralynx files.
+            auto_import_ephys_block: If True, automatically import raw ephys data.
+            auto_process_block: If True, automatically process block into channels.
+            auto_compute_phases: If True, automatically compute phase for all channels.
+            level: Logging level string.
+        """
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(level)
         
@@ -43,7 +52,14 @@ class EphysDataManager():
         
 
     def import_ephys_block(self, ephys_directory):
-        """Load raw Neuralynx data without processing."""
+        """Load raw Neuralynx data from disk into a Neo Block.
+        
+        Searches the directory for an Events.nev file and uses Neo's
+        NeuralynxIO to read all associated .ncs channel files.
+        
+        Args:
+            ephys_directory: Path to directory containing Neuralynx files.
+        """
         print('Importing raw ephys data...')
         ephys_file_path = self._find_ephys_file_path(ephys_directory) # get most recently edited Events.nev file
         ephys_dir_path = os.path.dirname(ephys_file_path) # get its parent directory
@@ -52,17 +68,34 @@ class EphysDataManager():
 
 
     def process_ephys_block_to_channels(self, channels, remove_artifacts=False):
-        """Process raw ephys data into channels."""
+        """Process raw ephys block data into Channel objects.
+        
+        Uses BlockProcessor to extract signal data, events, and timing
+        from the loaded Neo Block.
+        
+        Args:
+            channels: Channel name or list of names to process.
+            remove_artifacts: If True, apply artifact removal.
+        """
 
         processor = BlockProcessor(self.ephys_block, self.logger)
         self.channels = processor.process_raw_ephys(channels, remove_artifacts=remove_artifacts)
 
     def compute_phases_all_channels(self):
+        """Compute instantaneous phase for all loaded channels."""
         for key, value in self.channels.items():
             self.channels[key] = self.compute_phase(value)
             
 
     def compute_phase(self, channel):
+        """Compute instantaneous phase using Hilbert transform.
+        
+        Args:
+            channel: Channel object with signal data.
+            
+        Returns:
+            Channel object with phases attribute populated.
+        """
         print(f"Computing phase for {channel.name}")
         analytic_signal = hilbert(channel.signal)
         channel.phases = np.angle(analytic_signal)
@@ -70,7 +103,25 @@ class EphysDataManager():
     
 
     def filter_ephys(self, channel_name, n=2, cut=[0.5, 4], ftype='butter', btype='bandpass', replace_signal=True):
-        """Filter the ephys data."""
+        """Apply a frequency filter to a channel's signal.
+        
+        Supports FIR and Butterworth filter types with configurable
+        cutoff frequencies and band types.
+        
+        Args:
+            channel_name: Name of the channel to filter.
+            n: Filter order (Butterworth) or number of taps (FIR).
+            cut: Cutoff frequency or [low, high] for bandpass.
+            ftype: Filter type ('butter', 'butterworth', or 'fir').
+            btype: Band type ('low', 'high', 'band', 'bandpass').
+            replace_signal: If True, overwrite signal; else store in signal_filtered.
+            
+        Returns:
+            Filtered signal as 1D numpy array.
+            
+        Raises:
+            ValueError: If channel is not found in loaded channels.
+        """
         # self.logger.info('Filtering ' + channel_name + ' with a(n) ' + ftype + ' filter ...')
         try:
             channel: Channel = self.channels[channel_name]
@@ -96,9 +147,15 @@ class EphysDataManager():
         return filtered_data
     
     def get_channels(self):
+        """Return dictionary of all processed channels."""
         return self.channels
     
     def get_channel(self, channel_name):
+        """Return a single channel by name.
+        
+        Args:
+            channel_name: Name of the channel to retrieve.
+        """
         return self.channels[channel_name]
 
 
@@ -110,7 +167,15 @@ class EphysDataManager():
 
 
 
-    def _find_ephys_file_path(self, ephys_directory):        
+    def _find_ephys_file_path(self, ephys_directory):
+        """Find the Events.nev file in the ephys directory.
+        
+        Args:
+            ephys_directory: Path to search for Neuralynx event files.
+            
+        Returns:
+            Path to the first matching Events.nev file.
+        """
         path_finder = PathFinder()
         events_path = path_finder.find( 
                         directory=ephys_directory,
@@ -121,6 +186,20 @@ class EphysDataManager():
     
     @staticmethod
     def _filter_data(data, n, cut, ftype, btype, fs, bodePlot=False):
+        """Apply FIR or Butterworth filter to signal data.
+        
+        Args:
+            data: 1D numpy array of signal values.
+            n: Filter order (Butterworth) or number of taps (FIR).
+            cut: Cutoff frequency or [low, high] for bandpass.
+            ftype: Filter type ('fir', 'butter', or 'butterworth').
+            btype: Band type ('low', 'high', 'band', 'bandpass', etc.).
+            fs: Sampling frequency in Hz.
+            bodePlot: If True, plot Bode diagram of filter response.
+            
+        Returns:
+            Filtered signal as 1D numpy array.
+        """
         from scipy.signal import butter, freqz, filtfilt, firwin, bode
         import logging
 
@@ -136,18 +215,16 @@ class EphysDataManager():
         logging.info(f"- btype: {btype}")
         logging.info(f"- fs: {fs}")
         logging.info(f"- bodePlot: {bodePlot}")
-
-        """ Use ftype to indicate FIR or Butterworth filter.
         
-        For the FIR filter indicate a LowPass, HighPass, or BandPass with btype = lowpass, highpass, or bandpass, respectively. 
-        n is the length of the filter (number of coefficients, i.e. the filter order + 1). numtaps must be odd if a passband includes the Nyquist frequency.
-        A good value for n is 10000.
-        Channel should be set to desired .ncs file
-        
-        The Butterworth filters have a more linear phase response in the pass-band than other types and is able to provide better group delay performance, and also a lower level of overshoot.
-        Indicate the filter type by setting btype = 'low', 'high', or 'band'.
-        The default for n is n = 2
-        For a bandpass filter indicate the lowstop and the highstop by using an array. example: wn= ([10, 30])"""
+        # For the FIR filter indicate a LowPass, HighPass, or BandPass with btype = lowpass, highpass, or bandpass, respectively. 
+        # n is the length of the filter (number of coefficients, i.e. the filter order + 1). numtaps must be odd if a passband includes the Nyquist frequency.
+        # A good value for n is 10000.
+        # Channel should be set to desired .ncs file
+        # 
+        # The Butterworth filters have a more linear phase response in the pass-band than other types and is able to provide better group delay performance, and also a lower level of overshoot.
+        # Indicate the filter type by setting btype = 'low', 'high', or 'band'.
+        # The default for n is n = 2
+        # For a bandpass filter indicate the lowstop and the highstop by using an array. example: wn= ([10, 30])
 
         if ftype.lower() == 'fir':
             h = firwin(n, cut, pass_zero=btype, fs=fs)  # Build the FIR filter

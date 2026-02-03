@@ -6,18 +6,51 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class ChannelWorker:
-    def __init__ (self, channel: Channel):
+    """Worker class for processing and visualizing a single ephys channel.
+    
+    Provides methods for plotting raw/filtered signals, computing spectrograms,
+    and visualizing phase distributions.
+    
+    Attributes:
+        channel: The Channel object to process.
+        visualizer: Visualizer instance for plotting.
+        spectrogram: Computed Spectrogram object (set after computation).
+    """
+    
+    def __init__(self, channel: Channel):
+        """Initialize a ChannelWorker with a Channel object.
+        
+        Args:
+            channel: Channel object containing signal data to process.
+        """
         self.channel = channel
         self.visualizer = Visualizer()
         self.spectrogram = None
 
     def plot_channel(self, use_filtered=False):
+        """Plot the channel's time-domain signal.
+        
+        Args:
+            use_filtered: If True, plot the filtered signal; otherwise plot raw.
+        """
         self.visualizer.plot_channel(self.channel, use_filtered)
 
 
     def plot_spectrogram(self, window_length=30, window_step=3,
                            freq_limits=[0, 50], time_bandwidth=2, plot_events=False, use_filtered=False):
+        """Compute and plot the spectrogram for this channel.
         
+        Args:
+            window_length: Length of each window in seconds.
+            window_step: Step size between windows in seconds.
+            freq_limits: [min_freq, max_freq] range to display.
+            time_bandwidth: Time-bandwidth product for multitaper method.
+            plot_events: If True, overlay event markers on the spectrogram.
+            use_filtered: If True, use the filtered signal.
+            
+        Returns:
+            Spectrogram object with computed PSD data.
+        """
         spectrogram: Spectrogram = self.compute_spectrogram(self.channel, window_length, window_step, freq_limits, time_bandwidth, use_filtered)
 
         events = None if not plot_events else self.channel.events
@@ -25,9 +58,21 @@ class ChannelWorker:
         return self.spectrogram
     
 
-    def compute_spectrogram(self, channel:Channel, window_length=30, window_step=3,
+    def compute_spectrogram(self, channel: Channel, window_length=30, window_step=3,
                            freq_limits=[0, 50], time_bandwidth=2, use_filtered=False):
+        """Compute the multitaper spectrogram for a channel.
         
+        Args:
+            channel: Channel object with signal data.
+            window_length: Length of each window in seconds.
+            window_step: Step size between windows in seconds.
+            freq_limits: [min_freq, max_freq] range to compute.
+            time_bandwidth: Time-bandwidth product for multitaper method.
+            use_filtered: If True, use the filtered signal.
+            
+        Returns:
+            Spectrogram object with PSD data in decibels.
+        """
         signal = channel.signal_filtered if use_filtered else channel.signal
         fs = int(channel.sampling_rate)
 
@@ -47,6 +92,11 @@ class ChannelWorker:
         return self.spectrogram
 
     def plot_phases(self):
+        """Plot a histogram of instantaneous phase values for the channel.
+        
+        Displays diagnostic information about the phase data and creates
+        a histogram showing the distribution of phases from -π to +π.
+        """
         # Step 1: Verify data and sampling rate
         print("Sampling rate:", self.channel.sampling_rate)
         print("Length of phases:", len(self.channel.phases))

@@ -23,9 +23,17 @@ from src2.shared.config_utils import load_config, parse_ephys_config
 
 
 class EphysAPI:
-    """Main workflow class."""
+    """High-level API for electrophysiology data analysis workflows.
+    
+    Provides simplified methods for loading, filtering, and visualizing
+    Neuralynx ephys data with configurable analysis parameters.
+    
+    Attributes:
+        ephys_data_manager: EphysDataManager instance (set after run()).
+    """
 
     def __init__(self):
+        """Initialize the EphysAPI."""
         pass
     
 
@@ -44,6 +52,24 @@ class EphysAPI:
             logging_level = "CRITICAL",
             headless = False
             ):
+        """Run the ephys analysis pipeline for a single channel.
+        
+        Loads ephys data, optionally filters and computes phases, and
+        generates plots based on the provided parameters.
+        
+        Args:
+            line_num: Experiment line number in experiments.csv.
+            channel_name: Name of ephys channel to analyze.
+            remove_artifacts: If True, apply artifact removal.
+            filter_type: Filter type ('butter', 'fir') or None to skip.
+            filter_range: [low, high] cutoff frequencies for bandpass.
+            compute_phases: If True, compute instantaneous phase via Hilbert.
+            plot_channel: If True, plot the time-domain signal.
+            plot_spectrogram: If True, plot the multitaper spectrogram.
+            plot_phases: If True, plot phase distribution histogram.
+            logging_level: Logging verbosity ('DEBUG', 'INFO', 'CRITICAL').
+            headless: If True, disable GUI and use Agg backend.
+        """
         
         if headless:
             print("Running in HEADLESS mode. Plotting disabled.", flush=True)
@@ -101,29 +127,6 @@ class EphysAPI:
             channel_worker.plot_phases()
             
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     def run_all_channels(
             self, 
             line_num,
@@ -134,6 +137,20 @@ class EphysAPI:
             plot_spectrogram = False,
             logging_level = "CRITICAL"
             ):
+        """Run ephys analysis pipeline for all channels in an experiment.
+        
+        Iterates through all channels listed in the experiment metadata
+        and performs the analysis workflow on each.
+        
+        Args:
+            line_num: Experiment line number in experiments.csv.
+            remove_artifacts: If True, apply artifact removal.
+            filter_type: Filter type ('butter', 'fir') or None to skip.
+            filter_range: [low, high] cutoff frequencies for bandpass.
+            plot_channel: If True, plot time-domain signals.
+            plot_spectrogram: If True, plot spectrograms.
+            logging_level: Logging verbosity.
+        """
         
         logger = logging.getLogger(__name__)
         logger.setLevel(logging_level)

@@ -1,13 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
-def importagentanlyzer(suffix = "2024-08-22T14_16_06"): #This is just the default the code had
+def import_agent_analyzer(suffix = "2024-08-22T14_16_06"): 
       user_input = input("Enter file suffix: ")
       if user_input:
             suffix = user_input
       print(f"Using suffix: {suffix}")  # based on user's input
       return suffix
 
-suffix = importagentanlyzer()
+suffix = import_agent_analyzer()
 
 
 
@@ -29,7 +29,7 @@ plt.close('all')
 
 #plotting O2
 
-def plotO2():
+def plot_O2():
     plt.figure()
     plt.title("%O2 vs Time (s)")
     plt.plot(analog_input['time'], analog_input['O2'])
@@ -41,7 +41,7 @@ plotO2()
 
 
 #plotting CO2
-def plotCO2():
+def plot_CO2():
     plt.figure()
     plt.title("%CO2 vs Time (s)")
     plt.plot(analog_input['time'], analog_input['CO2'])
@@ -50,7 +50,7 @@ def plotCO2():
     plt.legend(['CO2'])
 plotCO2()
 
-def plotAnesthetic():
+def plot_anesthetic():
     plt.figure()
     anesthetic = "SEV" #Can change this to whatever one
     plt.title(f"{anesthetic}% vs Time (s)")
@@ -58,7 +58,7 @@ def plotAnesthetic():
     plt.xlabel("time (sec)")
     plt.ylabel(f"% {anesthetic}" ) # goes 0-10% based on volts 1 volt = 1%
     plt.legend([f"{anesthetic}"])
-plotAnesthetic()
+plot_anesthetic()
 
 #%% Hardware FIFO buffer use
 dt = {'names': ('clock', 'bytes', 'percent'),
