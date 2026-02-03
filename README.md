@@ -43,10 +43,22 @@ The project is built on a robust object-oriented framework designed for scalabil
     ```
 
 2.  **Create Environment:**
+
+    **macOS:**
     ```bash
-    # Assuming environment.yml is present
     mamba env create -f environment.yml
-    conda activate experiment_analysis
+    ```
+
+    **Windows:**
+    ```bash
+    mamba env create -f windows.yml
+    ```
+
+    > **Note:** If you encounter dependency conflicts (e.g., with `liblapack`), we strongly recommend using `mamba` instead of `conda` for the environment creation step.
+
+    Activate the environment:
+    ```bash
+    conda activate caiman
     ```
 
 3.  **Install the Package:**
