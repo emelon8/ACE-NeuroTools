@@ -398,6 +398,16 @@ class MiniscopeProcessor:
             
             
     def _prepare_opts_caiman(self):
+        """Prepare CaImAn parameters from analysis_params.
+        
+        Cleans and structures the flat analysis_params dictionary into
+        the grouped format expected by CaImAn's CNMFParams. Removes
+        experiment-specific keys and maps each parameter to its correct
+        parameter group (data, patch, init, spatial, temporal, etc.).
+        
+        Returns:
+            CaImAn CNMFParams object configured for CNMF-E.
+        """
         #convert any analysis_params ending in .0 to integers, adds any needed params
         for key, value in self.data_manager.analysis_params.items():
             if isinstance(value, float) and value.is_integer():
