@@ -19,6 +19,14 @@ class ExperimentDataManager:
     """
 
     def __init__(self, line_num, auto_import_metadata=True, auto_import_analysis_params=True, logging_level = "CRITICAL"):
+        """Initialize the data manager for a specific experiment.
+        
+        Args:
+            line_num: Experiment line number in experiments.csv.
+            auto_import_metadata: If True, load metadata on init.
+            auto_import_analysis_params: If True, load analysis params on init.
+            logging_level: Logging verbosity level.
+        """
         self.line_num = line_num
         self.metadata: dict = None
         self.analysis_params: dict = None
@@ -34,6 +42,7 @@ class ExperimentDataManager:
 
 
     def import_metadata(self):
+        """Load experiment metadata from experiments.csv."""
         metadata_unconverted = CSVWorker.csv_row_to_dict(EXPERIMENTS, self.line_num)
         metadata_converted = CSVWorker.convert_data_types(metadata_unconverted)
         self.metadata = metadata_converted
@@ -41,12 +50,15 @@ class ExperimentDataManager:
         self.metadata['calcium imaging directory'] = BASE_FILE_PATH / self.metadata['calcium imaging directory']
 
     def import_analysis_parameters(self):
+        """Load analysis parameters from analysis_parameters.csv."""
         analysis_params_unconverted = CSVWorker.csv_row_to_dict(ANALYSIS_PARAMS, self.line_num)
         analysis_params_converted = CSVWorker.convert_data_types(analysis_params_unconverted)
         self.analysis_params = analysis_params_converted
 
     def get_ephys_directory(self):
+        """Return the ephys directory path from metadata."""
         return self.metadata['ephys directory']
     
     def get_miniscope_directory(self):
+        """Return the miniscope directory path from metadata."""
         return self.metadata['calcium imaging directory']

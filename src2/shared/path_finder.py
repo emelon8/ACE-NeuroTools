@@ -1,6 +1,8 @@
 from pathlib import Path
 
 class PathFinder:
+    """Utility class for finding files by extension and prefix using pathlib."""
+    
     @staticmethod
     def find(directory=None, suffix=None, prefix=None, file_and_directory=False):
         """

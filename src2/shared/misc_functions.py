@@ -29,7 +29,7 @@ from scipy import stats
 from src2.shared.path_finder import PathFinder
 
 
-def _prepAxes(title='', xLabel='', yLabel='', subPlots=None):
+def _prep_axes(title='', xLabel='', yLabel='', subPlots=None):
     """
     Prepare figure and axis/axes for plotting. Returns the figure handle and either the axis handle or a list of axes handles.
     TITLE is the title of the axis or list of titles (in order) for the axes.
@@ -90,7 +90,7 @@ def spectrogram(tVec, freqVec, specData, cBarPercentLims=[5., 95.], xLabel='Time
     SPECDATA is the matrix of spectral power.
     CBARPERCENTLIMS sets the bounds on the color bar by finding the specified percentages of the power in specData.
     """
-    h, ax = _prepAxes(xLabel=xLabel, yLabel=yLabel)
+    h, ax = _prep_axes(xLabel=xLabel, yLabel=yLabel)
     cBarMin = np.percentile(specData, cBarPercentLims[0])
     cBarMax = np.percentile(specData, cBarPercentLims[1])
     spectrogramPlot = ax.imshow(specData, interpolation='none', extent=[tVec[0], tVec[-1], freqVec[0], freqVec[-1]],
@@ -100,7 +100,13 @@ def spectrogram(tVec, freqVec, specData, cBarPercentLims=[5., 95.], xLabel='Time
     return h, ax
 
 
-def markEvents(axisHandle, eventTimes):
+def mark_events(axisHandle, eventTimes):
+    """Draw vertical event markers on a plot at specified times.
+    
+    Args:
+        axisHandle: Matplotlib axis to draw on.
+        eventTimes: Single time or list of times to mark.
+    """
     ##Mark Neuralynx events on a given plot
     yLimits = axisHandle.get_ylim()
     xLimits = axisHandle.get_xlim()
@@ -112,7 +118,7 @@ def markEvents(axisHandle, eventTimes):
     axisHandle.axis([xLimits[0], xLimits[1], yLimits[0], yLimits[1]])
 
 
-def _findFilePaths(directory=None, fileExtensions=None, fileStartsWith=None,
+def _find_file_paths(directory=None, fileExtensions=None, fileStartsWith=None,
                    removeFile=False, printPath=False, fileAndDirectory=False):
     '''
     timeStampsFilename = misc_functions._findFilePaths(self.experiment['calcium imaging directory'], '.csv', 'timeStamps', removeFile=False, printPath=False, fileAndDirectory=False)
@@ -188,7 +194,7 @@ def _findFilePaths(directory=None, fileExtensions=None, fileStartsWith=None,
         return sorted(set(filePaths), key=os.path.getmtime)
 
 
-def loadObj(filename):
+def load_obj(filename):
     ##Loads a pickled object into memory from FILENAME. Useful for loading a previously used instance of a class (e.g., miniscope_Ephys.miniscopeEphys class).##
     fileToRead = open(filename, 'rb')
     loadedObject = pickle.load(fileToRead)
@@ -196,10 +202,10 @@ def loadObj(filename):
     return loadedObject
 
 
-def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
-                 framesPerFile=1000, fs=30, frameStep=10, goodRadius=2000,
-                 notchHalfWidth=3, centerHalfHeightToLeave=90, cutoff=3.0,
-                 butterOrder=6, mode='display', compressionCodec='FFV1', jobID=''):
+def denoise_movie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
+                  framesPerFile=1000, fs=30, frameStep=10, goodRadius=2000,
+                  notchHalfWidth=3, centerHalfHeightToLeave=90, cutoff=3.0,
+                  butterOrder=6, mode='display', compressionCodec='FFV1', jobID=''):
     '''
     Loads a movie and removes both the horizontal bands (that slowly travel upwards) from the movie and the slow flicker of the entire image. Code largely stolen from Daniel Aharoni's python notebook (https://github.com/Aharoni-Lab/Miniscope-v4/tree/master/Miniscope-v4-Denoising-Notebook).
     DATADIR is the directory that contains the movie files to be denoised.
@@ -528,7 +534,7 @@ def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
         print('Consider investigating')
 
 
-def importVideoAsNumpyArray(filename, frames='all', displayFrame=False, frameToDisplay=10):
+def import_video_as_numpy_array(filename, frames='all', displayFrame=False, frameToDisplay=10):
     """Code stolen from https://stackoverflow.com/questions/42163058/how-to-turn-a-video-into-numpy-array and edited."""
     cap = cv2.VideoCapture(filename)
     frameCount = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -549,7 +555,7 @@ def importVideoAsNumpyArray(filename, frames='all', displayFrame=False, frameToD
     return buf
 
 
-def quatToEuler(qw, qx, qy, qz, degrees=False):
+def quat_to_euler(qw, qx, qy, qz, degrees=False):
     m00 = 1.0 - 2.0 * qy * qy - 2.0 * qz * qz
     m01 = 2.0 * qx * qy + 2.0 * qz * qw
     m02 = 2.0 * qx * qz - 2.0 * qy * qw
@@ -576,7 +582,7 @@ def quatToEuler(qw, qx, qy, qz, degrees=False):
     return eulerAngles
 
 
-def _convQuatToEuler(line):
+def _conv_quat_to_euler(line):
     if len(line) != 5:
         print('!!! ERROR: Invalid file')  # FIXME
         return
@@ -585,27 +591,27 @@ def _convQuatToEuler(line):
     qx = line[2]
     qy = line[3]
     qz = line[4]
-    eulerAngles = list(quatToEuler(qw, qx, qy, qz, degrees=False))
+    eulerAngles = list(quat_to_euler(qw, qx, qy, qz, degrees=False))
     eulerAngles.insert(0, time)  ##time in matrix?
     return eulerAngles
 
 
-def _calcNumMinusMean(num, mean):
+def _calc_num_minus_mean(num, mean):
     return (num - mean)
 
 
-def _compVThresh(num, VThresh):
+def _comp_v_thresh(num, VThresh):
     x = int(abs(num) >= abs(VThresh))
     return x
 
 
-def _findStepIndex(conArray):
+def _find_step_index(conArray):
     x = np.diff(np.round(np.diff(conArray), 3))
     index = np.asarray(np.where(abs(x) > 1)[0]) + 1
     return index
 
 
-def threshFunc(dataArray, threshVal):
+def thresh_func(dataArray, threshVal):
     dataArray = np.where(dataArray >= threshVal, 1, 0)
     dataArray = np.argwhere(np.diff(dataArray) == 1)
     addArr = np.zeros(np.shape(dataArray))
@@ -614,7 +620,7 @@ def threshFunc(dataArray, threshVal):
     return dataArray
 
 
-def filterData(data, n, cut, ftype, btype, fs, bodePlot=False):
+def filter_data(data, n, cut, ftype, btype, fs, bodePlot=False):
     """ Use ftype to indicate FIR or Butterworth filter.
     
     For the FIR filter indicate a LowPass, HighPass, or BandPass with btype = lowpass, highpass, or bandpass, respectively. 
@@ -659,7 +665,7 @@ def filterData(data, n, cut, ftype, btype, fs, bodePlot=False):
     return filteredData
 
 
-def updateCSVCell(data, columnTitle, lineNum, csvFile):
+def update_csv_cell(data, columnTitle, lineNum, csvFile):
     # get the correct column
     with open(csvFile) as file:
         reader = csv.DictReader(file)
@@ -676,7 +682,7 @@ def updateCSVCell(data, columnTitle, lineNum, csvFile):
                 writer.writerow(lineData)
 
 
-def appendRowCSV(data, filename):
+def append_row_csv(data, filename):
     """Appends a new row to a CSV file.
     Args:
         data: Dictionary of data to be added to the csv file
@@ -693,7 +699,7 @@ def appendRowCSV(data, filename):
             writer.writerow(dict(data))
 
 
-def spikeTrigAvg(eventArray, dataArray, framesb, framesa):       
+def spike_trig_avg(eventArray, dataArray, framesb, framesa):       
     """
     Compute the average spike values starting 'framesb' before the event
     and ending 'framesa' after the event.
@@ -733,7 +739,7 @@ def spikeTrigAvg(eventArray, dataArray, framesb, framesa):
     return avgEventDict
 
 
-def zScore(dataArray, frameWindow = 1000):
+def z_score(dataArray, frameWindow = 1000):
     """
     Compute the z-score of the data array values every designated frame window
     length based on the values within that frame window
