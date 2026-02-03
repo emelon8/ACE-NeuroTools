@@ -9,6 +9,16 @@ import yaml
 from src2.shared.config_utils import load_config, parse_multimodal_config
 
 class MultimodalAPI:
+    """High-level API for combined ephys and calcium imaging analysis.
+    
+    Orchestrates synchronized analysis of Neuralynx electrophysiology and
+    miniscope calcium imaging data, including timestamp alignment and
+    phase-based event analysis.
+    
+    Attributes:
+        ephys_data_manager: EphysDataManager (via ephys_api).
+        miniscope_data_manager: MiniscopeDataManager (via miniscope_api).
+    """
         
     
     def run(self,
@@ -74,6 +84,40 @@ class MultimodalAPI:
             time_range=None,
             headless=False
             ):
+        """Run the complete multimodal analysis pipeline.
+        
+        Executes both ephys and miniscope pipelines, synchronizes their
+        timestamps via TTL events, and performs phase-locked calcium event
+        analysis.
+        
+        Args:
+            line_num: Experiment line number in experiments.csv.
+            channel_name: Ephys channel name to analyze.
+            remove_artifacts: If True, remove ephys artifacts.
+            filter_type: Ephys filter type ('butter', 'fir') or None.
+            filter_range: [low, high] bandpass cutoffs for ephys.
+            plot_channel: If True, plot ephys time series.
+            plot_spectrogram: If True, plot ephys spectrogram.
+            plot_phases: If True, plot phase histograms.
+            logging_level: Verbosity level.
+            miniscope_filenames: List of movie files to load.
+            crop: If True, crop calcium movie.
+            crop_with_crop: Use 'crop' column coordinates.
+            crop_square: Use 'crop_square' column coordinates.
+            detrend_method: 'median' or 'linear' detrending.
+            df_over_f: If True, compute DF/F.
+            parallel: If True, use multiprocessing.
+            n_processes: Number of parallel processes.
+            apply_motion_correction: If True, correct motion.
+            run_CNMFE: If True, run source extraction.
+            delete_TTLs: If True, remove dropped frame TTLs.
+            fix_TTL_gaps: If True, interpolate missing TTLs.
+            only_experiment_events: If True, keep only experiment events.
+            all_TTL_events: If True, process all TTL events.
+            ca_events: If True, include calcium event analysis.
+            time_range: Optional [start, end] time range to analyze.
+            headless: If True, disable all GUI interactions.
+        """
         
         
         

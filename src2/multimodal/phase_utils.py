@@ -104,6 +104,17 @@ def phase_ca_events_histogram(ca_events_phases, neurons='all', bins=18, hist_ran
 #The following helper methods are all intended to compute histograms using the parameters of the above function
 #This method directly below, in addition to computing and plotting a histogram, also computes mean vectors
 def _mean_density_histogram(ca_events_phases, neurons, bins, hist_range):
+    """Compute mean density histogram with mean phase vectors.
+    
+    Args:
+        ca_events_phases: Dict of neuron_id -> phase array.
+        neurons: Neuron selection ('all' or list).
+        bins: Number of histogram bins.
+        hist_range: (min, max) phase range.
+        
+    Returns:
+        Tuple of (hist, bin_edges, mean_theta, mean_radius).
+    """
     # Mean density histogram across neurons
     ca_events_phases_hist = np.empty((0, bins))
     mean_ca_events_vectors = np.empty((0, 2))
@@ -119,7 +130,7 @@ def _mean_density_histogram(ca_events_phases, neurons, bins, hist_range):
         mean_ca_events_vector_radius.append(np.sqrt(mean_ca_events_vectors[i,0]**2 + mean_ca_events_vectors[i,1]**2))
     hist = np.mean(ca_events_phases_hist, axis=0) # Take the mean across the neurons at each bin.
     hist_error = np.std(ca_events_phases_hist, axis=0) / np.sqrt(np.shape(ca_events_phases_hist)[0]) # Take the standard error of the mean at each bin.
-    h, ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Mean Event Probability', title='Neuron(s): ' + str(neurons))
+    h, ax = misc_functions._prep_axes(xLabel='Phase (rad)', yLabel='Mean Event Probability', title='Neuron(s): ' + str(neurons))
     ax.hist(bin_edges[:-1], bin_edges, weights=hist)
     bin_midpoints = (bin_edges[1:] + bin_edges[:-1]) / 2
     ax.errorbar(bin_midpoints, hist, yerr=hist_error, fmt='none', capsize=3)
@@ -132,63 +143,69 @@ def _mean_density_histogram(ca_events_phases, neurons, bins, hist_range):
         
     
 def _density_histogram(ca_events_phases, neurons, bins, hist_range):
+    """Compute stacked density histogram across neurons."""
     # Barstacked density histogram across neurons
     ca_events_phases_hist = list(ca_events_phases.values())
-    h, ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Probability', title='Neuron(s): ' + str(neurons))
+    h, ax = misc_functions._prep_axes(xLabel='Phase (rad)', yLabel='Event Probability', title='Neuron(s): ' + str(neurons))
     hist, bin_edges, _ = ax.hist(ca_events_phases_hist, bins=bins, range=hist_range, density=True, histtype='barstacked')
     return hist, bin_edges
 
 
 def _counts_histogram(ca_events_phases, neurons, bins, hist_range):
+    """Compute event counts histogram pooled across all neurons."""
     all_ca_events_phases = np.array([])
     for k in list(ca_events_phases.keys()):
         all_ca_events_phases = np.concatenate((all_ca_events_phases, ca_events_phases[k]))
-    h, ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Count', title='Neuron(s): ' + str(neurons))
+    h, ax = misc_functions._prep_axes(xLabel='Phase (rad)', yLabel='Event Count', title='Neuron(s): ' + str(neurons))
     hist, bin_edges, _ = ax.hist(all_ca_events_phases, bins=bins, range=hist_range)
     return hist, bin_edges
 
 
 def _neuron_subset_density_histogram(ca_events_phases, neurons, bins, hist_range):
+    """Compute density histogram for a subset of neurons."""
     ca_events_phases_hist = {}
     for k in neurons:
         ca_events_phases_hist[k] = ca_events_phases[k]
-    h, ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Probability', title='Neuron(s): ' + str(neurons))
+    h, ax = misc_functions._prep_axes(xLabel='Phase (rad)', yLabel='Event Probability', title='Neuron(s): ' + str(neurons))
     hist, bin_edges, _ = ax.hist(ca_events_phases_hist, bins=bins, range=hist_range, density=True, histtype='barstacked')
     return hist, bin_edges
 
 
 def _neuron_subset_counts_histogram(ca_events_phases, neurons, bins, hist_range):
+    """Compute counts histogram for a subset of neurons."""
     all_ca_events_phases = np.array([])
     for k in neurons:
         all_ca_events_phases = np.concatenate((all_ca_events_phases, ca_events_phases[k]))
-    h, ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Count', title='Neuron(s): ' + str(neurons))
+    h, ax = misc_functions._prep_axes(xLabel='Phase (rad)', yLabel='Event Count', title='Neuron(s): ' + str(neurons))
     hist, bin_edges, _ = ax.hist(all_ca_events_phases, bins=bins, range=hist_range)
     return hist, bin_edges
 
 
 def _individual_neuron_histograms(ca_events_phases, bins, hist_range, density):
+    """Create individual histograms for each neuron."""
     ax = []
     hist = {}
     bin_edges = {}
     for i, k in enumerate(list(ca_events_phases.keys())):
         if density:
-            new_h, new_ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Probability', title='Neuron(s): ' + str(k))
+            new_h, new_ax = misc_functions._prep_axes(xLabel='Phase (rad)', yLabel='Event Probability', title='Neuron(s): ' + str(k))
         else:
-            new_h, new_ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Count', title='Neuron(s): ' + str(k))
+            new_h, new_ax = misc_functions._prep_axes(xLabel='Phase (rad)', yLabel='Event Count', title='Neuron(s): ' + str(k))
         ax.append(new_ax)
         hist[k], bin_edges[k], _ = ax[i].hist(ca_events_phases[k], bins=bins, range=hist_range, density=density)
     return hist, bin_edges
 
 
 def _neuron_subset_individual_neuron_histograms(ca_events_phases, neurons, bins, hist_range, density):
+    """Create individual histograms for a subset of neurons."""
     ax = []
     hist = {}
     bin_edges = {}
     for i, k in enumerate(neurons):
         if density:
-            new_h, new_ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Probability', title='Neuron(s): ' + str(k))
+            new_h, new_ax = misc_functions._prep_axes(xLabel='Phase (rad)', yLabel='Event Probability', title='Neuron(s): ' + str(k))
         else:
-            new_h, new_ax = misc_functions._prepAxes(xLabel='Phase (rad)', yLabel='Event Count', title='Neuron(s): ' + str(k))
+            new_h, new_ax = misc_functions._prep_axes(xLabel='Phase (rad)', yLabel='Event Count', title='Neuron(s): ' + str(k))
         ax.append(new_ax)
         hist[k], bin_edges[k], _ = ax[i].hist(ca_events_phases[k], bins=bins, range=hist_range, density=density)
     return hist, bin_edges

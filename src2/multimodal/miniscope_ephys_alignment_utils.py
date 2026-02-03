@@ -7,6 +7,26 @@ from src2.shared.path_finder import PathFinder
 
 
 def sync_neuralynx_miniscope_timestamps(channel: Channel, miniscope_dm: EphysDataManager, delete_TTLs=True, fix_TTL_gaps=False, only_experiment_events=True):
+    """Synchronize Neuralynx and miniscope timestamps using TTL events.
+    
+    Extracts TTL pulse timestamps from ephys events and aligns them with
+    calcium movie frame acquisitions. Optionally corrects for missing TTLs
+    and removes specified dropped frames.
+    
+    Args:
+        channel: Channel object containing ephys events with TTL labels.
+        miniscope_dm: MiniscopeDataManager with frame info and analysis params.
+        delete_TTLs: If True, remove TTLs for dropped frames from analysis_params.
+        fix_TTL_gaps: If True, interpolate missing TTL events.
+        only_experiment_events: If True, remove TTL events from event list.
+        
+    Returns:
+        Tuple of (tCaIm, low_confidence_periods, channel, miniscope_dm) where:
+        - tCaIm: Array of calcium frame timestamps in ephys time.
+        - low_confidence_periods: Array of [start, end] indices with interpolated TTLs.
+        - channel: Updated Channel object.
+        - miniscope_dm: Updated data manager.
+    """
     print('Syncing calcium movie times...')
     frame_acq_idx = (channel.events['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0000).') | (channel.events['labels'] == 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0001).')
     tCaIm = channel.events['timestamps'][frame_acq_idx]
@@ -66,7 +86,7 @@ def _correct_tCaIm(event_labels, tCaIm, low_confidence_periods, miniscope_dm, th
     return tCaIm, low_confidence_periods, miniscope_dm
 
 
-def find_ephys_idx_of_TTL_events(tCaIm, channel, frame_rate, ca_events_idx=None, all_TTL_events=True):
+def find_ephys_idx_of_ttl_events(tCaIm, channel, frame_rate, ca_events_idx=None, all_TTL_events=True):
     """Finds the index of a calcium event in the Neuralynx timespace. If the miniscope class method to find the timing of calcium events has not been run yet, it runs that first.
     CHANNEL is the ephys channel with which to compare the timing of the ephys samples to the calcium event timing."""
     # Match up all calcium movie timestamps with their corresponding ephys timestamps.
