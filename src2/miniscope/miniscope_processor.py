@@ -44,7 +44,7 @@ class MiniscopeProcessor:
         self.data_manager = self.motion_correction_manager(self.data_manager, dview, apply_motion_correction, inspect_motion_correction)
         
         #Prepare additional analysis parameters for CNMFE
-        self.data_manager, images = self.CNMFE_parameter_handler(self.data_manager, plot_params=plot_params)
+        self.data_manager, images = self.cnmfe_parameter_handler(self.data_manager, plot_params=plot_params)
         
         #intialize CNMFE object
         self.data_manager.CNMFE_obj = cm.source_extraction.cnmf.CNMF(n_processes=n_processes, dview=dview, Ain=None, params=self.data_manager.opts_caiman)
@@ -93,7 +93,7 @@ class MiniscopeProcessor:
         return data_manager
     
     
-    def CNMFE_parameter_handler(self, dm, plot_params=False):
+    def cnmfe_parameter_handler(self, dm, plot_params=False):
         """
         -This is an important step before CNMFE. It handles the most important CNMFE parameters.
         
@@ -161,18 +161,18 @@ class MiniscopeProcessor:
         """
         print('Inspecting motion correction...')
         if plot_rigid_motion_correction:
-            h, ax = misc_functions._prepAxes(xLabel=['', 'Frames'], yLabel=['', 'Pixels'], subPlots=[1, 2])
+            h, ax = misc_functions._prep_axes(xLabel=['', 'Frames'], yLabel=['', 'Pixels'], subPlots=[1, 2])
             ax[0].imshow(mc.total_template_rig)  # % plot template
             ax[1].plot(mc.shifts_rig)  # % plot rigid shifts
             ax[1].legend(['X Shifts', 'Y Shifts'])
 
         if plot_shifts:
             if opts_caiman.get('motion', 'pw_rigid'):
-                h, ax = misc_functions._prepAxes(xLabel='Frames', yLabel='Pixels')
+                h, ax = misc_functions._prep_axes(xLabel='Frames', yLabel='Pixels')
                 ax.plot(mc.shifts_rig)
                 ax.legend(['X Shifts', 'Y Shifts'])
             else:
-                h, ax = misc_functions._prepAxes(xLabel=['', 'Frames'],
+                h, ax = misc_functions._prep_axes(xLabel=['', 'Frames'],
                                                  yLabel=['X Shifts (Pixels)', 'Y Shifts (Pixels)'], subPlots=[2, 1])
                 ax[0].plot(mc.x_shifts_els)
                 ax[1].plot(mc.y_shifts_els)
@@ -216,7 +216,7 @@ class MiniscopeProcessor:
                 cm.concatenate([m1, m2], axis=2).play(fr=15, gain=1.0, magnification=2)
                 
             if plot_correlation:
-                h, ax = misc_functions._prepAxes(xLabel=['', 'Frames'], yLabel=['', 'Pixels'], subPlots=[1, 2])
+                h, ax = misc_functions._prep_axes(xLabel=['', 'Frames'], yLabel=['', 'Pixels'], subPlots=[1, 2])
                 ax[0].imshow(original_movie.local_correlations(eight_neighbours=True, swap_dim=False))
                 ax[1].imshow(mc_movie.local_correlations(eight_neighbours=True, swap_dim=False))
 
@@ -235,7 +235,7 @@ class MiniscopeProcessor:
                 mc.mmap_file[0], final_size[0], final_size[1],
                 swap_dim, winsize=winsize, play_flow=False, resize_fact_flow=resize_fact_flow)
 
-            h, ax = misc_functions._prepAxes(xLabel=['Frame', 'Original'], yLabel=['Correlation', 'Motion Corrected'],
+            h, ax = misc_functions._prep_axes(xLabel=['Frame', 'Original'], yLabel=['Correlation', 'Motion Corrected'],
                                              subPlots=[2, 1])
             ax[0].plot(correlations_orig)
             ax[0].plot(correlations_mc)
@@ -251,14 +251,14 @@ class MiniscopeProcessor:
             # plot the results of Residual Optical Flow
             fls = [mc.fname[0][:-4] + '_metrics.npz', mc.mmap_file[0][:-4] + '_metrics.npz']
 
-            h, ax = misc_functions._prepAxes(title=['Mean', 'Corr Image', 'Mean Optical Flow', '', '', ''],
+            h, ax = misc_functions._prep_axes(title=['Mean', 'Corr Image', 'Mean Optical Flow', '', '', ''],
                                              xLabel=['Original', '', '', 'Motion Corrected', '', ''], yLabel=['', '', '', '', '', ''],
                                              subPlots=[2, 3])
 
             # plot the results of Residual Optical Flow, This code block below didn't work in old miniscope on Nathan's mac. It will run now, but I still don't think it works
             fls = [os.path.splitext(mc.fname[0])[0] + '_metrics.npz', os.path.splitext(mc.mmap_file[0])[0] + '_metrics.npz']
 
-            h, ax = misc_functions._prepAxes(title=['Mean', 'Corr Image', 'Mean Optical Flow', '', '', ''],
+            h, ax = misc_functions._prep_axes(title=['Mean', 'Corr Image', 'Mean Optical Flow', '', '', ''],
                                              xLabel=['Original', '', '', 'Motion Corrected', '', ''], yLabel=['', '', '', '', '', ''],
                                              subPlots=[2, 3])
             

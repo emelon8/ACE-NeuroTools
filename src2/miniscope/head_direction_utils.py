@@ -4,7 +4,20 @@ from src.shared.misc_functions import conv_quat_to_euler
 import matplotlib.pyplot as plt
 
 # two functions for computing/plotting rat head direction data
-def quat_file_to_euler(filename='head_orientation.csv', nf='True'):  ##returns newfilename
+def quat_file_to_euler(filename='head_orientation.csv', nf='True'):
+    """Convert quaternion orientation data to Euler angles.
+    
+    Reads a CSV file containing quaternion data and converts each row
+    to Euler angles (x, y, z rotations).
+    
+    Args:
+        filename: Path to input CSV with quaternion data.
+        nf: If 'True', write results to new file; otherwise return matrix.
+        
+    Returns:
+        If nf='True': Path to new CSV file with Euler angles.
+        Otherwise: Matrix of Euler angle values.
+    """
     new_filename = filename.replace('.csv', 'in_euler_angles.csv')
     if os.path.exists(filename):
         print('File exists')
@@ -33,7 +46,15 @@ def quat_file_to_euler(filename='head_orientation.csv', nf='True'):  ##returns n
                 return matrix
 
 
-def graph_movement(filename='head_orientation_in_euler_angles.csv', plot_name='movement_plot.png'):  ##eulerAngle file
+def graph_movement(filename='head_orientation_in_euler_angles.csv', plot_name='movement_plot.png'):
+    """Plot angular velocity over time from Euler angle data.
+    
+    Computes the rate of change of head orientation and plots it over time.
+    
+    Args:
+        filename: Path to CSV file with Euler angles or quaternions.
+        plot_name: Output filename for the saved plot.
+    """
     if 'in_euler_angles.csv' not in filename and '.csv' in filename:
         filename = quat_file_to_euler(filename)
     elif '.csv' not in filename:
