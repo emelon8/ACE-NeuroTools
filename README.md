@@ -102,16 +102,6 @@ python src2/multimodal/multimodal_api.py --config experiment_template.yaml
 
 For detailed documentation on output files (e.g., `estimates.hdf5`) and analysis interpretation, please refer to the module-specific utility guides in `src2/miniscope/README.md` and `src2/ephys/README.md`.
 
-## Citation
-
-If you use this code in your research, please cite the following paper:
-
-> **[Authors]. (Year). [Title]. [Journal]. [DOI]**
-
-Please also cite the CaImAn library:
-
-> Giovannucci, A., Friedrich, J., Gunn, P., Kalfon, J., Brown, B.L., Koay, S.A., Taxidis, J., Najafi, F., Gauthier, J.L., Zhou, P., Khakh, B.S., Tank, D.W., Chklovskii, D.B., Pnevmatikakis, E.A. (2019). CaImAn: An open source tool for scalable Calcium Imaging data Analysis. eLife, 8:e38173.
-
 ## License
 
 This project is licensed under the GNU General Public License v2.0 (or later) - see the LICENSE file for details.
