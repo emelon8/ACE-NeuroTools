@@ -196,11 +196,6 @@ For detailed information on the outputs and analysis recommendations for each AP
 *   **[Ephys Analysis Guide](src2/ephys/README.md)**: Information on channel plots, spectrograms, and phase analysis.
 *   **[Multimodal Analysis Guide](src2/multimodal/README.md)**: Instructions for interpreting phase-locking histograms and aligned data.
 
-## Authors
-
-*   Eric Melonakos
-*   Luke Richards
-
 ## License
 
 No license specified.
