@@ -12,6 +12,31 @@ from PIL import Image
 def _create_contour_fig(sfootprints, background, estimates_obj, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, display_numbers=True, max_number=None,
                          cmap=None, unselectcolor='w', selectcolor='r', coordinates=None,
                          contour_args={}, number_args={}):
+    """Create a figure showing component contours overlaid on a background image.
+    
+    Generates a matplotlib figure with detected neuron contours, coloring
+    rejected components differently from accepted ones.
+    
+    Args:
+        sfootprints: Spatial footprints matrix (A) from CNMF-E.
+        background: 2D array for background image.
+        estimates_obj: CNMF-E estimates with idx_components_bad.
+        thr: Threshold for contour detection.
+        thr_method: 'max' or 'nrg' thresholding method.
+        maxthr: Maximum threshold value for 'max' method.
+        nrgthr: Energy threshold for 'nrg' method.
+        display_numbers: If True, show component numbers.
+        max_number: Maximum number of components to display.
+        cmap: Colormap for background image.
+        unselectcolor: Color for accepted components.
+        selectcolor: Color for rejected components.
+        coordinates: Pre-computed contour coordinates (optional).
+        contour_args: Additional kwargs for contour plotting.
+        number_args: Additional kwargs for text labels.
+        
+    Returns:
+        Matplotlib Figure object.
+    """
 
     if thr is None:
         try:
@@ -75,6 +100,16 @@ def _create_contour_fig(sfootprints, background, estimates_obj, thr=None, thr_me
 
 
 def _component_image(estimates, projections, movie, graph, max=False, min=False, STD=False, mean=False, median=False, range=False, cmap='viridis'):
+    """Render component contours on a projection and display in GUI graph.
+    
+    Args:
+        estimates: CNMF-E estimates object.
+        projections: Projections object with summary images.
+        movie: CaImAn movie (for dimensions).
+        graph: PySimpleGUI Graph element to draw on.
+        max/min/STD/mean/median/range: Booleans selecting projection type.
+        cmap: Colormap name for background.
+    """
     graph.erase()
 
     pic_IObytes = io.BytesIO()
@@ -116,6 +151,20 @@ def _component_image(estimates, projections, movie, graph, max=False, min=False,
 
 
 def component_gui(movie, estimates, projections):
+    """Interactive GUI for selecting which CNMF-E components to reject.
+    
+    Displays component contours overlaid on projection images. Users can
+    select components to reject by clicking on a listbox, with rejected
+    components highlighted in red.
+    
+    Args:
+        movie: CaImAn movie for dimensions.
+        estimates: CNMF-E estimates object (modified in-place).
+        projections: Projections object for background images.
+        
+    Returns:
+        Updated estimates object with rejected components removed.
+    """
     if estimates.idx_components_bad is None:
         estimates.idx_components_bad = [] 
 

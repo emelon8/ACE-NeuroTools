@@ -12,6 +12,16 @@ import matplotlib
 
 
 class MiniscopeProcessor:
+    """Main processor for calcium imaging movie analysis using CaImAn.
+    
+    Orchestrates the complete analysis pipeline including motion correction,
+    CNMF-E source extraction, and result saving. Works with MiniscopeDataManager
+    to track all processing state and outputs.
+    
+    Attributes:
+        data_manager: MiniscopeDataManager containing movie and parameters.
+        preprocessed_movie: Copy of original movie before processing.
+    """
     
     def __init__(self, data_manager: MiniscopeDataManager):
         """"
@@ -34,6 +44,25 @@ class MiniscopeProcessor:
     def process_calcium_movie(self, parallel=True, n_processes=12, apply_motion_correction=True, 
                                inspect_motion_correction=False, plot_params=False, run_CNMFE=True,
                                save_estimates=True, save_CNMFE_estimates_filename='estimates.hdf5', save_CNMFE_params=False):
+        """Run the complete calcium movie processing pipeline.
+        
+        Executes motion correction, CNMF-E source extraction, and saves results.
+        This is the main entry point for processing miniscope recordings.
+        
+        Args:
+            parallel: If True, use multiprocessing for CaImAn operations.
+            n_processes: Number of parallel processes to use.
+            apply_motion_correction: If True, perform motion correction.
+            inspect_motion_correction: If True, show motion correction diagnostics.
+            plot_params: If True, display CNMF-E parameter tuning plots.
+            run_CNMFE: If True, run CNMF-E source extraction algorithm.
+            save_estimates: If True, save CNMF-E results to disk.
+            save_CNMFE_estimates_filename: Filename for saved estimates.
+            save_CNMFE_params: If True, save CaImAn parameters to JSON.
+            
+        Returns:
+            Updated MiniscopeDataManager with processing results.
+        """
 
         #set up processing type
         if parallel:
@@ -77,6 +106,20 @@ class MiniscopeProcessor:
         
         
     def motion_correction_manager(self, data_manager, dview, apply_motion_correction, inspect_motion_correction):
+        """Manage the motion correction workflow.
+        
+        Applies motion correction if requested, creates memory-mapped files,
+        and optionally displays diagnostic visualizations.
+        
+        Args:
+            data_manager: MiniscopeDataManager with movie data.
+            dview: CaImAn distributed view object for parallel processing.
+            apply_motion_correction: If True, perform motion correction.
+            inspect_motion_correction: If True, show before/after comparisons.
+            
+        Returns:
+            Updated data_manager with motion-corrected memory map.
+        """
         if apply_motion_correction:
             #apply motion correction
             motion_correction_object, data_manager.opts_caiman = self._apply_motion_correction(data_manager.opts_caiman, dview)
@@ -304,13 +347,40 @@ class MiniscopeProcessor:
     
     
     def _add_temp_mmap_to_opts_caiman(self, filepath, opts_caiman, bord_px, dview=None):
+        """Save movie to memory-mapped file and update CaImAn options.
+        
+        Creates a C-order memory-mapped file with border pixels set to zero,
+        then updates opts_caiman to reference this file.
+        
+        Args:
+            filepath: Path to movie file or existing mmap.
+            opts_caiman: CaImAn parameters object to update.
+            bord_px: Number of border pixels to set to zero.
+            dview: Optional distributed view for parallel saving.
+            
+        Returns:
+            Updated opts_caiman with new mmap filepath.
+        """
         motion_corrected_mmap_filepath = cm.save_memmap(filepath, base_name="", order='C', border_to_0=bord_px, dview=dview)
         opts_caiman.change_params({'data': {'fnames': motion_corrected_mmap_filepath}})
         return opts_caiman
     
     
     def _save_processed_data(self, dm, save_estimates, save_CNMFE_estimates_filename, save_CNMFE_params):
-        #saves info to disk in miniscope/saved_movies
+        """Save CNMF-E results and parameters to disk.
+        
+        Saves estimates to HDF5 and optionally saves CaImAn parameters to JSON.
+        Updates data_manager with filepaths to saved files.
+        
+        Args:
+            dm: MiniscopeDataManager with processing results.
+            save_estimates: If True, save CNMF-E estimates.
+            save_CNMFE_estimates_filename: Filename for estimates file.
+            save_CNMFE_params: If True, save parameters to JSON.
+            
+        Returns:
+            Updated data_manager with saved file paths.
+        """
         if save_estimates and dm.CNMFE_obj is not None:
             save_dir = os.path.join(dm.metadata['calcium imaging directory'], "saved_movies")
             os.makedirs(save_dir, exist_ok=True)

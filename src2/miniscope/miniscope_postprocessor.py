@@ -14,9 +14,25 @@ from src2.miniscope.movie_io import MovieIO
 
 #Methods for loading and manipulating components after CNMF-E is run
 class MiniscopePostprocessor:
+    """Post-processor for CNMF-E extracted calcium imaging components.
     
+    Performs component refinement, calcium event detection, spectral analysis,
+    and phase computation on processed miniscope data.
+    
+    Attributes:
+        data_manager: MiniscopeDataManager with CNMFE results.
+        frame_rate: Recording frame rate from data_manager.
+        dview: CaImAn distributed view for parallel processing.
+    """
     
     def __init__(self, data_manager):
+        """Initialize post-processor with data manager.
+        
+        Automatically computes movie projections on initialization.
+        
+        Args:
+            data_manager: MiniscopeDataManager with movie and CNMFE results.
+        """
         self.data_manager = data_manager
         self.data_manager.projections = self.compute_projections(self.data_manager.movie)
         self.frame_rate = self.data_manager.fr
@@ -39,6 +55,32 @@ class MiniscopePostprocessor:
                                           window_step = 3, 
                                           freq_lims = [0,15], 
                                           time_bandwidth = 2):
+        """Run the complete post-processing pipeline on CNMF-E results.
+        
+        Performs component curation via GUI, calcium event detection, phase
+        computation, filtering, and spectral analysis.
+        
+        Args:
+            remove_components_with_gui: If True, open interactive GUI for component selection.
+            find_calcium_events: If True, detect calcium transient events.
+            derivative_for_estimates: Derivative order for event detection ('zeroth', 'first', 'second').
+            event_height: Threshold height for peak detection.
+            compute_miniscope_phase: If True, compute instantaneous phase via Hilbert.
+            filter_miniscope_data: If True, apply bandpass filter to projections.
+            n: Filter order.
+            cut: [low, high] cutoff frequencies for bandpass.
+            ftype: Filter type ('butter', 'fir').
+            btype: Band type for filter.
+            inline: If True, replace original data with filtered.
+            compute_miniscope_spectrogram: If True, compute multitaper spectrogram.
+            window_length: Spectrogram window length in seconds.
+            window_step: Spectrogram step size in seconds.
+            freq_lims: [low, high] frequency limits for spectrogram.
+            time_bandwidth: Time-bandwidth product for multitaper.
+            
+        Returns:
+            Updated MiniscopeDataManager with all post-processing results.
+        """
         
         if remove_components_with_gui:
             if self.data_manager.CNMFE_obj is not None and self.data_manager.CNMFE_obj.estimates.A is not None and self.data_manager.CNMFE_obj.estimates.A.shape[0] > 0:
@@ -72,7 +114,17 @@ class MiniscopePostprocessor:
 
 
     def compute_projections(self, movie: cm.movie=None):
-        """Calculates the projections of self.movie with progress bar."""
+        """Compute spatial and temporal projections of the movie.
+        
+        Calculates max, min, mean, median, std, range projections and
+        mean fluorescence time series.
+        
+        Args:
+            movie: CaImAn movie object to compute projections from.
+            
+        Returns:
+            Projections object containing all computed projections.
+        """
         print("\n\nComputing projections...\n")
         
         operations = {
@@ -102,7 +154,20 @@ class MiniscopePostprocessor:
 
 
     def evaluate_components(self, estimates, opts_caiman, min_SNR=3, r_values_min=0.85):
-        """""Computes the quality metrics for each component and stores the indices of the components that pass user specified thresholds."""
+        """Compute quality metrics for CNMF-E components.
+        
+        Evaluates each component's SNR and spatial correlation, storing
+        indices of components that pass the specified thresholds.
+        
+        Args:
+            estimates: CNMF-E estimates object with extracted components.
+            opts_caiman: CaImAn parameters object.
+            min_SNR: Minimum signal-to-noise ratio threshold.
+            r_values_min: Minimum spatial correlation threshold.
+            
+        Returns:
+            Tuple of (estimates, opts_caiman) with quality metrics added.
+        """
         #This line assumes processing has been performed, and a single memory mapped file exists on your computer under caiman/temp. The filepath should be stored in fnames in opts_caiman
         Yr, dims, T = cm.load_memmap(opts_caiman.get('data', 'fnames')[0])
         images = Yr.T.reshape((T,) + dims, order='F')
@@ -113,6 +178,20 @@ class MiniscopePostprocessor:
     
     
     def find_calcium_events_with_deconvolution(self, estimates, opts_caiman, dview, dff_flag=False):
+        """Detect calcium events using deconvolution-based spike inference.
+        
+        Uses CaImAn's deconvolution to extract spike trains from calcium
+        traces and identifies event indices.
+        
+        Args:
+            estimates: CNMF-E estimates with calcium traces.
+            opts_caiman: CaImAn parameters for deconvolution.
+            dview: Distributed view for parallel processing.
+            dff_flag: If True, use DF/F traces.
+            
+        Returns:
+            Dict mapping neuron indices to arrays of event frame indices.
+        """
         ca_events_idx = {}
         #ensure deconvolution has not already been performed on estimates
         if not hasattr(estimates, 'S') or estimates.S is None:
@@ -126,10 +205,19 @@ class MiniscopePostprocessor:
     
       
     def find_calcium_events_with_derivatives(self, estimates, derivative='first', event_height=5):
-        #I am not sure this function works as intended for first and second derivatives. I need to reseach the math better
-        #This method looks for calcium events in self.estimates.C.
-        #DERIVATIVE is the number of times to take the derivative before thresholding.
-        #HEIGHT is the threshold above which to detect calcium events. The units depend on the DERIVATIVE used.
+        """Detect calcium events using derivative-based peak detection.
+        
+        Computes the specified derivative of calcium traces and finds
+        peaks above the threshold height.
+        
+        Args:
+            estimates: CNMF-E estimates with calcium traces (C matrix).
+            derivative: Order of derivative ('zeroth', 'first', 'second').
+            event_height: Minimum peak height threshold.
+            
+        Returns:
+            Dict mapping neuron indices to arrays of event frame indices.
+        """
         print('Finding indices of calcium events...')
         n_components = estimates.C.shape[0]
         neuron_indices = range(n_components)
@@ -157,7 +245,23 @@ class MiniscopePostprocessor:
     
     @staticmethod
     def compute_miniscope_spectrogram(data, frame_rate, window_length=30, window_step=3, freq_lims=[0,15], time_bandwidth=2, plot_spectrogram=True):
-        """Estimate (and plot) the multi-taper spectrogram (of the mean miniscope fluorescence). Developed with Mike Prerau's function."""
+        """Compute multitaper spectrogram of mean fluorescence signal.
+        
+        Uses the multitaper method for robust spectral estimation with
+        reduced variance compared to standard periodograms.
+        
+        Args:
+            data: 1D array of mean fluorescence over time.
+            frame_rate: Recording frame rate in Hz.
+            window_length: Window length in seconds.
+            window_step: Step size between windows in seconds.
+            freq_lims: [low, high] frequency range to compute.
+            time_bandwidth: Time-bandwidth product (higher = smoother).
+            plot_spectrogram: If True, display the spectrogram plot.
+            
+        Returns:
+            Tuple of (PSD matrix, time points, frequencies, PSD in dB).
+        """
         print('Computing spectrogram of average miniscope fluorescence...')
         # Set spectrogram params
         fs = int(frame_rate)
@@ -185,12 +289,29 @@ class MiniscopePostprocessor:
 
 
     def compute_miniscope_phase(self, data):
+        """Compute instantaneous phase of fluorescence using Hilbert transform.
+        
+        Args:
+            data: 1D array of fluorescence signal.
+            
+        Returns:
+            1D array of instantaneous phase in radians (-pi to pi).
+        """
         analytic_signal_miniscope = hilbert(data)
         return np.angle(analytic_signal_miniscope)
     
     
     def calculate_component_movie(self, dm):
-        #Ensure what is stored in dm.opts_caiman's attribute 'fnames' is the same memory mapped file used for CNMFE
+        """Create movies showing neural activity and background separately.
+        
+        Reconstructs the movie as A*C (neural) plus background model.
+        
+        Args:
+            dm: MiniscopeDataManager with CNMFE results.
+            
+        Returns:
+            Tuple of (neural_movie, background_movie) as CaImAn movies.
+        """
         Yr, dims, T = cm.load_memmap(dm.opts_caiman.get('data', 'fnames')[0])
         neural_activity = dm.CNMFE_obj.estimates.A @ dm.CNMFE_obj.estimates.C  # AC
         neural_movie = cm.movie(neural_activity).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
@@ -200,6 +321,16 @@ class MiniscopePostprocessor:
         return neural_movie, bg_movie
     
     def calculate_black_component_movie(self, dm):
+        """Create a movie with detected neuron regions blacked out.
+        
+        Useful for visualizing background activity without neural signals.
+        
+        Args:
+            dm: MiniscopeDataManager with CNMFE estimates.
+            
+        Returns:
+            CaImAn movie with neuron ROI pixels set to zero.
+        """
         estimates = dm.CNMFE_obj.estimates
         num_frames, movie_height, movie_width = dm.movie.shape
         neuron_mask = np.sum(estimates.A.toarray(), axis=1) > 0  # True where any neuron has non-zero value
