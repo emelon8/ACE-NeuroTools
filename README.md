@@ -78,7 +78,7 @@ For automated downloading from Box, configure `src2/shared/box_credentials.py` (
 
 ## Usage
 
-The project uses modular API scripts as the primary entry points. These can be run from the command line with YAML configuration files for reproducibility.
+The project uses modular pipeline scripts as the primary entry points. These can be run from the command line with YAML configuration files for reproducibility.
 
 ### 1. Miniscope Analysis
 **Script:** `src2/miniscope/miniscope_pipeline.py`
