@@ -1,0 +1,26 @@
+name: caiman
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - caiman
+  - numpy
+  - scipy
+  - matplotlib
+  - pandas
+  - scikit-learn
+  - bokeh
+  - holoviews
+  - opencv
+  - pyyaml
+  - psutil
+  - colorcet
+  - joblib
+  - jupyterlab
+  - ipympl
+  - pip
+  - pip:
+    - box-sdk-gen
+    - xarray
+    - xrscipy
