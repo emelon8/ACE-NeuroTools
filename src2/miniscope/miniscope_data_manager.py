@@ -51,7 +51,7 @@ class MiniscopeDataManager(ExperimentDataManager):
         if (auto_import_data):
             self.load_attributes(self.chosen_movie_filepaths if self.chosen_movie_filepaths else self.all_movie_filepaths)
             
-        #Attributes below are filled in automatically during the miniscope_api pipeline: preprocessing->processing->postprocessing
+        #Attributes below are filled in automatically during the miniscope_pipeline pipeline: preprocessing->processing->postprocessing
         
         self.projections = None
         self.preprocessed_movie_filepath = None #Your preprocessed movie must be saved to disk and its filepath stored here before processing

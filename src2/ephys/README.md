@@ -4,7 +4,7 @@ This directory handles the import and processing of Electrophysiology (EEG/LFP) 
 
 ## Core Components
 
-### `EphysAPI` (`ephys_api.py`)
+### `EphysPipeline` (`ephys_pipeline.py`)
 The main entry point for processing electrophysiology data.
 
 ## Configuration
@@ -31,13 +31,13 @@ This API supports YAML configuration files for reproducible experiments.
 
 ```bash
 # Option 1: Config file (Recommended)
-python src2/ephys/ephys_api.py --config src2/ephys/ephys_config.yaml
+python src2/ephys/ephys_pipeline.py --config src2/ephys/ephys_config.yaml
 
 # Option 2: Headless mode (for Slurm/remote)
-python src2/ephys/ephys_api.py --config ephys_config.yaml --headless
+python src2/ephys/ephys_pipeline.py --config ephys_config.yaml --headless
 
 # Option 3: Parameters in code (legacy)
-api = EphysAPI()
+api = EphysPipeline()
 api.run(line_num=101, channel_name="PFCLFPvsCBEEG", ...)
 ```
 

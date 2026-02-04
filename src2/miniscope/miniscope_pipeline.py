@@ -20,7 +20,7 @@ os.environ["CAIMAN_DATA"] = f'{BASE_FILE_PATH}/K99/miniscope_data/ketamine/R2307
 
 
 
-class MiniscopeAPI:
+class MiniscopePipeline:
     """High-level API for calcium imaging analysis workflows.
     
     Orchestrates the complete miniscope analysis pipeline from raw video
@@ -35,7 +35,7 @@ class MiniscopeAPI:
     """
 
     def __init__(self):
-        """Initialize the MiniscopeAPI."""
+        """Initialize the MiniscopePipeline."""
     
     def run(
             self, 
@@ -236,7 +236,7 @@ if __name__ == "__main__":
     if args.headless:
         run_params['headless'] = True
         
-    api = MiniscopeAPI()
+    api = MiniscopePipeline()
     try:
         api.run(**run_params)
     except Exception as e:

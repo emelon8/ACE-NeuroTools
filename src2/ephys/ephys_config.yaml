@@ -1,7 +1,7 @@
 # =============================================================================
 # Ephys API Configuration Template
 # =============================================================================
-# Usage: python src2/ephys/ephys_api.py --config src2/ephys/ephys_config.yaml
+# Usage: python src2/ephys/ephys_pipeline.py --config src2/ephys/ephys_config.yaml
 # =============================================================================
 
 experiment:

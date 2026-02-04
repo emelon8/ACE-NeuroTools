@@ -22,7 +22,7 @@ import tkinter
 from src2.shared.config_utils import load_config, parse_ephys_config
 
 
-class EphysAPI:
+class EphysPipeline:
     """High-level API for electrophysiology data analysis workflows.
     
     Provides simplified methods for loading, filtering, and visualizing
@@ -33,7 +33,7 @@ class EphysAPI:
     """
 
     def __init__(self):
-        """Initialize the EphysAPI."""
+        """Initialize the EphysPipeline."""
         pass
     
 
@@ -196,7 +196,7 @@ if __name__ == "__main__":
     if args.headless:
         run_params['headless'] = True
 
-    e = EphysAPI()
+    e = EphysPipeline()
     try:
         e.run(**run_params)
     except Exception as e:

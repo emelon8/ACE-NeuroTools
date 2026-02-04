@@ -9,7 +9,7 @@ from src2.shared import misc_functions
 import os
 from src.multitaper_spectrogram_python import multitaper_spectrogram
 from src2.miniscope.miniscope_data_manager import MiniscopeDataManager
-from src2.ephys.ephys_api import EphysAPI
+from src2.ephys.ephys_pipeline import EphysPipeline
 from src2.ephys.ephys_data_manager import EphysDataManager
 from src2.multimodal.miniscope_ephys_alignment_utils import sync_neuralynx_miniscope_timestamps, find_ephys_idx_of_ttl_events
 from scipy.stats import wilcoxon
@@ -98,10 +98,10 @@ def load_experiment(line_num, calcium_signal_filepath=None):
         fr = 30
     
     #load ephys data
-    ephys_api = EphysAPI()
-    ephys_api.run(line_num, channel_name=channel, remove_artifacts = False, filter_type = None, 
+    ephys_pipeline = EphysPipeline()
+    ephys_pipeline.run(line_num, channel_name=channel, remove_artifacts = False, filter_type = None, 
                   filter_range = [0.5, 4], plot_channel = False, plot_spectrogram = False, plot_phases = False, logging_level = "CRITICAL")
-    channel_object = ephys_api.ephys_data_manager.get_channel(channel_name=channel)
+    channel_object = ephys_pipeline.ephys_data_manager.get_channel(channel_name=channel)
     
     #updates drug_infusion_start above with when the anesthesia starts to be administered
     print()

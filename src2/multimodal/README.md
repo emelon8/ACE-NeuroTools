@@ -4,7 +4,7 @@ This directory contains the logic for synchronizing and analyzing the relationsh
 
 ## Core Components
 
-### `MultimodalAPI` (`multimodal_api.py`)
+### `MultimodalPipeline` (`multimodal_pipeline.py`)
 The high-level interface for running joint analyses.
 
 ## Configuration
@@ -33,19 +33,19 @@ See the template file for the complete parameter list.
 
 ```bash
 # Option 1: Config file (Recommended)
-python src2/multimodal/multimodal_api.py --config src2/multimodal/multimodal_config.yaml
+python src2/multimodal/multimodal_pipeline.py --config src2/multimodal/multimodal_config.yaml
 
 # Option 2: Headless mode (for Slurm/remote)
-python src2/multimodal/multimodal_api.py --config multimodal_config.yaml --headless
+python src2/multimodal/multimodal_pipeline.py --config multimodal_config.yaml --headless
 
 # Option 3: Parameters in code (legacy)
-api = MultimodalAPI()
+api = MultimodalPipeline()
 api.run(line_num=96, channel_name="PFCLFPvsCBEEG", ...)
 ```
 
 *   **Workflow:**
-    1.  Runs `EphysAPI` to clean and filter electrophysiology data.
-    2.  Runs `MiniscopeAPI` to preprocess and extract calcium traces.
+    1.  Runs `EphysPipeline` to clean and filter electrophysiology data.
+    2.  Runs `MiniscopePipeline` to preprocess and extract calcium traces.
     3.  Synchronizes the two data streams using TTL pulses.
     4.  Performs cross-modal analysis (e.g., phase locking, cross-correlation).
 
