@@ -68,7 +68,7 @@ def graph_movement(filename='head_orientation_in_euler_angles.csv', plot_name='m
             y = []
             avg_angle = []
             time = []
-            next(f)  ##skip header line
+            next(f)  # skip header line
             for line in reader:
                 if len(line) != 4:
                     print('!!! ERROR: Invalid file') #FIXME
@@ -77,18 +77,14 @@ def graph_movement(filename='head_orientation_in_euler_angles.csv', plot_name='m
                     line[3])) / 3  # FIXME change to difference between angles instead of averaging the angles
                 avg_angle.append(euler_anglesum)
                 time.append(float(line[0]))
-            count = 1  ##skips first line
+            count = 1  # skips first line
             while count < len(avg_angle):
                 delta_angle = abs((avg_angle[count]) - avg_angle[count - 1])
                 delta_time = abs(time[count] - avg_angle[count - 1])
                 y.append(delta_angle / delta_time)
                 count += 1
-            '''
-            FIXME
-            make an array and take the diff between the rows so you have three columns
-            figure out how you want to represent them as one value and graph
-            '''
-            x = list(time[1:])  ##skips first time
+            # TODO: Take diff between rows for 3 columns, combine to single value
+            x = list(time[1:])  # skips first time
             y = list(y)
             plt.plot(x, y)
             plt.xlabel('time(ms)')

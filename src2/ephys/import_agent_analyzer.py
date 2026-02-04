@@ -20,13 +20,13 @@ suffix = import_agent_analyzer()
 
 
 
-      #%% Metadata
+# Metadata
 dt = {'names': ('time', 'acq_clk_hz', 'block_read_sz', 'block_write_sz'),
 'formats': ('datetime64[us]', 'u4', 'u4', 'u4')}
 meta = np.genfromtxt('start-time_' + suffix + '.csv', delimiter=',', dtype=dt)
 print(f"Recording was started at {meta['time']} GMT")
 
-#%% Analog Inputs dictionary and then lists within dictionary made
+# Analog Inputs
 analog_input = {}
 analog_input['time'] = np.fromfile('analog-clock_' + suffix + '.raw', dtype=np.uint64) / meta['acq_clk_hz']
 analog_input['O2'] = np.fromfile(f'O2_{suffix}.raw', dtype=np.float32) * 10  #multiply by 10 for O2
@@ -35,8 +35,6 @@ analog_input['SEV'] = np.fromfile(f'SEV_{suffix}.raw', dtype=np.float32)
 analog_input['ISO'] = np.fromfile(f'ISO_{suffix}.raw', dtype=np.float32)
 
 plt.close('all')
-
-#plotting O2
 
 def plot_O2():
     """Plot oxygen percentage over time from analog input data."""
@@ -50,7 +48,6 @@ def plot_O2():
 plot_O2()
 
 
-#plotting CO2
 def plot_CO2():
     """Plot carbon dioxide percentage over time from analog input data."""
     plt.figure()
@@ -75,7 +72,7 @@ def plot_anesthetic():
     plt.legend([f"{anesthetic}"])
 plot_anesthetic()
 
-#%% Hardware FIFO buffer use
+# Hardware FIFO buffer use
 dt = {'names': ('clock', 'bytes', 'percent'),
       'formats': ('u8', 'u4', 'f8')}
 memory_use = np.genfromtxt('memory-use_' + suffix + '.csv', delimiter=',', dtype=dt)

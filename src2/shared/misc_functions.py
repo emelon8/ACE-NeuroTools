@@ -107,7 +107,7 @@ def mark_events(axisHandle, eventTimes):
         axisHandle: Matplotlib axis to draw on.
         eventTimes: Single time or list of times to mark.
     """
-    ##Mark Neuralynx events on a given plot
+    # Mark Neuralynx events on a given plot
     yLimits = axisHandle.get_ylim()
     xLimits = axisHandle.get_xlim()
     lineLength = np.diff(yLimits)
@@ -120,16 +120,22 @@ def mark_events(axisHandle, eventTimes):
 
 def _find_file_paths(directory=None, fileExtensions=None, fileStartsWith=None,
                    removeFile=False, printPath=False, fileAndDirectory=False):
-    '''
-    timeStampsFilename = misc_functions._findFilePaths(self.experiment['calcium imaging directory'], '.csv', 'timeStamps', removeFile=False, printPath=False, fileAndDirectory=False)
-
+    """Find file paths matching extension and prefix criteria.
     
+    Makes a list of the full paths of all files of type fileExtensions in
+    directory, sorted by last modification time.
     
-    Makes a list of the full paths of all files of type FILEEXTENSIONS in DIRECTORY, sorted by the time they were last modified.
-    FILEEXTENSIONS is a string of the file extension or a list or tuple with multiple file extensions.
-    FILESTARTSWITH is a string or tuple of strings to be included.
-    REMOVEFILE returns path of folder containing the files you want
-    '''
+    Args:
+        directory: Directory to search.
+        fileExtensions: String or list of file extensions to match.
+        fileStartsWith: String or tuple of filename prefixes to include.
+        removeFile: If True, return folder path instead of file path.
+        printPath: If True, print found paths.
+        fileAndDirectory: If True, return tuple of (files, directories).
+        
+    Returns:
+        Sorted list of matching file paths, or tuple if fileAndDirectory=True.
+    """
 
     if (fileExtensions == None and fileStartsWith == None):
         raise AttributeError('Not enough information to determine path')
@@ -195,7 +201,16 @@ def _find_file_paths(directory=None, fileExtensions=None, fileStartsWith=None,
 
 
 def load_obj(filename):
-    ##Loads a pickled object into memory from FILENAME. Useful for loading a previously used instance of a class (e.g., miniscope_Ephys.miniscopeEphys class).##
+    """Load a pickled object from disk.
+    
+    Useful for loading previously saved class instances.
+    
+    Args:
+        filename: Path to the pickle file.
+        
+    Returns:
+        The unpickled Python object.
+    """
     fileToRead = open(filename, 'rb')
     loadedObject = pickle.load(fileToRead)
     fileToRead.close()
@@ -206,24 +221,29 @@ def denoise_movie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0
                   framesPerFile=1000, fs=30, frameStep=10, goodRadius=2000,
                   notchHalfWidth=3, centerHalfHeightToLeave=90, cutoff=3.0,
                   butterOrder=6, mode='display', compressionCodec='FFV1', jobID=''):
-    '''
-    Loads a movie and removes both the horizontal bands (that slowly travel upwards) from the movie and the slow flicker of the entire image. Code largely stolen from Daniel Aharoni's python notebook (https://github.com/Aharoni-Lab/Miniscope-v4/tree/master/Miniscope-v4-Denoising-Notebook).
-    DATADIR is the directory that contains the movie files to be denoised.
-    DATAFILEPREFIX is anything that comes before the number of the movie file. For example, the file 'msCam0.avi' would have a prefix of 'msCam'.
-    SHOWVIDEO determines whether to display the movie file prior to beginning the analysis.
-    STARTINGFILENUM is the starting number of the sequence of movie files to be denoised. All files with numbers greater than or equal to this will be denoised.
-    FRAMESPERFILE is the number of frames in each file. This number is set by the Miniscope software.
-    FS is the movie frame acquisition rate.
-    FRAMESTEP is the step size for generating the 2D FFT. This can be used to skip frames and speed up processing.
-    GOODRADIUS 
-    NOTCHHALFWIDTH
-    CENTERHALFHEIGHTTOLEAVE is the half-height of the pass frequencies in the 2D FFT.
-    CUTOFF
-    BUTTERORDER generally between 4-9 or there will be more artifacts
-    MODE determines whether to 'save' or 'display' the denoised movie.
-    COMPRESSIONCODEC determines the compression codec to use. Options are 'FFV1' or 'GREY'.
-    Makes sure path ends with '/'
-    '''
+    """Remove horizontal bands and slow flicker from miniscope movies.
+    
+    Applies 2D FFT-based denoising to remove traveling horizontal bands and
+    whole-image flicker artifacts. Based on Daniel Aharoni's denoising notebook:
+    https://github.com/Aharoni-Lab/Miniscope-v4/tree/master/Miniscope-v4-Denoising-Notebook
+    
+    Args:
+        dataDir: Directory containing movie files to denoise.
+        dataFilePrefix: Prefix before file numbers (e.g., 'msCam' for 'msCam0.avi').
+        showVideo: If True, display movie before analysis.
+        startingFileNum: First file number to process; all subsequent files included.
+        framesPerFile: Number of frames per file (set by Miniscope software).
+        fs: Frame acquisition rate in Hz.
+        frameStep: Step size for 2D FFT generation (skip frames to speed up).
+        goodRadius: Radius parameter for FFT filtering.
+        notchHalfWidth: Half-width of notch filter.
+        centerHalfHeightToLeave: Half-height of pass frequencies in 2D FFT.
+        cutoff: Cutoff frequency for filtering.
+        butterOrder: Butterworth filter order (4-9 recommended to avoid artifacts).
+        mode: 'save' to write output or 'display' to show denoised movie.
+        compressionCodec: Video codec for saving ('FFV1' or 'GREY').
+        jobID: Optional job identifier string.
+    """
     difVideos = []
 
     if not isinstance(dataDir, list):
@@ -442,19 +462,6 @@ def denoise_movie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0
             difVideos.append(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum))
             continue
 
-        '''
-        plt.figure()
-        plt.plot(meanFrame, 'k', label='Raw Data')
-        plt.plot( meanFiltered, label='Filtered Data')
-        plt.plot(meanFrame - meanFiltered,'r', label='Difference')
-        plt.xlabel('frame number')
-        # plt.hlines([-a, a], 0, T, linestyles='--')
-        plt.grid(True)
-        plt.axis('tight')
-        plt.legend(loc='upper left')
-        '''
-        # meanFrame[3000]
-
         # Apply FFT spatial filtering and lowpass filtering to data and has the option of saving as new videos
 
         if mode == 'save':
@@ -568,14 +575,14 @@ def quat_to_euler(qw, qx, qy, qz, degrees=False):
 
     eulerAngles = []
 
-    R = np.arctan2(m12, m22)  ##Roll
+    R = np.arctan2(m12, m22)  # Roll
     eulerAngles.append(R)
     c2 = np.sqrt(m00 * m00 + m01 * m01)
-    P = np.arctan2(-m02, c2)  ##Pitch
+    P = np.arctan2(-m02, c2)  # Pitch
     eulerAngles.append(P)
     s1 = np.sin(R)
     c1 = np.cos(R)
-    Y = np.arctan2(s1 * m20 - c1 * m10, c1 * m11 - s1 * m21)  ##Yaw
+    Y = np.arctan2(s1 * m20 - c1 * m10, c1 * m11 - s1 * m21)  # Yaw
     eulerAngles.append(Y)
     if degrees == True:
         eulerAngles = [math.degrees(R), math.degrees(P), math.degrees(Y)]
@@ -592,7 +599,7 @@ def _conv_quat_to_euler(line):
     qy = line[3]
     qz = line[4]
     eulerAngles = list(quat_to_euler(qw, qx, qy, qz, degrees=False))
-    eulerAngles.insert(0, time)  ##time in matrix?
+    eulerAngles.insert(0, time)  # prepend time
     return eulerAngles
 
 
