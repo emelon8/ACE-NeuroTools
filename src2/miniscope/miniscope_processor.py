@@ -1,4 +1,5 @@
 from src2.miniscope.miniscope_data_manager import MiniscopeDataManager
+from src2.shared.exceptions import ProcessingError
 import src2.shared.misc_functions as misc_functions
 import caiman as cm
 import numpy as np
@@ -86,18 +87,18 @@ class MiniscopeProcessor:
             print('Running CNMFE...')
             try:
                 self.data_manager.CNMFE_obj.fit(images)
-            except:
+            except (ValueError, MemoryError, RuntimeError) as e:
                 print('CNMFE failed to run. Please check the parameters and try again.')
                 print('No estimates were saved to disk. Do not continue to post-processing or multimodal analysis')
-                self.data_manager.CNMFE_obj = None
+                raise ProcessingError(f"CNMFE failed: {e}") from e
             
         #save results 'estimates' to disk and update data_manager with their filepaths
         self.data_manager = self._save_processed_data(self.data_manager, save_estimates, save_CNMFE_estimates_filename, save_CNMFE_params)
         
         try:
             cm.stop_server(dview=dview)
-        except:
-            raise RuntimeError("Error, couldn't stop CaImAn processing")
+        except (OSError, AttributeError) as e:
+            print(f"Warning: could not stop CaImAn processing server: {e}")
         
         return self.data_manager
         

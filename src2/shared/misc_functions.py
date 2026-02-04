@@ -582,7 +582,7 @@ def denoise_movie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0
         # Step 5: Apply temporal lowpass filter
         try:
             meanFiltered = _create_lowpass_filter(meanFrame, fs, cutoff, butterOrder)
-        except Exception as e:
+        except (ValueError, RuntimeError) as e:
             print(f"ERROR filtering {filePath}: {e}")
             difVideos.append(filePath)
             continue
@@ -888,7 +888,7 @@ def get_coords_dict_from_analysis_params(miniscope_data_manager, crop=False, cro
             previous_coords = miniscope_data_manager.analysis_params['crop_square']
             coords_dict = { 'x0': previous_coords[0], 'y0': previous_coords[1], 'x1': previous_coords[2], 'y1': previous_coords[3]}
             crop_job_name = '_crop_square'
-    except:
+    except KeyError:
         print("Did not find any coords under ", 'crop' if crop else 'crop_square')
     
     return coords_dict, crop_job_name

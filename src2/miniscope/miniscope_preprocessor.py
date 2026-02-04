@@ -7,6 +7,7 @@ from caiman import movie as cm_movie
 from tqdm import tqdm
 from src2.miniscope.gui_utils import crop_gui
 from src2.miniscope.movie_io import MovieIO
+from src2.shared.exceptions import ProcessingError
 tqdm.monitor_interval = 0 #may not be necessary
 
 class MiniscopePreprocessor:
@@ -160,8 +161,8 @@ class MiniscopePreprocessor:
             else:
                 raise ValueError(f"Unsupported detrending method '{method}'.")
                 return movie
-        except:
-            print("Detrending failed, returning original movie")
+        except (ValueError, np.linalg.LinAlgError) as e:
+            print(f"Detrending failed ({e}), returning original movie")
             return movie
         
         if plot_trend and detrended_movie is not None:
@@ -220,7 +221,6 @@ class MiniscopePreprocessor:
             print("Computing df over f / sqrt f was successful")
             return processed_movie
         
-        except:
-            raise ValueError("Computing df over f failed, returning original movie")
-            return movie
+        except (ZeroDivisionError, FloatingPointError, ValueError) as e:
+            raise ProcessingError(f"Computing df over f failed: {e}") from e
 

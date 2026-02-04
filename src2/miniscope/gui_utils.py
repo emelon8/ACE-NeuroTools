@@ -313,8 +313,8 @@ def crop_gui(coords_dict, projections: Projections, movie_height, movie_width, p
             box = graph.draw_rectangle((coords_dict['x0'], coords_dict['y0']),
                                    (coords_dict['x1'], coords_dict['y1']),
                                    line_color=colors[index])
-        except:
-            print("Failed to draw intial box on GUI with the given coords")
+        except Exception as e:
+            print(f"Failed to draw intial box on GUI with the given coords: {e}")
     else:
         if coords_dict is None or not coords_dict:
             coords_dict = {
