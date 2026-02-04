@@ -212,6 +212,19 @@ def _neuron_subset_individual_neuron_histograms(ca_events_phases, neurons, bins,
 
 
 def _calculate_histograms_without_plotting(ca_events_phases, neurons, bins, hist_range, density, combined):
+    """Compute phase histograms without generating plots.
+    
+    Args:
+        ca_events_phases: Dict of neuron_id -> phase array.
+        neurons: 'all' or list of neuron IDs.
+        bins: Number of histogram bins.
+        hist_range: (min, max) phase range.
+        density: If True, normalize to probability density.
+        combined: If True, pool events across neurons; else separate histograms.
+        
+    Returns:
+        Tuple of (hist, bin_edges) - arrays if combined, dicts if not.
+    """
     if combined:
         all_ca_events_phases = np.array([])
         if neurons == 'all':

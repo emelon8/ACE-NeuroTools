@@ -563,6 +563,15 @@ def import_video_as_numpy_array(filename, frames='all', displayFrame=False, fram
 
 
 def quat_to_euler(qw, qx, qy, qz, degrees=False):
+    """Convert quaternion to Euler angles (roll, pitch, yaw).
+    
+    Args:
+        qw, qx, qy, qz: Quaternion components.
+        degrees: If True, return angles in degrees; otherwise radians.
+        
+    Returns:
+        List of [roll, pitch, yaw] angles.
+    """
     m00 = 1.0 - 2.0 * qy * qy - 2.0 * qz * qz
     m01 = 2.0 * qx * qy + 2.0 * qz * qw
     m02 = 2.0 * qx * qz - 2.0 * qy * qw
@@ -590,6 +599,14 @@ def quat_to_euler(qw, qx, qy, qz, degrees=False):
 
 
 def _conv_quat_to_euler(line):
+    """Convert a CSV line of quaternion data to Euler angles.
+    
+    Args:
+        line: List of [time, qw, qx, qy, qz].
+        
+    Returns:
+        List of [time, roll, pitch, yaw].
+    """
     if len(line) != 5:
         print('!!! ERROR: Invalid file')  # FIXME
         return
@@ -604,21 +621,33 @@ def _conv_quat_to_euler(line):
 
 
 def _calc_num_minus_mean(num, mean):
+    """Subtract mean from a number."""
     return (num - mean)
 
 
 def _comp_v_thresh(num, VThresh):
+    """Return 1 if abs(num) >= abs(VThresh), else 0."""
     x = int(abs(num) >= abs(VThresh))
     return x
 
 
 def _find_step_index(conArray):
+    """Find indices where step changes occur in an array."""
     x = np.diff(np.round(np.diff(conArray), 3))
     index = np.asarray(np.where(abs(x) > 1)[0]) + 1
     return index
 
 
 def thresh_func(dataArray, threshVal):
+    """Find indices where data crosses above a threshold.
+    
+    Args:
+        dataArray: Input data array.
+        threshVal: Threshold value.
+        
+    Returns:
+        Array of indices where threshold crossings occur.
+    """
     dataArray = np.where(dataArray >= threshVal, 1, 0)
     dataArray = np.argwhere(np.diff(dataArray) == 1)
     addArr = np.zeros(np.shape(dataArray))
@@ -673,6 +702,14 @@ def filter_data(data, n, cut, ftype, btype, fs, bodePlot=False):
 
 
 def update_csv_cell(data, columnTitle, lineNum, csvFile):
+    """Update a single cell in a CSV file.
+    
+    Args:
+        data: New value to write.
+        columnTitle: Column header name.
+        lineNum: Line number to update.
+        csvFile: Path to CSV file.
+    """
     # get the correct column
     with open(csvFile) as file:
         reader = csv.DictReader(file)
@@ -774,6 +811,16 @@ def z_score(dataArray, frameWindow = 1000):
 
 
 def get_coords_dict_from_analysis_params(miniscope_data_manager, crop=False, crop_square=False):
+    """Extract crop coordinates from analysis parameters.
+    
+    Args:
+        miniscope_data_manager: Data manager with analysis_params.
+        crop: If True, use 'crop' coordinates.
+        crop_square: If True, use 'crop_square' coordinates.
+        
+    Returns:
+        Tuple of (coords_dict, crop_job_name).
+    """
     coords_dict = None
     crop_job_name = ''
     try:
