@@ -80,7 +80,15 @@ def create_ca_ephys_movie(miniscope_dm, ephys_idx_all_TTL_events, channel_object
     fig, ax = plt.subplots(figsize=(5.4,5.4))
     plt.subplots_adjust(0,0,1,1)
 
-    def update(frame): # TODO Add a way to downsample your movie/ephys/miniscope fluorescence.
+    def update(frame):
+        """Update function for animation - renders a single frame.
+        
+        Clears axes, draws movie frame, overlays ephys/fluorescence traces,
+        and adds timestamps and event markers.
+        
+        Args:
+            frame: Frame index to render.
+        """
         # Clear the plot
         ax.clear()
 

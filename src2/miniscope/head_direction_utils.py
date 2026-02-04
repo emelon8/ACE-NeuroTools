@@ -4,7 +4,20 @@ from src.shared.misc_functions import conv_quat_to_euler
 import matplotlib.pyplot as plt
 
 # two functions for computing/plotting rat head direction data
-def quat_file_to_euler(filename='head_orientation.csv', nf='True'):  ##returns newfilename
+def quat_file_to_euler(filename='head_orientation.csv', nf='True'):
+    """Convert quaternion orientation data to Euler angles.
+    
+    Reads a CSV file containing quaternion data and converts each row
+    to Euler angles (x, y, z rotations).
+    
+    Args:
+        filename: Path to input CSV with quaternion data.
+        nf: If 'True', write results to new file; otherwise return matrix.
+        
+    Returns:
+        If nf='True': Path to new CSV file with Euler angles.
+        Otherwise: Matrix of Euler angle values.
+    """
     new_filename = filename.replace('.csv', 'in_euler_angles.csv')
     if os.path.exists(filename):
         print('File exists')
@@ -33,7 +46,15 @@ def quat_file_to_euler(filename='head_orientation.csv', nf='True'):  ##returns n
                 return matrix
 
 
-def graph_movement(filename='head_orientation_in_euler_angles.csv', plot_name='movement_plot.png'):  ##eulerAngle file
+def graph_movement(filename='head_orientation_in_euler_angles.csv', plot_name='movement_plot.png'):
+    """Plot angular velocity over time from Euler angle data.
+    
+    Computes the rate of change of head orientation and plots it over time.
+    
+    Args:
+        filename: Path to CSV file with Euler angles or quaternions.
+        plot_name: Output filename for the saved plot.
+    """
     if 'in_euler_angles.csv' not in filename and '.csv' in filename:
         filename = quat_file_to_euler(filename)
     elif '.csv' not in filename:
@@ -47,7 +68,7 @@ def graph_movement(filename='head_orientation_in_euler_angles.csv', plot_name='m
             y = []
             avg_angle = []
             time = []
-            next(f)  ##skip header line
+            next(f)  # skip header line
             for line in reader:
                 if len(line) != 4:
                     print('!!! ERROR: Invalid file') #FIXME
@@ -56,18 +77,14 @@ def graph_movement(filename='head_orientation_in_euler_angles.csv', plot_name='m
                     line[3])) / 3  # FIXME change to difference between angles instead of averaging the angles
                 avg_angle.append(euler_anglesum)
                 time.append(float(line[0]))
-            count = 1  ##skips first line
+            count = 1  # skips first line
             while count < len(avg_angle):
                 delta_angle = abs((avg_angle[count]) - avg_angle[count - 1])
                 delta_time = abs(time[count] - avg_angle[count - 1])
                 y.append(delta_angle / delta_time)
                 count += 1
-            '''
-            FIXME
-            make an array and take the diff between the rows so you have three columns
-            figure out how you want to represent them as one value and graph
-            '''
-            x = list(time[1:])  ##skips first time
+            # TODO: Take diff between rows for 3 columns, combine to single value
+            x = list(time[1:])  # skips first time
             y = list(y)
             plt.plot(x, y)
             plt.xlabel('time(ms)')

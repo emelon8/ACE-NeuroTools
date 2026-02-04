@@ -1,7 +1,7 @@
 # =============================================================================
 # Miniscope API Configuration Template
 # =============================================================================
-# Usage: python src2/miniscope/miniscope_api.py --config src2/miniscope/miniscope_config.yaml
+# Usage: python src2/miniscope/miniscope_pipeline.py --config src2/miniscope/miniscope_config.yaml
 # =============================================================================
 
 experiment:

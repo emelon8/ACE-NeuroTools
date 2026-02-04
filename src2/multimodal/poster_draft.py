@@ -5,13 +5,13 @@ from xrscipy.signal.spectral import coherogram
 from scipy.signal import correlate, correlation_lags
 from scipy.signal import coherence
 import pandas as pd
-from src import misc_functions
+from src2.shared import misc_functions
 import os
 from src.multitaper_spectrogram_python import multitaper_spectrogram
 from src2.miniscope.miniscope_data_manager import MiniscopeDataManager
-from src2.ephys.ephys_api import EphysAPI
+from src2.ephys.ephys_pipeline import EphysPipeline
 from src2.ephys.ephys_data_manager import EphysDataManager
-from src2.multimodal.miniscope_ephys_alignment_utils import sync_neuralynx_miniscope_timestamps, find_ephys_idx_of_TTL_events
+from src2.multimodal.miniscope_ephys_alignment_utils import sync_neuralynx_miniscope_timestamps, find_ephys_idx_of_ttl_events
 from scipy.stats import wilcoxon
 
 
@@ -77,6 +77,15 @@ drug_infusion_start = {}
 
 #%% Load experiment 
 def load_experiment(line_num, calcium_signal_filepath=None):
+    """Load ephys and miniscope data for a given experiment line.
+    
+    Args:
+        line_num: Experiment line number in experiments.csv.
+        calcium_signal_filepath: Optional path to pre-computed calcium signal.
+        
+    Returns:
+        Tuple of (calcium_signal, channel_object).
+    """
     print('Loading experiment...')
     
     #load miniscope data
@@ -89,10 +98,10 @@ def load_experiment(line_num, calcium_signal_filepath=None):
         fr = 30
     
     #load ephys data
-    ephys_api = EphysAPI()
-    ephys_api.run(line_num, channel_name=channel, remove_artifacts = False, filter_type = None, 
+    ephys_pipeline = EphysPipeline()
+    ephys_pipeline.run(line_num, channel_name=channel, remove_artifacts = False, filter_type = None, 
                   filter_range = [0.5, 4], plot_channel = False, plot_spectrogram = False, plot_phases = False, logging_level = "CRITICAL")
-    channel_object = ephys_api.ephys_data_manager.get_channel(channel_name=channel)
+    channel_object = ephys_pipeline.ephys_data_manager.get_channel(channel_name=channel)
     
     #updates drug_infusion_start above with when the anesthesia starts to be administered
     print()
@@ -108,7 +117,7 @@ def load_experiment(line_num, calcium_signal_filepath=None):
     #sync timestamps
     tCaIm, low_confidence_periods, channel_object, miniscope_data_manager = sync_neuralynx_miniscope_timestamps(channel_object, miniscope_data_manager, delete_TTLs=True, 
                                                                                                fix_TTL_gaps=True, only_experiment_events=True)
-    ephys_idx_all_TTL_events, ephys_idx_ca_events = find_ephys_idx_of_TTL_events(tCaIm, channel=channel_object, frame_rate=fr, ca_events_idx=None, all_TTL_events=True)
+    ephys_idx_all_TTL_events, ephys_idx_ca_events = find_ephys_idx_of_ttl_events(tCaIm, channel=channel_object, frame_rate=fr, ca_events_idx=None, all_TTL_events=True)
     channel_object.signal = channel_object.signal[ephys_idx_all_TTL_events] # downsample
     
     channel_object.sampling_rate = np.array(fr)
@@ -147,6 +156,7 @@ def plot_lines_ax(line_num, ax):
         ax.legend([a, b], ['Control', 'Treatment'])
 
 def plot_lines_plt(line_num, plt):
+    """Add control/treatment period markers to a matplotlib plot."""
     a = plt.axvline(x=selections[line_num][0][0], color='red', linestyle='--', linewidth=WIDTH)
     plt.axvline(x=selections[line_num][0][0] + 0.33, color='red', linestyle='--', linewidth=WIDTH)
     x = plt.axvline(x=selections[line_num][0][1], color='red', linestyle='--', linewidth=WIDTH)
@@ -467,7 +477,7 @@ def filter_frequency(eeg_signal, calcium_signal, fr, cut):
     Returns:
         tuple: Filtered fluorescence data and filtered ephys data aligned with TTL events.
     """
-    filtered_calcium_signal = misc_functions.filterData(calcium_signal, n=2, cut=cut, ftype='butter', btype='bandpass', fs=fr)
+    filtered_calcium_signal = misc_functions.filter_data(calcium_signal, n=2, cut=cut, ftype='butter', btype='bandpass', fs=fr)
     filtered_eeg_signal = EphysDataManager._filter_data(data=eeg_signal, n=2, cut=cut, ftype='butter', fs=fr, btype='bandpass', bodePlot=False)
     
     return filtered_eeg_signal, filtered_calcium_signal
@@ -593,6 +603,7 @@ def plot_mean_power_across_time(sliced_power_array, times, line_num, title):
     
 
 def compute_mean_std(df):
+    """Compute mean and std for Control/Treatment columns grouped by Measurement."""
     try:
         result = df.groupby("Measurement")[["Control", "Treatment", "Ratio"]].agg(["mean", "std"]).reset_index()
         result[('Ratio', 'mean')] = result[('Treatment', 'mean')] / result[('Control', 'mean')]

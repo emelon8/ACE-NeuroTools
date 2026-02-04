@@ -29,7 +29,7 @@ from scipy import stats
 from src2.shared.path_finder import PathFinder
 
 
-def _prepAxes(title='', xLabel='', yLabel='', subPlots=None):
+def _prep_axes(title='', xLabel='', yLabel='', subPlots=None):
     """
     Prepare figure and axis/axes for plotting. Returns the figure handle and either the axis handle or a list of axes handles.
     TITLE is the title of the axis or list of titles (in order) for the axes.
@@ -90,7 +90,7 @@ def spectrogram(tVec, freqVec, specData, cBarPercentLims=[5., 95.], xLabel='Time
     SPECDATA is the matrix of spectral power.
     CBARPERCENTLIMS sets the bounds on the color bar by finding the specified percentages of the power in specData.
     """
-    h, ax = _prepAxes(xLabel=xLabel, yLabel=yLabel)
+    h, ax = _prep_axes(xLabel=xLabel, yLabel=yLabel)
     cBarMin = np.percentile(specData, cBarPercentLims[0])
     cBarMax = np.percentile(specData, cBarPercentLims[1])
     spectrogramPlot = ax.imshow(specData, interpolation='none', extent=[tVec[0], tVec[-1], freqVec[0], freqVec[-1]],
@@ -100,8 +100,14 @@ def spectrogram(tVec, freqVec, specData, cBarPercentLims=[5., 95.], xLabel='Time
     return h, ax
 
 
-def markEvents(axisHandle, eventTimes):
-    ##Mark Neuralynx events on a given plot
+def mark_events(axisHandle, eventTimes):
+    """Draw vertical event markers on a plot at specified times.
+    
+    Args:
+        axisHandle: Matplotlib axis to draw on.
+        eventTimes: Single time or list of times to mark.
+    """
+    # Mark Neuralynx events on a given plot
     yLimits = axisHandle.get_ylim()
     xLimits = axisHandle.get_xlim()
     lineLength = np.diff(yLimits)
@@ -112,18 +118,24 @@ def markEvents(axisHandle, eventTimes):
     axisHandle.axis([xLimits[0], xLimits[1], yLimits[0], yLimits[1]])
 
 
-def _findFilePaths(directory=None, fileExtensions=None, fileStartsWith=None,
+def _find_file_paths(directory=None, fileExtensions=None, fileStartsWith=None,
                    removeFile=False, printPath=False, fileAndDirectory=False):
-    '''
-    timeStampsFilename = misc_functions._findFilePaths(self.experiment['calcium imaging directory'], '.csv', 'timeStamps', removeFile=False, printPath=False, fileAndDirectory=False)
-
+    """Find file paths matching extension and prefix criteria.
     
+    Makes a list of the full paths of all files of type fileExtensions in
+    directory, sorted by last modification time.
     
-    Makes a list of the full paths of all files of type FILEEXTENSIONS in DIRECTORY, sorted by the time they were last modified.
-    FILEEXTENSIONS is a string of the file extension or a list or tuple with multiple file extensions.
-    FILESTARTSWITH is a string or tuple of strings to be included.
-    REMOVEFILE returns path of folder containing the files you want
-    '''
+    Args:
+        directory: Directory to search.
+        fileExtensions: String or list of file extensions to match.
+        fileStartsWith: String or tuple of filename prefixes to include.
+        removeFile: If True, return folder path instead of file path.
+        printPath: If True, print found paths.
+        fileAndDirectory: If True, return tuple of (files, directories).
+        
+    Returns:
+        Sorted list of matching file paths, or tuple if fileAndDirectory=True.
+    """
 
     if (fileExtensions == None and fileStartsWith == None):
         raise AttributeError('Not enough information to determine path')
@@ -188,347 +200,404 @@ def _findFilePaths(directory=None, fileExtensions=None, fileStartsWith=None,
         return sorted(set(filePaths), key=os.path.getmtime)
 
 
-def loadObj(filename):
-    ##Loads a pickled object into memory from FILENAME. Useful for loading a previously used instance of a class (e.g., miniscope_Ephys.miniscopeEphys class).##
+def load_obj(filename):
+    """Load a pickled object from disk.
+    
+    Useful for loading previously saved class instances.
+    
+    Args:
+        filename: Path to the pickle file.
+        
+    Returns:
+        The unpickled Python object.
+    """
     fileToRead = open(filename, 'rb')
     loadedObject = pickle.load(fileToRead)
     fileToRead.close()
     return loadedObject
 
 
-def denoiseMovie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
-                 framesPerFile=1000, fs=30, frameStep=10, goodRadius=2000,
-                 notchHalfWidth=3, centerHalfHeightToLeave=90, cutoff=3.0,
-                 butterOrder=6, mode='display', compressionCodec='FFV1', jobID=''):
-    '''
-    Loads a movie and removes both the horizontal bands (that slowly travel upwards) from the movie and the slow flicker of the entire image. Code largely stolen from Daniel Aharoni's python notebook (https://github.com/Aharoni-Lab/Miniscope-v4/tree/master/Miniscope-v4-Denoising-Notebook).
-    DATADIR is the directory that contains the movie files to be denoised.
-    DATAFILEPREFIX is anything that comes before the number of the movie file. For example, the file 'msCam0.avi' would have a prefix of 'msCam'.
-    SHOWVIDEO determines whether to display the movie file prior to beginning the analysis.
-    STARTINGFILENUM is the starting number of the sequence of movie files to be denoised. All files with numbers greater than or equal to this will be denoised.
-    FRAMESPERFILE is the number of frames in each file. This number is set by the Miniscope software.
-    FS is the movie frame acquisition rate.
-    FRAMESTEP is the step size for generating the 2D FFT. This can be used to skip frames and speed up processing.
-    GOODRADIUS 
-    NOTCHHALFWIDTH
-    CENTERHALFHEIGHTTOLEAVE is the half-height of the pass frequencies in the 2D FFT.
-    CUTOFF
-    BUTTERORDER generally between 4-9 or there will be more artifacts
-    MODE determines whether to 'save' or 'display' the denoised movie.
-    COMPRESSIONCODEC determines the compression codec to use. Options are 'FFV1' or 'GREY'.
-    Makes sure path ends with '/'
-    '''
-    difVideos = []
+def _create_vignette_mask(rows, cols):
+    """Create a Gaussian vignette mask for edge weighting.
+    
+    Args:
+        rows: Frame height.
+        cols: Frame width.
+        
+    Returns:
+        2D vignette mask array.
+    """
+    X_kernel = cv2.getGaussianKernel(cols, cols / 4)
+    Y_kernel = cv2.getGaussianKernel(rows, rows / 4)
+    kernel = Y_kernel * X_kernel.T
+    return 255 * kernel / np.linalg.norm(kernel)
 
+
+def _compute_mean_fft(filePath, dataFilePrefix, startingFileNum, framesPerFile, frameStep,
+                      applyVignette, showVideo):
+    """Compute average FFT magnitude across all frames.
+    
+    Args:
+        filePath: Directory containing video files.
+        dataFilePrefix: Filename prefix before number.
+        startingFileNum: First file number to process.
+        framesPerFile: Frames per file.
+        frameStep: Step size for sampling frames.
+        applyVignette: Whether to apply vignette mask.
+        showVideo: Display frames during processing.
+        
+    Returns:
+        Tuple of (sumFFT, rows, cols, vignette_mask).
+    """
+    fileNum = startingFileNum
+    sumFFT = None
+    rows, cols = 0, 0
+    vignette = None
+    running = True
+
+    while path.exists(filePath + dataFilePrefix + f"{fileNum:.0f}.avi") and running:
+        cap = cv2.VideoCapture(filePath + dataFilePrefix + f"{fileNum:.0f}.avi")
+        fileNum += 1
+        
+        for frameNum in tqdm(range(0, framesPerFile, frameStep), 
+                             total=framesPerFile / frameStep,
+                             desc=f"Computing FFT file {fileNum - 1:.0f}.avi"):
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frameNum)
+            ret, frame = cap.read()
+            
+            if not ret:
+                break
+                
+            if vignette is None:
+                rows, cols = frame.shape[:2]
+                vignette = _create_vignette_mask(rows, cols) if applyVignette else 1
+            
+            frame = frame[:, :, 1] * vignette
+            dft = cv2.dft(np.float32(frame), flags=cv2.DFT_COMPLEX_OUTPUT)
+            dft_shift = np.fft.fftshift(dft)
+            magnitude = cv2.magnitude(dft_shift[:, :, 0], dft_shift[:, :, 1])
+            
+            sumFFT = magnitude if sumFFT is None else sumFFT + magnitude
+            
+            if showVideo:
+                cv2.imshow("Vid", frame / 255)
+                if cv2.waitKey(10) & 0xFF == ord('q'):
+                    running = False
+                    break
+                    
+        cap.release()
+    
+    cv2.destroyAllWindows()
+    return sumFFT, rows, cols, vignette
+
+
+def _create_fft_mask(rows, cols, goodRadius, notchHalfWidth, centerHalfHeightToLeave):
+    """Create FFT spatial frequency mask with center notch.
+    
+    Args:
+        rows, cols: Frame dimensions.
+        goodRadius: Radius for circular pass region.
+        notchHalfWidth: Width of center notch filter.
+        centerHalfHeightToLeave: Height of center pass band.
+        
+    Returns:
+        2-channel FFT mask array.
+    """
+    crow, ccol = rows // 2, cols // 2
+    maskFFT = np.zeros((rows, cols, 2), np.float32)
+    cv2.circle(maskFFT, (crow, ccol), goodRadius, 1, thickness=-1)
+    
+    # Apply notch filter to remove horizontal bands
+    maskFFT[(crow + centerHalfHeightToLeave):, (ccol - notchHalfWidth):(ccol + notchHalfWidth), 0] = 0
+    maskFFT[:(crow - centerHalfHeightToLeave), (ccol - notchHalfWidth):(ccol + notchHalfWidth), 0] = 0
+    maskFFT[:, :, 1] = maskFFT[:, :, 0]
+    
+    return maskFFT
+
+
+def _preview_filtered_video(filePath, dataFilePrefix, startingFileNum, framesPerFile, 
+                            frameStep, maskFFT):
+    """Display side-by-side comparison of raw and filtered video.
+    
+    Args:
+        filePath: Directory containing video files.
+        dataFilePrefix: Filename prefix.
+        startingFileNum: First file number.
+        framesPerFile: Frames per file.
+        frameStep: Frame sampling step.
+        maskFFT: FFT filter mask.
+    """
+    fileNum = startingFileNum
+    running = True
+
+    while path.exists(filePath + dataFilePrefix + f"{fileNum:.0f}.avi") and running:
+        cap = cv2.VideoCapture(filePath + dataFilePrefix + f"{fileNum:.0f}.avi")
+        fileNum += 1
+        
+        for frameNum in tqdm(range(0, framesPerFile, frameStep),
+                             total=framesPerFile / frameStep,
+                             desc=f"Preview file {fileNum - 1:.0f}.avi"):
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frameNum)
+            ret, frame = cap.read()
+            
+            if not ret:
+                break
+                
+            frame = frame[:, :, 1]
+            img_back = _apply_fft_filter(frame, maskFFT)
+            
+            im_diff = (128 + (frame - img_back) * 2)
+            im_v = cv2.hconcat([frame, img_back, im_diff])
+            cv2.imshow("Raw, Filtered, Difference", im_v / 255)
+            
+            if cv2.waitKey(10) & 0xFF == ord('q'):
+                running = False
+                break
+                
+        cap.release()
+    
+    cv2.destroyAllWindows()
+
+
+def _apply_fft_filter(frame, maskFFT):
+    """Apply FFT spatial filter to a single frame.
+    
+    Args:
+        frame: 2D grayscale frame.
+        maskFFT: FFT filter mask.
+        
+    Returns:
+        Filtered frame as uint8.
+    """
+    dft = cv2.dft(np.float32(frame), flags=cv2.DFT_COMPLEX_OUTPUT | cv2.DFT_SCALE)
+    dft_shift = np.fft.fftshift(dft)
+    fshift = dft_shift * maskFFT
+    f_ishift = np.fft.ifftshift(fshift)
+    img_back = cv2.idft(f_ishift)
+    img_back = cv2.magnitude(img_back[:, :, 0], img_back[:, :, 1])
+    img_back[img_back > 255] = 255
+    return np.uint8(img_back)
+
+
+def _compute_mean_fluorescence(filePath, dataFilePrefix, startingFileNum, framesPerFile, maskFFT):
+    """Calculate mean fluorescence per frame after FFT filtering.
+    
+    Args:
+        filePath: Directory containing video files.
+        dataFilePrefix: Filename prefix.
+        startingFileNum: First file number.
+        framesPerFile: Frames per file.
+        maskFFT: FFT filter mask.
+        
+    Returns:
+        Array of mean fluorescence values per frame.
+    """
+    fileNum = startingFileNum
+    meanFrameList = []
+    
+    while path.exists(filePath + dataFilePrefix + f"{fileNum:.0f}.avi"):
+        cap = cv2.VideoCapture(filePath + dataFilePrefix + f"{fileNum:.0f}.avi")
+        fileNum += 1
+        
+        for frameNum in tqdm(range(0, framesPerFile, 1),  # Always step=1 for mean calculation
+                             total=framesPerFile,
+                             desc=f"Mean fluorescence file {fileNum - 1:.0f}.avi"):
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frameNum)
+            ret, frame = cap.read()
+            
+            if not ret:
+                break
+                
+            frame = frame[:, :, 1]
+            dft = cv2.dft(np.float32(frame), flags=cv2.DFT_COMPLEX_OUTPUT | cv2.DFT_SCALE)
+            dft_shift = np.fft.fftshift(dft)
+            fshift = dft_shift * maskFFT
+            f_ishift = np.fft.ifftshift(fshift)
+            img_back = cv2.idft(f_ishift)
+            img_back = cv2.magnitude(img_back[:, :, 0], img_back[:, :, 1])
+            meanFrameList.append(img_back.mean())
+            
+        cap.release()
+    
+    return np.array(meanFrameList)
+
+
+def _create_lowpass_filter(meanFrame, fs, cutoff, butterOrder):
+    """Design and apply Butterworth lowpass filter to mean fluorescence.
+    
+    Args:
+        meanFrame: Array of mean fluorescence values.
+        fs: Sampling frequency.
+        cutoff: Cutoff frequency.
+        butterOrder: Filter order.
+        
+    Returns:
+        Filtered mean fluorescence array.
+    """
+    b, a = butter(butterOrder, cutoff / (0.5 * fs), btype='low', analog=False)
+    return filtfilt(b, a, meanFrame)
+
+
+def _process_and_save_frames(filePath, dataFilePrefix, startingFileNum, framesPerFile,
+                              maskFFT, meanFiltered, mode, compressionCodec, jobID,
+                              rows, cols):
+    """Apply filters and save/display final denoised frames.
+    
+    Args:
+        filePath: Directory containing video files.
+        dataFilePrefix: Filename prefix.
+        startingFileNum: First file number.
+        framesPerFile: Frames per file.
+        maskFFT: FFT filter mask.
+        meanFiltered: Lowpass-filtered mean fluorescence.
+        mode: 'save' or 'display'.
+        compressionCodec: Video codec string.
+        jobID: Job identifier for output filenames.
+        rows, cols: Frame dimensions.
+    """
+    frameStep = 1 if mode == 'save' else 10
+    fileNum = startingFileNum
+    frameCount = 0
+    running = True
+    
+    codec = cv2.VideoWriter_fourcc(*compressionCodec)
+    
+    if mode == "save" and not path.exists(filePath + "Denoised"):
+        os.mkdir(filePath + "Denoised")
+
+    while path.exists(filePath + dataFilePrefix + f"{fileNum:.0f}.avi") and running:
+        cap = cv2.VideoCapture(filePath + dataFilePrefix + f"{fileNum:.0f}.avi")
+        writeFile = None
+        
+        if mode == "save":
+            outPath = f"{filePath}Denoised/{jobID}{dataFilePrefix}denoised{fileNum:.0f}.avi"
+            writeFile = cv2.VideoWriter(outPath, codec, 60, (cols, rows), isColor=False)
+
+        fileNum += 1
+        
+        for frameNum in tqdm(range(0, framesPerFile, frameStep),
+                             total=framesPerFile / frameStep,
+                             desc=f"Processing file {fileNum - 1:.0f}.avi"):
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frameNum)
+            ret, frame = cap.read()
+            
+            if not ret:
+                break
+            
+            frame = frame[:, :, 1]
+            img_back = _apply_fft_filter(frame, maskFFT).astype(np.float32)
+            
+            # Apply temporal correction using mean fluorescence
+            meanF = img_back.mean()
+            img_back = img_back * (1 + (meanFiltered[frameCount] - meanF) / meanF)
+            img_back[img_back > 255] = 255
+            img_back = np.uint8(img_back)
+            
+            if mode == "save":
+                writeFile.write(img_back)
+            elif mode == "display":
+                im_diff = (128 + (frame - img_back) * 2)
+                im_v = cv2.hconcat([frame, img_back, im_diff])
+                cv2.imshow("Cleaned video", im_v / 255)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    running = False
+                    break
+            
+            frameCount += 1
+        
+        cap.release()
+        if writeFile:
+            writeFile.release()
+
+    cv2.destroyAllWindows()
+
+
+def denoise_movie(dataDir, dataFilePrefix='', showVideo=False, startingFileNum=0,
+                  framesPerFile=1000, fs=30, frameStep=10, goodRadius=2000,
+                  notchHalfWidth=3, centerHalfHeightToLeave=90, cutoff=3.0,
+                  butterOrder=6, mode='display', compressionCodec='FFV1', jobID=''):
+    """Remove horizontal bands and slow flicker from miniscope movies.
+    
+    Applies 2D FFT-based denoising to remove traveling horizontal bands and
+    whole-image flicker artifacts. Based on Daniel Aharoni's denoising notebook:
+    https://github.com/Aharoni-Lab/Miniscope-v4/tree/master/Miniscope-v4-Denoising-Notebook
+    
+    Args:
+        dataDir: Directory containing movie files to denoise.
+        dataFilePrefix: Prefix before file numbers (e.g., 'msCam' for 'msCam0.avi').
+        showVideo: If True, display movie before analysis.
+        startingFileNum: First file number to process; all subsequent files included.
+        framesPerFile: Number of frames per file (set by Miniscope software).
+        fs: Frame acquisition rate in Hz.
+        frameStep: Step size for 2D FFT generation (skip frames to speed up).
+        goodRadius: Radius parameter for FFT filtering.
+        notchHalfWidth: Half-width of notch filter.
+        centerHalfHeightToLeave: Half-height of pass frequencies in 2D FFT.
+        cutoff: Cutoff frequency for filtering.
+        butterOrder: Butterworth filter order (4-9 recommended to avoid artifacts).
+        mode: 'save' to write output or 'display' to show denoised movie.
+        compressionCodec: Video codec for saving ('FFV1' or 'GREY').
+        jobID: Optional job identifier string.
+    """
+    difVideos = []
+    
     if not isinstance(dataDir, list):
         dataDir = [dataDir]
-    print(f"This is our dataDir: {dataDir}")
+    
+    print(f"Processing directories: {dataDir}")
+    
     for filePath in dataDir:
-        print(f"This is our filePath: {filePath}")
-        if (filePath + '\Denoised') in dataDir:
-            print('already denoised')
-            print('skip=' + filePath)
+        # Skip already-denoised directories
+        if 'Denoised' in filePath or (filePath + '\\Denoised') in dataDir:
+            print(f"Skipping denoised directory: {filePath}")
             continue
-
-        if 'Denoised' in filePath:
-            print('skip=' + filePath)
-            continue
-
-        # Makes sure path ends with '/'
-
+        
+        # Ensure path ends with /
         if filePath[-1] != "/":
             filePath = filePath + "/"
-        print('filePath=' + filePath)
-
-        # -------------------------------
-        # Run through avi files and generate mean fft
-
-        rows = 0
-        cols = 0
-        # -----------------------
-
-        fileNum = startingFileNum
-        sumFFT = None
-        applyVignette = True
-        vignetteCreated = False
-        running = True
-
-        while (path.exists(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum)) and running is True):
-            cap = cv2.VideoCapture(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum))
-            fileNum = fileNum + 1
-            frameNum = 0
-            for frameNum in tqdm(range(0, framesPerFile, frameStep), total=framesPerFile / frameStep,
-                                 desc="Running file {:.0f}.avi".format(fileNum - 1)):
-                cap.set(cv2.CAP_PROP_POS_FRAMES, frameNum)
-                ret, frame = cap.read()
-
-                if (vignetteCreated is False):
-                    rows, cols = frame.shape[:2]
-                    X_resultant_kernel = cv2.getGaussianKernel(cols, cols / 4)
-                    Y_resultant_kernel = cv2.getGaussianKernel(rows, rows / 4)
-                    resultant_kernel = Y_resultant_kernel * X_resultant_kernel.T
-                    mask = 255 * resultant_kernel / np.linalg.norm(resultant_kernel)
-                    vignetteCreated = True
-
-                if applyVignette is False:
-                    mask = 1
-
-                if (ret is False):
-                    break
-                else:
-                    frame = frame[:, :, 1] * mask
-
-                    dft = cv2.dft(np.float32(frame), flags=cv2.DFT_COMPLEX_OUTPUT)
-                    dft_shift = np.fft.fftshift(dft)
-
-                    try:
-                        sumFFT = sumFFT + cv2.magnitude(dft_shift[:, :, 0], dft_shift[:, :, 1])
-                    except:
-                        sumFFT = cv2.magnitude(dft_shift[:, :, 0], dft_shift[:, :, 1])
-
-                    if (showVideo is True):
-                        cv2.imshow("Vid", frame / 255)
-                        if cv2.waitKey(10) & 0xFF == ord('q'):
-                            running = False
-                            break
-        cv2.destroyAllWindows()
-
-        # Modify FFT using a circle mask around center
-        # -----------------------
-        crow, ccol = int(rows / 2), int(cols / 2)
-
-        maskFFT = np.zeros((rows, cols, 2), np.float32)
-        cv2.circle(maskFFT, (crow, ccol), goodRadius, 1, thickness=-1)
-
-        # for i in cutFreq:
-        #     maskFFT[(i + crow-notchHalfWidth):(i+crow+notchHalfWidth),(ccol-notchHalfWidth):(ccol+notchHalfWidth),0] = 0
-        #     maskFFT[(-i + crow-notchHalfWidth):(-i+crow+notchHalfWidth),(ccol-notchHalfWidth):(ccol+notchHalfWidth),0] = 0
-        maskFFT[(crow + centerHalfHeightToLeave):, (ccol - notchHalfWidth):(ccol + notchHalfWidth), 0] = 0
-        maskFFT[:(crow - centerHalfHeightToLeave), (ccol - notchHalfWidth):(ccol + notchHalfWidth), 0] = 0
-
-        maskFFT[:, :, 1] = maskFFT[:, :, 0]
-
-        modifiedFFT = sumFFT * maskFFT[:, :, 0]
-
-        """
-        # Plot original and modified FFT
-        plt.figure()
-        plt.subplot(121),plt.imshow(np.log(sumFFT), cmap = 'gray')
-        plt.title('Mean FFT of Data')
-        plt.subplot(122),plt.imshow(np.log(modifiedFFT), cmap = 'gray')
-        plt.title('Filtered FFT')
-        """
-
-        # Display filtered vs original videos
-        # -----------------------
-        if showVideo:
-            fileNum = startingFileNum
-            sumFFT = None
-            running = True
-
-            while (path.exists(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum)) and running is True):
-                cap = cv2.VideoCapture(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum))
-                fileNum = fileNum + 1
-                for frameNum in tqdm(range(0, framesPerFile, frameStep), total=framesPerFile / frameStep,
-                                     desc="Running file {:.0f}.avi".format(fileNum - 1)):
-                    cap.set(cv2.CAP_PROP_POS_FRAMES, frameNum)
-                    ret, frame = cap.read()
-
-                    if (ret is False):
-                        break
-                    else:
-                        frame = frame[:, :, 1]
-                        dft = cv2.dft(np.float32(frame), flags=cv2.DFT_COMPLEX_OUTPUT | cv2.DFT_SCALE)
-                        dft_shift = np.fft.fftshift(dft)
-
-                        fshift = dft_shift * maskFFT
-                        f_ishift = np.fft.ifftshift(fshift)
-                        img_back = cv2.idft(f_ishift)
-                        img_back = cv2.magnitude(img_back[:, :, 0], img_back[:, :, 1])
-
-                        img_back[img_back > 255] = 255
-                        img_back = np.uint8(img_back)
-
-                        im_diff = (128 + (frame - img_back) * 2)
-                        im_v = cv2.hconcat([frame, img_back, im_diff])
-                        cv2.imshow("Raw, Filtered, Difference", im_v / 255)
-
-                        try:
-                            sumFFT = sumFFT + cv2.magnitude(dft_shift[:, :, 0], dft_shift[:, :, 1])
-                        except:
-                            sumFFT = cv2.magnitude(dft_shift[:, :, 0], dft_shift[:, :, 1])
-
-                        if cv2.waitKey(10) & 0xFF == ord('q'):
-                            running = False
-                            break
-
-            cv2.destroyAllWindows()
-
-        # Calculate mean fluorescence per frame
-        # Users shouldn't change anything here
-        frameStep = 1  # Should stay as 1
-        fileNum = startingFileNum
-        sumFFT = None
-        meanFrameList = []
-        while (path.exists(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum))):
-            cap = cv2.VideoCapture(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum))
-            fileNum = fileNum + 1
-            for frameNum in tqdm(range(0, framesPerFile, frameStep), total=framesPerFile / frameStep,
-                                 desc="Running file {:.0f}.avi".format(fileNum - 1)):
-                cap.set(cv2.CAP_PROP_POS_FRAMES, frameNum)
-                ret, frame = cap.read()
-                if (ret is False):
-                    break
-                else:
-                    frame = frame[:, :, 1]
-                    dft = cv2.dft(np.float32(frame), flags=cv2.DFT_COMPLEX_OUTPUT | cv2.DFT_SCALE)
-                    dft_shift = np.fft.fftshift(dft)
-
-                    fshift = dft_shift * maskFFT
-                    f_ishift = np.fft.ifftshift(fshift)
-                    img_back = cv2.idft(f_ishift)
-                    img_back = cv2.magnitude(img_back[:, :, 0], img_back[:, :, 1])
-                    meanFrameList.append(img_back.mean())
-
-                    # clear_output(wait=True)
-
-                    # plt.subplot(121),plt.imshow(frame, cmap = 'gray')
-                    # plt.title('Input Image'), plt.xticks([]), plt.yticks([])
-                    # plt.subplot(122),plt.imshow(img_back, cmap = 'gray')
-                    # plt.title('Magnitude Spectrum'), plt.xticks([]), plt.yticks([])
-
-                    # plt.show()
-
-        meanFrame = np.array(meanFrameList)
-
-        # Create a lowpass filter
-        # Sample rate and desired cutoff frequencies (in Hz).
-
-        # -----------------------
-
-        plt.figure()
-        for order in [3, 6, 9]:
-            b, a = butter(order, cutoff / (0.5 * fs), btype='low', analog=False)
-            w, h = freqz(b, a, worN=2000)
-            # plt.plot((fs * 0.5 / np.pi) * w, abs(h), label="order = %d" % order)
-
-        """
-        plt.plot([0, 0.5 * fs], [np.sqrt(0.5), np.sqrt(0.5)],
-                     '--', label='sqrt(0.5)')
-        plt.xlabel('Frequency (Hz)')
-        plt.ylabel('Gain')
-        plt.grid(True)
-        plt.legend(loc='best')
-        """
-        # Plot Mean Frame Resuls
-        # plt.figure(figsize=(8,4))
-        # plt.plot(meanFrame)
-
-        # Plot effect of filtering
-
-        # -----------------------
-
-        b, a = butter(butterOrder, cutoff / (0.5 * fs), btype='low', analog=False)
-        try:
-            meanFiltered = filtfilt(b, a, meanFrame)
-        except:
-            print("ERROR:" + filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum))
-            difVideos.append(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum))
+        print(f"Processing: {filePath}")
+        
+        # Step 1: Compute mean FFT across all frames
+        sumFFT, rows, cols, vignette = _compute_mean_fft(
+            filePath, dataFilePrefix, startingFileNum, framesPerFile, 
+            frameStep, applyVignette=True, showVideo=showVideo
+        )
+        
+        if sumFFT is None:
+            print(f"No video files found in {filePath}")
             continue
-
-        '''
-        plt.figure()
-        plt.plot(meanFrame, 'k', label='Raw Data')
-        plt.plot( meanFiltered, label='Filtered Data')
-        plt.plot(meanFrame - meanFiltered,'r', label='Difference')
-        plt.xlabel('frame number')
-        # plt.hlines([-a, a], 0, T, linestyles='--')
-        plt.grid(True)
-        plt.axis('tight')
-        plt.legend(loc='upper left')
-        '''
-        # meanFrame[3000]
-
-        # Apply FFT spatial filtering and lowpass filtering to data and has the option of saving as new videos
-
-        if mode == 'save':
-            frameStep = 1
-
-        # --------------------
-
-        fileNum = startingFileNum
-        sumFFT = None
-        frameCount = 0
-        running = True
-
-        codec = cv2.VideoWriter_fourcc(compressionCodec[0], compressionCodec[1], compressionCodec[2],
-                                       compressionCodec[3])
-
-        if mode == "save" and not path.exists(filePath + "Denoised"):
-            os.mkdir(filePath + "Denoised")
-
-        while not (not path.exists(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum)) or not (running is True)):
-            cap = cv2.VideoCapture(filePath + dataFilePrefix + "{:.0f}.avi".format(fileNum))
-
-            if mode == "save":
-                writeFile = cv2.VideoWriter(
-                    filePath + "Denoised/" + jobID + dataFilePrefix + "denoised{:.0f}.avi".format(fileNum),
-                    codec, 60, (cols, rows), isColor=False)
-
-            fileNum = fileNum + 1
-            # frameNum = 0
-            for frameNum in tqdm(range(0, framesPerFile, frameStep), total=framesPerFile / frameStep,
-                                 desc="Running file {:.0f}.avi".format(fileNum - 1)):
-                cap.set(cv2.CAP_PROP_POS_FRAMES, frameNum)
-                ret, frame = cap.read()
-                # frameNum = frameNum + frameStep 
-
-                # print(frameCount)
-
-                if (ret is False):
-                    break
-                else:
-                    frame = frame[:, :, 1]
-                    dft = cv2.dft(np.float32(frame), flags=cv2.DFT_COMPLEX_OUTPUT | cv2.DFT_SCALE)
-                    dft_shift = np.fft.fftshift(dft)
-
-                    fshift = dft_shift * maskFFT
-                    f_ishift = np.fft.ifftshift(fshift)
-                    img_back = cv2.idft(f_ishift)
-                    img_back = cv2.magnitude(img_back[:, :, 0], img_back[:, :, 1])
-
-                    meanF = img_back.mean()
-                    img_back = img_back * (1 + (meanFiltered[frameCount] - meanF) / meanF)
-                    img_back[img_back > 255] = 255
-                    img_back = np.uint8(img_back)
-
-                    if mode == "save":
-                        writeFile.write(img_back)
-
-                    if mode == "display":
-                        im_diff = (128 + (frame - img_back) * 2)
-                        im_v = cv2.hconcat([frame, img_back])
-                        im_v = cv2.hconcat([im_v, im_diff])
-
-                        im_v = cv2.hconcat([frame, img_back, im_diff])
-                        cv2.imshow("Cleaned video", im_v / 255)
-                        if cv2.waitKey(1) & 0xFF == ord('q'):
-                            running = False
-                            cap.release()
-                            break
-
-                    frameCount = frameCount + 1
-
-            if mode == "save":
-                writeFile.release()
-
-        cv2.destroyAllWindows()
-    if len(difVideos) != 0:
-        print('ERRORS with: ' + str(difVideos))
-        print('Consider investigating')
+        
+        # Step 2: Create FFT spatial filter mask
+        maskFFT = _create_fft_mask(rows, cols, goodRadius, notchHalfWidth, centerHalfHeightToLeave)
+        
+        # Step 3: Optional preview of filtered video
+        if showVideo:
+            _preview_filtered_video(filePath, dataFilePrefix, startingFileNum, 
+                                   framesPerFile, frameStep, maskFFT)
+        
+        # Step 4: Calculate mean fluorescence per frame
+        meanFrame = _compute_mean_fluorescence(filePath, dataFilePrefix, startingFileNum,
+                                                framesPerFile, maskFFT)
+        
+        # Step 5: Apply temporal lowpass filter
+        try:
+            meanFiltered = _create_lowpass_filter(meanFrame, fs, cutoff, butterOrder)
+        except Exception as e:
+            print(f"ERROR filtering {filePath}: {e}")
+            difVideos.append(filePath)
+            continue
+        
+        # Step 6: Process and save/display final output
+        _process_and_save_frames(filePath, dataFilePrefix, startingFileNum, framesPerFile,
+                                  maskFFT, meanFiltered, mode, compressionCodec, jobID,
+                                  rows, cols)
+    
+    if difVideos:
+        print(f"ERRORS with: {difVideos}")
+        print("Consider investigating")
 
 
-def importVideoAsNumpyArray(filename, frames='all', displayFrame=False, frameToDisplay=10):
+def import_video_as_numpy_array(filename, frames='all', displayFrame=False, frameToDisplay=10):
     """Code stolen from https://stackoverflow.com/questions/42163058/how-to-turn-a-video-into-numpy-array and edited."""
     cap = cv2.VideoCapture(filename)
     frameCount = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -549,7 +618,16 @@ def importVideoAsNumpyArray(filename, frames='all', displayFrame=False, frameToD
     return buf
 
 
-def quatToEuler(qw, qx, qy, qz, degrees=False):
+def quat_to_euler(qw, qx, qy, qz, degrees=False):
+    """Convert quaternion to Euler angles (roll, pitch, yaw).
+    
+    Args:
+        qw, qx, qy, qz: Quaternion components.
+        degrees: If True, return angles in degrees; otherwise radians.
+        
+    Returns:
+        List of [roll, pitch, yaw] angles.
+    """
     m00 = 1.0 - 2.0 * qy * qy - 2.0 * qz * qz
     m01 = 2.0 * qx * qy + 2.0 * qz * qw
     m02 = 2.0 * qx * qz - 2.0 * qy * qw
@@ -562,21 +640,29 @@ def quatToEuler(qw, qx, qy, qz, degrees=False):
 
     eulerAngles = []
 
-    R = np.arctan2(m12, m22)  ##Roll
+    R = np.arctan2(m12, m22)  # Roll
     eulerAngles.append(R)
     c2 = np.sqrt(m00 * m00 + m01 * m01)
-    P = np.arctan2(-m02, c2)  ##Pitch
+    P = np.arctan2(-m02, c2)  # Pitch
     eulerAngles.append(P)
     s1 = np.sin(R)
     c1 = np.cos(R)
-    Y = np.arctan2(s1 * m20 - c1 * m10, c1 * m11 - s1 * m21)  ##Yaw
+    Y = np.arctan2(s1 * m20 - c1 * m10, c1 * m11 - s1 * m21)  # Yaw
     eulerAngles.append(Y)
     if degrees == True:
         eulerAngles = [math.degrees(R), math.degrees(P), math.degrees(Y)]
     return eulerAngles
 
 
-def _convQuatToEuler(line):
+def _conv_quat_to_euler(line):
+    """Convert a CSV line of quaternion data to Euler angles.
+    
+    Args:
+        line: List of [time, qw, qx, qy, qz].
+        
+    Returns:
+        List of [time, roll, pitch, yaw].
+    """
     if len(line) != 5:
         print('!!! ERROR: Invalid file')  # FIXME
         return
@@ -585,27 +671,39 @@ def _convQuatToEuler(line):
     qx = line[2]
     qy = line[3]
     qz = line[4]
-    eulerAngles = list(quatToEuler(qw, qx, qy, qz, degrees=False))
-    eulerAngles.insert(0, time)  ##time in matrix?
+    eulerAngles = list(quat_to_euler(qw, qx, qy, qz, degrees=False))
+    eulerAngles.insert(0, time)  # prepend time
     return eulerAngles
 
 
-def _calcNumMinusMean(num, mean):
+def _calc_num_minus_mean(num, mean):
+    """Subtract mean from a number."""
     return (num - mean)
 
 
-def _compVThresh(num, VThresh):
+def _comp_v_thresh(num, VThresh):
+    """Return 1 if abs(num) >= abs(VThresh), else 0."""
     x = int(abs(num) >= abs(VThresh))
     return x
 
 
-def _findStepIndex(conArray):
+def _find_step_index(conArray):
+    """Find indices where step changes occur in an array."""
     x = np.diff(np.round(np.diff(conArray), 3))
     index = np.asarray(np.where(abs(x) > 1)[0]) + 1
     return index
 
 
-def threshFunc(dataArray, threshVal):
+def thresh_func(dataArray, threshVal):
+    """Find indices where data crosses above a threshold.
+    
+    Args:
+        dataArray: Input data array.
+        threshVal: Threshold value.
+        
+    Returns:
+        Array of indices where threshold crossings occur.
+    """
     dataArray = np.where(dataArray >= threshVal, 1, 0)
     dataArray = np.argwhere(np.diff(dataArray) == 1)
     addArr = np.zeros(np.shape(dataArray))
@@ -614,7 +712,7 @@ def threshFunc(dataArray, threshVal):
     return dataArray
 
 
-def filterData(data, n, cut, ftype, btype, fs, bodePlot=False):
+def filter_data(data, n, cut, ftype, btype, fs, bodePlot=False):
     """ Use ftype to indicate FIR or Butterworth filter.
     
     For the FIR filter indicate a LowPass, HighPass, or BandPass with btype = lowpass, highpass, or bandpass, respectively. 
@@ -659,7 +757,15 @@ def filterData(data, n, cut, ftype, btype, fs, bodePlot=False):
     return filteredData
 
 
-def updateCSVCell(data, columnTitle, lineNum, csvFile):
+def update_csv_cell(data, columnTitle, lineNum, csvFile):
+    """Update a single cell in a CSV file.
+    
+    Args:
+        data: New value to write.
+        columnTitle: Column header name.
+        lineNum: Line number to update.
+        csvFile: Path to CSV file.
+    """
     # get the correct column
     with open(csvFile) as file:
         reader = csv.DictReader(file)
@@ -676,7 +782,7 @@ def updateCSVCell(data, columnTitle, lineNum, csvFile):
                 writer.writerow(lineData)
 
 
-def appendRowCSV(data, filename):
+def append_row_csv(data, filename):
     """Appends a new row to a CSV file.
     Args:
         data: Dictionary of data to be added to the csv file
@@ -693,7 +799,7 @@ def appendRowCSV(data, filename):
             writer.writerow(dict(data))
 
 
-def spikeTrigAvg(eventArray, dataArray, framesb, framesa):       
+def spike_trig_avg(eventArray, dataArray, framesb, framesa):       
     """
     Compute the average spike values starting 'framesb' before the event
     and ending 'framesa' after the event.
@@ -733,7 +839,7 @@ def spikeTrigAvg(eventArray, dataArray, framesb, framesa):
     return avgEventDict
 
 
-def zScore(dataArray, frameWindow = 1000):
+def z_score(dataArray, frameWindow = 1000):
     """
     Compute the z-score of the data array values every designated frame window
     length based on the values within that frame window
@@ -761,6 +867,16 @@ def zScore(dataArray, frameWindow = 1000):
 
 
 def get_coords_dict_from_analysis_params(miniscope_data_manager, crop=False, crop_square=False):
+    """Extract crop coordinates from analysis parameters.
+    
+    Args:
+        miniscope_data_manager: Data manager with analysis_params.
+        crop: If True, use 'crop' coordinates.
+        crop_square: If True, use 'crop_square' coordinates.
+        
+    Returns:
+        Tuple of (coords_dict, crop_job_name).
+    """
     coords_dict = None
     crop_job_name = ''
     try:

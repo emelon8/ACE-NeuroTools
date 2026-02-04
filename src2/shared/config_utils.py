@@ -6,7 +6,7 @@ def load_config(config_path):
         return yaml.safe_load(f)
 
 def parse_miniscope_config(config):
-    """Maps nested YAML config to flat MiniscopeAPI arguments."""
+    """Maps nested YAML config to flat MiniscopePipeline arguments."""
     args = {}
     
     # Experiment
@@ -53,7 +53,7 @@ def parse_miniscope_config(config):
     return args
 
 def parse_ephys_config(config):
-    """Maps nested YAML config to flat EphysAPI arguments."""
+    """Maps nested YAML config to flat EphysPipeline arguments."""
     args = {}
     
     # Experiment (Shared)
@@ -80,7 +80,7 @@ def parse_ephys_config(config):
     return args
 
 def parse_multimodal_config(config):
-    """Maps nested YAML config to flat MultimodalAPI arguments."""
+    """Maps nested YAML config to flat MultimodalPipeline arguments."""
     # Multimodal runs everything, so it needs params for both + alignment
     args = {}
     
@@ -88,8 +88,8 @@ def parse_multimodal_config(config):
     ephys_args = parse_ephys_config(config)
     
     # 2. Get Miniscope params 
-    # NOTE: MultimodalAPI.run() has specific names for miniscope args. 
-    # Most match MiniscopeAPI.run(), but 'filenames' is 'miniscope_filenames'
+    # NOTE: MultimodalPipeline.run() has specific names for miniscope args. 
+    # Most match MiniscopePipeline.run(), but 'filenames' is 'miniscope_filenames'
     miniscope_args = parse_miniscope_config(config)
     if 'filenames' in miniscope_args:
         args['miniscope_filenames'] = miniscope_args.pop('filenames')

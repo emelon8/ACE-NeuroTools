@@ -20,11 +20,22 @@ os.environ["CAIMAN_DATA"] = f'{BASE_FILE_PATH}/K99/miniscope_data/ketamine/R2307
 
 
 
-class MiniscopeAPI:
-    """Main workflow class for non-technical users. Adjust the paramters at the bottom and press run."""
+class MiniscopePipeline:
+    """High-level API for calcium imaging analysis workflows.
+    
+    Orchestrates the complete miniscope analysis pipeline from raw video
+    through CNMF-E source extraction and post-processing. Designed for
+    non-technical users with sensible defaults.
+    
+    Attributes:
+        miniscope_data_manager: Data manager populated after run().
+        preprocessor: MiniscopePreprocessor instance.
+        processor: MiniscopeProcessor instance.
+        postprocessor: MiniscopePostprocessor instance.
+    """
 
     def __init__(self):
-        pass
+        """Initialize the MiniscopePipeline."""
     
     def run(
             self, 
@@ -73,6 +84,50 @@ class MiniscopeAPI:
               time_bandwidth = 2,
               headless = False
             ):
+        """Run the complete miniscope analysis pipeline.
+        
+        Executes preprocessing (crop, detrend, DF/F), processing (motion
+        correction, CNMF-E), and post-processing (component selection,
+        event detection, spectral analysis) in sequence.
+        
+        Args:
+            line_num: Experiment line number in experiments.csv.
+            filenames: List of movie filenames to load (e.g., ['0.avi']).
+            crop: If True, apply interactive cropping.
+            crop_with_crop: Use 'crop' column from analysis params.
+            crop_square: Use 'crop_square' column from analysis params.
+            detrend_method: 'median' or 'linear' for photobleaching correction.
+            df_over_f: If True, compute DF/F normalization.
+            secs_window: Window size for DF/F baseline estimation.
+            quantile_min: Percentile for DF/F baseline.
+            df_over_f_method: 'delta_f_over_sqrt_f' or 'delta_f_over_f'.
+            parallel: If True, use multiprocessing.
+            n_processes: Number of parallel processes.
+            apply_motion_correction: If True, run motion correction.
+            inspect_motion_correction: If True, show motion diagnostics.
+            plot_params: If True, display CNMF-E parameter plots.
+            run_CNMFE: If True, run CNMF-E source extraction.
+            save_estimates: If True, save CNMF-E results to disk.
+            save_CNMFE_estimates_filename: Filename for estimates.
+            save_CNMFE_params: If True, save parameters to JSON.
+            remove_components_with_gui: If True, open component curation GUI.
+            find_calcium_events: If True, detect calcium transients.
+            derivative_for_estimates: 'zeroth', 'first', or 'second'.
+            event_height: Threshold for peak detection.
+            compute_miniscope_phase: If True, compute Hilbert phase.
+            filter_miniscope_data: If True, apply bandpass filter.
+            n: Filter order.
+            cut: [low, high] cutoff frequencies.
+            ftype: Filter type ('butter').
+            btype: Band type ('bandpass').
+            inline: If True, replace data with filtered version.
+            compute_miniscope_spectrogram: If True, compute spectrogram.
+            window_length: Spectrogram window in seconds.
+            window_step: Spectrogram step in seconds.
+            freq_lims: [low, high] frequency range.
+            time_bandwidth: Multitaper time-bandwidth product.
+            headless: If True, disable all GUI interactions.
+        """
         
         
         if headless:
@@ -181,7 +236,7 @@ if __name__ == "__main__":
     if args.headless:
         run_params['headless'] = True
         
-    api = MiniscopeAPI()
+    api = MiniscopePipeline()
     try:
         api.run(**run_params)
     except Exception as e:

@@ -9,6 +9,7 @@ USING_BOX = True # Disabling this disables all the downloading data and instead 
 
 
 def verify_avi(miniscope_path:str,avi:str):
+    """Check if a specific AVI file exists in the Miniscope directory."""
     return os_path.exists(f"{BASE_FILE_PATH}/{miniscope_path}/Miniscope/{avi}")
 
 

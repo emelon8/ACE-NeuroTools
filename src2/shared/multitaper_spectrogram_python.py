@@ -420,6 +420,10 @@ def nanpow2db(y):
 
 # Helper #
 def is_outlier(data):
+    """Detect outliers using scaled median absolute deviation.
+    
+    Returns boolean mask where True indicates an outlier (>3 SMADs from median).
+    """
     smad = 1.4826 * np.median(abs(data - np.median(data)))  # scaled median absolute deviation
     outlier_mask = abs(data-np.median(data)) > 3*smad  # outliers are more than 3 smads away from median
     outlier_mask = (outlier_mask | np.isnan(data) | np.isinf(data))

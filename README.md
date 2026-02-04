@@ -54,6 +54,11 @@ The project is built on a robust object-oriented framework designed for scalabil
     mamba env create -f windows.yml
     ```
 
+    **Linux:**
+    ```bash
+    mamba env create -f linux_environment.yml
+    ```
+
     > **Note:** If you encounter dependency conflicts (e.g., with `liblapack`), we strongly recommend using `mamba` instead of `conda` for the environment creation step.
 
     Activate the environment:
@@ -76,28 +81,28 @@ For automated downloading from Box, configure `src2/shared/box_credentials.py` (
 The project uses modular API scripts as the primary entry points. These can be run from the command line with YAML configuration files for reproducibility.
 
 ### 1. Miniscope Analysis
-**Script:** `src2/miniscope/miniscope_api.py`
+**Script:** `src2/miniscope/miniscope_pipeline.py`
 
 ```bash
 # Run with configuration file (Recommended)
-python src2/miniscope/miniscope_api.py --config src2/miniscope/miniscope_config.yaml
+python src2/miniscope/miniscope_pipeline.py --config src2/miniscope/miniscope_config.yaml
 
 # Run in headless mode (e.g., for HPC/Slurm jobs)
-python src2/miniscope/miniscope_api.py --config src2/miniscope/miniscope_config.yaml --headless
+python src2/miniscope/miniscope_pipeline.py --config src2/miniscope/miniscope_config.yaml --headless
 ```
 
 ### 2. Electrophysiology Analysis
-**Script:** `src2/ephys/ephys_api.py`
+**Script:** `src2/ephys/ephys_pipeline.py`
 
 ```bash
-python src2/ephys/ephys_api.py --config experiment_template.yaml
+python src2/ephys/ephys_pipeline.py --config experiment_template.yaml
 ```
 
 ### 3. Multimodal Analysis
-**Script:** `src2/multimodal/multimodal_api.py`
+**Script:** `src2/multimodal/multimodal_pipeline.py`
 
 ```bash
-python src2/multimodal/multimodal_api.py --config experiment_template.yaml
+python src2/multimodal/multimodal_pipeline.py --config experiment_template.yaml
 ```
 
 For detailed documentation on output files (e.g., `estimates.hdf5`) and analysis interpretation, please refer to the module-specific utility guides in `src2/miniscope/README.md` and `src2/ephys/README.md`.

@@ -4,8 +4,22 @@ from datetime import datetime
 import json
 
 class CSVWorker:
+    """Utility class for reading and parsing experiment CSV files.
+    
+    Provides static methods to load rows from CSV files and convert
+    string values to appropriate Python data types.
+    """
 
     def csv_row_to_dict(csv_file, line_num):
+        """Load a single row from a CSV file as a dictionary.
+        
+        Args:
+            csv_file: Path to the CSV file.
+            line_num: Line number to extract (matched against 'line number' column).
+            
+        Returns:
+            Dict mapping column names to cell values, or None on error.
+        """
         try:
             df = pd.read_csv(csv_file)
             line_num_str = str(line_num)
@@ -22,6 +36,16 @@ class CSVWorker:
 
 
     def convert_data_types(params_dict):
+        """Convert string values in a dict to appropriate Python types.
+        
+        Handles lists, tuples, booleans, floats, dates, and None values.
+        
+        Args:
+            params_dict: Dictionary with string values from CSV.
+            
+        Returns:
+            Dict with values converted to appropriate types.
+        """
         non_numeric_keys = ['id', 'calcium imaging directory', 'ephys directory',
                            'method_deconvolution', 'method_init', 'border_nan', 'LFP and EEG CSCs']
         converted_params = {}

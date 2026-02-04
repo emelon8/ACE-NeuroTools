@@ -1,7 +1,7 @@
 # =============================================================================
 # Multimodal API Configuration Template
 # =============================================================================
-# Usage: python src2/multimodal/multimodal_api.py --config src2/multimodal/multimodal_config.yaml
+# Usage: python src2/multimodal/multimodal_pipeline.py --config src2/multimodal/multimodal_config.yaml
 #
 # This config combines Ephys, Miniscope, and Multimodal-specific parameters.
 # =============================================================================

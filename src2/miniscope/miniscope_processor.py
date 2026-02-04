@@ -12,6 +12,16 @@ import matplotlib
 
 
 class MiniscopeProcessor:
+    """Main processor for calcium imaging movie analysis using CaImAn.
+    
+    Orchestrates the complete analysis pipeline including motion correction,
+    CNMF-E source extraction, and result saving. Works with MiniscopeDataManager
+    to track all processing state and outputs.
+    
+    Attributes:
+        data_manager: MiniscopeDataManager containing movie and parameters.
+        preprocessed_movie: Copy of original movie before processing.
+    """
     
     def __init__(self, data_manager: MiniscopeDataManager):
         """"
@@ -34,6 +44,25 @@ class MiniscopeProcessor:
     def process_calcium_movie(self, parallel=True, n_processes=12, apply_motion_correction=True, 
                                inspect_motion_correction=False, plot_params=False, run_CNMFE=True,
                                save_estimates=True, save_CNMFE_estimates_filename='estimates.hdf5', save_CNMFE_params=False):
+        """Run the complete calcium movie processing pipeline.
+        
+        Executes motion correction, CNMF-E source extraction, and saves results.
+        This is the main entry point for processing miniscope recordings.
+        
+        Args:
+            parallel: If True, use multiprocessing for CaImAn operations.
+            n_processes: Number of parallel processes to use.
+            apply_motion_correction: If True, perform motion correction.
+            inspect_motion_correction: If True, show motion correction diagnostics.
+            plot_params: If True, display CNMF-E parameter tuning plots.
+            run_CNMFE: If True, run CNMF-E source extraction algorithm.
+            save_estimates: If True, save CNMF-E results to disk.
+            save_CNMFE_estimates_filename: Filename for saved estimates.
+            save_CNMFE_params: If True, save CaImAn parameters to JSON.
+            
+        Returns:
+            Updated MiniscopeDataManager with processing results.
+        """
 
         #set up processing type
         if parallel:
@@ -44,7 +73,7 @@ class MiniscopeProcessor:
         self.data_manager = self.motion_correction_manager(self.data_manager, dview, apply_motion_correction, inspect_motion_correction)
         
         #Prepare additional analysis parameters for CNMFE
-        self.data_manager, images = self.CNMFE_parameter_handler(self.data_manager, plot_params=plot_params)
+        self.data_manager, images = self.cnmfe_parameter_handler(self.data_manager, plot_params=plot_params)
         
         #intialize CNMFE object
         self.data_manager.CNMFE_obj = cm.source_extraction.cnmf.CNMF(n_processes=n_processes, dview=dview, Ain=None, params=self.data_manager.opts_caiman)
@@ -77,6 +106,20 @@ class MiniscopeProcessor:
         
         
     def motion_correction_manager(self, data_manager, dview, apply_motion_correction, inspect_motion_correction):
+        """Manage the motion correction workflow.
+        
+        Applies motion correction if requested, creates memory-mapped files,
+        and optionally displays diagnostic visualizations.
+        
+        Args:
+            data_manager: MiniscopeDataManager with movie data.
+            dview: CaImAn distributed view object for parallel processing.
+            apply_motion_correction: If True, perform motion correction.
+            inspect_motion_correction: If True, show before/after comparisons.
+            
+        Returns:
+            Updated data_manager with motion-corrected memory map.
+        """
         if apply_motion_correction:
             #apply motion correction
             motion_correction_object, data_manager.opts_caiman = self._apply_motion_correction(data_manager.opts_caiman, dview)
@@ -93,7 +136,7 @@ class MiniscopeProcessor:
         return data_manager
     
     
-    def CNMFE_parameter_handler(self, dm, plot_params=False):
+    def cnmfe_parameter_handler(self, dm, plot_params=False):
         """
         -This is an important step before CNMFE. It handles the most important CNMFE parameters.
         
@@ -161,18 +204,18 @@ class MiniscopeProcessor:
         """
         print('Inspecting motion correction...')
         if plot_rigid_motion_correction:
-            h, ax = misc_functions._prepAxes(xLabel=['', 'Frames'], yLabel=['', 'Pixels'], subPlots=[1, 2])
+            h, ax = misc_functions._prep_axes(xLabel=['', 'Frames'], yLabel=['', 'Pixels'], subPlots=[1, 2])
             ax[0].imshow(mc.total_template_rig)  # % plot template
             ax[1].plot(mc.shifts_rig)  # % plot rigid shifts
             ax[1].legend(['X Shifts', 'Y Shifts'])
 
         if plot_shifts:
             if opts_caiman.get('motion', 'pw_rigid'):
-                h, ax = misc_functions._prepAxes(xLabel='Frames', yLabel='Pixels')
+                h, ax = misc_functions._prep_axes(xLabel='Frames', yLabel='Pixels')
                 ax.plot(mc.shifts_rig)
                 ax.legend(['X Shifts', 'Y Shifts'])
             else:
-                h, ax = misc_functions._prepAxes(xLabel=['', 'Frames'],
+                h, ax = misc_functions._prep_axes(xLabel=['', 'Frames'],
                                                  yLabel=['X Shifts (Pixels)', 'Y Shifts (Pixels)'], subPlots=[2, 1])
                 ax[0].plot(mc.x_shifts_els)
                 ax[1].plot(mc.y_shifts_els)
@@ -216,7 +259,7 @@ class MiniscopeProcessor:
                 cm.concatenate([m1, m2], axis=2).play(fr=15, gain=1.0, magnification=2)
                 
             if plot_correlation:
-                h, ax = misc_functions._prepAxes(xLabel=['', 'Frames'], yLabel=['', 'Pixels'], subPlots=[1, 2])
+                h, ax = misc_functions._prep_axes(xLabel=['', 'Frames'], yLabel=['', 'Pixels'], subPlots=[1, 2])
                 ax[0].imshow(original_movie.local_correlations(eight_neighbours=True, swap_dim=False))
                 ax[1].imshow(mc_movie.local_correlations(eight_neighbours=True, swap_dim=False))
 
@@ -235,7 +278,7 @@ class MiniscopeProcessor:
                 mc.mmap_file[0], final_size[0], final_size[1],
                 swap_dim, winsize=winsize, play_flow=False, resize_fact_flow=resize_fact_flow)
 
-            h, ax = misc_functions._prepAxes(xLabel=['Frame', 'Original'], yLabel=['Correlation', 'Motion Corrected'],
+            h, ax = misc_functions._prep_axes(xLabel=['Frame', 'Original'], yLabel=['Correlation', 'Motion Corrected'],
                                              subPlots=[2, 1])
             ax[0].plot(correlations_orig)
             ax[0].plot(correlations_mc)
@@ -251,14 +294,14 @@ class MiniscopeProcessor:
             # plot the results of Residual Optical Flow
             fls = [mc.fname[0][:-4] + '_metrics.npz', mc.mmap_file[0][:-4] + '_metrics.npz']
 
-            h, ax = misc_functions._prepAxes(title=['Mean', 'Corr Image', 'Mean Optical Flow', '', '', ''],
+            h, ax = misc_functions._prep_axes(title=['Mean', 'Corr Image', 'Mean Optical Flow', '', '', ''],
                                              xLabel=['Original', '', '', 'Motion Corrected', '', ''], yLabel=['', '', '', '', '', ''],
                                              subPlots=[2, 3])
 
             # plot the results of Residual Optical Flow, This code block below didn't work in old miniscope on Nathan's mac. It will run now, but I still don't think it works
             fls = [os.path.splitext(mc.fname[0])[0] + '_metrics.npz', os.path.splitext(mc.mmap_file[0])[0] + '_metrics.npz']
 
-            h, ax = misc_functions._prepAxes(title=['Mean', 'Corr Image', 'Mean Optical Flow', '', '', ''],
+            h, ax = misc_functions._prep_axes(title=['Mean', 'Corr Image', 'Mean Optical Flow', '', '', ''],
                                              xLabel=['Original', '', '', 'Motion Corrected', '', ''], yLabel=['', '', '', '', '', ''],
                                              subPlots=[2, 3])
             
@@ -304,13 +347,40 @@ class MiniscopeProcessor:
     
     
     def _add_temp_mmap_to_opts_caiman(self, filepath, opts_caiman, bord_px, dview=None):
+        """Save movie to memory-mapped file and update CaImAn options.
+        
+        Creates a C-order memory-mapped file with border pixels set to zero,
+        then updates opts_caiman to reference this file.
+        
+        Args:
+            filepath: Path to movie file or existing mmap.
+            opts_caiman: CaImAn parameters object to update.
+            bord_px: Number of border pixels to set to zero.
+            dview: Optional distributed view for parallel saving.
+            
+        Returns:
+            Updated opts_caiman with new mmap filepath.
+        """
         motion_corrected_mmap_filepath = cm.save_memmap(filepath, base_name="", order='C', border_to_0=bord_px, dview=dview)
         opts_caiman.change_params({'data': {'fnames': motion_corrected_mmap_filepath}})
         return opts_caiman
     
     
     def _save_processed_data(self, dm, save_estimates, save_CNMFE_estimates_filename, save_CNMFE_params):
-        #saves info to disk in miniscope/saved_movies
+        """Save CNMF-E results and parameters to disk.
+        
+        Saves estimates to HDF5 and optionally saves CaImAn parameters to JSON.
+        Updates data_manager with filepaths to saved files.
+        
+        Args:
+            dm: MiniscopeDataManager with processing results.
+            save_estimates: If True, save CNMF-E estimates.
+            save_CNMFE_estimates_filename: Filename for estimates file.
+            save_CNMFE_params: If True, save parameters to JSON.
+            
+        Returns:
+            Updated data_manager with saved file paths.
+        """
         if save_estimates and dm.CNMFE_obj is not None:
             save_dir = os.path.join(dm.metadata['calcium imaging directory'], "saved_movies")
             os.makedirs(save_dir, exist_ok=True)
@@ -328,6 +398,16 @@ class MiniscopeProcessor:
             
             
     def _prepare_opts_caiman(self):
+        """Prepare CaImAn parameters from analysis_params.
+        
+        Cleans and structures the flat analysis_params dictionary into
+        the grouped format expected by CaImAn's CNMFParams. Removes
+        experiment-specific keys and maps each parameter to its correct
+        parameter group (data, patch, init, spatial, temporal, etc.).
+        
+        Returns:
+            CaImAn CNMFParams object configured for CNMF-E.
+        """
         #convert any analysis_params ending in .0 to integers, adds any needed params
         for key, value in self.data_manager.analysis_params.items():
             if isinstance(value, float) and value.is_integer():

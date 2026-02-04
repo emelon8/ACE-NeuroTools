@@ -4,7 +4,7 @@ This directory contains the logic for the calcium imaging pipeline.
 
 ## Core Components
 
-### `MiniscopeAPI` (`miniscope_api.py`)
+### `MiniscopePipeline` (`miniscope_pipeline.py`)
 This is the main entry point for the workflow. It orchestrates the entire pipeline from data loading to post-processing.
 
 ## Configuration
@@ -29,13 +29,13 @@ See the template file for the complete parameter list with defaults.
 
 ```bash
 # Option 1: Config file (Recommended)
-python src2/miniscope/miniscope_api.py --config src2/miniscope/miniscope_config.yaml
+python src2/miniscope/miniscope_pipeline.py --config src2/miniscope/miniscope_config.yaml
 
 # Option 2: Headless mode (for Slurm/remote)
-python src2/miniscope/miniscope_api.py --config miniscope_config.yaml --headless
+python src2/miniscope/miniscope_pipeline.py --config miniscope_config.yaml --headless
 
 # Option 3: Parameters in code (legacy)
-api = MiniscopeAPI()
+api = MiniscopePipeline()
 api.run(line_num=96, filenames=["0.avi"], ...)
 ```
 

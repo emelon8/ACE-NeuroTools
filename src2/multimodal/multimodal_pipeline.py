@@ -1,5 +1,5 @@
-from src2.miniscope.miniscope_api import MiniscopeAPI
-from src2.ephys.ephys_api import EphysAPI
+from src2.miniscope.miniscope_pipeline import MiniscopePipeline
+from src2.ephys.ephys_pipeline import EphysPipeline
 from src2.multimodal.miniscope_ephys_alignment_utils import sync_neuralynx_miniscope_timestamps, find_ephys_idx_of_TTL_events, find_ca_movie_frame_num_of_ephys_idx, find_ca_movie_filenums
 from src2.multimodal.calcium_ephys_visualizer import create_ca_ephys_movie
 from src2.multimodal.phase_utils import ephys_phase_ca_events, miniscope_phase_ca_events, phase_ca_events_histogram
@@ -8,7 +8,17 @@ import sys
 import yaml
 from src2.shared.config_utils import load_config, parse_multimodal_config
 
-class MultimodalAPI:
+class MultimodalPipeline:
+    """High-level API for combined ephys and calcium imaging analysis.
+    
+    Orchestrates synchronized analysis of Neuralynx electrophysiology and
+    miniscope calcium imaging data, including timestamp alignment and
+    phase-based event analysis.
+    
+    Attributes:
+        ephys_data_manager: EphysDataManager (via ephys_pipeline).
+        miniscope_data_manager: MiniscopeDataManager (via miniscope_pipeline).
+    """
         
     
     def run(self,
@@ -74,18 +84,52 @@ class MultimodalAPI:
             time_range=None,
             headless=False
             ):
+        """Run the complete multimodal analysis pipeline.
+        
+        Executes both ephys and miniscope pipelines, synchronizes their
+        timestamps via TTL events, and performs phase-locked calcium event
+        analysis.
+        
+        Args:
+            line_num: Experiment line number in experiments.csv.
+            channel_name: Ephys channel name to analyze.
+            remove_artifacts: If True, remove ephys artifacts.
+            filter_type: Ephys filter type ('butter', 'fir') or None.
+            filter_range: [low, high] bandpass cutoffs for ephys.
+            plot_channel: If True, plot ephys time series.
+            plot_spectrogram: If True, plot ephys spectrogram.
+            plot_phases: If True, plot phase histograms.
+            logging_level: Verbosity level.
+            miniscope_filenames: List of movie files to load.
+            crop: If True, crop calcium movie.
+            crop_with_crop: Use 'crop' column coordinates.
+            crop_square: Use 'crop_square' column coordinates.
+            detrend_method: 'median' or 'linear' detrending.
+            df_over_f: If True, compute DF/F.
+            parallel: If True, use multiprocessing.
+            n_processes: Number of parallel processes.
+            apply_motion_correction: If True, correct motion.
+            run_CNMFE: If True, run source extraction.
+            delete_TTLs: If True, remove dropped frame TTLs.
+            fix_TTL_gaps: If True, interpolate missing TTLs.
+            only_experiment_events: If True, keep only experiment events.
+            all_TTL_events: If True, process all TTL events.
+            ca_events: If True, include calcium event analysis.
+            time_range: Optional [start, end] time range to analyze.
+            headless: If True, disable all GUI interactions.
+        """
         
         
         
-        ephys_api = EphysAPI()
+        ephys_pipeline = EphysPipeline()
         # Pass headless to ephys api
-        ephys_api.run(line_num, channel_name, remove_artifacts, filter_type, filter_range, plot_channel, plot_spectrogram, plot_phases, logging_level, headless=headless)
+        ephys_pipeline.run(line_num, channel_name, remove_artifacts, filter_type, filter_range, plot_channel, plot_spectrogram, plot_phases, logging_level, headless=headless)
         
         
         
-        miniscope_api = MiniscopeAPI()
+        miniscope_pipeline = MiniscopePipeline()
         # Pass headless to miniscope api
-        miniscope_api.run(line_num, miniscope_filenames, crop, crop_square, crop_with_crop, detrend_method, df_over_f, secs_window, 
+        miniscope_pipeline.run(line_num, miniscope_filenames, crop, crop_square, crop_with_crop, detrend_method, df_over_f, secs_window, 
                           quantile_min, df_over_f_method, parallel, n_processes, apply_motion_correction, inspect_motion_correction, plot_params,
                           run_CNMFE, save_estimates, save_CNMFE_estimates_filename, save_CNMFE_params, remove_components_with_gui, find_calcium_events, derivative_for_estimates, event_height,
                           compute_miniscope_phase, filter_miniscope_data, n, cut, ftype, btype, inline, compute_miniscope_spectrogram, window_length, window_step, freq_lims, time_bandwidth, headless=headless)
@@ -95,22 +139,22 @@ class MultimodalAPI:
 
         
         #pull everything we need to run multi modal analysis:
-        channel_object = ephys_api.ephys_data_manager.get_channel(channel_name)
-        frame_rate = miniscope_api.miniscope_data_manager.fr
-        ca_events_idx = miniscope_api.miniscope_data_manager.ca_events_idx
-        miniscope_phases = miniscope_api.miniscope_data_manager.miniscope_phases
+        channel_object = ephys_pipeline.ephys_data_manager.get_channel(channel_name)
+        frame_rate = miniscope_pipeline.miniscope_data_manager.fr
+        ca_events_idx = miniscope_pipeline.miniscope_data_manager.ca_events_idx
+        miniscope_phases = miniscope_pipeline.miniscope_data_manager.miniscope_phases
         
         
         
-        tCaIm, low_confidence_periods, channel_object, miniscope_dm = sync_neuralynx_miniscope_timestamps(channel_object, miniscope_api.miniscope_data_manager, delete_TTLs=delete_TTLs, 
+        tCaIm, low_confidence_periods, channel_object, miniscope_dm = sync_neuralynx_miniscope_timestamps(channel_object, miniscope_pipeline.miniscope_data_manager, delete_TTLs=delete_TTLs, 
                                                                                                    fix_TTL_gaps=fix_TTL_gaps, only_experiment_events=only_experiment_events)
         
 
         
         # set changed variables
         print("\nSuccess! Setting changed variables.")
-        miniscope_api.miniscope_data_manager = miniscope_dm
-        ephys_api.ephys_data_manager.channels[channel_name] = channel_object
+        miniscope_pipeline.miniscope_data_manager = miniscope_dm
+        ephys_pipeline.ephys_data_manager.channels[channel_name] = channel_object
         
         
         ephys_idx_all_TTL_events, ephys_idx_ca_events = find_ephys_idx_of_TTL_events(tCaIm, channel_object, frame_rate, all_TTL_events=all_TTL_events, ca_events_idx=ca_events_idx if ca_events else None)
@@ -211,7 +255,7 @@ if __name__ == "__main__":
     if args.headless:
         run_params['headless'] = True
 
-    api = MultimodalAPI()
+    api = MultimodalPipeline()
     try:
         api.run(**run_params)
     except Exception as e:

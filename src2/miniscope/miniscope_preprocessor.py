@@ -10,8 +10,22 @@ from src2.miniscope.movie_io import MovieIO
 tqdm.monitor_interval = 0 #may not be necessary
 
 class MiniscopePreprocessor:
+    """Preprocessor for calcium imaging movies before CNMF-E analysis.
+    
+    Handles cropping, detrending, and DF/F computation to prepare
+    raw miniscope recordings for source extraction.
+    
+    Attributes:
+        data_manager: MiniscopeDataManager with loaded movie.
+        frame_rate: Movie frame rate in Hz.
+    """
 
     def __init__(self, data_manager):
+        """Initialize preprocessor with data manager.
+        
+        Args:
+            data_manager: MiniscopeDataManager with movie attribute.
+        """
         self.data_manager = data_manager
         self.frame_rate = data_manager.movie.fr
     
@@ -49,7 +63,17 @@ class MiniscopePreprocessor:
     
     
     def compute_projections(self, movie: cm.movie=None):
-        """Calculates the projections of self.movie with progress bar."""
+        """Compute spatial and temporal projections of the movie.
+        
+        Calculates max, min, mean, median, std, range projections and
+        mean fluorescence time series.
+        
+        Args:
+            movie: CaImAn movie object to compute projections from.
+            
+        Returns:
+            Projections object containing all computed projections.
+        """
         print("\n\nComputing projections...\n")
         
         operations = {
@@ -79,7 +103,20 @@ class MiniscopePreprocessor:
     
 
     def crop_movie(self, movie, coords_dict, projections):
-        print('Cropping...')
+        """Interactively crop movie using GUI or provided coordinates.
+        
+        Opens crop GUI if coords_dict is None, otherwise uses provided
+        coordinates. Handles coordinate system conversion between GUI
+        (origin bottom-left) and numpy (origin top-left).
+        
+        Args:
+            movie: CaImAn movie to crop.
+            coords_dict: Dict with x0, y0, x1, y1 keys, or None for GUI.
+            projections: Projections object for GUI visualization.
+            
+        Returns:
+            Tuple of (cropped_movie, coords_string).
+        """
         movie_height = movie.shape[1]
         movie_width = movie.shape[2]
         new_coords_dict = crop_gui(coords_dict, projections, movie_height, movie_width)
@@ -102,7 +139,19 @@ class MiniscopePreprocessor:
         
 
     def detrend_movie(self, movie, method='median', plot_trend=True):
-        print('Detrending...')
+        """Remove slow temporal trends from the movie.
+        
+        Supports linear detrending or median-based debleaching to correct
+        for photobleaching and other drift.
+        
+        Args:
+            movie: CaImAn movie to detrend.
+            method: 'linear' for scipy detrend, 'median' for CaImAn debleach.
+            plot_trend: If True, display before/after comparison plot.
+            
+        Returns:
+            Detrended CaImAn movie.
+        """
         try:                    
             if method == 'linear':
                 detrended_movie = detrend(movie, axis=0)
@@ -142,7 +191,20 @@ class MiniscopePreprocessor:
         
 
     def compute_df_over_f(self, movie, secs_window=5, quantile_min=8, method='delta_f_over_sqrt_f'):
-        print("Attempting to compute_df_over of movie...")
+        """Compute DF/F or DF/sqrt(F) normalization of the movie.
+        
+        Normalizes fluorescence to percentage changes relative to baseline,
+        which is estimated using a sliding window and quantile.
+        
+        Args:
+            movie: CaImAn movie to normalize.
+            secs_window: Window size in seconds for baseline estimation.
+            quantile_min: Percentile for baseline (0-100).
+            method: 'delta_f_over_sqrt_f' or 'delta_f_over_f'.
+            
+        Returns:
+            Normalized CaImAn movie.
+        """
         try:
             if np.min(movie) < 0:
                 min_val = np.min(movie)
