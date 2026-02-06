@@ -19,6 +19,64 @@ This software facilitates the processing, analysis, and visualization of simulta
 
 The project is built on a robust object-oriented framework designed for scalability and reproducibility:
 
+```mermaid
+classDiagram
+    class ExperimentDataManager {
+        +int line_num
+        +dict metadata
+        +dict analysis_params
+        +import_metadata()
+        +import_analysis_parameters()
+    }
+
+    class MiniscopeDataManager {
+        +list time_stamps
+        +list frame_numbers
+        +movie movie
+        +dict miniscope_events
+        +MiniscopeProcessor processor
+        +load_attributes()
+    }
+
+    class EphysDataManager {
+        +dict channels
+        +Block ephys_block
+        +import_ephys_block()
+        +process_ephys_block_to_channels()
+        +filter_ephys()
+    }
+
+    class Channel {
+        +str name
+        +np.array signal
+        +float sampling_rate
+        +np.array time_vector
+        +dict events
+        +np.array signal_filtered
+        +np.array phases
+    }
+
+    class MiniscopeProcessor {
+        +MiniscopeDataManager data_manager
+        +process_calcium_movie()
+        +motion_correction_manager()
+        +CNMFE_parameter_handler()
+    }
+
+    class BlockProcessor {
+        +Block ephys_block
+        +process_raw_ephys()
+        +remove_artifacts()
+    }
+
+    ExperimentDataManager <|-- MiniscopeDataManager : Inherits
+    ExperimentDataManager <|-- EphysDataManager : Inherits
+    EphysDataManager --> BlockProcessor : Uses
+    BlockProcessor ..> Channel : Creates
+    EphysDataManager *-- Channel : Contains
+    MiniscopeProcessor --> MiniscopeDataManager : Processes
+```
+
 ### Core Data Classes
 *   **`ExperimentDataManager`**: Base class for managing experiment metadata and analysis parameters.
 *   **`MiniscopeDataManager`**: Specialized handler for calcium imaging data, managing video streams, timestamps, and CNMF-E results.
