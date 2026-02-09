@@ -90,7 +90,11 @@ class MiniscopePostprocessor:
                 print("No components found or CNMF-E object is None. Skipping component GUI.")
             
         if find_calcium_events:
-            self.data_manager.ca_events_idx = self.find_calcium_events_with_derivatives(self.data_manager.CNMFE_obj.estimates, derivative_for_estimates, event_height)
+            if self.data_manager.CNMFE_obj is not None and self.data_manager.CNMFE_obj.estimates.C is not None:
+                self.data_manager.ca_events_idx = self.find_calcium_events_with_derivatives(self.data_manager.CNMFE_obj.estimates, derivative_for_estimates, event_height)
+            else:
+                print("WARNING: No CNMF-E components found (estimates.C is None). Skipping calcium event detection.")
+                self.data_manager.ca_events_idx = {}
         
         if compute_miniscope_spectrogram:
             data = self.data_manager.projections.time

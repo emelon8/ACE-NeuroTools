@@ -5,7 +5,7 @@ from src2.miniscope.miniscope_preprocessor import MiniscopePreprocessor
 from src2.shared.path_finder import PathFinder
 import caiman as cm
 import sys
-from src2.shared.misc_functions import updateCSVCell, get_coords_dict_from_analysis_params
+from src2.shared.misc_functions import update_csv_cell, get_coords_dict_from_analysis_params
 from src2.shared.paths import ANALYSIS_PARAMS
 from pathlib import Path
 

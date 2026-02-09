@@ -14,7 +14,7 @@ import numpy as np
 from src2.shared.path_finder import PathFinder
 from src2.shared.experiment_data_manager import ExperimentDataManager
 import src2.shared.file_downloader as file_downloader
-from src2.shared.paths import DATA_DIR
+from src2.shared.paths import EXPERIMENTS
 from src2.shared.exceptions import DataImportError
 
 class MiniscopeDataManager(ExperimentDataManager):
@@ -45,7 +45,7 @@ class MiniscopeDataManager(ExperimentDataManager):
         self.line_num = line_num
         self.time_stamps: list = None
         self.frame_numbers: list = None
-        file_downloader.verify_file_by_line(line_num,DATA_DIR/"experiments.csv","miniscope",filenames)
+        file_downloader.verify_file_by_line(line_num, EXPERIMENTS, "miniscope", filenames)
         self.all_movie_filepaths = self._find_movie_file_paths()
         self.chosen_movie_filepaths = self._get_specific_filepaths(filenames)
         

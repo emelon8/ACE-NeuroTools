@@ -66,6 +66,7 @@ class MiniscopeProcessor:
         """
 
         #set up processing type
+        dview = None
         if parallel:
             print('Setting up cluster for caiman parallel processing on your computer')
             c, dview, n_processes = cm.cluster.setup_cluster(backend='multiprocessing', n_processes=n_processes, single_thread=False)

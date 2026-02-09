@@ -1,4 +1,4 @@
-from src2.shared.misc_functions import updateCSVCell
+from src2.shared.misc_functions import update_csv_cell
 from src2.miniscope.miniscope_data_manager import MiniscopeDataManager
 from src2.miniscope.miniscope_preprocessor import MiniscopePreprocessor
 from src2.miniscope.miniscope_processor import MiniscopeProcessor
@@ -10,13 +10,11 @@ from src2.miniscope.movie_io import MovieIO
 import matplotlib
 import tkinter
 import os
-import yaml
 import argparse
 import sys
-from src2.shared.config_utils import load_config, parse_miniscope_config
 
-# Adjust the path below to where you would like Caiman to store temporary files that it uses during the miniscope pipeline
-os.environ["CAIMAN_DATA"] = f'{BASE_FILE_PATH}/K99/miniscope_data/ketamine/R230706B/2023_09_01/15_04_11/saved_movies'
+
+
 
 
 
@@ -146,10 +144,11 @@ class MiniscopePipeline:
         self.preprocessor = MiniscopePreprocessor(self.miniscope_data_manager)
         self.miniscope_data_manager = self.preprocessor.preprocess_calcium_movie(coords_dict, crop=crop, detrend_method=detrend_method, df_over_f=df_over_f, 
                                                                                  crop_job_name_for_file=crop_job_name, secs_window=secs_window, 
-                                                                                 quantile_min=quantile_min, df_over_f_method=df_over_f_method)
+                                                                                 quantile_min=quantile_min, df_over_f_method=df_over_f_method, headless=headless)
         
-        print(f"updating {ANALYSIS_PARAMS} with your cropping coordinates", flush=True)
-        updateCSVCell(self.miniscope_data_manager.coords, 'crop' if crop_with_crop else 'crop_square', line_num, ANALYSIS_PARAMS)
+        if self.miniscope_data_manager.coords is not None:
+            print(f"updating {ANALYSIS_PARAMS} with your cropping coordinates", flush=True)
+            update_csv_cell(self.miniscope_data_manager.coords, 'crop' if crop_with_crop else 'crop_square', line_num, ANALYSIS_PARAMS)
         
         
         #Ensure self.miniscope.data_manager has 'movie' and 'preprocessed_movie_filepath' filled in with the movie that you want to process before you process
@@ -179,15 +178,28 @@ class MiniscopePipeline:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run Miniscope Analysis Pipeline")
-    parser.add_argument('--config', type=str, help="Path to YAML configuration file")
-    parser.add_argument('--headless', action='store_true', help="Run in headless mode (no GUI)")
+    parser = argparse.ArgumentParser(
+        description="Run Miniscope Analysis Pipeline",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Run using analysis_parameters.csv from PROJECT_REPO (set in .env)
+  python miniscope_pipeline.py --line-num 96
+  
+  # Run in headless mode (no GUI) for batch processing
+  python miniscope_pipeline.py --line-num 96 --headless
+"""
+    )
+    parser.add_argument('--line-num', type=int, required=True,
+                        help="Experiment line number from experiments.csv")
+    parser.add_argument('--headless', action='store_true',
+                        help="Run in headless mode (no GUI)")
     
     args = parser.parse_args()
     
-    # Default parameters (legacy hardcoded values)
+    # Default parameters
     run_params = {
-        'line_num': 96,
+        'line_num': args.line_num,
         'filenames': ['0.avi'],
         # Preprocessing
         'crop': True,
@@ -227,12 +239,17 @@ if __name__ == "__main__":
         'time_bandwidth': 2
     }
     
-    if args.config:
-        print(f"Loading configuration from {args.config}...", flush=True)
-        config = load_config(args.config)
-        config_params = parse_miniscope_config(config)
-        run_params.update(config_params)
-        
+    # Load analysis parameters from CSV
+    from src2.shared.config_utils import load_analysis_params
+    print(f"Loading analysis parameters for line {args.line_num}...", flush=True)
+    try:
+        csv_params = load_analysis_params(args.line_num)
+        run_params.update(csv_params)
+    except FileNotFoundError as e:
+        print(f"Warning: {e}", flush=True)
+        print("Proceeding with default parameters.", flush=True)
+    
+    # CLI overrides
     if args.headless:
         run_params['headless'] = True
         
@@ -242,6 +259,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Error occurred during execution: {e}", file=sys.stderr)
         if args.headless:
-            # In headless mode, ensure we exit with non-zero code on error
             sys.exit(1)
         raise

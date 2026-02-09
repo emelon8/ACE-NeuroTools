@@ -5,9 +5,8 @@ from src2.multimodal.calcium_ephys_visualizer import create_ca_ephys_movie
 from src2.multimodal.phase_utils import ephys_phase_ca_events, miniscope_phase_ca_events, phase_ca_events_histogram
 import argparse
 import sys
-import yaml
 import traceback
-from src2.shared.config_utils import load_config, parse_multimodal_config
+from src2.shared.config_utils import load_analysis_params
 
 class MultimodalPipeline:
     """High-level API for combined ephys and calcium imaging analysis.
@@ -172,15 +171,28 @@ class MultimodalPipeline:
     
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run Multimodal Analysis Pipeline")
-    parser.add_argument('--config', type=str, help="Path to YAML configuration file")
-    parser.add_argument('--headless', action='store_true', help="Run in headless mode (no GUI)")
+    parser = argparse.ArgumentParser(
+        description="Run Multimodal Analysis Pipeline",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Run using analysis_parameters.csv from PROJECT_REPO (set in .env)
+  python multimodal_pipeline.py --line-num 97
+  
+  # Run in headless mode (no GUI) for batch processing
+  python multimodal_pipeline.py --line-num 97 --headless
+"""
+    )
+    parser.add_argument('--line-num', type=int, required=True,
+                        help="Experiment line number from experiments.csv")
+    parser.add_argument('--headless', action='store_true',
+                        help="Run in headless mode (no GUI)")
     
     args = parser.parse_args()
     
     # Default parameters
     run_params = {
-        'line_num': 97,
+        'line_num': args.line_num,
         # ephys parameters
         'channel_name': 'PFCLFPvsCBEEG',
         'remove_artifacts': False,
@@ -238,11 +250,12 @@ if __name__ == "__main__":
         'time_range': None
     }
     
-    if args.config:
-        print(f"Loading configuration from {args.config}...", flush=True)
-        config = load_config(args.config)
-        config_params = parse_multimodal_config(config)
-        run_params.update(config_params)
+    # Override defaults with parameters from analysis_parameters.csv
+    try:
+        csv_params = load_analysis_params(args.line_num)
+        run_params.update(csv_params)
+    except FileNotFoundError:
+        print("No analysis_parameters.csv found. Using default parameters.", flush=True)
         
     if args.headless:
         run_params['headless'] = True

@@ -1,5 +1,5 @@
 from src2.shared.box_credentials import dev_token, auth
-from src2.shared.paths import PROJECT_ROOT, BASE_FILE_PATH
+from src2.shared.paths import BASE_FILE_PATH, EXPERIMENTS
 from box_sdk_gen import BoxClient, BoxDeveloperTokenAuth
 from os import path as os_path, makedirs, listdir
 import pandas as pd
@@ -47,6 +47,7 @@ def verify_file_by_line(line_num, csv_path: str, do_type="both", avi_list=[]):
         # print("Getting path and ID from CSV")
         try:
             df = pd.read_csv(csv_path, index_col="line number") # Tries to read the CSV
+            df.index = df.index.astype(str)  # Ensure consistent string-based index lookup
             print(f"Loaded CSV: {csv_path}")
         except (pd.errors.EmptyDataError, FileNotFoundError, pd.errors.ParserError) as e:
             # print(e)
@@ -160,7 +161,7 @@ if __name__ == '__main__': # Runs when we run the file.
     
     verify_file_by_line(
         line_num= 96, # The one contained in the CSV column "line number"
-        csv_path= PROJECT_ROOT / "data" / "experiments.csv", # Path to the CSV folder
+        csv_path= EXPERIMENTS, # Path to the CSV folder
         do_type= "miniscope", # do_type must be "both", "miniscope", or "ephys"
         
         avi_list=["0.avi"] # Only need to fill this in if you're downloading miniscope files.
