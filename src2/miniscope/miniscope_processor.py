@@ -427,7 +427,7 @@ class MiniscopeProcessor:
             'calcium imaging directory', 'Box ephys folder ID', 'ephys directory', 
             'indices of TTL events to delete', 'zero time (s)', 'baseline period (min)', 
             'crop', 'periods of high slow wave power (s)', 'control periods (s)', 
-            'crop_square', 'ca_ephys_baseline_video_num', 'ca_ephys_slow_wave_video_num', 
+            'ca_ephys_baseline_video_num', 'ca_ephys_slow_wave_video_num', 
             'ca_ephys_burst_suppression_video_num', 'comments'
         ]
         

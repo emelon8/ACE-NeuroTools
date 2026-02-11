@@ -128,8 +128,8 @@ class MiniscopePreprocessor:
         if headless:
             if coords_dict is None:
                 print("WARNING: crop=True but no crop coordinates found in analysis_parameters.csv. "
-                      "Skipping crop in headless mode. Provide 'crop' or 'crop_square' coordinates "
-                      "in your analysis_parameters.csv to crop in headless mode.", flush=True)
+                  "Skipping crop in headless mode. Provide 'crop' coordinates "
+                  "in your analysis_parameters.csv to crop in headless mode.", flush=True)
                 return movie, None
             print(f"HEADLESS: Cropping with coordinates from analysis_parameters.csv: {coords_dict}", flush=True)
             new_coords_dict = coords_dict

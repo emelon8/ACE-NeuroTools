@@ -37,8 +37,6 @@ class MultimodalPipeline:
             miniscope_filenames = [],
             #preprocessing parameters
             crop = True,
-              crop_with_crop = False,
-              crop_square = False,
             detrend_method = 'median',
             df_over_f = False,
               #if df_over_f = True
@@ -101,9 +99,8 @@ class MultimodalPipeline:
             plot_phases: If True, plot phase histograms.
             logging_level: Verbosity level.
             miniscope_filenames: List of movie files to load.
-            crop: If True, crop calcium movie.
-            crop_with_crop: Use 'crop' column coordinates.
-            crop_square: Use 'crop_square' column coordinates.
+            crop: If True, crop the calcium movie using coordinates from
+                the 'crop' column in analysis_parameters.csv.
             detrend_method: 'median' or 'linear' detrending.
             df_over_f: If True, compute DF/F.
             parallel: If True, use multiprocessing.
@@ -129,10 +126,10 @@ class MultimodalPipeline:
         
         miniscope_pipeline = MiniscopePipeline()
         # Pass headless to miniscope api
-        miniscope_pipeline.run(line_num, miniscope_filenames, crop, crop_square, crop_with_crop, detrend_method, df_over_f, secs_window, 
-                          quantile_min, df_over_f_method, parallel, n_processes, apply_motion_correction, inspect_motion_correction, plot_params,
-                          run_CNMFE, save_estimates, save_CNMFE_estimates_filename, save_CNMFE_params, remove_components_with_gui, find_calcium_events, derivative_for_estimates, event_height,
-                          compute_miniscope_phase, filter_miniscope_data, n, cut, ftype, btype, inline, compute_miniscope_spectrogram, window_length, window_step, freq_lims, time_bandwidth, headless=headless)
+        miniscope_pipeline.run(line_num, miniscope_filenames, crop=crop, detrend_method=detrend_method, df_over_f=df_over_f, secs_window=secs_window, 
+                          quantile_min=quantile_min, df_over_f_method=df_over_f_method, parallel=parallel, n_processes=n_processes, apply_motion_correction=apply_motion_correction, inspect_motion_correction=inspect_motion_correction, plot_params=plot_params,
+                          run_CNMFE=run_CNMFE, save_estimates=save_estimates, save_CNMFE_estimates_filename=save_CNMFE_estimates_filename, save_CNMFE_params=save_CNMFE_params, remove_components_with_gui=remove_components_with_gui, find_calcium_events=find_calcium_events, derivative_for_estimates=derivative_for_estimates, event_height=event_height,
+                          compute_miniscope_phase=compute_miniscope_phase, filter_miniscope_data=filter_miniscope_data, n=n, cut=cut, ftype=ftype, btype=btype, inline=inline, compute_miniscope_spectrogram=compute_miniscope_spectrogram, window_length=window_length, window_step=window_step, freq_lims=freq_lims, time_bandwidth=time_bandwidth, headless=headless)
         
 
 
@@ -207,8 +204,6 @@ Examples:
         'miniscope_filenames': ['0.avi'],
         # preprocessing parameters
         'crop': True,
-        'crop_with_crop': False,
-        'crop_square': True,
         'detrend_method': 'linear',
         'df_over_f': True,
         'secs_window': 5,

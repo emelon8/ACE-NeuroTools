@@ -39,9 +39,17 @@ def main():
             
             # 2. Add required runtime parameters
             params['line_num'] = line_num
-            params['headless'] = True  # Run without GUI for batch processing
+            params['headless'] = False  # Run without GUI for batch processing
             
-            # 3. Run the pipeline
+            # 3. Disable heavy processing to test cropping only
+            params['run_CNMFE'] = False
+            params['apply_motion_correction'] = False
+            params['compute_miniscope_spectrogram'] = False
+            params['compute_miniscope_phase'] = False
+            params['filter_miniscope_data'] = False
+            params['find_calcium_events'] = False
+            
+            # 4. Run the pipeline
             api = MiniscopePipeline()
             api.run(**params)
             

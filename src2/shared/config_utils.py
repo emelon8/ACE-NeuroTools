@@ -70,7 +70,7 @@ def parse_analysis_params(params: Dict[str, Any]) -> Dict[str, Any]:
     # Columns that map directly (CSV column name == kwarg name)
     DIRECT_KEYS = [
         # Miniscope preprocessing
-        'filenames', 'crop_with_crop',
+        'filenames',
         'detrend_method', 'df_over_f', 'secs_window', 'quantile_min',
         # Miniscope processing
         'parallel', 'n_processes', 'apply_motion_correction',
