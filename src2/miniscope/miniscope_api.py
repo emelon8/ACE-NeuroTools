@@ -8,7 +8,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 # Adjust the path below to where you would like Caiman to store temporary files that it uses during the miniscope pipeline
-os.environ["CAIMAN_DATA"] = '/Users/josieallred/Research/K99/miniscope_data/ketamine/R230706B/2023_09_01/15_04_11'
+os.environ["CAIMAN_DATA"] = '/Users/josieallred/Research/extra_data'
 
 from src2.shared.misc_functions import updateCSVCell
 from src2.miniscope.miniscope_data_manager import MiniscopeDataManager
@@ -33,19 +33,19 @@ class MiniscopeAPI:
             line_num: int,
             filenames = [],
             
-            #preprocessing parameters
+            # preprocessing parameters
             crop = True,
-              #These should only be true if crop=True, and only one should be True or niether
+              # These should only be true if crop=True, and only one should be True or niether
               crop_with_crop = True,
               crop_square = False,
             detrend_method = 'median',
             df_over_f = False,
-              #if df_over_f = True
+              # if df_over_f = True
               secs_window=5,                     
               quantile_min=8,
               df_over_f_method='delta_f_over_sqrt_f',
 
-            #processing parameters    
+            # processing parameters    
             parallel = False,
             n_processes = 12,
             apply_motion_correction = False,
@@ -56,8 +56,8 @@ class MiniscopeAPI:
               save_CNMFE_estimates_filename = 'estimates.hdf5',
             save_CNMFE_params = False,
             
-            #post processing parameters
-            remove_components_with_gui=True,  
+            # post-processing parameters
+            remove_components_with_gui=False,  
             find_calcium_events=True,
               derivative_for_estimates='first', 
               event_height = 5, 
@@ -79,7 +79,7 @@ class MiniscopeAPI:
         self.miniscope_data_manager = MiniscopeDataManager(line_num, filenames, auto_import_data=True)
         
         
-        #get previous cropping coordinates from analysis_params in case we want to use our last crop
+        # get previous cropping coordinates from analysis_params in case we want to use our last crop
         coords_dict, crop_job_name = get_coords_dict_from_analysis_params(self.miniscope_data_manager, crop_with_crop, crop_square)
         
         self.preprocessor = MiniscopePreprocessor(self.miniscope_data_manager)
@@ -91,7 +91,7 @@ class MiniscopeAPI:
         updateCSVCell(self.miniscope_data_manager.coords, 'crop' if crop_with_crop else 'crop_square', line_num, ANALYSIS_PARAMS)
         
         
-        #Ensure self.miniscope.data_manager has 'movie' and 'preprocessed_movie_filepath' filled in with the movie that you want to process before you process
+        # Ensure self.miniscope.data_manager has 'movie' and 'preprocessed_movie_filepath' filled in with the movie that you want to process before you process
         
         self.processor = MiniscopeProcessor(self.miniscope_data_manager)
         self.miniscope_data_manager = self.processor.process_calcium_movie(parallel, n_processes, apply_motion_correction, 
@@ -117,19 +117,19 @@ if __name__ == "__main__":
     api = MiniscopeAPI()
     api.run(
         line_num = 96, # line number of the experiment you are analyzing
-        filenames = ['0.avi'],
+        filenames = ['9.avi'],
         
         # preprocessing parameters
         crop = True,
             # Only one below should be True if crop=True
-            crop_with_crop = False,
-            crop_square = True,
-        detrend_method = None,
-        df_over_f = False,
+            crop_with_crop=True,
+            crop_square=False,
+        detrend_method=None,
+        df_over_f=False,
           # if df_over_f = True
-          secs_window = 5,                     
-          quantile_min = 8,
-          df_over_f_method = 'delta_f_over_sqrt_f',
+          secs_window=5,                     
+          quantile_min=8,
+          df_over_f_method='delta_f_over_sqrt_f',
 
         # processing parameters    
         parallel = True,
@@ -138,15 +138,15 @@ if __name__ == "__main__":
         inspect_motion_correction = True,
         plot_params = False,
         run_CNMFE = True,
-        save_estimates=True,
-          save_CNMFE_estimates_filename = 'estimates.hdf5',
+        save_estimates = True,
+          save_CNMFE_estimates_filename = 'estimates_big.hdf5',
         save_CNMFE_params = True,
         
         # post-processing parameters
-        remove_components_with_gui=True,  
-        find_calcium_events=True,
+        remove_components_with_gui=False,  
+        find_calcium_events=True, 
           derivative_for_estimates='first', 
-          event_height = 5, 
+          event_height=5, 
         compute_miniscope_phase=True, 
         filter_miniscope_data=True,
           n=2, 
