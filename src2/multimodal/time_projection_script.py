@@ -15,7 +15,7 @@ for line_num in line_nums:
     
     #display a gui for you to select how to crop the movie
     miniscope_data_manager = MiniscopeDataManager(line_num, filenames = ['10.avi', '11.avi', '12.avi', '13.avi', '14.avi', '15.avi', '16.avi', '17.avi', '18.avi', '19.avi', '20.avi'])
-    coords_dict, _ = get_coords_dict_from_analysis_params(miniscope_data_manager)
+    coords_dict, _ = get_coords_dict_from_analysis_params(miniscope_data_manager, crop=True)
     
     preprocessor = MiniscopePreprocessor(miniscope_data_manager)
     projections = preprocessor.compute_projections(miniscope_data_manager.movie)

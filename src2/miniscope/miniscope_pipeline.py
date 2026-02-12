@@ -42,6 +42,9 @@ class MiniscopePipeline:
             
             #preprocessing parameters
             crop = True,
+              #These should only be true if crop=True, and only one should be True or niether
+              crop_with_crop = False,
+              crop_square = False,
             detrend_method = 'median',
             df_over_f = False,
               #if df_over_f = True
@@ -88,8 +91,9 @@ class MiniscopePipeline:
         Args:
             line_num: Experiment line number in experiments.csv.
             filenames: List of movie filenames to load (e.g., ['0.avi']).
-            crop: If True, crop the movie. In headless mode, uses coordinates
-                from the 'crop' column in analysis_parameters.csv.
+            crop: If True, apply interactive cropping.
+            crop_with_crop: Use 'crop' column from analysis params.
+            crop_square: Use 'crop_square' column from analysis params.
             detrend_method: 'median' or 'linear' for photobleaching correction.
             df_over_f: If True, compute DF/F normalization.
             secs_window: Window size for DF/F baseline estimation.
@@ -135,7 +139,7 @@ class MiniscopePipeline:
         
         
         #get previous cropping coordinates from analysis_params in case we want to use our last crop
-        coords_dict, crop_job_name = get_coords_dict_from_analysis_params(self.miniscope_data_manager)
+        coords_dict, crop_job_name = get_coords_dict_from_analysis_params(self.miniscope_data_manager, crop_with_crop, crop_square)
         
         self.preprocessor = MiniscopePreprocessor(self.miniscope_data_manager)
         self.miniscope_data_manager = self.preprocessor.preprocess_calcium_movie(coords_dict, crop=crop, detrend_method=detrend_method, df_over_f=df_over_f, 
@@ -144,7 +148,7 @@ class MiniscopePipeline:
         
         if self.miniscope_data_manager.coords is not None:
             print(f"updating {ANALYSIS_PARAMS} with your cropping coordinates", flush=True)
-            update_csv_cell(self.miniscope_data_manager.coords, 'crop', line_num, ANALYSIS_PARAMS)
+            update_csv_cell(self.miniscope_data_manager.coords, 'crop' if crop_with_crop else 'crop_square', line_num, ANALYSIS_PARAMS)
         
         
         #Ensure self.miniscope.data_manager has 'movie' and 'preprocessed_movie_filepath' filled in with the movie that you want to process before you process
@@ -199,6 +203,8 @@ Examples:
         'filenames': ['0.avi'],
         # Preprocessing
         'crop': True,
+        'crop_with_crop': False,
+        'crop_square': True,
         'detrend_method': None,
         'df_over_f': False,
         'secs_window': 5,

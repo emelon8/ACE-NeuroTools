@@ -8,7 +8,7 @@ from src2.shared.path_finder import PathFinder
 from src2.miniscope.miniscope_preprocessor import MiniscopePreprocessor
 from src2.shared.misc_functions import get_coords_dict_from_analysis_params
 
-def create_ca_ephys_movie(miniscope_dm, ephys_idx_all_TTL_events, channel_object, time_range=None, movie_num=None, crop=False, 
+def create_ca_ephys_movie(miniscope_dm, ephys_idx_all_TTL_events, channel_object, time_range=None, movie_num=None, crop=False, crop_square=False, 
                           plot_mean_fluorescence=False, df_over_sqrt_f=False, vmin=None, vmax=None, mark_start_systemic=True, plot_ephys=True, 
                           num_frames_of_traces=10, time_stamps=True, playback_interval=33, play_movie=True, save_movie=False):
     
@@ -45,11 +45,11 @@ def create_ca_ephys_movie(miniscope_dm, ephys_idx_all_TTL_events, channel_object
         return
     
     # Crop the movie if desired.
-    if crop:
-        coords_dict, _ = get_coords_dict_from_analysis_params(miniscope_dm)
-        preprocessor = MiniscopePreprocessor(miniscope_dm)
+    if crop or crop_square:
+        coords_dict, previous_coords, _ = get_coords_dict_from_analysis_params(miniscope_dm, crop, crop_square)
+        preprocessor = MiniscopePreprocessor(movie, miniscope_dir_path)
         projections = preprocessor.compute_projections(movie)
-        movie, _ = preprocessor.crop_movie(movie, coords_dict, projections)
+        movie, _ = preprocessor.crop_movie(movie, coords_dict, projections, movie.shape[1], movie.shape[2], previous_coords)
     
     
     # Adjust the movie frame numbers so that they are with respect to the imported movies, not the entire recording.

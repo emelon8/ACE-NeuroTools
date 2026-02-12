@@ -866,25 +866,30 @@ def z_score(dataArray, frameWindow = 1000):
     return zScoreArray
 
 
-def get_coords_dict_from_analysis_params(miniscope_data_manager):
+def get_coords_dict_from_analysis_params(miniscope_data_manager, crop=False, crop_square=False):
     """Extract crop coordinates from analysis parameters.
-    
-    Reads from the 'crop' column in analysis_parameters.csv.
     
     Args:
         miniscope_data_manager: Data manager with analysis_params.
+        crop: If True, use 'crop' coordinates.
+        crop_square: If True, use 'crop_square' coordinates.
         
     Returns:
-        Tuple of (coords_dict, crop_job_name). coords_dict is None if
-        no crop coordinates are found.
+        Tuple of (coords_dict, crop_job_name).
     """
     coords_dict = None
-    crop_job_name = '_crop'
+    crop_job_name = ''
     try:
-        previous_coords = miniscope_data_manager.analysis_params['crop']
-        coords_dict = { 'x0': previous_coords[0], 'y0': previous_coords[1], 'x1': previous_coords[2], 'y1': previous_coords[3]}
+        if crop:
+            previous_coords = miniscope_data_manager.analysis_params['crop']
+            coords_dict = { 'x0': previous_coords[0], 'y0': previous_coords[1], 'x1': previous_coords[2], 'y1': previous_coords[3]}
+            crop_job_name = '_crop'
+        elif crop_square:
+            previous_coords = miniscope_data_manager.analysis_params['crop_square']
+            coords_dict = { 'x0': previous_coords[0], 'y0': previous_coords[1], 'x1': previous_coords[2], 'y1': previous_coords[3]}
+            crop_job_name = '_crop_square'
     except KeyError:
-        pass  # No saved coordinates; coords_dict stays None
+        print("Did not find any coords under ", 'crop' if crop else 'crop_square')
     
     return coords_dict, crop_job_name
         

@@ -63,13 +63,14 @@ When `headless=True`:
 - All matplotlib plots are suppressed (uses `Agg` backend)
 - Detrend comparison plots are suppressed
 
-> **Note**: For headless cropping, ensure your `analysis_parameters.csv` has `crop` coordinates. If missing, the crop step is skipped with a warning.
+> **Note**: For headless cropping, ensure your `analysis_parameters.csv` has `crop` or `crop_square` coordinates. If missing, the crop step is skipped with a warning.
 
 ## Key Parameters in `analysis_parameters.csv`
 
 | Parameter | Description | Example |
 |-----------|-------------|---------|
 | `crop` | Crop coordinates (x0, y0, x1, y1) | `(0, 0, 10, 10)` |
+| `crop_square` | Square crop coordinates | `(156, 381, 414, 150)` |
 | `gSig` | Gaussian kernel half-size | `(3, 3)` |
 | `min_corr` | Minimum correlation threshold | `0.85` |
 | `min_pnr` | Minimum peak-to-noise ratio | `10` |
