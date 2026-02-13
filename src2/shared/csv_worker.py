@@ -19,7 +19,35 @@ class CSVWorker:
             
         Returns:
             Dict mapping column names to cell values, or None on error.
+        
+        Raises:
+            ValueError: If the CSV is malformed or the line number is not found.
         """
+        import csv as csv_mod
+        
+        # Validate CSV structure before pandas reads it.
+        # pandas silently misparses CSVs where data rows have more fields
+        # than the header (e.g., from trailing commas or unquoted commas),
+        # using the extra field as a row index and shifting all data left.
+        try:
+            with open(csv_file) as f:
+                reader = csv_mod.reader(f)
+                header = next(reader)
+                for row_num, data_row in enumerate(reader, start=2):
+                    if not any(data_row):  # skip empty rows
+                        continue
+                    if len(data_row) != len(header):
+                        raise ValueError(
+                            f"CSV malformed: '{csv_file}' row {row_num} has "
+                            f"{len(data_row)} fields but the header has {len(header)} columns. "
+                            f"This usually means there is a trailing comma or an unquoted "
+                            f"comma inside a value (e.g., coordinate tuples must be "
+                            f"quoted: \"(x0, y0, x1, y1)\")."
+                        )
+        except FileNotFoundError:
+            print(f"File {csv_file} not found")
+            return None
+        
         try:
             df = pd.read_csv(csv_file)
             line_num_str = str(line_num)
@@ -53,7 +81,7 @@ class CSVWorker:
         for key, value in params_dict.items():
             if key in non_numeric_keys:
                 if key == 'LFP and EEG CSCs':
-                    converted_params[key] = params_dict[key].split(";")
+                    converted_params[key] = str(params_dict[key]).split(";")
                     continue
                 converted_params[key] = value
                 continue

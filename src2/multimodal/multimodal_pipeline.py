@@ -5,9 +5,8 @@ from src2.multimodal.calcium_ephys_visualizer import create_ca_ephys_movie
 from src2.multimodal.phase_utils import ephys_phase_ca_events, miniscope_phase_ca_events, phase_ca_events_histogram
 import argparse
 import sys
-import yaml
 import traceback
-from src2.shared.config_utils import load_config, parse_multimodal_config
+from src2.shared.config_utils import load_analysis_params
 
 class MultimodalPipeline:
     """High-level API for combined ephys and calcium imaging analysis.
@@ -38,8 +37,7 @@ class MultimodalPipeline:
             miniscope_filenames = [],
             #preprocessing parameters
             crop = True,
-              crop_with_crop = False,
-              crop_square = False,
+            crop_coords = None,
             detrend_method = 'median',
             df_over_f = False,
               #if df_over_f = True
@@ -102,9 +100,9 @@ class MultimodalPipeline:
             plot_phases: If True, plot phase histograms.
             logging_level: Verbosity level.
             miniscope_filenames: List of movie files to load.
-            crop: If True, crop calcium movie.
-            crop_with_crop: Use 'crop' column coordinates.
-            crop_square: Use 'crop_square' column coordinates.
+            crop: If True, crop the movie.
+            crop_coords: Crop coordinates as (x0, y0, x1, y1) tuple/list.
+                If None, reads from analysis_parameters.csv or opens the GUI.
             detrend_method: 'median' or 'linear' detrending.
             df_over_f: If True, compute DF/F.
             parallel: If True, use multiprocessing.
@@ -130,7 +128,7 @@ class MultimodalPipeline:
         
         miniscope_pipeline = MiniscopePipeline()
         # Pass headless to miniscope api
-        miniscope_pipeline.run(line_num, miniscope_filenames, crop, crop_square, crop_with_crop, detrend_method, df_over_f, secs_window, 
+        miniscope_pipeline.run(line_num, miniscope_filenames, crop, crop_coords, detrend_method, df_over_f, secs_window, 
                           quantile_min, df_over_f_method, parallel, n_processes, apply_motion_correction, inspect_motion_correction, plot_params,
                           run_CNMFE, save_estimates, save_CNMFE_estimates_filename, save_CNMFE_params, remove_components_with_gui, find_calcium_events, derivative_for_estimates, event_height,
                           compute_miniscope_phase, filter_miniscope_data, n, cut, ftype, btype, inline, compute_miniscope_spectrogram, window_length, window_step, freq_lims, time_bandwidth, headless=headless)
@@ -172,15 +170,28 @@ class MultimodalPipeline:
     
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run Multimodal Analysis Pipeline")
-    parser.add_argument('--config', type=str, help="Path to YAML configuration file")
-    parser.add_argument('--headless', action='store_true', help="Run in headless mode (no GUI)")
+    parser = argparse.ArgumentParser(
+        description="Run Multimodal Analysis Pipeline",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Run using analysis_parameters.csv from PROJECT_REPO (set in .env)
+  python multimodal_pipeline.py --line-num 97
+  
+  # Run in headless mode (no GUI) for batch processing
+  python multimodal_pipeline.py --line-num 97 --headless
+"""
+    )
+    parser.add_argument('--line-num', type=int, required=True,
+                        help="Experiment line number from experiments.csv")
+    parser.add_argument('--headless', action='store_true',
+                        help="Run in headless mode (no GUI)")
     
     args = parser.parse_args()
     
     # Default parameters
     run_params = {
-        'line_num': 97,
+        'line_num': args.line_num,
         # ephys parameters
         'channel_name': 'PFCLFPvsCBEEG',
         'remove_artifacts': False,
@@ -195,8 +206,6 @@ if __name__ == "__main__":
         'miniscope_filenames': ['0.avi'],
         # preprocessing parameters
         'crop': True,
-        'crop_with_crop': False,
-        'crop_square': True,
         'detrend_method': 'linear',
         'df_over_f': True,
         'secs_window': 5,
@@ -238,11 +247,12 @@ if __name__ == "__main__":
         'time_range': None
     }
     
-    if args.config:
-        print(f"Loading configuration from {args.config}...", flush=True)
-        config = load_config(args.config)
-        config_params = parse_multimodal_config(config)
-        run_params.update(config_params)
+    # Override defaults with parameters from analysis_parameters.csv
+    try:
+        csv_params = load_analysis_params(args.line_num)
+        run_params.update(csv_params)
+    except FileNotFoundError:
+        print("No analysis_parameters.csv found. Using default parameters.", flush=True)
         
     if args.headless:
         run_params['headless'] = True

@@ -1,100 +1,67 @@
-# Multimodal Module Documentation
+# Multimodal Pipeline
 
-This directory contains the logic for synchronizing and analyzing the relationship between Calcium Imaging (Miniscope) and Electrophysiology (Ephys) data.
+The multimodal pipeline combines ephys and calcium imaging analysis for synchronized electrophysiology and miniscope recordings. It handles timestamp alignment between Neuralynx and Miniscope systems, and performs phase-based calcium event analysis.
 
-## Core Components
+## Quick Start
 
-### `MultimodalPipeline` (`multimodal_pipeline.py`)
-The high-level interface for running joint analyses.
+### Prerequisites
 
-## Configuration
+1. Set up your project's `.env` file (see root [README](../../README.md)):
+   ```
+   PROJECT_REPO=/path/to/your/project
+   ```
 
-This API uses a combined YAML configuration that includes Ephys, Miniscope, and Multimodal-specific parameters.
+2. Ensure your project has:
+   - `experiments.csv` with both ephys and miniscope paths
+   - `analysis_parameters.csv` with parameters for both modalities
 
-**Template:** [`multimodal_config.yaml`](multimodal_config.yaml)
-
-### Key Parameters
-
-| Section | Parameter | Description |
-|---------|-----------|-------------|
-| `experiment` | `line_num`, `filenames` | Experiment identifier and video files |
-| `ephys` | `channel_name`, `filter_type`, `filter_range` | EEG/LFP settings |
-| `miniscope_*` | (preprocessing, processing, postprocessing) | Calcium imaging settings |
-| `multimodal` | `delete_TTLs` | Remove TTL artifacts from ephys |
-| `multimodal` | `fix_TTL_gaps` | Interpolate missing TTL pulses |
-| `multimodal` | `only_experiment_events` | Use only events during experiment |
-| `multimodal` | `all_TTL_events` | Include all TTL events |
-| `multimodal` | `ca_events` | Use calcium events for phase analysis |
-| `multimodal` | `time_range` | Optional `[start, end]` in seconds |
-
-See the template file for the complete parameter list.
-
-### Usage
+### Command Line
 
 ```bash
-# Option 1: Config file (Recommended)
-python src2/multimodal/multimodal_pipeline.py --config src2/multimodal/multimodal_config.yaml
+# Run using analysis_parameters.csv from PROJECT_REPO (set in .env)
+python -m src2.multimodal.multimodal_pipeline --line-num 97
 
-# Option 2: Headless mode (for Slurm/remote)
-python src2/multimodal/multimodal_pipeline.py --config multimodal_config.yaml --headless
-
-# Option 3: Parameters in code (legacy)
-api = MultimodalPipeline()
-api.run(line_num=96, channel_name="PFCLFPvsCBEEG", ...)
+# Run in headless mode (no GUI) for batch processing
+python -m src2.multimodal.multimodal_pipeline --line-num 97 --headless
 ```
 
-*   **Workflow:**
-    1.  Runs `EphysPipeline` to clean and filter electrophysiology data.
-    2.  Runs `MiniscopePipeline` to preprocess and extract calcium traces.
-    3.  Synchronizes the two data streams using TTL pulses.
-    4.  Performs cross-modal analysis (e.g., phase locking, cross-correlation).
+### Python API
 
-## Visualization & Analysis
+```python
+from src2.multimodal.multimodal_pipeline import MultimodalPipeline
+from src2.shared.config_utils import load_analysis_params
 
-### `calcium_ephys_visualizer.py`
-Tools for creating visual comparisons between the two modalities.
-*   **Key Function:** `create_ca_ephys_movie`
-    *   Generates a side-by-side movie of the Miniscope video and the scrolling Ephys trace.
+params = load_analysis_params(97)
+api = MultimodalPipeline()
+api.run(line_num=97, headless=True, **params)
+```
 
-### `phase_utils.py`
-Utilities for analyzing the phase relationship between LFP oscillations and Calcium events.
-*   **Key Functions:**
-    *   `ephys_phase_ca_events`: Computes the phase of the Ephys signal at the time of Calcium spikes.
-    *   `miniscope_phase_ca_events`: Computes the phase of the Miniscope global signal at the time of individual neuron spikes.
-    *   `phase_ca_events_histogram`: Plots histograms of phase distributions to test for phase-locking.
+## Pipeline Steps
 
-## Core Utilities
+1. **Ephys Processing**: Runs the full ephys pipeline (channel loading, filtering, phase analysis)
+2. **Miniscope Processing**: Runs the full miniscope pipeline (preprocessing, CNMF-E, postprocessing)
+3. **Timestamp Synchronization**: Aligns Neuralynx and Miniscope timestamps using TTL events
+4. **TTL Event Detection**: Identifies and optionally cleans TTL synchronization events
+5. **Phase-Based Event Analysis**: Computes calcium event phases relative to ephys oscillations
+6. **Phase Histograms**: Generates circular histograms of calcium event phase distributions
 
-### Synchronization Logic (`miniscope_ephys_alignment_utils.py`)
+## Key Parameters
 
-The core challenge is aligning two different timebases. We rely on **TTL pulses** sent from the Miniscope acquisition system to the Neuralynx Ephys system.
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `delete_TTLs` | Remove problematic TTL events | `True` |
+| `fix_TTL_gaps` | Correct gaps in TTL timing | `True` |
+| `only_experiment_events` | Restrict to experimental time window | `False` |
+| `all_TTL_events` | Use all detected TTL events | `True` |
+| `ca_events` | Analyze calcium events | `True` |
+| `time_range` | Time window to analyze (seconds) | `None` |
 
-#### `sync_neuralynx_miniscope_timestamps`
-*   **Input:** An Ephys `Channel` object and a `MiniscopeDataManager`.
-*   **Mechanism:**
-    1.  Extracts timestamps of "TTL Input" events from `channel.events`.
-    2.  Verifies that these TTLs alternate (High/Low) and follow the expected frame rate.
-    3.  **Gap Correction:** If `fix_TTL_gaps=True`, it detects missing pulses (dropped frames) by checking for time gaps larger than a threshold (default ~65ms) and interpolates the missing timestamps.
-*   **Output:** `tCaIm` (Corrected array of timestamps where each index corresponds to a Miniscope frame).
+All ephys and miniscope parameters from their respective pipelines also apply here.
 
-#### `find_ephys_idx_of_TTL_events`
-*   **Purpose:** Maps the continuous Ephys time vector to the discrete Miniscope frames.
-*   **Algorithm:** Nearest-neighbor search. For each Miniscope timestamp in `tCaIm`, it finds the index of the closest time point in `channel.time_vector`.
-*   **Result:** `ephys_idx_all_TTL_events` (Array of indices).
-    *   `channel.signal[ephys_idx_all_TTL_events[i]]` gives the voltage at the moment Frame `i` was captured.
+## Data Requirements
 
-## Analysis Workflow Summary
+The `experiments.csv` must contain both:
+- `calcium imaging directory`: Path to miniscope recordings
+- `ephys directory`: Path to Neuralynx recordings
 
-1.  **Run Ephys API:** To clean and filter LFP data.
-2.  **Run Miniscope API:** To extract Calcium traces (`C`).
-3.  **Sync:** Use `sync_neuralynx_miniscope_timestamps` to align the time axes.
-4.  **Joint Analysis:**
-    *   **Phase Locking:** Compute the phase of the LFP signal at the exact indices of Calcium events (`find_ca_events`).
-    *   **Cross-Correlation:** Correlate `miniscope_data.C` with the Hilbert envelope of `channel.signal_filtered`.
-
-## Outputs
-
-*   **Phase-Locking Histograms:** Calculated EEG phase at the exact timestamps of Calcium events.
-    *   **Interpretation:** Examine the resulting histograms to determine if neuronal activity is modulated by specific LFP oscillations (e.g., locking to the trough of Theta).
-*   **Aligned Data:** Time-aligned data structures, allowing for correlation analysis between calcium amplitude and EEG power.
-
+Both directories should contain data from the same synchronized recording session.

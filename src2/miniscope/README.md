@@ -1,105 +1,82 @@
-# Miniscope Module Documentation
+# Miniscope Pipeline
 
-This directory contains the logic for the calcium imaging pipeline.
+The miniscope pipeline performs calcium imaging analysis using CaImAn, including preprocessing (cropping, detrending, DF/F), motion correction, CNMF-E source extraction, and postprocessing (component evaluation, event detection, phase analysis).
 
-## Core Components
+## Quick Start
 
-### `MiniscopePipeline` (`miniscope_pipeline.py`)
-This is the main entry point for the workflow. It orchestrates the entire pipeline from data loading to post-processing.
+### Prerequisites
 
-## Configuration
+1. Set up your project's `.env` file (see root [README](../../README.md)):
+   ```
+   PROJECT_REPO=/path/to/your/project
+   ```
 
-This API supports YAML configuration files for reproducible experiments.
+2. Ensure your project has:
+   - `experiments.csv` with experiment metadata
+   - `analysis_parameters.csv` with CaImAn and pipeline parameters
 
-**Template:** [`miniscope_config.yaml`](miniscope_config.yaml)
-
-### Key Parameters
-
-| Section | Parameter | Description |
-|---------|-----------|-------------|
-| `experiment` | `line_num` | Row number in `experiments.csv` |
-| `experiment` | `filenames` | List of video files (e.g., `["0.avi"]`) |
-| `miniscope_preprocessing` | `crop`, `detrend_method`, `df_over_f` | Movie preparation settings |
-| `miniscope_processing` | `parallel`, `n_processes`, `run_CNMFE` | CaImAn processing settings |
-| `miniscope_postprocessing` | `find_calcium_events`, `filter_data`, `spectrogram` | Analysis settings |
-
-See the template file for the complete parameter list with defaults.
-
-### Usage
+### Command Line
 
 ```bash
-# Option 1: Config file (Recommended)
-python src2/miniscope/miniscope_pipeline.py --config src2/miniscope/miniscope_config.yaml
+# Run using analysis_parameters.csv from PROJECT_REPO (set in .env)
+python -m src2.miniscope.miniscope_pipeline --line-num 96
 
-# Option 2: Headless mode (for Slurm/remote)
-python src2/miniscope/miniscope_pipeline.py --config miniscope_config.yaml --headless
-
-# Option 3: Parameters in code (legacy)
-api = MiniscopePipeline()
-api.run(line_num=96, filenames=["0.avi"], ...)
+# Run in headless mode (no GUI) for batch processing
+python -m src2.miniscope.miniscope_pipeline --line-num 96 --headless
 ```
 
-*   **Key Responsibilities:**
-    *   Initializes the `MiniscopeDataManager`.
-    *   Runs the preprocessing via `MiniscopePreprocessor`.
-    *   Runs the processing via `MiniscopeProcessor`.
-    *   Runs the post-processing via `MiniscopePostprocessor`.
+### Python API
 
-### `MiniscopeDataManager` (`miniscope_data_manager.py`)
-This class acts as the central state container.
-*   **Initialization:** Requires `line_num` (from `experiments.csv`) and a list of `filenames` (e.g., `['0.avi']`).
-*   **Key Attributes:**
-    *   `self.movie`: A `caiman.base.movies.movie` object. This is a subclass of a numpy array with shape `(frames, height, width)`.
-    *   `self.time_stamps`: A numpy array of timestamps (seconds) derived from the Miniscope CSV logs.
-    *   `self.CNMFE_obj`: The `caiman.source_extraction.cnmf.CNMF` object. This is only populated after the processing step.
-        *   `CNMFE_obj.estimates.A`: Sparse matrix of spatial footprints (neurons).
-        *   `CNMFE_obj.estimates.C`: Temporal traces (calcium activity).
-        *   `CNMFE_obj.estimates.S`: Deconvolved spiking activity.
-    *   `self.opts_caiman`: A `CNMFParams` object containing configuration for the algorithm.
+```python
+from src2.miniscope.miniscope_pipeline import MiniscopePipeline
+from src2.shared.config_utils import load_analysis_params
 
-### `MiniscopePreprocessor` (`miniscope_preprocessor.py`)
-Handles the preparation of the raw movie data before the heavy computational steps.
-*   **Key Methods:**
-    *   `preprocess_calcium_movie`: Orchestrates cropping, detrending, and dF/F calculation.
-    *   `crop_movie`: Interactive or coordinate-based cropping of the movie.
-    *   `detrend_movie`: Removes trends (e.g., photobleaching) from the movie.
-    *   `compute_df_over_f`: Calculates the delta F over F signal.
+params = load_analysis_params(96)
+api = MiniscopePipeline()
+api.run(line_num=96, headless=True, **params)
+```
 
-### `MiniscopeProcessor` (`miniscope_processor.py`)
-This class executes the heavy computational steps using the CaImAn library.
-*   **Key Methods:**
-    *   `process_calcium_movie`: Orchestrates motion correction, parameter preparation, and CNMF-E execution.
-    *   `motion_correction_manager`: Handles rigid or non-rigid motion correction and saves memory-mapped files.
-    *   `CNMFE_parameter_handler`: Interactive step for tuning CNMF-E parameters (Summary Images).
-    *   `_save_processed_data`: Saves the CNMF-E estimates and parameters to disk.
+## Pipeline Steps
 
-### `MiniscopePostprocessor` (`miniscope_postprocessor.py`)
-Handles analysis and visualization after the sources have been extracted.
-*   **Key Methods:**
-    *   `postprocess_calcium_movie`: Orchestrates component evaluation, event detection, and spectral analysis.
-    *   `evaluate_components`: Filters components based on quality metrics.
-    *   `find_calcium_events_with_derivatives`: Detects calcium events using derivatives.
-    *   `compute_miniscope_spectrogram`: Computes and plots the spectrogram of the calcium data.
+### 1. Preprocessing (`MiniscopePreprocessor`)
+- **Cropping**: Interactive GUI or automatic (headless) using `crop_coords` from `analysis_parameters.csv`
+- **Detrending**: Linear or median-based photobleaching correction
+- **DF/F**: Delta F over F or sqrt(F) normalization
 
-## Utilities & Helper Modules
+### 2. Processing (`MiniscopeProcessor`)
+- **Motion Correction**: Rigid or piecewise-rigid via CaImAn
+- **CNMF-E**: Constrained non-negative matrix factorization for source extraction
+- **Parameter Tuning**: Interactive plots for `gSig`, `min_corr`, `min_pnr`, etc.
 
-*   **`filtered_miniscope_data.py`**: Defines `FilterMiniscopeData`, a class for applying bandpass filters (Butterworth) to Miniscope time projections.
+### 3. Postprocessing (`MiniscopePostprocessor`)
+- **Component Evaluation**: Interactive GUI to accept/reject detected neurons
+- **Event Detection**: Calcium transient identification
+- **Phase Analysis**: Hilbert transform phase computation
+- **Spectrograms**: Multi-taper spectral analysis
 
+## Headless Mode
 
-*   **`multiple_session_utils.py`**: Contains logic for registering and tracking the same neurons across multiple imaging sessions.
-*   **`head_direction_utils.py`**: Utilities for processing and visualizing head orientation data (e.g., converting quaternions to Euler angles).
-*   **`movie_io.py`**: Handles saving and loading of movie files and memory maps.
-*   **`projections.py`**: Defines the `Projections` data class used to store summary images (Mean, Max, STD, etc.).
-*   **`gui_utils.py`**: Contains the Tkinter and Matplotlib GUI logic for interactive cropping and component selection.
+When `headless=True`:
+- Crop GUI is bypassed; coordinates from `analysis_parameters.csv` are used directly
+- Component evaluation GUI is skipped
+- Motion correction inspection is disabled
+- All matplotlib plots are suppressed (uses `Agg` backend)
+- Detrend comparison plots are suppressed
 
-## Data Types & Files
+> **Note**: For headless cropping, ensure your `analysis_parameters.csv` has `crop_coords` coordinates (e.g., `"(67, 503, 555, 61)"`). If missing, the crop step is skipped with a warning. You can also pass coordinates directly via `crop_coords=(x0, y0, x1, y1)` in the Python API.
 
-*   **Input:** `.avi` files (raw video) and accompanying `.csv` timestamp files from the Miniscope software.
-*   **Intermediate:** `.mmap` files (created by CaImAn for memory efficiency).
-*   **Output:** `estimates.hdf5`
-    *   This is a serialized `CNMF` object.
-    *   **Loading in Python:**
-        ```python
-        from caiman.source_extraction.cnmf.cnmf import load_CNMF
-        cnmfe = load_CNMF('path/to/estimates.hdf5')
-        ```
+## Key Parameters in `analysis_parameters.csv`
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `crop_coords` | Crop coordinates (x0, y0, x1, y1) | `"(67, 503, 555, 61)"` |
+| `gSig` | Gaussian kernel half-size | `(3, 3)` |
+| `min_corr` | Minimum correlation threshold | `0.85` |
+| `min_pnr` | Minimum peak-to-noise ratio | `10` |
+| `rf` | Half-size of patch | `25` |
+| `stride` | Overlap between patches | `10` |
+| `decay_time` | Transient decay time (s) | `0.4` |
+
+## Data Organization
+
+Raw data is found via `experiments.csv` paths. Processed outputs are saved to `saved_movies/` within each experiment's calcium imaging directory.

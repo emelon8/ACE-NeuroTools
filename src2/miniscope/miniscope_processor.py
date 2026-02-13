@@ -66,6 +66,7 @@ class MiniscopeProcessor:
         """
 
         #set up processing type
+        dview = None
         if parallel:
             print('Setting up cluster for caiman parallel processing on your computer')
             c, dview, n_processes = cm.cluster.setup_cluster(backend='multiprocessing', n_processes=n_processes, single_thread=False)
@@ -425,8 +426,8 @@ class MiniscopeProcessor:
             'line number', 'id', 'date (YYMMDD)', 'Box calcium folder ID', 
             'calcium imaging directory', 'Box ephys folder ID', 'ephys directory', 
             'indices of TTL events to delete', 'zero time (s)', 'baseline period (min)', 
-            'crop', 'periods of high slow wave power (s)', 'control periods (s)', 
-            'crop_square', 'ca_ephys_baseline_video_num', 'ca_ephys_slow_wave_video_num', 
+            'crop', 'crop_coords', 'periods of high slow wave power (s)', 'control periods (s)', 
+            'ca_ephys_baseline_video_num', 'ca_ephys_slow_wave_video_num', 
             'ca_ephys_burst_suppression_video_num', 'comments'
         ]
         

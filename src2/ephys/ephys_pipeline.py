@@ -10,17 +10,15 @@ from src2.ephys.channel_worker import ChannelWorker
 from src2.ephys.ephys_data_manager import EphysDataManager
 from src2.ephys.visualizer import Visualizer
 from src2.shared.experiment_data_manager import ExperimentDataManager
-from src2.shared.paths import DATA_DIR
 from typing import List
 from src2.shared import file_downloader
 import logging
 import argparse
 import sys
-import yaml
 import matplotlib
 import tkinter
 import traceback
-from src2.shared.config_utils import load_config, parse_ephys_config
+
 
 
 class EphysPipeline:
@@ -94,7 +92,8 @@ class EphysPipeline:
         ephys_directory = experiment_data_manager.get_ephys_directory()
         
         # Verify we downloaded the Ephys Data
-        file_downloader.verify_file_by_line(line_num=line_num, csv_path=DATA_DIR/"experiments.csv",do_type="ephys")
+        from src2.shared.paths import EXPERIMENTS
+        file_downloader.verify_file_by_line(line_num=line_num, csv_path=EXPERIMENTS, do_type="ephys")
 
         # Create instance of EphysDataManager, process the block into channels
         self.ephys_data_manager = EphysDataManager(ephys_directory, auto_import_ephys_block=True, auto_process_block=False, auto_compute_phases=False)
@@ -168,15 +167,28 @@ class EphysPipeline:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run Ephys Analysis Pipeline")
-    parser.add_argument('--config', type=str, help="Path to YAML configuration file")
-    parser.add_argument('--headless', action='store_true', help="Run in headless mode (no GUI)")
+    parser = argparse.ArgumentParser(
+        description="Run Ephys Analysis Pipeline",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Run using analysis_parameters.csv from PROJECT_REPO (set in .env)
+  python ephys_pipeline.py --line-num 96
+
+  # Run in headless mode (no GUI) for batch processing
+  python ephys_pipeline.py --line-num 96 --headless
+"""
+    )
+    parser.add_argument('--line-num', type=int, required=True,
+                        help="Experiment line number from experiments.csv")
+    parser.add_argument('--headless', action='store_true',
+                        help="Run in headless mode (no GUI)")
     
     args = parser.parse_args()
     
     # Default parameters
     run_params = {
-        'line_num': 101,
+        'line_num': args.line_num,
         'channel_name': 'PFCLFPvsCBEEG',
         'remove_artifacts': False,
         'filter_type': None,
@@ -188,12 +200,17 @@ if __name__ == "__main__":
         'logging_level': "DEBUG"
     }
     
-    if args.config:
-        print(f"Loading configuration from {args.config}...", flush=True)
-        config = load_config(args.config)
-        config_params = parse_ephys_config(config)
-        run_params.update(config_params)
-        
+    # Load analysis parameters from CSV
+    from src2.shared.config_utils import load_analysis_params
+    print(f"Loading analysis parameters for line {args.line_num}...", flush=True)
+    try:
+        csv_params = load_analysis_params(args.line_num)
+        run_params.update(csv_params)
+    except FileNotFoundError as e:
+        print(f"Warning: {e}", flush=True)
+        print("Proceeding with default parameters.", flush=True)
+    
+    # CLI overrides
     if args.headless:
         run_params['headless'] = True
 

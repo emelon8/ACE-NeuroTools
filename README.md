@@ -129,41 +129,71 @@ classDiagram
     pip install -e .
     ```
 
-### Data Setup
+### Project Setup
 
-Experimental metadata is managed via `data/experiments.csv`. File paths in this CSV can be relative or absolute.
-For automated downloading from Box, configure `src2/shared/box_credentials.py` (see `src2/shared/BLANK_box_credentials.py`).
+Each research project has its own directory containing experiment configuration files. See `examples/example_project/` for a template.
+
+1. **Create a project directory** with:
+   - `experiments.csv` — Experiment metadata (paths, IDs, etc.)
+   - `analysis_parameters.csv` — Pipeline parameters per experiment
+   - `run_analysis.py` — Optional batch processing script
+
+2. **Configure your `.env` file** (copy from `.env.example`):
+   ```bash
+   cp .env.example .env
+   ```
+   Edit `.env` to point to your project:
+   ```
+   PROJECT_REPO=/path/to/your/project
+   BASE_FILE_PATH=/path/to/raw/data  # Optional, defaults to PROJECT_REPO/data/downloaded_data
+   ```
+
+3. **Cloud storage** (optional): For automated downloading from Box, configure `src2/shared/box_credentials.py` (see `src2/shared/BLANK_box_credentials.py`).
 
 ## Usage
 
-The project uses modular pipeline scripts as the primary entry points. These can be run from the command line with YAML configuration files for reproducibility.
+The project uses modular pipeline scripts as the primary entry points. Each pipeline loads parameters from your project's `analysis_parameters.csv` based on the experiment's line number.
 
 ### 1. Miniscope Analysis
 **Script:** `src2/miniscope/miniscope_pipeline.py`
 
 ```bash
-# Run with configuration file (Recommended)
-python src2/miniscope/miniscope_pipeline.py --config src2/miniscope/miniscope_config.yaml
+# Run analysis for experiment line 96
+python -m src2.miniscope.miniscope_pipeline --line-num 96
 
 # Run in headless mode (e.g., for HPC/Slurm jobs)
-python src2/miniscope/miniscope_pipeline.py --config src2/miniscope/miniscope_config.yaml --headless
+python -m src2.miniscope.miniscope_pipeline --line-num 96 --headless
 ```
 
 ### 2. Electrophysiology Analysis
 **Script:** `src2/ephys/ephys_pipeline.py`
 
 ```bash
-python src2/ephys/ephys_pipeline.py --config experiment_template.yaml
+python -m src2.ephys.ephys_pipeline --line-num 96
 ```
 
 ### 3. Multimodal Analysis
 **Script:** `src2/multimodal/multimodal_pipeline.py`
 
 ```bash
-python src2/multimodal/multimodal_pipeline.py --config experiment_template.yaml
+python -m src2.multimodal.multimodal_pipeline --line-num 97
 ```
 
-For detailed documentation on output files (e.g., `estimates.hdf5`) and analysis interpretation, please refer to the module-specific utility guides in `src2/miniscope/README.md` and `src2/ephys/README.md`.
+### Batch Processing
+
+Use the project's `run_analysis.py` script to process multiple experiments:
+
+```python
+from src2.miniscope.miniscope_pipeline import MiniscopePipeline
+from src2.shared.config_utils import load_analysis_params
+
+for line_num in [96, 97, 98]:
+    params = load_analysis_params(line_num)
+    api = MiniscopePipeline()
+    api.run(line_num=line_num, headless=True, **params)
+```
+
+For detailed documentation, see the module-specific READMEs in `src2/miniscope/README.md`, `src2/ephys/README.md`, and `src2/multimodal/README.md`.
 
 ## License
 
