@@ -37,8 +37,7 @@ class MultimodalPipeline:
             miniscope_filenames = [],
             #preprocessing parameters
             crop = True,
-              crop_with_crop = False,
-              crop_square = False,
+            crop_coords = None,
             detrend_method = 'median',
             df_over_f = False,
               #if df_over_f = True
@@ -101,9 +100,9 @@ class MultimodalPipeline:
             plot_phases: If True, plot phase histograms.
             logging_level: Verbosity level.
             miniscope_filenames: List of movie files to load.
-            crop: If True, crop calcium movie.
-            crop_with_crop: Use 'crop' column coordinates.
-            crop_square: Use 'crop_square' column coordinates.
+            crop: If True, crop the movie.
+            crop_coords: Crop coordinates as (x0, y0, x1, y1) tuple/list.
+                If None, reads from analysis_parameters.csv or opens the GUI.
             detrend_method: 'median' or 'linear' detrending.
             df_over_f: If True, compute DF/F.
             parallel: If True, use multiprocessing.
@@ -129,7 +128,7 @@ class MultimodalPipeline:
         
         miniscope_pipeline = MiniscopePipeline()
         # Pass headless to miniscope api
-        miniscope_pipeline.run(line_num, miniscope_filenames, crop, crop_square, crop_with_crop, detrend_method, df_over_f, secs_window, 
+        miniscope_pipeline.run(line_num, miniscope_filenames, crop, crop_coords, detrend_method, df_over_f, secs_window, 
                           quantile_min, df_over_f_method, parallel, n_processes, apply_motion_correction, inspect_motion_correction, plot_params,
                           run_CNMFE, save_estimates, save_CNMFE_estimates_filename, save_CNMFE_params, remove_components_with_gui, find_calcium_events, derivative_for_estimates, event_height,
                           compute_miniscope_phase, filter_miniscope_data, n, cut, ftype, btype, inline, compute_miniscope_spectrogram, window_length, window_step, freq_lims, time_bandwidth, headless=headless)
@@ -207,8 +206,6 @@ Examples:
         'miniscope_filenames': ['0.avi'],
         # preprocessing parameters
         'crop': True,
-        'crop_with_crop': False,
-        'crop_square': True,
         'detrend_method': 'linear',
         'df_over_f': True,
         'secs_window': 5,

@@ -75,7 +75,7 @@ def verify_file_by_line(line_num, csv_path: str, do_type="both", avi_list=[]):
                         if not client: # Return false if we have an error establishing the client and can't download our files
                             return False
                     downloaded_miniscope=download_file(client, miniscope_path,int(miniscope_id), need_to_download) # Updates download status for return statement
-                elif need_to_download: #If the folder already exists but we need to download some more avi files, we'll download it here
+                elif need_to_download or avi_list == []: # If the folder already exists but we need specific avi files, or we want ALL files (avi_list=[]), re-check Box for any missing files
                     if not client: # Checks if we've established the client yet
                         client = make_auth() # Makes the client now that we need to download something, conserves API calls
                         if not client: # Return false if we have an error establishing the client and can't download our files
@@ -94,7 +94,7 @@ def verify_file_by_line(line_num, csv_path: str, do_type="both", avi_list=[]):
 
         # Final return statement logic
         if do_type == "both":
-            return downloaded_miniscope and downloaded_miniscope
+            return downloaded_miniscope and downloaded_ephys
         elif do_type == "miniscope":
             return downloaded_miniscope
         elif do_type == "ephys":
