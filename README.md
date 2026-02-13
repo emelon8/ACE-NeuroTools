@@ -179,20 +179,6 @@ python -m src2.ephys.ephys_pipeline --line-num 96
 python -m src2.multimodal.multimodal_pipeline --line-num 97
 ```
 
-### Batch Processing
-
-Use the project's `run_analysis.py` script to process multiple experiments:
-
-```python
-from src2.miniscope.miniscope_pipeline import MiniscopePipeline
-from src2.shared.config_utils import load_analysis_params
-
-for line_num in [96, 97, 98]:
-    params = load_analysis_params(line_num)
-    api = MiniscopePipeline()
-    api.run(line_num=line_num, headless=True, **params)
-```
-
 For detailed documentation, see the module-specific READMEs in `src2/miniscope/README.md`, `src2/ephys/README.md`, and `src2/multimodal/README.md`.
 
 ## License
