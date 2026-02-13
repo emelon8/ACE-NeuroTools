@@ -131,7 +131,7 @@ classDiagram
 
 ### Project Setup
 
-Each research project has its own directory containing experiment configuration files. See `examples/example_project/` for a template.
+Each research project has its own directory containing experiment configuration files. See this`[example project](https://github.com/reedpen/example-project)` for a template.
 
 1. **Create a project directory** with:
    - `experiments.csv` — Experiment metadata (paths, IDs, etc.)
