@@ -40,8 +40,12 @@ class MiniscopePreprocessor:
         
         if crop:
             self.data_manager.projections = self.compute_projections(self.data_manager.movie)
-            self.data_manager.movie, self.data_manager.coords = self.crop_movie(self.data_manager.movie, coords_dict, self.data_manager.projections, headless=headless)
-            steps_applied.append(f'{crop_job_name_for_file}')
+            movie_height = self.data_manager.movie.shape[1]
+            movie_width = self.data_manager.movie.shape[2]
+            final_coords = self.get_crop_coordinates(coords_dict, self.data_manager.projections, movie_height, movie_width, headless=headless)
+            if final_coords is not None:
+                self.data_manager.movie, self.data_manager.coords = self.crop_movie(self.data_manager.movie, final_coords)
+                steps_applied.append(f'{crop_job_name_for_file}')
 
         if detrend_method:
             self.data_manager.movie = self.detrend_movie(self.data_manager.movie, method=detrend_method, plot_trend=not headless)
@@ -103,54 +107,66 @@ class MiniscopePreprocessor:
         )    
     
 
-    def crop_movie(self, movie, coords_dict, projections, headless=False):
-        """Crop movie using GUI or provided coordinates.
+    def get_crop_coordinates(self, coords_dict, projections, movie_height, movie_width, headless=False):
+        """Get crop coordinates from GUI or provided coordinates.
         
-        In headless mode, crops directly using provided coordinates without
+        In headless mode, returns the provided coordinates directly without
         opening a GUI. If no coordinates are available in headless mode,
-        cropping is skipped with a warning.
+        returns None with a warning.
         
         In interactive mode, opens crop GUI (pre-populated with coords_dict
         if available) for visual adjustment.
         
         Args:
-            movie: CaImAn movie to crop.
             coords_dict: Dict with x0, y0, x1, y1 keys, or None for GUI.
             projections: Projections object for GUI visualization.
+            movie_height: Height of the movie in pixels.
+            movie_width: Width of the movie in pixels.
             headless: If True, bypass GUI and use coords_dict directly.
             
         Returns:
-            Tuple of (cropped_movie, coords_string).
+            Dict with x0, y0, x1, y1 keys, or None if no coordinates available.
         """
-        movie_height = movie.shape[1]
-        movie_width = movie.shape[2]
-        
         if headless:
             if coords_dict is None:
                 print("WARNING: crop=True but no crop coordinates found in analysis_parameters.csv. "
                       "Skipping crop in headless mode. Provide 'crop' coordinates "
                       "in your analysis_parameters.csv to crop in headless mode.", flush=True)
-                return movie, None
+                return None
             print(f"HEADLESS: Cropping with coordinates from analysis_parameters.csv: {coords_dict}", flush=True)
-            new_coords_dict = coords_dict
+            return coords_dict
         else:
-            new_coords_dict = crop_gui(coords_dict, projections, movie_height, movie_width)
+            return crop_gui(coords_dict, projections, movie_height, movie_width)
+
+
+    def crop_movie(self, movie, coords_dict):
+        """Crop a movie using the given coordinates.
         
+        Performs y-coordinate flipping (GUI origin is bottom-left, numpy
+        origin is top-left), sorts coordinates, and slices the movie array.
+        
+        Args:
+            movie: CaImAn movie to crop.
+            coords_dict: Dict with x0, y0, x1, y1 keys (in GUI coordinate space).
+            
+        Returns:
+            Tuple of (cropped_movie, coords_string).
+        """
         # Flip y-coordinates (GUI origin is bottom-left; numpy origin is top-left)
-        y0_flipped = movie.shape[1] - new_coords_dict['y1']
-        y1_flipped = movie.shape[1] - new_coords_dict['y0']
+        y0_flipped = movie.shape[1] - coords_dict['y1']
+        y1_flipped = movie.shape[1] - coords_dict['y0']
         
         # Sort coordinates
         y0, y1 = sorted([y0_flipped, y1_flipped])
-        x0, x1 = sorted([new_coords_dict['x0'], new_coords_dict['x1']])
+        x0, x1 = sorted([coords_dict['x0'], coords_dict['x1']])
         
         #crop movie using our numpy coordinates
         cropped_movie = movie[:, y0:y1, x0:x1]
         
-        #Keep new_coords_dict in GUI notation so that it will display properly in the GUI if you want to view them again
-        new_coords_dict = f'({new_coords_dict["x0"]},{new_coords_dict["y0"]}, {new_coords_dict["x1"]},{new_coords_dict["y1"]})'
+        #Keep coords_dict in GUI notation so that it will display properly in the GUI if you want to view them again
+        coords_string = f'({coords_dict["x0"]},{coords_dict["y0"]}, {coords_dict["x1"]},{coords_dict["y1"]})'
         
-        return cropped_movie, new_coords_dict
+        return cropped_movie, coords_string
         
 
     def detrend_movie(self, movie, method='median', plot_trend=True):

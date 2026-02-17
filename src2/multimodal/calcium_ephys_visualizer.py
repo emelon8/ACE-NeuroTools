@@ -53,9 +53,11 @@ def create_ca_ephys_movie(miniscope_dm, ephys_idx_all_TTL_events, channel_object
             }
         else:
             coords_dict, _ = get_coords_dict_from_analysis_params(miniscope_dm)
-        preprocessor = MiniscopePreprocessor(movie, miniscope_dir_path)
+        preprocessor = MiniscopePreprocessor(miniscope_dm)
         projections = preprocessor.compute_projections(movie)
-        movie, _ = preprocessor.crop_movie(movie, coords_dict, projections)
+        final_coords = preprocessor.get_crop_coordinates(coords_dict, projections, movie.shape[1], movie.shape[2])
+        if final_coords is not None:
+            movie, _ = preprocessor.crop_movie(movie, final_coords)
     
     
     # Adjust the movie frame numbers so that they are with respect to the imported movies, not the entire recording.
