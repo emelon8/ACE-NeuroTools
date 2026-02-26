@@ -8,7 +8,7 @@ from src2.shared.path_finder import PathFinder
 from src2.miniscope.miniscope_preprocessor import MiniscopePreprocessor
 from src2.shared.misc_functions import get_coords_dict_from_analysis_params
 
-def create_ca_ephys_movie(miniscope_dm, ephys_idx_all_TTL_events, channel_object, time_range=None, movie_num=None, crop=False, crop_square=False, 
+def create_ca_ephys_movie(miniscope_dm, ephys_idx_all_TTL_events, channel_object, time_range=None, movie_num=None, crop=False, crop_coords=None,
                           plot_mean_fluorescence=False, df_over_sqrt_f=False, vmin=None, vmax=None, mark_start_systemic=True, plot_ephys=True, 
                           num_frames_of_traces=10, time_stamps=True, playback_interval=33, play_movie=True, save_movie=False):
     
@@ -45,11 +45,19 @@ def create_ca_ephys_movie(miniscope_dm, ephys_idx_all_TTL_events, channel_object
         return
     
     # Crop the movie if desired.
-    if crop or crop_square:
-        coords_dict, previous_coords, _ = get_coords_dict_from_analysis_params(miniscope_dm, crop, crop_square)
-        preprocessor = MiniscopePreprocessor(movie, miniscope_dir_path)
+    if crop:
+        if crop_coords is not None:
+            coords_dict = {
+                'x0': crop_coords[0], 'y0': crop_coords[1],
+                'x1': crop_coords[2], 'y1': crop_coords[3]
+            }
+        else:
+            coords_dict, _ = get_coords_dict_from_analysis_params(miniscope_dm)
+        preprocessor = MiniscopePreprocessor(miniscope_dm)
         projections = preprocessor.compute_projections(movie)
-        movie, _ = preprocessor.crop_movie(movie, coords_dict, projections, movie.shape[1], movie.shape[2], previous_coords)
+        final_coords = preprocessor.get_crop_coordinates(coords_dict, projections, movie.shape[1], movie.shape[2])
+        if final_coords is not None:
+            movie, _ = preprocessor.crop_movie(movie, final_coords)
     
     
     # Adjust the movie frame numbers so that they are with respect to the imported movies, not the entire recording.
@@ -80,7 +88,15 @@ def create_ca_ephys_movie(miniscope_dm, ephys_idx_all_TTL_events, channel_object
     fig, ax = plt.subplots(figsize=(5.4,5.4))
     plt.subplots_adjust(0,0,1,1)
 
-    def update(frame): # TODO Add a way to downsample your movie/ephys/miniscope fluorescence.
+    def update(frame):
+        """Update function for animation - renders a single frame.
+        
+        Clears axes, draws movie frame, overlays ephys/fluorescence traces,
+        and adds timestamps and event markers.
+        
+        Args:
+            frame: Frame index to render.
+        """
         # Clear the plot
         ax.clear()
 

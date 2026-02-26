@@ -23,7 +23,7 @@ from src import misc_functions
 import sys
 import json
 import base64
-import PySimpleGUI as sg
+import FreeSimpleGUI as sg
 
 
 class UCLAMiniscope(experiment.experiment):

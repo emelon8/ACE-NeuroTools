@@ -5,7 +5,7 @@ from src2.miniscope.miniscope_preprocessor import MiniscopePreprocessor
 from src2.shared.path_finder import PathFinder
 import caiman as cm
 import sys
-from src2.shared.misc_functions import updateCSVCell, get_coords_dict_from_analysis_params
+from src2.shared.misc_functions import update_csv_cell, get_coords_dict_from_analysis_params
 from src2.shared.paths import ANALYSIS_PARAMS
 from pathlib import Path
 
@@ -15,17 +15,17 @@ for line_num in line_nums:
     
     #display a gui for you to select how to crop the movie
     miniscope_data_manager = MiniscopeDataManager(line_num, filenames = ['10.avi', '11.avi', '12.avi', '13.avi', '14.avi', '15.avi', '16.avi', '17.avi', '18.avi', '19.avi', '20.avi'])
-    coords_dict, _ = get_coords_dict_from_analysis_params(miniscope_data_manager, crop=True)
+    coords_dict, _ = get_coords_dict_from_analysis_params(miniscope_data_manager)
     
     preprocessor = MiniscopePreprocessor(miniscope_data_manager)
     projections = preprocessor.compute_projections(miniscope_data_manager.movie)
-    movie, coords = preprocessor.crop_movie(miniscope_data_manager.movie, coords_dict, projections)
-    
-    #clean up the coords so they aren't in GUI format
-    y0_flipped = miniscope_data_manager.movie.shape[1] - coords_dict['y1']
-    y1_flipped = miniscope_data_manager.movie.shape[1] - coords_dict['y0']
-    y0, y1 = sorted([y0_flipped, y1_flipped])
-    x0, x1 = sorted([coords_dict['x0'], coords_dict['x1']])
+    movie_height = miniscope_data_manager.movie.shape[1]
+    movie_width = miniscope_data_manager.movie.shape[2]
+    final_coords = preprocessor.get_crop_coordinates(coords_dict, projections, movie_height, movie_width)
+    if final_coords is not None:
+        movie, coords = preprocessor.crop_movie(miniscope_data_manager.movie, final_coords)
+    else:
+        movie = miniscope_data_manager.movie
     
     #get all avi files
     movie_directory = miniscope_data_manager.metadata['calcium imaging directory']
@@ -44,7 +44,8 @@ for line_num in line_nums:
         print("cropping this movie and compressing it: ", movie_filepath)
         
         movie = cm.load(str(movie_filepath))
-        movie = movie[:, y0:y1, x0:x1]
+        if final_coords is not None:
+            movie, _ = preprocessor.crop_movie(movie, final_coords)
         time_projection = movie.mean(axis=(1,2))
         mean_fluorescence = np.concatenate((mean_fluorescence, time_projection))
     

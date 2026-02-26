@@ -452,6 +452,7 @@ dependencies:
       - boxsdk==10.0.1
       - freesimplegui==5.2.0.post1
       - neo==0.14.3
+      - python-dotenv
       - quantities==0.16.2
       - requests-toolbelt==1.0.0
 prefix: C:\Users\lukea\miniconda3\envs\caiman

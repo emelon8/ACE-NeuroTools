@@ -1,10 +1,14 @@
 .DS_Store
 *.egg-info/
 *.pyc
+.env
 experiments.csv
 analysis_parameters.csv
 /data/downloaded_data/
 box_credentials.py
-
+src2/shared/box_credentials.py
+.agent/
+/data/data_types/
+/docs/
 # macOS
 .DS_Store

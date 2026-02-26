@@ -7,17 +7,32 @@ from caiman import movie as cm_movie
 from tqdm import tqdm
 from src2.miniscope.gui_utils import crop_gui
 from src2.miniscope.movie_io import MovieIO
+from src2.shared.exceptions import ProcessingError
 tqdm.monitor_interval = 0 #may not be necessary
 
 class MiniscopePreprocessor:
+    """Preprocessor for calcium imaging movies before CNMF-E analysis.
+    
+    Handles cropping, detrending, and DF/F computation to prepare
+    raw miniscope recordings for source extraction.
+    
+    Attributes:
+        data_manager: MiniscopeDataManager with loaded movie.
+        frame_rate: Movie frame rate in Hz.
+    """
 
     def __init__(self, data_manager):
+        """Initialize preprocessor with data manager.
+        
+        Args:
+            data_manager: MiniscopeDataManager with movie attribute.
+        """
         self.data_manager = data_manager
         self.frame_rate = data_manager.movie.fr
     
 
     def preprocess_calcium_movie(self, coords_dict=None, crop=False, detrend_method=None, df_over_f=False, crop_job_name_for_file="_cropped",
-                                 secs_window=5, quantile_min=8, df_over_f_method='delta_f_over_sqrt_f'):
+                                 secs_window=5, quantile_min=8, df_over_f_method='delta_f_over_sqrt_f', headless=False):
         """Run preprocessing steps based on provided flags.
            coords_dict: is passed in and represents what you want the final coordinates for the movie to be in the form {'x0': A, 'y0': B, 'x1': C, 'y1': D}"""
         
@@ -25,11 +40,15 @@ class MiniscopePreprocessor:
         
         if crop:
             self.data_manager.projections = self.compute_projections(self.data_manager.movie)
-            self.data_manager.movie, self.data_manager.coords = self.crop_movie(self.data_manager.movie, coords_dict, self.data_manager.projections)
-            steps_applied.append(f'{crop_job_name_for_file}')
+            movie_height = self.data_manager.movie.shape[1]
+            movie_width = self.data_manager.movie.shape[2]
+            final_coords = self.get_crop_coordinates(coords_dict, self.data_manager.projections, movie_height, movie_width, headless=headless)
+            if final_coords is not None:
+                self.data_manager.movie, self.data_manager.coords = self.crop_movie(self.data_manager.movie, final_coords)
+                steps_applied.append(f'{crop_job_name_for_file}')
 
         if detrend_method:
-            self.data_manager.movie = self.detrend_movie(self.data_manager.movie, method=detrend_method)
+            self.data_manager.movie = self.detrend_movie(self.data_manager.movie, method=detrend_method, plot_trend=not headless)
             steps_applied.append('_detrended')
 
         if df_over_f:
@@ -49,7 +68,17 @@ class MiniscopePreprocessor:
     
     
     def compute_projections(self, movie: cm.movie=None):
-        """Calculates the projections of self.movie with progress bar."""
+        """Compute spatial and temporal projections of the movie.
+        
+        Calculates max, min, mean, median, std, range projections and
+        mean fluorescence time series.
+        
+        Args:
+            movie: CaImAn movie object to compute projections from.
+            
+        Returns:
+            Projections object containing all computed projections.
+        """
         print("\n\nComputing projections...\n")
         
         operations = {
@@ -78,41 +107,98 @@ class MiniscopePreprocessor:
         )    
     
 
-    def crop_movie(self, movie, coords_dict, projections):
-        print('Cropping...')
-        movie_height = movie.shape[1]
-        movie_width = movie.shape[2]
-        new_coords_dict = crop_gui(coords_dict, projections, movie_height, movie_width)
+    def get_crop_coordinates(self, coords_dict, projections, movie_height, movie_width, headless=False):
+        """Get crop coordinates from GUI or provided coordinates.
         
+        In headless mode, returns the provided coordinates directly without
+        opening a GUI. If no coordinates are available in headless mode,
+        returns None with a warning.
+        
+        In interactive mode, opens crop GUI (pre-populated with coords_dict
+        if available) for visual adjustment.
+        
+        Args:
+            coords_dict: Dict with x0, y0, x1, y1 keys, or None for GUI.
+            projections: Projections object for GUI visualization.
+            movie_height: Height of the movie in pixels.
+            movie_width: Width of the movie in pixels.
+            headless: If True, bypass GUI and use coords_dict directly.
+            
+        Returns:
+            Dict with x0, y0, x1, y1 keys, or None if no coordinates available.
+        """
+        if headless:
+            if coords_dict is None:
+                print("WARNING: crop=True but no crop coordinates found in analysis_parameters.csv. "
+                      "Skipping crop in headless mode. Provide 'crop' coordinates "
+                      "in your analysis_parameters.csv to crop in headless mode.", flush=True)
+                return None
+            print(f"HEADLESS: Cropping with coordinates from analysis_parameters.csv: {coords_dict}", flush=True)
+            return coords_dict
+        else:
+            return crop_gui(coords_dict, projections, movie_height, movie_width)
+
+
+    def crop_movie(self, movie, coords_dict):
+        """Crop a movie using the given coordinates.
+        
+        Performs y-coordinate flipping (GUI origin is bottom-left, numpy
+        origin is top-left), sorts coordinates, and slices the movie array.
+        
+        Args:
+            movie: CaImAn movie to crop.
+            coords_dict: Dict with x0, y0, x1, y1 keys (in GUI coordinate space).
+            
+        Returns:
+            Tuple of (cropped_movie, coords_string).
+        """
         # Flip y-coordinates (GUI origin is bottom-left; numpy origin is top-left)
-        y0_flipped = movie.shape[1] - new_coords_dict['y1']
-        y1_flipped = movie.shape[1] - new_coords_dict['y0']
+        y0_flipped = movie.shape[1] - coords_dict['y1']
+        y1_flipped = movie.shape[1] - coords_dict['y0']
         
         # Sort coordinates
         y0, y1 = sorted([y0_flipped, y1_flipped])
-        x0, x1 = sorted([new_coords_dict['x0'], new_coords_dict['x1']])
+        x0, x1 = sorted([coords_dict['x0'], coords_dict['x1']])
         
         #crop movie using our numpy coordinates
         cropped_movie = movie[:, y0:y1, x0:x1]
         
-        #Keep new_coords_dict in GUI notation so that it will display properly in the GUI if you want to view them again
-        new_coords_dict = f'({new_coords_dict["x0"]},{new_coords_dict["y0"]}, {new_coords_dict["x1"]},{new_coords_dict["y1"]})'
+        #Keep coords_dict in GUI notation so that it will display properly in the GUI if you want to view them again
+        coords_string = f'({coords_dict["x0"]},{coords_dict["y0"]}, {coords_dict["x1"]},{coords_dict["y1"]})'
         
-        return cropped_movie, new_coords_dict
+        return cropped_movie, coords_string
         
 
     def detrend_movie(self, movie, method='median', plot_trend=True):
-        print('Detrending...')
+        """Remove slow temporal trends from the movie.
+        
+        Supports linear detrending or median-based debleaching to correct
+        for photobleaching and other drift.
+        
+        Args:
+            movie: CaImAn movie to detrend.
+            method: 'linear' for scipy detrend, 'median' for CaImAn debleach.
+            plot_trend: If True, display before/after comparison plot.
+            
+        Returns:
+            Detrended CaImAn movie.
+        """
         try:                    
             if method == 'linear':
                 detrended_movie = detrend(movie, axis=0)
             elif method == 'median':
-                detrended_movie = movie.debleach()
+                # Manual median-based detrending (debleach was removed in newer CaIman versions)
+                # Subtract the running median baseline to correct for photobleaching
+                mean_trace = np.mean(movie, axis=(1, 2))
+                median_baseline = np.median(mean_trace)
+                trend = mean_trace - median_baseline
+                # Subtract trend from each frame
+                detrended_movie = movie - trend[:, np.newaxis, np.newaxis]
             else:
                 raise ValueError(f"Unsupported detrending method '{method}'.")
                 return movie
-        except:
-            print("Detrending failed, returning original movie")
+        except (ValueError, np.linalg.LinAlgError) as e:
+            print(f"Detrending failed ({e}), returning original movie")
             return movie
         
         if plot_trend and detrended_movie is not None:
@@ -142,7 +228,20 @@ class MiniscopePreprocessor:
         
 
     def compute_df_over_f(self, movie, secs_window=5, quantile_min=8, method='delta_f_over_sqrt_f'):
-        print("Attempting to compute_df_over of movie...")
+        """Compute DF/F or DF/sqrt(F) normalization of the movie.
+        
+        Normalizes fluorescence to percentage changes relative to baseline,
+        which is estimated using a sliding window and quantile.
+        
+        Args:
+            movie: CaImAn movie to normalize.
+            secs_window: Window size in seconds for baseline estimation.
+            quantile_min: Percentile for baseline (0-100).
+            method: 'delta_f_over_sqrt_f' or 'delta_f_over_f'.
+            
+        Returns:
+            Normalized CaImAn movie.
+        """
         try:
             if np.min(movie) < 0:
                 min_val = np.min(movie)
@@ -158,7 +257,6 @@ class MiniscopePreprocessor:
             print("Computing df over f / sqrt f was successful")
             return processed_movie
         
-        except:
-            raise ValueError("Computing df over f failed, returning original movie")
-            return movie
+        except (ZeroDivisionError, FloatingPointError, ValueError) as e:
+            raise ProcessingError(f"Computing df over f failed: {e}") from e
 

@@ -35,15 +35,43 @@ from neo.core import Block
 import logging
 
 class BlockProcessor:
-    """Processes an Ephys Block into channels."""
+    """Processes a Neo Block containing raw ephys data into Channel objects.
+    
+    Handles the conversion of segmented Neuralynx recordings into continuous
+    signal arrays, including artifact removal and event extraction.
+    
+    Attributes:
+        logger: Logger instance for debug output.
+        ephys_block: Neo Block object containing raw ephys segments.
+    """
     
     def __init__(self, ephys_block: Block, logger: logging.Logger):
+        """Initialize a BlockProcessor with an ephys Block.
+        
+        Args:
+            ephys_block: Neo Block object containing raw ephys data.
+            logger: Logger instance for debug/info messages.
+        """
         self.logger = logger
         self.ephys_block = ephys_block
 
         
     def process_raw_ephys(self, channels, remove_artifacts=False):
-        """Convert raw ephys data into processed Channel objects."""
+        """Convert raw ephys data into processed Channel objects.
+        
+        Iterates through requested channel names, extracts signal data from
+        all segments, and optionally removes artifacts.
+        
+        Args:
+            channels: Channel name string or list of channel names to process.
+            remove_artifacts: If True, apply artifact removal to each channel.
+            
+        Returns:
+            Dict mapping channel names to Channel objects.
+            
+        Raises:
+            ValueError: If ephys_block has not been loaded.
+        """
         if not self.ephys_block:
             raise ValueError("Load raw data first using EphysDataManager.import_ephys_data()")
         
@@ -72,7 +100,17 @@ class BlockProcessor:
 
             
     def remove_artifacts(self, channel: Channel, volt_threshold=1500, time_threshold=60, hannNum=75):
-        """Remove artifacts from the specified channel."""
+        """Remove high-amplitude artifacts from a channel using Hann window smoothing.
+        
+        Identifies samples exceeding the voltage threshold, fills short gaps
+        between artifact regions, and applies a Hann window to smooth transitions.
+        
+        Args:
+            channel: Channel object to process (modified in-place).
+            volt_threshold: Voltage threshold in µV for artifact detection.
+            time_threshold: Maximum gap duration (seconds) to fill between artifacts.
+            hannNum: Size of the Hann window for smoothing artifact edges.
+        """
         print('Removing artifacts from ' + channel.name + '...')
         dt = channel.time_vector[1] - channel.time_vector[0]
         mean = np.mean(channel.signal)
@@ -95,8 +133,21 @@ class BlockProcessor:
             
             
     def _process_single_channel(self, channel_name):
+        """Process a single channel from raw segment data.
+        
+        Extracts signal data across all segments, builds continuous time vector,
+        and collects associated events.
+        
+        Args:
+            channel_name: Name of the channel to process (e.g., 'PFCLFPvsCBEEG').
+            
+        Returns:
+            Channel object with signal, timing, and event data.
+            
+        Raises:
+            ValueError: If the channel is not found in the segment data.
+        """
         print(f"Channel name: {channel_name}")
-        """Process a single channel from raw data."""
         # Get the first and last segments
         first_segment = self.ephys_block.segments[0].analogsignals
         last_segment = self.ephys_block.segments[-1].analogsignals
@@ -137,7 +188,20 @@ class BlockProcessor:
 
 
     def _scan_segments(self, channel_index, channel_name, time_vector):
-        """Construct continuous signal from raw segments."""
+        """Construct a continuous signal array from multiple Neo segments.
+        
+        Iterates through all segments in the ephys block, extracting signal
+        data and events, then concatenates them into continuous arrays.
+        
+        Args:
+            channel_index: Index of the channel within each segment's analogsignals.
+            channel_name: Name of the channel being processed.
+            time_vector: Pre-computed time vector for the full recording.
+            
+        Returns:
+            Tuple of (signal, events) where signal is a 1D numpy array and
+            events is a dict with 'labels' and 'timestamps' keys.
+        """
         n_points = len(time_vector)
         signal = np.full(n_points, np.nan)
         # events = []
@@ -190,7 +254,18 @@ class BlockProcessor:
         return signal, events
         
     def _interpolate_missing_data(self, channel_name, signal, start_idx, time_vector, t_start):
-        """Fill gaps between segments with interpolation."""
+        """Fill gaps between segments with linear interpolation.
+        
+        When segments don't perfectly align, this fills NaN regions with
+        linearly interpolated values to create a continuous signal.
+        
+        Args:
+            channel_name: Name of channel (for logging).
+            signal: Signal array to modify (in-place).
+            start_idx: Index where the new segment starts.
+            time_vector: Full recording time vector.
+            t_start: Start time of the new segment.
+        """
         interp_start = np.where(np.isnan(signal))[0][0]
         interp_length = start_idx - interp_start
         x = np.linspace(signal[interp_start - 1], signal[interp_start], interp_length + 2)
@@ -199,7 +274,18 @@ class BlockProcessor:
 
             
     def _fill_gaps(self, mask, dt, threshold):
-        """Fill gaps in the mask where the time between threshold crossings is below the threshold."""
+        """Extend artifact mask to fill short gaps between detected artifacts.
+        
+        Prevents fragmented artifact detection by connecting nearby regions.
+        
+        Args:
+            mask: Boolean array marking artifact samples.
+            dt: Sample interval in seconds.
+            threshold: Maximum gap duration (seconds) to fill.
+            
+        Returns:
+            Modified mask with short gaps filled.
+        """
         diff = np.diff(mask.astype(int))
         starts = np.where(diff == -1)[0]
         
@@ -210,12 +296,32 @@ class BlockProcessor:
         return mask
         
     def _create_hann_window(self, size):
-        """Create a Hann window for smoothing."""
+        """Create an inverted Hann window for artifact smoothing.
+        
+        The window is inverted (1 - hann) so that artifact regions are
+        attenuated while preserving surrounding signal.
+        
+        Args:
+            size: Number of samples in the window.
+            
+        Returns:
+            1D numpy array containing the inverted Hann window.
+        """
         window = hann(size)
         return np.abs(window - 1)
         
     def _apply_hann_window(self, channel, mask, window, dt):
-        """Apply the Hann window to the masked regions."""
+        """Apply Hann window smoothing to artifact regions in the signal.
+        
+        Multiplies signal values in and around artifact regions by the
+        Hann window to create smooth transitions.
+        
+        Args:
+            channel: Channel object with signal to modify (in-place).
+            mask: Boolean array marking artifact samples.
+            window: Pre-computed Hann window array.
+            dt: Sample interval in seconds.
+        """
         half_len = len(window) // 2
         indices = np.where(mask)[0]
         

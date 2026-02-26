@@ -14,6 +14,7 @@ setup(
     install_requires=[
         'numpy',
         'scipy',
+        'python-dotenv',
     ],
     include_package_data=True,
 )

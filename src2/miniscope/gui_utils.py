@@ -12,7 +12,32 @@ import matplotlib.figure
 
 def _create_contour_fig(sfootprints, background, estimates_obj, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, display_numbers=True, max_number=None,
                          cmap=None, unselectcolor='w', selectcolor='r', coordinates=None,
-                         contour_args={}, number_args={}, show_all_contours=True):
+                         contour_args={}, number_args={}):
+    """Create a figure showing component contours overlaid on a background image.
+    
+    Generates a matplotlib figure with detected neuron contours, coloring
+    rejected components differently from accepted ones.
+    
+    Args:
+        sfootprints: Spatial footprints matrix (A) from CNMF-E.
+        background: 2D array for background image.
+        estimates_obj: CNMF-E estimates with idx_components_bad.
+        thr: Threshold for contour detection.
+        thr_method: 'max' or 'nrg' thresholding method.
+        maxthr: Maximum threshold value for 'max' method.
+        nrgthr: Energy threshold for 'nrg' method.
+        display_numbers: If True, show component numbers.
+        max_number: Maximum number of components to display.
+        cmap: Colormap for background image.
+        unselectcolor: Color for accepted components.
+        selectcolor: Color for rejected components.
+        coordinates: Pre-computed contour coordinates (optional).
+        contour_args: Additional kwargs for contour plotting.
+        number_args: Additional kwargs for text labels.
+        
+    Returns:
+        Matplotlib Figure object.
+    """
 
     if thr is None:
         try:
@@ -80,101 +105,17 @@ def _create_contour_fig(sfootprints, background, estimates_obj, thr=None, thr_me
     return fig
 
 
-def _draw_figure(canvas, figure):
-    """Helper function to draw matplotlib figure on FreeSimpleGUI canvas"""
-    figure_canvas_agg = FigureCanvasTkAgg(figure, canvas)
-    figure_canvas_agg.draw()
-    figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
-    return figure_canvas_agg
-
-
-def _delete_figure_agg(figure_agg):
-    """Helper function to delete figure from canvas"""
-    if figure_agg:
-        figure_agg.get_tk_widget().forget()
-        plt.close('all')
-
-
-def _create_time_series_plot(estimates, eeg_data=None, eeg_timestamps=None, selected_cells_1based=None, frame_rate=30):
+def _component_image(estimates, projections, movie, graph, max=False, min=False, STD=False, mean=False, median=False, range=False, cmap='viridis'):
+    """Render component contours on a projection and display in GUI graph.
+    
+    Args:
+        estimates: CNMF-E estimates object.
+        projections: Projections object with summary images.
+        movie: CaImAn movie (for dimensions).
+        graph: PySimpleGUI Graph element to draw on.
+        max/min/STD/mean/median/range: Booleans selecting projection type.
+        cmap: Colormap name for background.
     """
-    Create a time series plot showing calcium traces and optionally EEG data for selected cells.
-    
-    Parameters:
-    -----------
-    estimates : caiman estimates object
-        Contains calcium trace data in estimates.C
-    eeg_data : numpy array, optional
-        EEG/ephys data synchronized with the calcium imaging frames
-    eeg_timestamps : numpy array, optional
-        Time stamps for the EEG data
-    selected_cells_1based : list, optional
-        List of selected cell indices (1-based)
-    frame_rate : float
-        Frame rate of calcium imaging in Hz
-    """
-    fig = matplotlib.figure.Figure(figsize=(5, 4), dpi=100)
-    
-    if selected_cells_1based is None or len(selected_cells_1based) == 0:
-        # No cells selected, show empty plot with instruction
-        ax = fig.add_subplot(111)
-        ax.text(0.5, 0.5, 'Select a cell to view its time series', 
-                ha='center', va='center', fontsize=14, transform=ax.transAxes)
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
-        ax.axis('off')
-        return fig
-    
-    # Determine number of subplots needed
-    num_plots = 1  # At least calcium trace
-    if eeg_data is not None:
-        num_plots = 2  # Calcium trace + EEG
-    
-    # Create time axis for calcium data
-    num_frames = estimates.C.shape[1]
-    time_calcium = np.arange(num_frames) / frame_rate
-    
-    # Plot calcium traces for all selected cells
-    ax1 = fig.add_subplot(num_plots, 1, 1)
-    
-    for cell_idx_1based in selected_cells_1based:
-        cell_idx_0based = cell_idx_1based - 1
-        if cell_idx_0based < estimates.C.shape[0]:
-            calcium_trace = estimates.C[cell_idx_0based, :]
-            ax1.plot(time_calcium, calcium_trace, label=f'Cell {cell_idx_1based}', alpha=0.7, linewidth=1.5)
-    
-    ax1.set_xlabel('Time (s)', fontsize=10, labelpad=8)
-    ax1.set_ylabel('Calcium Signal (a.u.)', fontsize=10, labelpad=8)
-    ax1.set_title('Calcium Trace', fontsize=12, fontweight='bold', pad=10)
-    ax1.grid(True, alpha=0.3)
-    if len(selected_cells_1based) <= 10:  # Only show legend if not too many cells
-        ax1.legend(fontsize=8, loc='upper right')
-    ax1.tick_params(labelsize=9)
-    
-    # Plot EEG data if available
-    if eeg_data is not None and num_plots == 2:
-        ax2 = fig.add_subplot(num_plots, 1, 2)
-        
-        if eeg_timestamps is not None:
-            time_eeg = eeg_timestamps
-        else:
-            # Assume EEG data is synchronized frame-by-frame
-            if len(eeg_data) == num_frames:
-                time_eeg = time_calcium
-            else:
-                time_eeg = np.arange(len(eeg_data)) / frame_rate
-        
-        ax2.plot(time_eeg, eeg_data, color='darkblue', linewidth=1, alpha=0.8)
-        ax2.set_xlabel('Time (s)', fontsize=10, labelpad=8)
-        ax2.set_ylabel('EEG Signal (μV)', fontsize=10, labelpad=8)
-        ax2.set_title('EEG Time Series', fontsize=12, fontweight='bold', pad=10)
-        ax2.grid(True, alpha=0.3)
-        ax2.tick_params(labelsize=9)
-    
-    fig.tight_layout(pad=2.0, h_pad=3.0, w_pad=2.0)
-    return fig
-
-
-def _component_image(estimates, projections, movie, graph, max=False, min=False, STD=False, mean=False, median=False, range=False, cmap='viridis', scale_factor=1.0, show_all_contours=True):
     graph.erase()
 
     pic_IObytes = io.BytesIO()
@@ -228,84 +169,20 @@ def _component_image(estimates, projections, movie, graph, max=False, min=False,
         print("No background to display")
 
 
-def component_gui(movie, estimates, projections, eeg_data=None, eeg_timestamps=None, frame_rate=30):
-    """
-    Interactive GUI for selecting cell components to reject/keep.
+def component_gui(movie, estimates, projections):
+    """Interactive GUI for selecting which CNMF-E components to reject.
     
-    This GUI displays calcium imaging cell components overlaid on projection images,
-    and shows calcium traces (and optionally EEG/ephys data) for selected cells in
-    real-time as you select them.
+    Displays component contours overlaid on projection images. Users can
+    select components to reject by clicking on a listbox, with rejected
+    components highlighted in red.
     
-    Parameters:
-    -----------
-    movie : numpy array
-        The calcium imaging movie
-    estimates : caiman estimates object
-        Contains component data and calcium traces
-    projections : Projections object
-        Contains various projection images (max, min, mean, etc.)
-    eeg_data : numpy array, optional
-        EEG/ephys data synchronized with calcium imaging. If provided, will display
-        EEG time series alongside calcium traces when cells are selected.
-        Shape should be (n_timepoints,) where n_timepoints matches the number of
-        calcium imaging frames, OR can be different length if eeg_timestamps provided.
-    eeg_timestamps : numpy array, optional
-        Time stamps for the EEG data (in seconds). If not provided, assumes synchronized
-        frame-by-frame with calcium data.
-    frame_rate : float, optional
-        Frame rate of calcium imaging in Hz (default: 30)
-    
-    Returns:
-    --------
-    estimates : caiman estimates object
-        Updated estimates with selected components
+    Args:
+        movie: CaImAn movie for dimensions.
+        estimates: CNMF-E estimates object (modified in-place).
+        projections: Projections object for background images.
         
-    Examples:
-    ---------
-    # Example 1: Basic usage without EEG data (original behavior)
-    >>> estimates = component_gui(movie, estimates, projections)
-    
-    # Example 2: With EEG data synchronized frame-by-frame
-    >>> # Assuming you have eeg_data that's been downsampled to match calcium frame rate
-    >>> estimates = component_gui(movie, estimates, projections, 
-    ...                           eeg_data=eeg_downsampled, 
-    ...                           frame_rate=30)
-    
-    # Example 3: With EEG data at original sampling rate with timestamps
-    >>> # For miniscope-ephys experiments where EEG is synced via TTL events
-    >>> from src.classes import miniscope_ephys
-    >>> obj = miniscope_ephys.miniscopeEphys(lineNum=35)
-    >>> obj.importEphysData(channels='PFCLFPvsCBEEG')
-    >>> obj.syncNeuralynxMiniscopeTimestamps(channel='PFCLFPvsCBEEG')
-    >>> obj.findEphysIdxOfTTLEvents(channel='PFCLFPvsCBEEG')
-    >>> 
-    >>> # Extract EEG at calcium imaging time points
-    >>> eeg_synced = obj.ephys['PFCLFPvsCBEEG'][obj.ephysIdxAllTTLEvents]
-    >>> eeg_times = obj.tEphys['PFCLFPvsCBEEG'][obj.ephysIdxAllTTLEvents]
-    >>> 
-    >>> estimates = component_gui(movie, estimates, projections,
-    ...                           eeg_data=eeg_synced,
-    ...                           eeg_timestamps=eeg_times,
-    ...                           frame_rate=obj.experiment['frameRate'])
-    
-    # Example 4: Integration with MiniscopePostprocessor
-    >>> # In miniscope_postprocessor.py, modify the call:
-    >>> # self.data_manager.CNMFE_obj.estimates = component_gui(
-    >>> #     self.data_manager.movie, 
-    >>> #     self.data_manager.CNMFE_obj.estimates, 
-    >>> #     self.data_manager.projections,
-    >>> #     eeg_data=your_eeg_data,  # Add your EEG data here
-    >>> #     frame_rate=self.frame_rate
-    >>> # )
-    
-    Notes:
-    ------
-    - The GUI will show a time series plot at the bottom that updates as you 
-      select/deselect cells in the listbox
-    - Multiple cells can be selected simultaneously, and their traces will be 
-      shown overlaid on the same plot
-    - The EEG data (if provided) is shown in a separate subplot below the calcium traces
-    - Selected cells are marked in red on the spatial image and in the list
+    Returns:
+        Updated estimates object with rejected components removed.
     """
     if estimates.idx_components_bad is None:
         estimates.idx_components_bad = [] 
@@ -556,16 +433,11 @@ def component_gui(movie, estimates, projections, eeg_data=None, eeg_timestamps=N
             selected_0_based_to_reject = set(estimates.idx_components_bad)
             all_indices_0_based = np.arange(len(estimates.C))
             good_components_indices = [idx for idx in all_indices_0_based if idx not in selected_0_based_to_reject]
-            
-            print(f"Total components detected: {len(estimates.C)}")
-            print(f"Components marked for rejection: {len(selected_0_based_to_reject)}")
-            print(f"Components to keep (good cells): {len(good_components_indices)}")
-            if len(selected_0_based_to_reject) > 0:
-                print(f"Rejected cell IDs (1-based): {sorted([x+1 for x in selected_0_based_to_reject])}")
-            
-            estimates = estimates.select_components(idx_components=good_components_indices)
-            print("✓ Component filtering complete!")
-            print("="*60 + "\n")
+            # select_components operates in-place in some versions and returns None, or returns self in others.
+            # We handle both by checking the return value.
+            ret = estimates.select_components(idx_components=good_components_indices)
+            if ret is not None:
+                estimates = ret
             break
             
     # Clean up matplotlib figures
@@ -634,8 +506,8 @@ def crop_gui(coords_dict, projections: Projections, movie_height, movie_width, p
             box = graph.draw_rectangle((coords_dict['x0'], coords_dict['y0']),
                                    (coords_dict['x1'], coords_dict['y1']),
                                    line_color=colors[index])
-        except:
-            print("Failed to draw intial box on GUI with the given coords")
+        except Exception as e:
+            print(f"Failed to draw intial box on GUI with the given coords: {e}")
     else:
         if coords_dict is None or not coords_dict:
             coords_dict = {

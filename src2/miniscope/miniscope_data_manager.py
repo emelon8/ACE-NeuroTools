@@ -14,24 +14,45 @@ import numpy as np
 from src2.shared.path_finder import PathFinder
 from src2.shared.experiment_data_manager import ExperimentDataManager
 import src2.shared.file_downloader as file_downloader
-from src2.shared.paths import DATA_DIR
+from src2.shared.paths import EXPERIMENTS
+from src2.shared.exceptions import DataImportError
 
 class MiniscopeDataManager(ExperimentDataManager):
-    """Manages raw Miniscope data import and storage. Processes data via Processor."""
+    """Manages raw Miniscope data import and storage.
+    
+    Extends ExperimentDataManager to handle calcium imaging data, including
+    movie loading, timestamp extraction, and metadata parsing.
+    
+    Attributes:
+        line_num: Experiment line number in experiments.csv.
+        time_stamps: Array of frame timestamps in seconds.
+        frame_numbers: List of frame indices.
+        all_movie_filepaths: All discovered .avi movie files.
+        chosen_movie_filepaths: Subset selected by filenames parameter.
+        movie: Loaded CaImAn movie object.
+        fr: Frame rate from metadata.
+    """
     
     def __init__(self, line_num: int, filenames: list=[], auto_import_data=True):
+        """Initialize data manager and optionally load movie data.
+        
+        Args:
+            line_num: Row number in experiments.csv to load.
+            filenames: Optional list of specific movie filenames to load.
+            auto_import_data: If True, automatically load movie and metadata.
+        """
         super().__init__(line_num)
         self.line_num = line_num
         self.time_stamps: list = None
         self.frame_numbers: list = None
-        file_downloader.verify_file_by_line(line_num,DATA_DIR/"experiments.csv","miniscope",filenames)
+        file_downloader.verify_file_by_line(line_num, EXPERIMENTS, "miniscope", filenames)
         self.all_movie_filepaths = self._find_movie_file_paths()
         self.chosen_movie_filepaths = self._get_specific_filepaths(filenames)
         
         if (auto_import_data):
             self.load_attributes(self.chosen_movie_filepaths if self.chosen_movie_filepaths else self.all_movie_filepaths)
             
-        #Attributes below are filled in automatically during the miniscope_api pipeline: preprocessing->processing->postprocessing
+        #Attributes below are filled in automatically during the miniscope_pipeline pipeline: preprocessing->processing->postprocessing
         
         self.projections = None
         self.preprocessed_movie_filepath = None #Your preprocessed movie must be saved to disk and its filepath stored here before processing
@@ -51,6 +72,13 @@ class MiniscopeDataManager(ExperimentDataManager):
             
 
     def load_attributes(self, filepaths):
+        """Load movie data and metadata from disk.
+        
+        Populates metadata, timestamps, movie array, events, and frame rate.
+        
+        Args:
+            filepaths: List of movie file paths to load.
+        """
         self.metadata.update(self._get_miniscope_metadata()) # add miniscope metadata to overall metadata
         self.time_stamps, self.frame_numbers = self._get_timestamps()  # import timestamps and frame numbers
         self.movie: movie = self._get_movies(filepaths)  # import calcium imaging data
@@ -114,7 +142,7 @@ class MiniscopeDataManager(ExperimentDataManager):
                         movie = cm.load(filename)
                         new_filename = f"{os.path.splitext(filename)[0]}{new_file_type}"
                         movie.save(new_filename, compress=0)
-                    except Exception as e:
+                    except (OSError, ValueError, MemoryError) as e:
                         print(f"Error converting movie '{filename}': {e}")
                         error_videos.append(filename)
 
@@ -126,8 +154,12 @@ class MiniscopeDataManager(ExperimentDataManager):
             print("Consider investigating")
 
 
-    def _meta_data_converter(self):  
-        # Suggestion: it might be good to start combining the metaDatas and marking them with the animalID or some experiment identifier (not sure how this program will work if you have a lot of different videos/metaData)
+    def _meta_data_converter(self):
+        """Convert and merge metadata from multiple JSON files.
+        
+        Creates a unified metaDataTif.json file combining animal ID, frame rate,
+        date, and original metadata from multiple source files.
+        """
         fileExts = self._find_metadata_paths()
         for fileExt in fileExts:
             with open(fileExt) as f:
@@ -185,7 +217,7 @@ class MiniscopeDataManager(ExperimentDataManager):
                     else:
                         metadata = {**metadata, **json.load(file)}
             except (IOError, json.JSONDecodeError) as e:
-                raise RuntimeError(f"Error reading or parsing metadata file '{metadata_path}': {e}")
+                raise DataImportError(f"Error reading or parsing metadata file '{metadata_path}': {e}") from e
     
             # If 'frameRate' exists, try to convert it to a float
             if 'frameRate' in metadata:
@@ -203,7 +235,14 @@ class MiniscopeDataManager(ExperimentDataManager):
 
 
     def _get_timestamps(self):
-         #print('Reading miniscope software timestamps from ' + os.path.abspath(timeStampsFilename) + '...')
+        """Load frame timestamps and numbers from CSV file.
+        
+        Reads the timeStamps.csv file created by Miniscope software and
+        converts timestamps from milliseconds to seconds.
+        
+        Returns:
+            Tuple of (timestamps_array, frame_numbers_list).
+        """
         file_path = self._find_timestamps_path()
         time_stamps = []
         frame_numbers = []
@@ -244,6 +283,14 @@ class MiniscopeDataManager(ExperimentDataManager):
         return movie
     
     def _get_specific_filepaths(self, filenames):
+        """Filter movie paths to only those matching provided filenames.
+        
+        Args:
+            filenames: List of basenames to match (e.g., ['0.avi', '1.avi']).
+            
+        Returns:
+            List of full paths matching the specified filenames, or None.
+        """
         if filenames is None or not isinstance(filenames, list) or len(filenames) == 0:
             return None
         
@@ -276,8 +323,8 @@ class MiniscopeDataManager(ExperimentDataManager):
                     miniscope_events['timestamps'].append(int(row[0]))
                     miniscope_events['labels'].append(row[1])
             miniscope_events['timestamps'] = np.divide(np.asarray(miniscope_events['timestamps']), 1000)  # converts from ms to s
-        except:
-            print("Failed to extract events from notes.csv. Storing an empty dictionary in miniscope_dm.miniscope_events...")
+        except (IOError, IndexError, ValueError, csv.Error) as e:
+            print(f"Failed to extract events from notes.csv ({e}). Storing an empty dictionary in miniscope_dm.miniscope_events...")
         return miniscope_events
             
     
