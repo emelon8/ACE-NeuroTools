@@ -19,6 +19,7 @@ import os
 try:
     from dotenv import load_dotenv
     load_dotenv()
+    print('env works')
 except ImportError:
     pass  # dotenv not installed; rely on system environment variables
 
@@ -35,7 +36,8 @@ if _project_repo_str:
     PROJECT_REPO = Path(_project_repo_str)
 else:
     # Fallback to legacy data/ directory for backward compatibility
-    PROJECT_REPO = PROJECT_ROOT / "data"
+    PROJECT_REPO = PROJECT_ROOT / "data_analysis"    # fix bug in messy was and change later, don't tell reed
+    # old version simply has "data"
 
 # =============================================================================
 # CSV File Paths

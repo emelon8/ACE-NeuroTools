@@ -14,10 +14,6 @@ import argparse
 import sys
 
 
-
-
-
-
 class MiniscopePipeline:
     """High-level API for calcium imaging analysis workflows.
     
@@ -37,15 +33,15 @@ class MiniscopePipeline:
     
     def run(
             self, 
-            line_num: int,
-            filenames = [],
+            line_num = 96,
+            filenames = ['avi.0'],
             
             #preprocessing parameters
             crop = True,
             crop_coords = None,
             detrend_method = 'median',
             df_over_f = False,
-              #if df_over_f = True
+              # if df_over_f = True
               secs_window=5,                     
               quantile_min=8,
               df_over_f_method='delta_f_over_sqrt_f',
@@ -58,7 +54,7 @@ class MiniscopePipeline:
             plot_params = False,
             run_CNMFE = False,
             save_estimates=True,
-              save_CNMFE_estimates_filename = 'estimates.hdf5',
+              save_CNMFE_estimates_filename = 'estimates_supercomputer.hdf5',
             save_CNMFE_params = False,
             
             #post processing parameters
@@ -156,7 +152,7 @@ class MiniscopePipeline:
             update_csv_cell(self.miniscope_data_manager.coords, 'crop_coords', line_num, ANALYSIS_PARAMS)
         
         
-        #Ensure self.miniscope.data_manager has 'movie' and 'preprocessed_movie_filepath' filled in with the movie that you want to process before you process
+        # Ensure self.miniscope.data_manager has 'movie' and 'preprocessed_movie_filepath' filled in with the movie that you want to process before you process
         
         self.processor = MiniscopeProcessor(self.miniscope_data_manager)
         self.miniscope_data_manager = self.processor.process_calcium_movie(parallel, n_processes, apply_motion_correction, 
@@ -187,13 +183,13 @@ if __name__ == "__main__":
         description="Run Miniscope Analysis Pipeline",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
-  # Run using analysis_parameters.csv from PROJECT_REPO (set in .env)
-  python miniscope_pipeline.py --line-num 96
-  
-  # Run in headless mode (no GUI) for batch processing
-  python miniscope_pipeline.py --line-num 96 --headless
-"""
+    Examples:
+    # Run using analysis_parameters.csv from PROJECT_REPO (set in .env)
+    python miniscope_pipeline.py --line-num 96
+    
+    # Run in headless mode (no GUI) for batch processing
+    python miniscope_pipeline.py --line-num 96 --headless
+    """
     )
     parser.add_argument('--line-num', type=int, required=True,
                         help="Experiment line number from experiments.csv")
@@ -205,7 +201,8 @@ Examples:
     # Default parameters
     run_params = {
         'line_num': args.line_num,
-        'filenames': ['0.avi'],
+        'filenames': ['1.avi'],
+
         # Preprocessing
         'crop': True,
         'detrend_method': None,
@@ -213,6 +210,7 @@ Examples:
         'secs_window': 5,
         'quantile_min': 8,
         'df_over_f_method': 'delta_f_over_sqrt_f',
+
         # Processing
         'parallel': True,
         'n_processes': 6,
@@ -221,8 +219,9 @@ Examples:
         'plot_params': False,
         'run_CNMFE': True,
         'save_estimates': True,
-        'save_CNMFE_estimates_filename': 'estimates.hdf5',
+        'save_CNMFE_estimates_filename': 'estimates_test_3_10.hdf5',
         'save_CNMFE_params': True,
+
         # Post-processing
         'remove_components_with_gui': True,
         'find_calcium_events': True,
@@ -245,6 +244,7 @@ Examples:
     # Load analysis parameters from CSV
     from src2.shared.config_utils import load_analysis_params
     print(f"Loading analysis parameters for line {args.line_num}...", flush=True)
+    
     try:
         csv_params = load_analysis_params(args.line_num)
         run_params.update(csv_params)

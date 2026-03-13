@@ -44,4 +44,16 @@ echo $TMPDIR
 
 # python --version # This can help confirm that the previous command has been run, because otherwise the command below will start Python 2.
 
-python ~/data_analysis_code/experiment_analysis/process_entire_miniscope_recording.py $SLURM_JOBID
+echo '---PYTHON BEING USED---'
+which python 
+python --version 
+
+# Add your job command here 
+# Before submitting a job to run this code on the cluster, you must activate your conda environment, since the environment is installed in my user directory! 
+# I.e., This command should be run before submitting the script: conda activate miniscope_EEG 
+# python --version # This can help confirm that the previous command has been run, because otherwise the command below will start Python 2. 
+
+cd ~/cd emelon_work
+python -m src2.miniscope.miniscope_pipeline --line-num 96 # $SLURM_JOBID
+
+EOF

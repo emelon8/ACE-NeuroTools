@@ -34,7 +34,7 @@ class MovieIO:
 
         # save movie
         print(f"saving movie: {file_name}\n\n")
-        #uses caiman movie method .save() to save what is stored in data_manager.movie
+        # uses caiman movie method .save() to save what is stored in data_manager.movie
         if movie is not None:
             movie.save(file_name, compress=0)
         else:
