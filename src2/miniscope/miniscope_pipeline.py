@@ -54,7 +54,7 @@ class MiniscopePipeline:
             plot_params = False,
             run_CNMFE = False,
             save_estimates=True,
-              save_CNMFE_estimates_filename = 'estimates_supercomputer.hdf5',
+            save_CNMFE_estimates_filename = 'estimates_supercomputer.hdf5',
             save_CNMFE_params = False,
             
             #post processing parameters
@@ -219,7 +219,7 @@ if __name__ == "__main__":
         'plot_params': False,
         'run_CNMFE': True,
         'save_estimates': True,
-        'save_CNMFE_estimates_filename': 'estimates_test_3_10.hdf5',
+        'save_CNMFE_estimates_filename': 'estimates_test_3_23.hdf5',
         'save_CNMFE_params': True,
 
         # Post-processing
