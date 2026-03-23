@@ -89,7 +89,7 @@ class MiniscopeDataManager(ExperimentDataManager):
 
 
 
-    def convert_ca_movies(self, filenames=None, new_file_type='.tif', join_movies=False, metadata_convert=True):
+    def convert_ca_movies(self, filenames=None, new_file_type='.tif', join_movies=True, metadata_convert=True):
         """
         Convert calcium movies from one type to another. File types must be supported by CaImAn.
         

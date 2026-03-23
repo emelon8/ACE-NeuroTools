@@ -6,8 +6,8 @@
 #SBATCH --partition=m12
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=8G
-#SBATCH --time=01:00:00
+#SBATCH --mem=300G
+#SBATCH --time=3-00:00:00
 #SBATCH --output=output/%j.out # This is the name of the file where print statements are sent
 #SBATCH --error=output/%j.err # This is the name of the file where error messages are sent
 #SBATCH --mail-user=jaa120@student.byu.edu

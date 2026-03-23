@@ -201,7 +201,7 @@ if __name__ == "__main__":
     # Default parameters
     run_params = {
         'line_num': args.line_num,
-        'filenames': ['1.avi'],
+        'filenames': ['avi.1', 'avi.2'],
 
         # Preprocessing
         'crop': True,
@@ -219,7 +219,7 @@ if __name__ == "__main__":
         'plot_params': False,
         'run_CNMFE': True,
         'save_estimates': True,
-        'save_CNMFE_estimates_filename': 'estimates_test_3_23.hdf5',
+        'save_CNMFE_estimates_filename': 'estimates_twofiles.hdf5',
         'save_CNMFE_params': True,
 
         # Post-processing
