@@ -17,7 +17,8 @@ from src2.miniscope.miniscope_postprocessor import MiniscopePostprocessor
 
 # List of experiments to process
 EXPERIMENTS = [96]
-
+estimates_path = '/Users/josieallred/Research/experiment_analysis/data/downloaded_data/estimates_345.hdf5'
+new_file_name = 'estimates_trimmed345.hdf5'
 def main():
     # Make sure we're using a GUI backend for interactive plots
     if tkinter._default_root:
@@ -41,7 +42,7 @@ def main():
         
         # 2. Locate the CNMF-E estimates from the supercomputer run
         saved_movies_dir = os.path.join(dm.metadata['calcium imaging directory'], "saved_movies")
-        estimates_path = os.path.join(saved_movies_dir, 'estimates.hdf5')
+        estimates_path = os.path.join(saved_movies_dir, new_file_name)
         
         if not os.path.exists(estimates_path):
             print(f"Error: Estimates file not found at {estimates_path}")

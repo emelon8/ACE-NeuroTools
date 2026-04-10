@@ -201,7 +201,7 @@ if __name__ == "__main__":
     # Default parameters
     run_params = {
         'line_num': args.line_num,
-        'filenames': [],
+        'filenames': ['100.avi'],
 
         # Preprocessing
         'crop': True,

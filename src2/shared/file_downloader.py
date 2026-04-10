@@ -125,20 +125,36 @@ def make_auth():
         return None
 
 
+def get_all_folder_items(client, folder_id):
+    """Retrieve all items from a Box folder, handling pagination.
+    The Box API returns at most `limit` items per request (default 100).
+    This loops through every page so folders with >100 items are fully listed."""
+    all_items = []
+    offset = 0
+    limit = 1000
+    while True:
+        page = client.folders.get_folder_items(folder_id, offset=offset, limit=limit)
+        all_items.extend(page.entries)
+        if len(page.entries) < limit:
+            break
+        offset += limit
+    return all_items
+
+
 def download_file(client, path: str, ID, need_to_download =[]): 
     """Takes a client, a path, a folder ID and optionally a list of avi files to download.
     Connects to the client and tries to download everything in the folder and child folders if they haven't already been downloaded.
     If need_to_download is empty, it will download every avi file in the miniscope folder. Otherwise, it will only download the avi files listed. This does not apply to downloading from the ephys directory
     Feel free to modify this to match your lab's cloud storage system if it is different than ours."""
     try:
-        for item in client.folders.get_folder_items(ID).entries: #Goes to the folder we want to download
+        for item in get_all_folder_items(client, ID): #Goes to the folder we want to download
             print(item.name) # Debug print statement to know what item we're currently looking at
             if item.type == 'folder': # Additional code to download any subfolders
                 print(f"Found a folder: {item.name}") # DEBUG: Print statement that we found a folder
                 if not os_path.exists(f"{BASE_FILE_PATH}/{path}/{item.name}"): # Checks if the subfolder already exists
                     makedirs(f"{BASE_FILE_PATH}/{path}/{item.name}") # Makes new directory for sub folder
                 if item.name == "Miniscope": # Checks if the subfolder is miniscope
-                    for sub_item in client.folders.get_folder_items(item.id).entries:  # Look at each item in the miniscope folder
+                    for sub_item in get_all_folder_items(client, item.id):  # Look at each item in the miniscope folder
                         if (sub_item.name in need_to_download or need_to_download == []) or "avi" not in sub_item.name: # If we need to download it or we're downloading everyting
                             if not os_path.exists(f"{BASE_FILE_PATH}/{path}/Miniscope/{sub_item.name}"): # Will only download a file if it doesn't already exist (Only applies if we're downloading everything)
                                 with open(f"{BASE_FILE_PATH}/{path}/Miniscope/{sub_item.name}", "wb") as output_file: # Creates a file to store the data
@@ -170,5 +186,5 @@ if __name__ == '__main__': # Runs when we run the file.
         csv_path= EXPERIMENTS, # Path to the CSV folder
         do_type= "miniscope", # do_type must be "both", "miniscope", or "ephys"
         
-        avi_list=[] # Only need to fill this in if you're downloading miniscope files.
+        avi_list=['150.avi'] # Only need to fill this in if you're downloading miniscope files.
     )
