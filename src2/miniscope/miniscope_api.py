@@ -116,8 +116,8 @@ if __name__ == "__main__":
         # preprocessing parameters
         crop = True,
             # Only one below should be True if crop=True
-            crop_with_crop = False,
-            crop_square = True,
+            crop_with_crop = True,
+            crop_square = False,
         detrend_method = None,
         df_over_f = False,
           # if df_over_f = True
