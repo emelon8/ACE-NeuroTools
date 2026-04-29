@@ -1,4 +1,4 @@
-# ACE-neuro: Analysis of Calcium Imaging and Ephys
+# ACE-NeuroTools: Analysis of Calcium Imaging and Electrophysiology
 
 **A comprehensive, open-source data analysis pipeline for systems neuroscience.**
 
