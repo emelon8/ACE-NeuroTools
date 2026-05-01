@@ -28,6 +28,7 @@ scripts/
 # IDE / OS
 .DS_Store
 .agent/
+.cursor/
 .vscode/
 .idea/
 
