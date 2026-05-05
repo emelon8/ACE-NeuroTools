@@ -12,7 +12,7 @@ from box_sdk_gen import BoxClient, BoxDeveloperTokenAuth
 from os import path as os_path, makedirs, listdir
 import pandas as pd
 
-USING_BOX = True # Disabling this disables all the downloading data and instead will simply return None since we assume if you're not using box everthing is downloaded locally
+USING_BOX = False # Disabling this disables all the downloading data and instead will simply return None since we assume if you're not using box everthing is downloaded locally
 
 def verify_avi(miniscope_path:str,avi:str):
     """Check if a specific AVI file exists in the Miniscope directory."""
@@ -182,9 +182,9 @@ def download_file(client, path: str, ID, need_to_download =[]):
 if __name__ == '__main__': # Runs when we run the file.
     
     verify_file_by_line(
-        line_num= 96, # The one contained in the CSV column "line number"
+        line_num= 95, # The one contained in the CSV column "line number"
         csv_path= EXPERIMENTS, # Path to the CSV folder
         do_type= "miniscope", # do_type must be "both", "miniscope", or "ephys"
         
-        avi_list=['150.avi'] # Only need to fill this in if you're downloading miniscope files.
+        avi_list=[] # Only need to fill this in if you're downloading miniscope files.
     )

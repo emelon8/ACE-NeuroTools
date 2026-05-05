@@ -3,9 +3,8 @@
 # Then look in the output folder for the logs that matches the job ID number
 
 #SBATCH --job-name=data_analysis # This is the name of the job
-#SBATCH --partition=m12
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=1
 #SBATCH --mem=300G
 #SBATCH --time=3-00:00:00
 #SBATCH --output=output/%j.out # This is the name of the file where print statements are sent

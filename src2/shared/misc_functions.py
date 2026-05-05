@@ -881,6 +881,7 @@ def get_coords_dict_from_analysis_params(miniscope_data_manager):
     """
     coords_dict = None
     crop_job_name = ''
+
     try:
         previous_coords = miniscope_data_manager.analysis_params['crop_coords']
         coords_dict = {
@@ -890,7 +891,7 @@ def get_coords_dict_from_analysis_params(miniscope_data_manager):
             'y1': previous_coords[3]
         }
         crop_job_name = '_crop'
-    except KeyError:
+    except:
         print("Did not find any crop coordinates in analysis_params['crop_coords']")
     
     return coords_dict, crop_job_name
