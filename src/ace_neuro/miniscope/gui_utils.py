@@ -1,5 +1,5 @@
 import numpy as np
-import PySimpleGUI as sg
+import FreeSimpleGUI as sg
 import matplotlib.pyplot as plt
 import caiman as cm
 import io
@@ -106,7 +106,7 @@ def _component_image(estimates, projections, movie, graph, max=False, min=False,
         estimates: CNMF-E estimates object.
         projections: Projections object with summary images.
         movie: CaImAn movie (for dimensions).
-        graph: PySimpleGUI Graph element to draw on.
+        graph: FreeSimpleGUI Graph element to draw on.
         max/min/STD/mean/median/range: Booleans selecting projection type.
         cmap: Colormap name for background.
     """
@@ -264,7 +264,7 @@ def component_gui(movie, estimates, projections):
     
 def crop_gui(coords_dict, projections: Projections, movie_height, movie_width, previous_coords=None) -> dict:
     """
-    Creates and handles all events for the pysimplegui cropping application.  Returns a dictionary of coordinates!
+    Creates and handles all events for the freesimplegui cropping application.  Returns a dictionary of coordinates!
     """
 
     # The whole point of this function is to get the coordinates that will crop the movie
@@ -429,7 +429,7 @@ def crop_gui(coords_dict, projections: Projections, movie_height, movie_width, p
 
 def _update_image(graph, movie_height, projection, cmap='viridis'):
     """
-    Redraws the desired projection(image) to the pysimplegui graph object
+    Redraws the desired projection(image) to the freesimplegui graph object
     """
     # adds projection to GUI
     pic_IObytes = io.BytesIO()

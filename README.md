@@ -185,4 +185,6 @@ You can configure CI (e.g. GitHub Actions) to run `pytest tests/ -m "not slow"` 
 
 ## License
 
-**TODO:** Final license terms are pending discussion with lab leadership. Do not assume a specific license until this section and the packaging metadata in `pyproject.toml` are updated and a `LICENSE` file is added.
+ACE-neuro is licensed under the **GNU General Public License version 3 (or later)** (`GPL-3.0-or-later`). See [`LICENSE`](LICENSE).
+
+This project depends on [CaImAn](https://github.com/flatironinstitute/CaImAn) at runtime. CaImAn’s upstream license notice permits use under **GPLv2 or any later version**; ACE-neuro exercises that option and distributes under GPL-3.0-or-later for improved ecosystem license compatibility.
