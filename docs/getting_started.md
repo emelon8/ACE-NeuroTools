@@ -1,4 +1,4 @@
-# Getting Started with ACE-neuro
+# Getting Started with ACE-NeuroTools
 
 Welcome to the Experiment Analysis pipeline! This guide will help you set up your environment, organize your data, and run your first analysis.
 
@@ -55,7 +55,7 @@ Every pipeline is driven by **keyword arguments** to `run()`. There are three wa
 | Source | What it sets | When to use |
 |--------|----------------|-------------|
 | **1. Defaults in code** | Built-in defaults inside `EphysPipeline.run`, `MiniscopePipeline.run`, `MultimodalPipeline.run` | Starting point; see [API — Pipelines](api/pipelines.md) or `help(EphysPipeline.run)` in Python. |
-| **`analysis_parameters.csv`** | Per–line-number overrides for the same kwarg names (via `load_analysis_params`) | Reproducible, shareable settings per experiment row. Column names match kwargs where possible (see `ace_neuro.shared.config_utils.parse_analysis_params`). |
+| **`analysis_parameters.csv`** | Per–line-number overrides for the same kwarg names (via `load_analysis_params`) | Reproducible, shareable settings per experiment row. Column names match kwargs where possible (see `aceneurotools.shared.config_utils.parse_analysis_params`). |
 | **Your call** | Explicit arguments to `run(...)` or a dict you merge yourself | Final say: pass any kwarg the pipeline accepts. |
 
 **Always required (for real data):**
@@ -68,7 +68,7 @@ Every pipeline is driven by **keyword arguments** to `run()`. There are three wa
 
 ```python
 from pathlib import Path
-from ace_neuro.pipelines.miniscope import MiniscopePipeline
+from aceneurotools.pipelines.miniscope import MiniscopePipeline
 
 api = MiniscopePipeline()
 api.run(
@@ -84,8 +84,8 @@ api.run(
 **Python — merge CSV row, then override**
 
 ```python
-from ace_neuro.shared.config_utils import load_analysis_params
-from ace_neuro.pipelines.ephys import EphysPipeline
+from aceneurotools.shared.config_utils import load_analysis_params
+from aceneurotools.pipelines.ephys import EphysPipeline
 
 project = Path("/path/to/project")
 params = load_analysis_params(96, project_path=project)
@@ -103,7 +103,7 @@ EphysPipeline().run(**params)
 
 **Command line — only a few flags; the rest comes from defaults + CSV**
 
-The `python -m ace_neuro.pipelines.*` entry points accept **`--line-num`**, **`--project-path`**, optional **`--data-path`**, and usually **`--headless`**. They build a `run_params` dict (defaults), then **`run_params.update(load_analysis_params(...))`**, then apply CLI path/headless overrides. You **cannot** set arbitrary kwargs (e.g. `filter_range`) from the CLI unless you add flags or use the Python API / CSV.
+The `python -m aceneurotools.pipelines.*` entry points accept **`--line-num`**, **`--project-path`**, optional **`--data-path`**, and usually **`--headless`**. They build a `run_params` dict (defaults), then **`run_params.update(load_analysis_params(...))`**, then apply CLI path/headless overrides. You **cannot** set arbitrary kwargs (e.g. `filter_range`) from the CLI unless you add flags or use the Python API / CSV.
 
 **Where to see every parameter**
 
@@ -118,9 +118,9 @@ Step-by-step notebooks stress-test this layout: they **assert both CSVs exist** 
 
 | Topic | In the docs site | Notebook source in repo |
 |-------|------------------|-------------------------|
-| Miniscope | [Tutorial](https://ace-neuro.readthedocs.io/en/latest/notebooks/miniscope_pipeline_tutorial/) | `notebooks/miniscope_pipeline_tutorial.ipynb` |
-| Ephys | [Tutorial](https://ace-neuro.readthedocs.io/en/latest/notebooks/ephys_pipeline_tutorial/) | `notebooks/ephys_pipeline_tutorial.ipynb` |
-| Multimodal | [Tutorial](https://ace-neuro.readthedocs.io/en/latest/notebooks/multimodal_alignment_tutorial/) | `notebooks/multimodal_alignment_tutorial.ipynb` |
+| Miniscope | [Tutorial](https://aceneurotools.readthedocs.io/en/latest/notebooks/miniscope_pipeline_tutorial/) | `notebooks/miniscope_pipeline_tutorial.ipynb` |
+| Ephys | [Tutorial](https://aceneurotools.readthedocs.io/en/latest/notebooks/ephys_pipeline_tutorial/) | `notebooks/ephys_pipeline_tutorial.ipynb` |
+| Multimodal | [Tutorial](https://aceneurotools.readthedocs.io/en/latest/notebooks/multimodal_alignment_tutorial/) | `notebooks/multimodal_alignment_tutorial.ipynb` |
 
 ---
 
@@ -133,7 +133,7 @@ Paths are **`project_path`** and **`data_path`** — there are no hidden environ
 Only path-related flags plus `headless`; other behavior comes from **defaults + `analysis_parameters.csv`** (see §3a).
 
 ```bash
-python -m ace_neuro.pipelines.miniscope \
+python -m aceneurotools.pipelines.miniscope \
   --line-num 96 \
   --project-path /path/to/your/project \
   --data-path /path/to/your/raw_data \
@@ -145,7 +145,7 @@ python -m ace_neuro.pipelines.miniscope \
 Pass **all** kwargs to `run()` — see §3a for the full pattern.
 
 ```python
-from ace_neuro.pipelines.miniscope import MiniscopePipeline
+from aceneurotools.pipelines.miniscope import MiniscopePipeline
 
 api = MiniscopePipeline()
 api.run(
@@ -164,19 +164,19 @@ api.run(
 ### Miniscope Analysis
 Executes preprocessing, motion correction, source extraction (CNMF-E), and post-processing.
 ```bash
-python -m ace_neuro.pipelines.miniscope --line-num 96 --project-path /path/to/project
+python -m aceneurotools.pipelines.miniscope --line-num 96 --project-path /path/to/project
 ```
 
 ### Ephys Analysis
 Loads ephys channels, filters signals, and generates spectrograms.
 ```bash
-python -m ace_neuro.pipelines.ephys --line-num 96 --project-path /path/to/project
+python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /path/to/project
 ```
 
 ### Multimodal (Synchronized) Analysis
 Aligns miniscope and ephys data based on TTL pulses and performs synchronized analysis.
 ```bash
-python -m ace_neuro.pipelines.multimodal --line-num 97 --project-path /path/to/project
+python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /path/to/project
 ```
 
 ---
@@ -184,4 +184,4 @@ python -m ace_neuro.pipelines.multimodal --line-num 97 --project-path /path/to/p
 ## 6. Resources and Documentation
 - **Docs home**: [index.md](index.md) (includes tutorial links).
 - **Examples**: [examples.md](examples.md).
-- **Box integration**: `ace_neuro/shared/file_downloader.py` for automated retrieval when credentials are configured.
+- **Box integration**: `aceneurotools/shared/file_downloader.py` for automated retrieval when credentials are configured.

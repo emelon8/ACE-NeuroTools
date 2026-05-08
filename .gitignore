@@ -18,7 +18,7 @@ analysis_parameters.csv
 /data/downloaded_data/
 /data/data_types/
 box_credentials.py
-src/ace_neuro/shared/box_credentials.py
+src/aceneurotools/shared/box_credentials.py
 
 # MkDocs — build output only (source lives in docs/)
 site/

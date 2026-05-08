@@ -1,6 +1,6 @@
-# Adapting ACE-neuro to your lab
+# Adapting ACE-NeuroTools to your lab
 
-ACE-neuro is built so that **different acquisition setups** can be supported without rewriting the whole pipeline. This page explains what is **configuration-only**, what requires **small code extensions**, and where to plug them in.
+ACE-NeuroTools is built so that **different acquisition setups** can be supported without rewriting the whole pipeline. This page explains what is **configuration-only**, what requires **small code extensions**, and where to plug them in.
 
 ---
 
@@ -33,7 +33,7 @@ The library uses **abstract base classes** and a **registry + factory** pattern:
 
 ### Miniscope: `MiniscopeDataManager`
 
-- **Subclass** `MiniscopeDataManager` for your miniscope export format (see [Miniscope API](../api/miniscope.md) and the `ace_neuro.miniscope` package).
+- **Subclass** `MiniscopeDataManager` for your miniscope export format (see [Miniscope API](../api/miniscope.md) and the `aceneurotools.miniscope` package).
 - Implement **`can_handle(directory)`** so the factory chooses your class when it sees your folder layout.
 - Implement **`_get_miniscope_metadata`**, **`_get_timestamps`**, **`_get_movies`**, and (as needed) **`sync_timestamps`** — the exact split depends on whether you rely on **TTL sync**, **native hardware clocks**, or something else.
 - Registration happens automatically when the subclass is defined (`__init_subclass__` adds it to the registry).
@@ -43,7 +43,7 @@ Shipped examples you can copy from include **UCLA V3** (`UCLADataManager`) and *
 
 ### Ephys: `EphysDataManager`
 
-- **Subclass** `EphysDataManager` for your acquisition system’s files (see [Ephys API](../api/ephys.md) and the `ace_neuro.ephys` package).
+- **Subclass** `EphysDataManager` for your acquisition system’s files (see [Ephys API](../api/ephys.md) and the `aceneurotools.ephys` package).
 - Implement **`can_handle(directory)`** and the import path for your format (`import_ephys_block`, `process_ephys_block_to_channels`, etc., as required by your backend).
 - For **multimodal TTL alignment**, implement **`get_sync_timestamps(channel_name)`** so it returns **frame-acquisition pulse times in the same time base** as the rest of the ephys stream (see existing **Neuralynx** and **RHS2116** managers).
 

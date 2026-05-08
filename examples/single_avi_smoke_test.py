@@ -8,8 +8,8 @@ Goal: on a fresh machine, prove end-to-end that
   4. the component-selection GUI opens so you can accept/reject neurons.
 
 Usage:
-    1. Make sure you have copied ``src/ace_neuro/shared/BLANK_box_credentials.py``
-       to ``src/ace_neuro/shared/box_credentials.py`` and filled in your Box
+    1. Make sure you have copied ``src/aceneurotools/shared/BLANK_box_credentials.py``
+       to ``src/aceneurotools/shared/box_credentials.py`` and filled in your Box
        client_id / client_secret / user_id (or dev_token).
     2. Edit the four constants under ``--- EDIT THESE ---`` below.
     3. Activate the conda env (e.g. ``conda activate caiman``) and run:
@@ -84,11 +84,11 @@ def step_0_check_paths() -> None:
         )
 
     try:
-        from ace_neuro.shared import box_credentials  # noqa: F401
+        from aceneurotools.shared import box_credentials  # noqa: F401
     except ModuleNotFoundError:
         _fail(
             "box_credentials import",
-            "src/ace_neuro/shared/box_credentials.py was not found.",
+            "src/aceneurotools/shared/box_credentials.py was not found.",
             "Copy BLANK_box_credentials.py to box_credentials.py and fill in your Box info.",
         )
     except Exception as e:
@@ -108,7 +108,7 @@ def step_1_download_avi() -> Path:
     """Pull the single AVI from Box (if not already on disk) and return its path."""
     print("\n[smoke-test] Step 1/3: downloading AVI from Box (skipped if already present)...")
     import pandas as pd
-    from ace_neuro.shared.file_downloader import verify_file_by_line
+    from aceneurotools.shared.file_downloader import verify_file_by_line
 
     experiments_csv = PROJECT_PATH / "experiments.csv"
     try:
@@ -172,7 +172,7 @@ def step_2_run_pipeline() -> None:
     print("\n[smoke-test] Step 2/3: running MiniscopePipeline (CNMF-E + GUI)...")
 
     try:
-        from ace_neuro.pipelines.miniscope import MiniscopePipeline
+        from aceneurotools.pipelines.miniscope import MiniscopePipeline
     except Exception as e:
         traceback.print_exc()
         _fail(

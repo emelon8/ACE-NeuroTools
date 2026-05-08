@@ -14,19 +14,19 @@ The miniscope pipeline performs calcium imaging analysis using CaImAn, including
 
 ```bash
 # Run with explicit project path
-python -m ace_neuro.pipelines.miniscope --line-num 96 --project-path /my/project
+python -m aceneurotools.pipelines.miniscope --line-num 96 --project-path /my/project
 
 # Run with explicit project and data paths
-python -m ace_neuro.pipelines.miniscope --line-num 96 --project-path /my/project --data-path /my/raw_data
+python -m aceneurotools.pipelines.miniscope --line-num 96 --project-path /my/project --data-path /my/raw_data
 
 # Run in headless mode (no GUI)
-python -m ace_neuro.pipelines.miniscope --line-num 96 --project-path /my/project --headless
+python -m aceneurotools.pipelines.miniscope --line-num 96 --project-path /my/project --headless
 ```
 
 ### Python API
 
 ```python
-from ace_neuro.pipelines.miniscope import MiniscopePipeline
+from aceneurotools.pipelines.miniscope import MiniscopePipeline
 
 api = MiniscopePipeline()
 api.run(

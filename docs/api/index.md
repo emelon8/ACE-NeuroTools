@@ -1,8 +1,8 @@
 # API Reference
 
-This section contains the automatically generated documentation for the ACE-neuro codebase. It is extracted directly from the Python docstrings using `mkdocstrings`.
+This section contains the automatically generated documentation for the ACE-NeuroTools codebase. It is extracted directly from the Python docstrings using `mkdocstrings`.
 
-ACE-neuro is organized into several key modules:
+ACE-NeuroTools is organized into several key modules:
 
 - **[Pipelines](pipelines.md)**: High-level entry points for standard workflows.
 - **[Miniscope](miniscope.md)**: Tools for calcium imaging data extraction and processing.
@@ -13,7 +13,7 @@ ACE-neuro is organized into several key modules:
 ## Package Structure
 
 ```text
-ace_neuro/
+aceneurotools/
 ├── ephys/        # Electrophysiology pipeline & managers
 ├── miniscope/    # Calcium imaging pipeline & processing
 ├── multimodal/   # Cross-modal alignment & analysis

@@ -1,6 +1,6 @@
 # Single-AVI Smoke Test — Setup Checklist
 
-Use this to set up `ace_neuro` on a new machine and reach the goal:
+Use this to set up `aceneurotools` on a new machine and reach the goal:
 
 > Download one `.avi` from Box, run CNMF-E to produce `estimates.hdf5`, and
 > open the GUI to pick neurons.
@@ -63,16 +63,16 @@ conda activate caiman
 pip install -e .
 ```
 
-The `-e .` registers `ace_neuro` so `python -m ace_neuro.pipelines.miniscope`
-and `from ace_neuro... import ...` both work from any directory.
+The `-e .` registers `aceneurotools` so `python -m aceneurotools.pipelines.miniscope`
+and `from aceneurotools... import ...` both work from any directory.
 
 Verify:
 
 ```bash
-python -c "import caiman, ace_neuro; print('caiman + ace_neuro OK')"
+python -c "import caiman, aceneurotools; print('caiman + aceneurotools OK')"
 ```
 
-If that prints `caiman + ace_neuro OK`, the environment is good. If it fails
+If that prints `caiman + aceneurotools OK`, the environment is good. If it fails
 on a CaImAn import, recreate the env (`conda env remove -n caiman`, then
 re-run step 3).
 
@@ -119,18 +119,18 @@ From the repo root:
 
 ```bash
 # Linux / macOS
-cp src/ace_neuro/shared/BLANK_box_credentials.py src/ace_neuro/shared/box_credentials.py
+cp src/aceneurotools/shared/BLANK_box_credentials.py src/aceneurotools/shared/box_credentials.py
 
 # Windows (PowerShell)
-Copy-Item src/ace_neuro/shared/BLANK_box_credentials.py src/ace_neuro/shared/box_credentials.py
+Copy-Item src/aceneurotools/shared/BLANK_box_credentials.py src/aceneurotools/shared/box_credentials.py
 ```
 
-Open `src/ace_neuro/shared/box_credentials.py` in your editor and paste in
+Open `src/aceneurotools/shared/box_credentials.py` in your editor and paste in
 the values from step 4:
 
 - If you used **Option A** (dev token): set `dev_token = '<your token>'`,
   and additionally **uncomment line 122** in
-  `src/ace_neuro/shared/file_downloader.py`:
+  `src/aceneurotools/shared/file_downloader.py`:
 
   ```python
   auth = BoxDeveloperTokenAuth(token=dev_token)
@@ -147,13 +147,13 @@ share this file.
 Verify the file at least imports:
 
 ```bash
-python -c "from ace_neuro.shared.box_credentials import auth; print('credentials loaded:', auth)"
+python -c "from aceneurotools.shared.box_credentials import auth; print('credentials loaded:', auth)"
 ```
 
 Then verify it actually authenticates with Box:
 
 ```bash
-python -c "from ace_neuro.shared.file_downloader import make_auth; print(make_auth())"
+python -c "from aceneurotools.shared.file_downloader import make_auth; print(make_auth())"
 ```
 
 You want to see `Successfully connected to Box client` and a `<BoxClient ...>`
@@ -172,8 +172,8 @@ Copy the two templates into it and rename them:
 
 ```bash
 mkdir -p ~/lab/correlation_project
-cp src/ace_neuro/shared/metadata_templates/experiments_template.csv          ~/lab/correlation_project/experiments.csv
-cp src/ace_neuro/shared/metadata_templates/analysis_parameters_template.csv  ~/lab/correlation_project/analysis_parameters.csv
+cp src/aceneurotools/shared/metadata_templates/experiments_template.csv          ~/lab/correlation_project/experiments.csv
+cp src/aceneurotools/shared/metadata_templates/analysis_parameters_template.csv  ~/lab/correlation_project/analysis_parameters.csv
 ```
 
 You should now have:
@@ -288,7 +288,7 @@ You're now set up. From this point:
   `experiments.csv` / `analysis_parameters.csv` if it's not there).
 - To process the *whole* recording (all AVIs) instead of just `0.avi`: stop
   using this smoke-test script and use the real entry point —
-  `python -m ace_neuro.pipelines.miniscope --line-num <N> --project-path
+  `python -m aceneurotools.pipelines.miniscope --line-num <N> --project-path
   /your/project --data-path /your/raw_data`. See
   [`docs/guides/miniscope.md`](../docs/guides/miniscope.md) for the full
   parameter list.
@@ -299,7 +299,7 @@ You're now set up. From this point:
 
 | Symptom                                                              | Most likely cause                                                                                  |
 | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `ModuleNotFoundError: ace_neuro.shared.box_credentials`              | Skipped step 5 — the file is still named `BLANK_box_credentials.py`.                              |
+| `ModuleNotFoundError: aceneurotools.shared.box_credentials`              | Skipped step 5 — the file is still named `BLANK_box_credentials.py`.                              |
 | `make_auth()` returns `None` or prints an exception                  | Step 4-Option-B-3 (enterprise approval) wasn't done, or client_id/secret/user_id is wrong.        |
 | Dev token suddenly stops working ~1 hour in                          | That's expected — generate a fresh dev token (step 4-Option-A-3), or switch to CCG (Option B).    |
 | `The miniscope path or ID do not exist in the CSV file` in the logs  | The `experiments.csv` row is missing `Box Calcium Folder ID` or `calcium imaging directory`.       |

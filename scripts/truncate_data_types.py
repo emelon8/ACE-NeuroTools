@@ -7,7 +7,7 @@ from pathlib import Path
 # Add project root to sys.path to import shared paths
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
-from ace_neuro.shared.paths import PROJECT_ROOT
+from aceneurotools.shared.paths import PROJECT_ROOT
 
 src_dir = PROJECT_ROOT / "data_types"
 dst_dir = PROJECT_ROOT / "tests/data/sample_recording/ONIX"

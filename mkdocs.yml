@@ -1,6 +1,6 @@
-site_name: ACE-neuro
-site_description: Analysis of Calcium Imaging and Ephys — integrated pipelines for miniscope calcium imaging and electrophysiology data.
-site_url: https://ace-neuro.readthedocs.io/en/latest/
+site_name: ACE-NeuroTools
+site_description: Analysis of Calcium Imaging and Electrophysical Data — integrated pipelines for calcium imaging, ephys, and multimodal alignment.
+site_url: https://aceneurotools.readthedocs.io/en/latest/  # TODO(humans): confirm RTD subdomain after rename
 site_author: "Reed Pennock, Luke Richards, Eric Melonakos"
 
 theme:

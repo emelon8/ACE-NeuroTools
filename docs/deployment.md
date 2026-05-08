@@ -25,7 +25,7 @@ On each build, RTD:
 2. Runs `scripts/sync_notebooks_for_docs.sh` so `docs/notebooks/` matches `notebooks/`.
 3. Runs `mkdocs build` with `mkdocs.yml`.
 
-**Project setup (dashboard):** import the GitHub repository in Read the Docs, connect the private repo if needed ([private repositories](https://docs.readthedocs.com/platform/latest/guides/creating-project-private-repository.html)), and point the default branch at your main docs branch. The canonical docs URL is configured in `mkdocs.yml` as `site_url` (currently `https://ace-neuro.readthedocs.io/en/latest/`). If your RTD project slug differs, update `site_url` and any hardcoded links accordingly.
+**Project setup (dashboard):** import the GitHub repository in Read the Docs, connect the private repo if needed ([private repositories](https://docs.readthedocs.com/platform/latest/guides/creating-project-private-repository.html)), and point the default branch at your main docs branch. The canonical docs URL is configured in `mkdocs.yml` as `site_url` (currently `https://aceneurotools.readthedocs.io/en/latest/`). If your RTD project slug differs, update `site_url` and any hardcoded links accordingly.
 
 **CI:** You can add a GitHub Actions workflow that runs `mkdocs build` on pushes and pull requests (without deploying); production hosting is typically Read the Docs.
 

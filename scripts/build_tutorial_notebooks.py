@@ -51,20 +51,20 @@ def ephys_cells() -> list[tuple[str, str]]:
     return [
         (
             "md",
-            """# ACE-neuro: Ephys pipeline tutorial
+            """# ACE-NeuroTools: Ephys pipeline tutorial
 
 Hands-on walkthrough of **electrophysiology** loading and analysis: metadata from your project CSVs, raw data under `data_path`, channel extraction, optional filtering and Hilbert phase, and plots via `ChannelWorker`.
 
 **Audience:** You have a project directory with `experiments.csv` and `analysis_parameters.csv`, plus Neuralynx (or compatible) data under a shared raw-data root.
 
-**Published docs:** after syncing notebooks ([contributing](https://ace-neuro.readthedocs.io/en/latest/getting_started/)), these render under the site *Tutorials* tab.
+**Published docs:** after syncing notebooks ([contributing](https://aceneurotools.readthedocs.io/en/latest/getting_started/)), these render under the site *Tutorials* tab.
 """,
         ),
         (
             "md",
             """## Prerequisites
 
-- Python **3.10+** and ACE-neuro: `pip install -e .` from the repository root.
+- Python **3.10+** and ACE-NeuroTools: `pip install -e .` from the repository root.
 - **`project_path`**: folder that contains **`experiments.csv`** and **`analysis_parameters.csv`** at its top level.
 - **`line_num`**: same experiment row in **both** CSVs.
 - **`data_path`**: base folder for **raw** recordings; path fields in `experiments.csv` are resolved under this root.
@@ -116,7 +116,7 @@ print("OK: found both CSVs under project_path.")
         ),
         (
             "code",
-            """from ace_neuro.shared.experiment_data_manager import ExperimentDataManager
+            """from aceneurotools.shared.experiment_data_manager import ExperimentDataManager
 
 edm = ExperimentDataManager(
     line_num,
@@ -147,12 +147,12 @@ print("ephys directory (resolved):", edm.get_ephys_directory())
             "md",
             """### Step 1 — Verify raw data (`file_downloader.verify_file_by_line`)
 
-Mirrors [EphysPipeline.run](https://ace-neuro.readthedocs.io/en/latest/api/pipelines/). Ensures ephys files for this `line_num` exist under `data_path`.
+Mirrors [EphysPipeline.run](https://aceneurotools.readthedocs.io/en/latest/api/pipelines/). Ensures ephys files for this `line_num` exist under `data_path`.
 """,
         ),
         (
             "code",
-            """from ace_neuro.shared import file_downloader
+            """from aceneurotools.shared import file_downloader
 
 experiments_csv = project_path / "experiments.csv"
 file_downloader.verify_file_by_line(
@@ -172,7 +172,7 @@ Auto-selects backend from the folder layout. Processing is a separate step so yo
         ),
         (
             "code",
-            """from ace_neuro.ephys.ephys_data_manager import EphysDataManager
+            """from aceneurotools.ephys.ephys_data_manager import EphysDataManager
 
 ephys_directory = edm.get_ephys_directory()
 if ephys_directory is None:
@@ -239,7 +239,7 @@ ch = ephys_dm.get_channel(channel_name)
         ),
         (
             "code",
-            """from ace_neuro.ephys.channel_worker import ChannelWorker
+            """from aceneurotools.ephys.channel_worker import ChannelWorker
 
 cw = ChannelWorker(ch)
 # cw.plot_channel(use_filtered=True)
@@ -257,7 +257,7 @@ print("Uncomment plot_* in a GUI-capable environment.")
         ),
         (
             "code",
-            """from ace_neuro.pipelines.ephys import EphysPipeline
+            """from aceneurotools.pipelines.ephys import EphysPipeline
 
 pipeline = EphysPipeline()
 pipeline.run(
@@ -319,7 +319,7 @@ def miniscope_cells() -> list[tuple[str, str]]:
     return [
         (
             "md",
-            """# ACE-neuro: Miniscope pipeline tutorial
+            """# ACE-NeuroTools: Miniscope pipeline tutorial
 
 Step-by-step **calcium imaging** path: same `project_path` / `data_path` story as ephys, then `MiniscopeDataManager` → `MiniscopePreprocessor` → `MiniscopeProcessor` → `MiniscopePostprocessor` (same order as `MiniscopePipeline.run`).
 """,
@@ -328,7 +328,7 @@ Step-by-step **calcium imaging** path: same `project_path` / `data_path` story a
             "md",
             """## Prerequisites
 
-- ACE-neuro in an environment with **CaImAn** (see repo environment YAMLs).
+- ACE-NeuroTools in an environment with **CaImAn** (see repo environment YAMLs).
 - `project_path` with **`experiments.csv`** + **`analysis_parameters.csv`**.
 - `data_path` where miniscope movies / metadata live for this `line_num`.
 """,
@@ -366,7 +366,7 @@ print("OK: project CSVs found.")
         ),
         (
             "code",
-            """from ace_neuro.shared.experiment_data_manager import ExperimentDataManager
+            """from aceneurotools.shared.experiment_data_manager import ExperimentDataManager
 
 edm = ExperimentDataManager(line_num, project_path=project_path, data_path=data_path)
 print("calcium imaging dir:", edm.metadata.get("calcium imaging directory") if edm.metadata else None)
@@ -409,7 +409,7 @@ print("analysis params keys (sample):", list(edm.analysis_params.keys())[:12] if
         ),
         (
             "code",
-            """from ace_neuro.miniscope.miniscope_data_manager import MiniscopeDataManager
+            """from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
 
 dm = MiniscopeDataManager.create(
     line_num=line_num,
@@ -430,8 +430,8 @@ Crop coordinates come from **`analysis_parameters.csv`** / GUI when `crop_coords
         ),
         (
             "code",
-            """from ace_neuro.miniscope.miniscope_preprocessor import MiniscopePreprocessor
-from ace_neuro.shared.misc_functions import get_coords_dict_from_analysis_params
+            """from aceneurotools.miniscope.miniscope_preprocessor import MiniscopePreprocessor
+from aceneurotools.shared.misc_functions import get_coords_dict_from_analysis_params
 
 coords_dict, crop_job_name = get_coords_dict_from_analysis_params(dm)
 pre = MiniscopePreprocessor(dm)
@@ -457,7 +457,7 @@ Heavy steps: motion correction (optional) and CNMF-E. For a quick notebook test,
         ),
         (
             "code",
-            """from ace_neuro.miniscope.miniscope_processor import MiniscopeProcessor
+            """from aceneurotools.miniscope.miniscope_processor import MiniscopeProcessor
 
 proc = MiniscopeProcessor(dm)
 dm = proc.process_calcium_movie(
@@ -482,7 +482,7 @@ Runs only if `dm.CNMFE_obj` is not None. With `headless=True`, component-removal
         ),
         (
             "code",
-            """from ace_neuro.miniscope.miniscope_postprocessor import MiniscopePostprocessor
+            """from aceneurotools.miniscope.miniscope_postprocessor import MiniscopePostprocessor
 
 if dm.CNMFE_obj is None:
     print("Skip postprocess: CNMF-E object missing (run Step 4 with run_CNMFE=True).")
@@ -537,7 +537,7 @@ Equivalent to chaining the three stages with shared kwargs.
         ),
         (
             "code",
-            """from ace_neuro.pipelines.miniscope import MiniscopePipeline
+            """from aceneurotools.pipelines.miniscope import MiniscopePipeline
 
 pipe = MiniscopePipeline()
 pipe.run(
@@ -567,7 +567,7 @@ def multimodal_cells() -> list[tuple[str, str]]:
     return [
         (
             "md",
-            """# ACE-neuro: Multimodal alignment tutorial
+            """# ACE-NeuroTools: Multimodal alignment tutorial
 
 Align **ephys** and **miniscope** for one `line_num` using TTL-based sync, then optional **phase-at-calcium-event** histograms.
 
@@ -603,7 +603,7 @@ for label, p in ("experiments.csv", project_path / "experiments.csv"), (
     if not p.is_file():
         raise FileNotFoundError(f"Missing {label} at {p}")
 
-from ace_neuro.shared.experiment_data_manager import ExperimentDataManager
+from aceneurotools.shared.experiment_data_manager import ExperimentDataManager
 
 edm = ExperimentDataManager(line_num, project_path=project_path, data_path=data_path)
 print("ephys dir:", edm.get_ephys_directory())
@@ -630,7 +630,7 @@ This runs ephys, then miniscope, then `sync_neuralynx_miniscope_timestamps`, ind
         ),
         (
             "code",
-            """from ace_neuro.pipelines.multimodal import MultimodalPipeline
+            """from aceneurotools.pipelines.multimodal import MultimodalPipeline
 
 mm = MultimodalPipeline()
 mm.run(
@@ -704,7 +704,7 @@ if mm.phase_hist_miniscope is not None and mm.phase_bin_edges_miniscope is not N
 3. `find_ephys_idx_of_TTL_events`, optional `find_ca_movie_frame_num_of_ephys_idx`
 4. `ephys_phase_ca_events` / `miniscope_phase_ca_events` → `phase_ca_events_histogram`
 
-Optional movie export: `create_ca_ephys_movie` in `ace_neuro.multimodal.calcium_ephys_visualizer` (resource-heavy).
+Optional movie export: `create_ca_ephys_movie` in `aceneurotools.multimodal.calcium_ephys_visualizer` (resource-heavy).
 
 ## Troubleshooting
 

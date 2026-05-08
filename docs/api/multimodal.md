@@ -6,12 +6,12 @@ Alignment and cross-modal analysis between Miniscope calcium imaging and electro
 
 ## Multimodal pipeline
 
-::: ace_neuro.pipelines.multimodal.MultimodalPipeline
+::: aceneurotools.pipelines.multimodal.MultimodalPipeline
 
 ## Alignment utilities
 
-::: ace_neuro.multimodal.miniscope_ephys_alignment_utils.sync_neuralynx_miniscope_timestamps
+::: aceneurotools.multimodal.miniscope_ephys_alignment_utils.sync_neuralynx_miniscope_timestamps
 
-::: ace_neuro.multimodal.miniscope_ephys_alignment_utils.find_ephys_idx_of_TTL_events
+::: aceneurotools.multimodal.miniscope_ephys_alignment_utils.find_ephys_idx_of_TTL_events
 
-::: ace_neuro.multimodal.miniscope_ephys_alignment_utils.find_ca_movie_frame_num_of_ephys_idx
+::: aceneurotools.multimodal.miniscope_ephys_alignment_utils.find_ca_movie_frame_num_of_ephys_idx

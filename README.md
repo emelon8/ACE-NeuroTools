@@ -109,49 +109,49 @@ The pipeline requires explicit paths — no hidden environment variables or conf
 2.  **Programmatic API**: Pass paths directly to the `Pipeline.run()` method.
 
 ```python
-from ace_neuro.pipelines.ephys import EphysPipeline
+from aceneurotools.pipelines.ephys import EphysPipeline
 
 api = EphysPipeline()
 api.run(line_num=96, project_path="/path/to/project")
 ```
 
-For more details on directory structure and cloud integration, see the **[Getting Started guide on Read the Docs](https://ace-neuro.readthedocs.io/en/latest/getting_started/)** (source: [`docs/getting_started.md`](docs/getting_started.md)).
+For more details on directory structure and cloud integration, see the **[Getting Started guide on Read the Docs](https://aceneurotools.readthedocs.io/en/latest/getting_started/)** (source: [`docs/getting_started.md`](docs/getting_started.md)).
 
 ## Usage
 
 The project uses modular pipeline scripts as the primary entry points. Each pipeline loads parameters from your project's `analysis_parameters.csv` based on the experiment's line number.
 
 ### 1. Miniscope Analysis
-**Entry point:** `python -m ace_neuro.pipelines.miniscope` (implementation under `src/ace_neuro/pipelines/miniscope.py`).
+**Entry point:** `python -m aceneurotools.pipelines.miniscope` (implementation under `src/aceneurotools/pipelines/miniscope.py`).
 
 ```bash
 # Run analysis for experiment line 96
-python -m ace_neuro.pipelines.miniscope --line-num 96
+python -m aceneurotools.pipelines.miniscope --line-num 96
 
 # Run in headless mode (e.g., for HPC/Slurm jobs)
-python -m ace_neuro.pipelines.miniscope --line-num 96 --headless
+python -m aceneurotools.pipelines.miniscope --line-num 96 --headless
 ```
 
 ### 2. Electrophysiology Analysis
-**Entry point:** `python -m ace_neuro.pipelines.ephys` (implementation under `src/ace_neuro/pipelines/ephys.py`).
+**Entry point:** `python -m aceneurotools.pipelines.ephys` (implementation under `src/aceneurotools/pipelines/ephys.py`).
 
 ```bash
-python -m ace_neuro.pipelines.ephys --line-num 96
+python -m aceneurotools.pipelines.ephys --line-num 96
 ```
 
 ### 3. Multimodal Analysis
-**Entry point:** `python -m ace_neuro.pipelines.multimodal` (implementation under `src/ace_neuro/pipelines/multimodal.py`).
+**Entry point:** `python -m aceneurotools.pipelines.multimodal` (implementation under `src/aceneurotools/pipelines/multimodal.py`).
 
 ```bash
-python -m ace_neuro.pipelines.multimodal --line-num 97
+python -m aceneurotools.pipelines.multimodal --line-num 97
 ```
 
-For detailed documentation, see the user guides: [Miniscope](docs/guides/miniscope.md), [Ephys](docs/guides/ephys.md), and [Multimodal](docs/guides/multimodal.md) (also published on [Read the Docs](https://ace-neuro.readthedocs.io/en/latest/)).
+For detailed documentation, see the user guides: [Miniscope](docs/guides/miniscope.md), [Ephys](docs/guides/ephys.md), and [Multimodal](docs/guides/multimodal.md) (also published on [Read the Docs](https://aceneurotools.readthedocs.io/en/latest/)).
 
 ## Documentation
 
 A comprehensive documentation site, including full API references and guides, is available at:
-**[https://ace-neuro.readthedocs.io/en/latest/](https://ace-neuro.readthedocs.io/en/latest/)**
+**[https://aceneurotools.readthedocs.io/en/latest/](https://aceneurotools.readthedocs.io/en/latest/)**
 
 To view the documentation locally:
 ```bash
@@ -185,6 +185,6 @@ You can configure CI (e.g. GitHub Actions) to run `pytest tests/ -m "not slow"` 
 
 ## License
 
-ACE-neuro is licensed under the **GNU General Public License version 3 (or later)** (`GPL-3.0-or-later`). See [`LICENSE`](LICENSE).
+ACE-NeuroTools is licensed under the **GNU General Public License version 3 (or later)** (`GPL-3.0-or-later`). See [`LICENSE`](LICENSE).
 
-This project depends on [CaImAn](https://github.com/flatironinstitute/CaImAn) at runtime. CaImAn’s upstream license notice permits use under **GPLv2 or any later version**; ACE-neuro exercises that option and distributes under GPL-3.0-or-later for improved ecosystem license compatibility.
+This project depends on [CaImAn](https://github.com/flatironinstitute/CaImAn) at runtime. CaImAn’s upstream license notice permits use under **GPLv2 or any later version**; ACE-NeuroTools exercises that option and distributes under GPL-3.0-or-later for improved ecosystem license compatibility.

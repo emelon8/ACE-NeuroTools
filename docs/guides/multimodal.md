@@ -14,19 +14,19 @@ The multimodal pipeline combines ephys and calcium imaging analysis for synchron
 
 ```bash
 # Run with explicit project path
-python -m ace_neuro.pipelines.multimodal --line-num 97 --project-path /my/project
+python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /my/project
 
 # Run with explicit project and data paths
-python -m ace_neuro.pipelines.multimodal --line-num 97 --project-path /my/project --data-path /my/raw_data
+python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /my/project --data-path /my/raw_data
 
 # Run in headless mode
-python -m ace_neuro.pipelines.multimodal --line-num 97 --project-path /my/project --headless
+python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /my/project --headless
 ```
 
 ### Python API
 
 ```python
-from ace_neuro.pipelines.multimodal import MultimodalPipeline
+from aceneurotools.pipelines.multimodal import MultimodalPipeline
 
 api = MultimodalPipeline()
 api.run(

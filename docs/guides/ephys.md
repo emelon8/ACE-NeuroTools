@@ -14,19 +14,19 @@ The ephys pipeline processes Neuralynx electrophysiology recordings, including c
 
 ```bash
 # Run with explicit project path
-python -m ace_neuro.pipelines.ephys --line-num 96 --project-path /my/project
+python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /my/project
 
 # Run with explicit project and data paths
-python -m ace_neuro.pipelines.ephys --line-num 96 --project-path /my/project --data-path /my/raw_data
+python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /my/project --data-path /my/raw_data
 
 # Run in headless mode
-python -m ace_neuro.pipelines.ephys --line-num 96 --project-path /my/project --headless
+python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /my/project --headless
 ```
 
 ### Python API
 
 ```python
-from ace_neuro.pipelines.ephys import EphysPipeline
+from aceneurotools.pipelines.ephys import EphysPipeline
 
 api = EphysPipeline()
 api.run(

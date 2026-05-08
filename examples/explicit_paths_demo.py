@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""Demonstrate ACE-neuro's explicit-path API (no hidden env vars or .env).
+"""Demonstrate ACE-NeuroTools's explicit-path API (no hidden env vars or .env).
 
 Replace the placeholder paths with your ``project_path`` (directory containing
 ``experiments.csv`` and ``analysis_parameters.csv``) and ``data_path`` (raw
-recordings root). See the user guide: https://ace-neuro.readthedocs.io/en/latest/getting_started/
+recordings root). See the user guide: https://aceneurotools.readthedocs.io/en/latest/getting_started/
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from ace_neuro.pipelines.ephys import EphysPipeline
-from ace_neuro.pipelines.miniscope import MiniscopePipeline
-from ace_neuro.pipelines.multimodal import MultimodalPipeline
+from aceneurotools.pipelines.ephys import EphysPipeline
+from aceneurotools.pipelines.miniscope import MiniscopePipeline
+from aceneurotools.pipelines.multimodal import MultimodalPipeline
 
 # --- edit these ---
 PROJECT = Path("/path/to/project")

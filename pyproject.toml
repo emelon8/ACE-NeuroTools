@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 
 [project]
-name = "ace-neuro"
+name = "aceneurotools"
 version = "0.1.0"
-description = "Analysis of Calcium Imaging and Ephys — integrated pipelines for miniscope calcium imaging and electrophysiology data."
+description = "Analysis of Calcium Imaging and Electrophysiology — integrated pipelines for calcium imaging, electrophysical, and multimodal alignment."
 readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
 license-files = ["LICENSE"]
@@ -73,12 +73,12 @@ docs = [
     "python-markdown-math>=0.8",
 ]
 all = [
-    "ace-neuro[box]",
+    "aceneurotools[box]",
 ]
 
 [project.urls]
 Homepage = "https://github.com/emelon8/experiment_analysis"
-Documentation = "https://ace-neuro.readthedocs.io/en/latest/"
+Documentation = "https://aceneurotools.readthedocs.io/en/latest/"
 Repository = "https://github.com/emelon8/experiment_analysis"
 "Bug Tracker" = "https://github.com/emelon8/experiment_analysis/issues"
 
@@ -90,7 +90,7 @@ Repository = "https://github.com/emelon8/experiment_analysis"
 where = ["src"]
 
 [tool.setuptools.package-data]
-ace_neuro = ["py.typed", "shared/metadata_templates/*.csv"]
+aceneurotools = ["py.typed", "shared/metadata_templates/*.csv"]
 
 
 # ---------------------------------------------------------------------------
@@ -110,7 +110,7 @@ markers = [
 # ---------------------------------------------------------------------------
 [tool.coverage.run]
 branch = true
-source = ["src/ace_neuro"]
+source = ["src/aceneurotools"]
 omit = [
     "*/tests/*",
     "*/__pycache__/*",

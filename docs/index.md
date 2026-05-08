@@ -1,6 +1,6 @@
-# ACE-neuro: Analysis of Calcium Imaging and Ephys
+# ACE-NeuroTools: Analysis of Calcium Imaging and Ephys
 
-**ACE-neuro** (Analysis of Calcium Imaging and Ephys) is an integrated, object-oriented Python library designed for the systems neuroscience community. It provides high-level pipelines for processing simultaneous 1-photon calcium imaging (Miniscope) and multi-channel electrophysiology (EEG/LFP) data.
+**ACE-NeuroTools** (Analysis of Calcium Imaging and Ephys) is an integrated, object-oriented Python library designed for the systems neuroscience community. It provides high-level pipelines for processing simultaneous 1-photon calcium imaging (Miniscope) and multi-channel electrophysiology (EEG/LFP) data.
 
 For a **class-diagram overview** of core managers and processors, see the Mermaid diagram in the [README on GitHub](https://github.com/emelon8/experiment_analysis/blob/main/README.md#system-architecture).
 
@@ -39,7 +39,7 @@ These notebooks explain **`project_path`** (folder with **`experiments.csv`** an
 
 ## Installation
 
-Install ACE-neuro and its core dependencies in your environment:
+Install ACE-NeuroTools and its core dependencies in your environment:
 
 ```bash
 # Clone and install in editable mode
@@ -59,10 +59,10 @@ pip install -e "."
 
 ## API Overview
 
-ACE-neuro provides a clear, modular API optimized for both interactive use and automated scripts.
+ACE-NeuroTools provides a clear, modular API optimized for both interactive use and automated scripts.
 
 ```python
-from ace_neuro.pipelines.multimodal import MultimodalPipeline
+from aceneurotools.pipelines.multimodal import MultimodalPipeline
 
 # Initialize and run a synchronized analysis
 api = MultimodalPipeline()
@@ -74,7 +74,7 @@ api.run(
 )
 ```
 
-**Parameters:** every pipeline exposes a `run(...)` method whose arguments are **keyword-only in practice** (see docstrings). You set them via **Python kwargs**, optional **`analysis_parameters.csv`** (loaded with `load_analysis_params`), and **CLI defaults** for `python -m ace_neuro.pipelines.*`. The precedence and full pattern are spelled out under **§3a. Passing parameters into the pipelines** in [Getting started](getting_started.md).
+**Parameters:** every pipeline exposes a `run(...)` method whose arguments are **keyword-only in practice** (see docstrings). You set them via **Python kwargs**, optional **`analysis_parameters.csv`** (loaded with `load_analysis_params`), and **CLI defaults** for `python -m aceneurotools.pipelines.*`. The precedence and full pattern are spelled out under **§3a. Passing parameters into the pipelines** in [Getting started](getting_started.md).
 
 ---
 
