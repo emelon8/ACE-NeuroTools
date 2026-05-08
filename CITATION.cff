@@ -1,0 +1,68 @@
+# https://citation-file-format.github.io/
+cff-version: 1.2.0
+title: ACE-NeuroTools
+message: >-
+  If you use ACE-NeuroTools in your research, please cite it using the metadata
+  in this file. Until the companion paper is published, cite the software
+  release directly.
+type: software
+authors:
+  # Order matches `pyproject.toml [project.authors]`. Update both together.
+  - given-names: Reed
+    family-names: Pennock
+    # email: TODO(humans)
+    # orcid: TODO(humans)
+    # affiliation: TODO(humans)
+  - given-names: Luke
+    family-names: Richards
+    # email: TODO(humans)
+    # orcid: TODO(humans)
+    # affiliation: TODO(humans)
+  - given-names: Eric
+    family-names: Melonakos
+    # email: TODO(humans)
+    # orcid: TODO(humans)
+    # affiliation: TODO(humans)
+abstract: >-
+  ACE-NeuroTools (Analysis of Calcium Imaging and Electrophysiology) is an
+  open-source Python package providing integrated pipelines for one-photon
+  (miniscope) calcium imaging, extracellular electrophysiology, and the
+  multimodal alignment between them. It bundles motion correction, CNMF-E
+  source extraction, calcium-event inference, ephys signal conditioning,
+  artifact suppression, phase computation, and TTL-based cross-modal
+  alignment behind a small set of pipeline objects driven by per-experiment
+  CSV metadata.
+keywords:
+  - neuroscience
+  - calcium-imaging
+  - electrophysiology
+  - miniscope
+  - cnmfe
+  - signal-processing
+  - data-analysis
+license: GPL-3.0-or-later
+repository-code: 'https://github.com/emelon8/experiment_analysis'
+url: 'https://aceneurotools.readthedocs.io/en/latest/'  # TODO(humans): confirm RTD subdomain
+version: 0.1.0
+# Mint a Zenodo (or institutional) DOI when tagging the next release and
+# paste the concept-DOI here. The version DOI is what most journals want;
+# Zenodo issues both a concept-DOI (all-versions) and a version-DOI per tag.
+doi: 'TODO(humans)'
+date-released: 'TODO(humans)'  # YYYY-MM-DD; align with the tagged release.
+
+# Replace the placeholder below with the canonical paper citation once the
+# Neuroinformatics submission is accepted, then reviewers/users can be told
+# to cite the paper rather than the software.
+preferred-citation:
+  type: article
+  title: 'TODO(humans): paper title'
+  authors:
+    - given-names: Reed
+      family-names: Pennock
+    - given-names: Luke
+      family-names: Richards
+    - given-names: Eric
+      family-names: Melonakos
+  journal: 'TODO(humans): e.g. Neuroinformatics'
+  year: 'TODO(humans)'
+  doi: 'TODO(humans)'

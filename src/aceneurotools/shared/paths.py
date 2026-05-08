@@ -1,23 +1,29 @@
-"""
-Path configuration for the experiment_analysis package.
+"""Path configuration for the ``aceneurotools`` package.
 
-All data paths (project_path, data_path) must be provided explicitly by the
-user — either as arguments to Pipeline/DataManager constructors, or as CLI
-flags (--project-path, --data-path).
+Path resolution policy
+----------------------
+``project_path`` and ``data_path`` should be provided explicitly by the
+caller — either as arguments to :class:`~aceneurotools.shared.experiment_data_manager.ExperimentDataManager`
+and pipeline constructors, or as CLI flags (``--project-path``, ``--data-path``).
 
-There is no hidden state: no .env files, no environment variable lookups.
+The ``ACE_NEUROTOOLS_DATA`` environment variable is honored as a last-resort
+default for HPC submit scripts and other contexts where threading paths
+through a shell command line is awkward. When it is unset, :data:`PROJECT_ROOT`
+falls back to the current working directory.
+
+Note:
+    The legacy ``ACE_NEURO_DATA`` environment variable is no longer read.
+    Update any shell profiles, Slurm submit scripts, or CI configuration
+    that previously exported ``ACE_NEURO_DATA`` to set ``ACE_NEUROTOOLS_DATA``
+    instead.
 """
 
 import os
 from pathlib import Path
 
-# When installed via pip, we don't want to look relative to the source code file.
-# Instead, we look at where the user is currently running the script from,
-# or we let them define an environment variable.
-if "ACE_NEURO_DATA" in os.environ:
-    PROJECT_ROOT: Path = Path(os.environ["ACE_NEURO_DATA"]).resolve()
+if "ACE_NEUROTOOLS_DATA" in os.environ:
+    PROJECT_ROOT: Path = Path(os.environ["ACE_NEUROTOOLS_DATA"]).resolve()
 else:
     PROJECT_ROOT: Path = Path.cwd()
 
-# Legacy alias kept for Box credentials and internal data directory
 DATA_DIR: Path = PROJECT_ROOT / "data"

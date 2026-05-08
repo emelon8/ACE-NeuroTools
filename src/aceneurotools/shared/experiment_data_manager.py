@@ -19,9 +19,11 @@ class ExperimentDataManager:
     - experiments.csv: Experiment metadata (subject, date, directories, etc.)
     - analysis_parameters.csv: Processing settings for each experiment
     
-    Both ``project_path`` and ``data_path`` must be supplied explicitly —
-    either directly or via CLI flags / notebook variables.  There is no
-    automatic fallback to environment variables or .env files.
+    Both ``project_path`` and ``data_path`` should be supplied explicitly —
+    either directly or via CLI flags / notebook variables. The optional
+    ``ACE_NEUROTOOLS_DATA`` environment variable is honored as a last-resort
+    default (see :mod:`aceneurotools.shared.paths`); there is no ``.env``
+    file lookup.
     
     Attributes:
         line_num: The experiment line number.
