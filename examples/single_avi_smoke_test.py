@@ -26,7 +26,7 @@ from __future__ import annotations
 import sys
 import traceback
 from pathlib import Path
-
+from typing import NoReturn
 
 # --- EDIT THESE -------------------------------------------------------------
 # Directory containing experiments.csv and analysis_parameters.csv:
@@ -45,7 +45,7 @@ AVI_FILENAME = "0.avi"
 # ---------------------------------------------------------------------------
 
 
-def _fail(stage: str, msg: str, hint: str = "") -> "NoReturn":
+def _fail(stage: str, msg: str, hint: str = "") -> NoReturn:
     """Print a labelled error and exit non-zero."""
     print(f"\n[smoke-test] FAILED at: {stage}", file=sys.stderr)
     print(f"[smoke-test] reason: {msg}", file=sys.stderr)
@@ -108,6 +108,7 @@ def step_1_download_avi() -> Path:
     """Pull the single AVI from Box (if not already on disk) and return its path."""
     print("\n[smoke-test] Step 1/3: downloading AVI from Box (skipped if already present)...")
     import pandas as pd
+
     from aceneurotools.shared.file_downloader import verify_file_by_line
 
     experiments_csv = PROJECT_PATH / "experiments.csv"

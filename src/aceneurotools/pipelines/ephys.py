@@ -23,10 +23,10 @@ from aceneurotools.shared.experiment_data_manager import ExperimentDataManager
 
 class EphysPipeline:
     """High-level API for electrophysiology data analysis workflows.
-    
+
     Provides simplified methods for loading, filtering, and visualizing
     Neuralynx ephys data with configurable analysis parameters.
-    
+
     Attributes:
         ephys_data_manager: EphysDataManager instance (set after run()).
     """
@@ -56,10 +56,10 @@ class EphysPipeline:
         headless: bool = False
     ) -> None:
         """Run the ephys analysis pipeline for a single channel.
-        
+
         Loads ephys data, optionally filters and computes phases, and
         generates plots based on the provided parameters.
-        
+
         Args:
             line_num: Experiment line number in experiments.csv.
             project_path: Optional explicit path to project repository.
@@ -145,43 +145,82 @@ class EphysPipeline:
     def run_all_channels(
         self,
         line_num: int,
+        project_path: str | Path | None = None,
+        data_path: str | Path | None = None,
         remove_artifacts: bool = False,
-        filter_type: str | None = None, # if desired, enter the type, eg "butter"
+        filter_type: str | None = None,
         filter_range: list[float] = [0.5, 4],
         plot_channel: bool = False,
         plot_spectrogram: bool = False,
-        logging_level: str | int = "CRITICAL"
+        logging_level: str | int = "CRITICAL",
+        headless: bool = False,
     ) -> None:
         """Run ephys analysis pipeline for all channels in an experiment.
-        
+
         Iterates through all channels listed in the experiment metadata
         and performs the analysis workflow on each.
-        
+
         Args:
             line_num: Experiment line number in experiments.csv.
+            project_path: Optional explicit path to project repository.
+            data_path: Optional explicit base path for raw experimental data.
             remove_artifacts: If True, apply artifact removal.
             filter_type: Filter type ('butter', 'fir') or None to skip.
             filter_range: [low, high] cutoff frequencies for bandpass.
             plot_channel: If True, plot time-domain signals.
             plot_spectrogram: If True, plot spectrograms.
             logging_level: Logging verbosity.
+            headless: If True, disable GUI and use Agg backend.
         """
-
-
         logger = logging.getLogger(__name__)
         logger.setLevel(logging_level)
 
-        # set the filter boolean based on if filter_type is None
-        filter: bool = True if filter_type is not None else False
+        use_filter: bool = filter_type is not None
 
-        experiment_data_manager = ExperimentDataManager(line_num, logging_level = logging_level)
+        experiment_data_manager = ExperimentDataManager(
+            line_num,
+            project_path=project_path,
+            data_path=data_path,
+            logging_level=logging_level,
+        )
 
         if experiment_data_manager.metadata is None:
-             raise ValueError(f"Metadata could not be loaded for line {line_num}")
-        channels_str = experiment_data_manager.metadata['LFP and EEG CSCs']
-        channels_list: list = [*channels_str] # unpack
+            raise ValueError(f"Metadata could not be loaded for line {line_num}")
 
-        ephys_directory = experiment_data_manager.get_ephys_directory()
+        channels_str = experiment_data_manager.metadata.get("LFP and EEG CSCs", "")
+        if not channels_str:
+            logger.warning(f"No channels found in metadata for line {line_num}")
+            return
+
+        # Correctly split the semicolon-separated channel names
+        channels_list = [ch.strip() for ch in channels_str.split(";")]
+
+        # Delegate to the optimized multi-channel loader
+        self.run_multiple_channels(
+            line_num=line_num,
+            channel_names=channels_list,
+            project_path=project_path,
+            data_path=data_path,
+            remove_artifacts=remove_artifacts,
+            filter_type=filter_type,
+            filter_range=filter_range,
+            logging_level=logging_level,
+            headless=headless,
+        )
+
+        # Visualize each channel
+        for ch_name in channels_list:
+            logger.info(f"Visualizing channel: {ch_name}")
+            try:
+                channel = self.ephys_data_manager.get_channel(ch_name)
+                worker = ChannelWorker(channel)
+
+                if plot_channel:
+                    worker.plot_channel(use_filtered=use_filter)
+                if plot_spectrogram:
+                    worker.plot_spectrogram(use_filtered=use_filter, plot_events=False)
+            except Exception as e:
+                logger.error(f"Failed to visualize channel {ch_name}: {e}")
 
 
     def run_multiple_channels(

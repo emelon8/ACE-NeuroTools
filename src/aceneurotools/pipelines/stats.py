@@ -135,6 +135,8 @@ class StatsPipeline:
         headless: bool = False,
         verbose: bool = False,
         run_log_path: str | Path | None = None,
+        lab_config_path: str | Path | None = None,
+        stats_config_path: str | Path | None = None,
     ) -> None:
         """Run the statistical analysis pipeline."""
         from aceneurotools.shared.plotting import set_backend
@@ -227,8 +229,8 @@ class StatsPipeline:
         self._run_log = _RunLog(
             analyses=selected,
             subjects=subjects,
-            lab_config_path=None,   # filled in by __main__ after construction
-            stats_config_path=None,
+            lab_config_path=lab_config_path,
+            stats_config_path=stats_config_path,
             params=params,
         )
 
@@ -870,11 +872,9 @@ if __name__ == "__main__":
             headless=args.headless,
             verbose=args.verbose,
             run_log_path=args.run_log_path,
+            lab_config_path=args.lab_config,
+            stats_config_path=args.stats_config_path,
         )
-        # Back-fill config paths into the run log for auditability.
-        if pipeline.run_log is not None:
-            pipeline.run_log.lab_config_path = args.lab_config
-            pipeline.run_log.stats_config_path = args.stats_config_path
     except (AceNeuroError, FileNotFoundError, ValueError) as exc:
         print_cli_error(exc, include_cause=args.headless)
         if args.headless:
