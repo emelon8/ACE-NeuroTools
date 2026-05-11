@@ -1,5 +1,5 @@
+
 import numpy as np
-from typing import Dict, Any, List, Optional
 
 
 class Spectrogram:
@@ -17,7 +17,7 @@ class Spectrogram:
     psd: np.ndarray
     stimes: np.ndarray
     sfreqs: np.ndarray
-    
+
     def __init__(self, psd: np.ndarray, stimes: np.ndarray, sfreqs: np.ndarray) -> None:
         """Initialize a Spectrogram with PSD data and coordinates.
         

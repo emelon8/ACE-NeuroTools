@@ -1,7 +1,9 @@
-from aceneurotools.shared.misc_functions import filter_data
-from aceneurotools.miniscope.projections import Projections
-from typing import List, Union, Any, Optional
+from typing import Any
+
 import numpy as np
+
+from aceneurotools.miniscope.projections import Projections
+from aceneurotools.shared.misc_functions import filter_data
 
 
 class FilterMiniscopeData:
@@ -20,20 +22,20 @@ class FilterMiniscopeData:
     """
 
     data: np.ndarray
-    filtered_data: Union[List[Any], np.ndarray]
+    filtered_data: list[Any] | np.ndarray
     frame_rate: float
     n: int
-    cut: Union[float, List[float]]
+    cut: float | list[float]
     ftype: str
     btype: str
 
     def __init__(
-        self, 
-        projections: Projections, 
-        frame_rate: float, 
-        n: int = 2, 
-        cut: Union[float, List[float]] = [0.1, 1.5], 
-        ftype: str = 'butter', 
+        self,
+        projections: Projections,
+        frame_rate: float,
+        n: int = 2,
+        cut: float | list[float] = [0.1, 1.5],
+        ftype: str = 'butter',
         btype: str = 'bandpass'
     ) -> None:
         """Initialize with projection data and filter parameters.
@@ -53,7 +55,7 @@ class FilterMiniscopeData:
         self.cut = cut
         self.ftype = ftype
         self.btype = btype
-    
+
 
 
     def filter_miniscope_data(self) -> None:

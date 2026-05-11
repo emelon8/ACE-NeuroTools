@@ -1,26 +1,20 @@
 
-from aceneurotools.shared.misc_functions import update_csv_cell
-from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
-from aceneurotools.miniscope.onix_miniscope_data_manager import OnixMiniscopeDataManager
-from aceneurotools.miniscope.ucla_data_manager import UCLADataManager
-from aceneurotools.miniscope.miniscope_preprocessor import MiniscopePreprocessor
-from aceneurotools.miniscope.miniscope_processor import MiniscopeProcessor
-from aceneurotools.miniscope.miniscope_postprocessor import MiniscopePostprocessor
-import caiman as cm
-from aceneurotools.shared.misc_functions import get_coords_dict_from_analysis_params
-from aceneurotools.miniscope.movie_io import MovieIO
-import matplotlib
-import tkinter
-import os
 import argparse
 import sys
-from typing import List, Optional, Union, Dict, Any, Tuple
+import tkinter
 from pathlib import Path
-from aceneurotools.shared.exceptions import (
-    AceNeuroError,
-    DataNotFoundError,
-    PipelineExecutionError,
-    print_cli_error,
+
+from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
+from aceneurotools.miniscope.miniscope_postprocessor import MiniscopePostprocessor
+from aceneurotools.miniscope.miniscope_preprocessor import MiniscopePreprocessor
+from aceneurotools.miniscope.miniscope_processor import MiniscopeProcessor
+from aceneurotools.miniscope.pipeline_results import (
+    PostprocessConfig,
+    PostprocessingResult,
+    PreprocessConfig,
+    PreprocessingResult,
+    ProcessConfig,
+    ProcessingResult,
 )
 from aceneurotools.shared.cli_utils import (
     apply_headless_policy,
@@ -28,10 +22,13 @@ from aceneurotools.shared.cli_utils import (
     run_allowed_keys,
     validate_run_params,
 )
-
-
-
-
+from aceneurotools.shared.exceptions import (
+    AceNeuroError,
+    DataNotFoundError,
+    PipelineExecutionError,
+    print_cli_error,
+)
+from aceneurotools.shared.misc_functions import get_coords_dict_from_analysis_params, update_csv_cell
 
 
 class MiniscopePipeline:
@@ -53,28 +50,33 @@ class MiniscopePipeline:
     processor: MiniscopeProcessor
     postprocessor: MiniscopePostprocessor
 
+    # Structured result objects — set after each stage completes.
+    preprocessing_result: PreprocessingResult
+    processing_result: ProcessingResult
+    postprocessing_result: PostprocessingResult
+
     def __init__(self) -> None:
         """Initialize the MiniscopePipeline."""
         pass
-    
+
     def run(
-        self, 
+        self,
         line_num: int,
-        project_path: Optional[Union[str, Path]] = None,
-        data_path: Optional[Union[str, Path]] = None,
-        filenames: List[str] = [],
-        
+        project_path: str | Path | None = None,
+        data_path: str | Path | None = None,
+        filenames: list[str] = [],
+
         # preprocessing parameters
         crop: bool = True,
-        crop_coords: Optional[Union[List[int], Tuple[int, int, int, int]]] = None,
-        detrend_method: Optional[str] = 'median',
+        crop_coords: list[int] | tuple[int, int, int, int] | None = None,
+        detrend_method: str | None = 'median',
         df_over_f: bool = False,
         # if df_over_f = True
-        secs_window: float = 5,                     
+        secs_window: float = 5,
         quantile_min: float = 8,
         df_over_f_method: str = 'delta_f_over_sqrt_f',
 
-        # processing parameters    
+        # processing parameters
         parallel: bool = False,
         n_processes: int = 12,
         apply_motion_correction: bool = False,
@@ -84,32 +86,44 @@ class MiniscopePipeline:
         save_estimates: bool = True,
         save_CNMFE_estimates_filename: str = 'estimates.hdf5',
         save_CNMFE_params: bool = False,
-        
+
         # post processing parameters
-        remove_components_with_gui: bool = True,  
+        remove_components_with_gui: bool = True,
         find_calcium_events: bool = True,
-        derivative_for_estimates: str = 'first', 
-        event_height: float = 5, 
-        compute_miniscope_phase: bool = True, 
+        derivative_for_estimates: str = 'first',
+        event_height: float = 5,
+        compute_miniscope_phase: bool = True,
         filter_miniscope_data: bool = True,
-        n: int = 2, 
-        cut: List[float] = [0.1, 1.5], 
-        ftype: str = 'butter', 
-        btype: str = 'bandpass', 
+        n: int = 2,
+        cut: list[float] = [0.1, 1.5],
+        ftype: str = 'butter',
+        btype: str = 'bandpass',
         inline: bool = False,
         compute_miniscope_spectrogram: bool = True,
-        window_length: float = 30, 
-        window_step: float = 3, 
-        freq_lims: List[float] = [0, 15], 
+        window_length: float = 30,
+        window_step: float = 3,
+        freq_lims: list[float] = [0, 15],
         time_bandwidth: float = 2,
         headless: bool = False
     ) -> None:
         """Run the complete miniscope analysis pipeline.
-        
+
         Executes preprocessing (crop, detrend, DF/F), processing (motion
         correction, CNMF-E), and post-processing (component selection,
         event detection, spectral analysis) in sequence.
-        
+
+        After this method returns, structured results are available as:
+          - ``self.preprocessing_result`` (:class:`~aceneurotools.miniscope.pipeline_results.PreprocessingResult`)
+          - ``self.processing_result``    (:class:`~aceneurotools.miniscope.pipeline_results.ProcessingResult`)
+          - ``self.postprocessing_result`` (:class:`~aceneurotools.miniscope.pipeline_results.PostprocessingResult`)
+
+        Note:
+            For programmatic use, prefer :meth:`run_with_configs` which accepts
+            :class:`~aceneurotools.miniscope.pipeline_results.PreprocessConfig`,
+            :class:`~aceneurotools.miniscope.pipeline_results.ProcessConfig`, and
+            :class:`~aceneurotools.miniscope.pipeline_results.PostprocessConfig`
+            dataclasses instead of 30+ individual keyword arguments.
+
         Args:
             line_num: Experiment line number in experiments.csv.
             filenames: List of movie filenames to load (e.g., ['0.avi']).
@@ -148,8 +162,8 @@ class MiniscopePipeline:
             time_bandwidth: Multitaper time-bandwidth product.
             headless: If True, disable all GUI interactions.
         """
-        
-        
+
+
         if headless:
             inspect_motion_correction = False
             remove_components_with_gui = False
@@ -184,8 +198,8 @@ class MiniscopePipeline:
                 hint="Check metadata row values and input filenames.",
             ) from e
 
-        
-        
+
+
         #get cropping coordinates from crop_coords argument or from analysis_params
         if crop_coords is not None:
             coords_dict = {
@@ -195,7 +209,7 @@ class MiniscopePipeline:
             crop_job_name = '_crop'
         else:
             coords_dict, crop_job_name = get_coords_dict_from_analysis_params(self.miniscope_data_manager)
-        
+
         try:
             self.preprocessor = MiniscopePreprocessor(self.miniscope_data_manager)
             self.miniscope_data_manager = self.preprocessor.preprocess_calcium_movie(
@@ -209,6 +223,7 @@ class MiniscopePipeline:
                 df_over_f_method=df_over_f_method,
                 headless=headless,
             )
+            self.preprocessing_result = self.preprocessor.result
         except Exception as e:
             raise PipelineExecutionError(
                 "Miniscope preprocessing failed.",
@@ -218,15 +233,15 @@ class MiniscopePipeline:
                 data_path=data_path,
                 hint="Inspect crop/detrend/df_over_f parameters for this experiment row.",
             ) from e
-        
+
         if self.miniscope_data_manager.coords is not None:
             analysis_params_csv = self.miniscope_data_manager.project_path / "analysis_parameters.csv"
             print(f"updating {analysis_params_csv} with your cropping coordinates", flush=True)
             update_csv_cell(self.miniscope_data_manager.coords, 'crop_coords', line_num, analysis_params_csv)
-        
-        
+
+
         #Ensure self.miniscope.data_manager has 'movie' and 'preprocessed_movie_filepath' filled in with the movie that you want to process before you process
-        
+
         try:
             self.processor = MiniscopeProcessor(self.miniscope_data_manager)
             self.miniscope_data_manager = self.processor.process_calcium_movie(
@@ -240,6 +255,7 @@ class MiniscopePipeline:
                 save_CNMFE_estimates_filename,
                 save_CNMFE_params,
             )
+            self.processing_result = self.processor.result
         except Exception as e:
             raise PipelineExecutionError(
                 "Miniscope processing stage failed.",
@@ -249,17 +265,16 @@ class MiniscopePipeline:
                 data_path=data_path,
                 hint="Check CNMF-E and motion-correction parameters and data integrity.",
             ) from e
-        
-        
-        
+
+
+
         if self.miniscope_data_manager.CNMFE_obj is not None:
+            from aceneurotools.shared.plotting import set_backend
+            set_backend(headless=headless)
             if not headless:
-                if hasattr(tkinter, '_default_root') and tkinter._default_root:  # Check if Tkinter root exists
-                    tkinter._default_root.destroy()  # Force close any Tkinter root
-                matplotlib.use('Qt5Agg')  # Switch to Qt backend so that we can use interactive plotting during estimate evaluation
-            else:
-                matplotlib.use('Agg')
-            
+                if hasattr(tkinter, '_default_root') and tkinter._default_root:
+                    tkinter._default_root.destroy()
+
             try:
                 self.postprocessor = MiniscopePostprocessor(self.miniscope_data_manager)
                 self.miniscope_data_manager = self.postprocessor.postprocess_calcium_movie(
@@ -280,6 +295,7 @@ class MiniscopePipeline:
                     freq_lims,
                     time_bandwidth,
                 )
+                self.postprocessing_result = self.postprocessor.result
             except Exception as e:
                 raise PipelineExecutionError(
                     "Miniscope postprocessing failed.",
@@ -290,7 +306,82 @@ class MiniscopePipeline:
                     hint="Check event detection/filter/spectrogram parameters and CNMF-E outputs.",
                 ) from e
 
-        
+
+    def run_with_configs(
+        self,
+        line_num: int,
+        preprocess: PreprocessConfig,
+        process: ProcessConfig,
+        postprocess: PostprocessConfig,
+        project_path: str | Path | None = None,
+        data_path: str | Path | None = None,
+        filenames: list[str] = [],
+        headless: bool = False,
+    ) -> None:
+        """Run the pipeline using structured config dataclasses.
+
+        This is the preferred API for programmatic use.  The config objects
+        group the 30+ parameters of :meth:`run` into three typed dataclasses
+        — one per pipeline stage — which are validated at construction time
+        and can be persisted, logged, or diffed as ordinary Python objects.
+
+        Internally this method unpacks the configs and delegates to the
+        unchanged :meth:`run` method, so all existing behaviour is preserved.
+
+        Args:
+            line_num: Experiment line number in experiments.csv.
+            preprocess: Preprocessing stage configuration.
+            process: Processing stage configuration.
+            postprocess: Post-processing stage configuration.
+            project_path: Path to the project directory.
+            data_path: Base path for raw experimental data.
+            filenames: Movie filenames to load (e.g. ``['0.avi']``).
+            headless: If ``True``, disable all GUI interactions.
+        """
+        self.run(
+            line_num=line_num,
+            project_path=project_path,
+            data_path=data_path,
+            filenames=filenames,
+            # preprocessing
+            crop=preprocess.crop,
+            crop_coords=preprocess.crop_coords,
+            detrend_method=preprocess.detrend_method,
+            df_over_f=preprocess.df_over_f,
+            secs_window=preprocess.secs_window,
+            quantile_min=preprocess.quantile_min,
+            df_over_f_method=preprocess.df_over_f_method,
+            # processing
+            parallel=process.parallel,
+            n_processes=process.n_processes,
+            apply_motion_correction=process.apply_motion_correction,
+            inspect_motion_correction=process.inspect_motion_correction,
+            plot_params=process.plot_params,
+            run_CNMFE=process.run_CNMFE,
+            save_estimates=process.save_estimates,
+            save_CNMFE_estimates_filename=process.save_CNMFE_estimates_filename,
+            save_CNMFE_params=process.save_CNMFE_params,
+            # postprocessing
+            remove_components_with_gui=postprocess.remove_components_with_gui,
+            find_calcium_events=postprocess.find_calcium_events,
+            derivative_for_estimates=postprocess.derivative_for_estimates,
+            event_height=postprocess.event_height,
+            compute_miniscope_phase=postprocess.compute_miniscope_phase,
+            filter_miniscope_data=postprocess.filter_miniscope_data,
+            n=postprocess.n,
+            cut=postprocess.cut,
+            ftype=postprocess.ftype,
+            btype=postprocess.btype,
+            inline=postprocess.inline,
+            compute_miniscope_spectrogram=postprocess.compute_miniscope_spectrogram,
+            window_length=postprocess.window_length,
+            window_step=postprocess.window_step,
+            freq_lims=postprocess.freq_lims,
+            time_bandwidth=postprocess.time_bandwidth,
+            headless=headless,
+        )
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Run Miniscope Analysis Pipeline",
@@ -312,9 +403,9 @@ Examples:
                         help="Base path for raw experimental data")
     parser.add_argument('--headless', action='store_true',
                         help="Run in headless mode (no GUI)")
-    
+
     args = parser.parse_args()
-    
+
     # Default parameters
     defaults = {
         'filenames': ['0.avi'],
@@ -353,7 +444,7 @@ Examples:
         'freq_lims': [0, 15],
         'time_bandwidth': 2
     }
-    
+
     from aceneurotools.shared.config_utils import load_analysis_params
     run_params = build_run_params(
         defaults=defaults,

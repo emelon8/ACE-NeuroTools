@@ -1,6 +1,5 @@
 import argparse
 import sys
-import typing
 from pathlib import Path
 from typing import Any
 
@@ -11,17 +10,21 @@ from aceneurotools.multimodal.miniscope_ephys_alignment_utils import (
     find_ephys_idx_of_TTL_events,
     sync_neuralynx_miniscope_timestamps,
 )
-from aceneurotools.multimodal.phase_utils import ephys_phase_ca_events, miniscope_phase_ca_events, phase_ca_events_histogram
+from aceneurotools.multimodal.phase_utils import (
+    ephys_phase_ca_events,
+    miniscope_phase_ca_events,
+    phase_ca_events_histogram,
+)
 from aceneurotools.pipelines.ephys import EphysPipeline
 from aceneurotools.pipelines.miniscope import MiniscopePipeline
-from aceneurotools.shared.config_utils import load_analysis_params
-from aceneurotools.shared.exceptions import AceNeuroError, PipelineExecutionError, print_cli_error
 from aceneurotools.shared.cli_utils import (
     apply_headless_policy,
     build_run_params,
     run_allowed_keys,
     validate_run_params,
 )
+from aceneurotools.shared.config_utils import load_analysis_params
+from aceneurotools.shared.exceptions import AceNeuroError, PipelineExecutionError, print_cli_error
 
 
 class MultimodalPipeline:

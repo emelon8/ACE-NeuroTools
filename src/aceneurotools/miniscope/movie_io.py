@@ -1,7 +1,6 @@
 import os
+
 import caiman as cm
-
-
 
 
 class MovieIO:
@@ -9,9 +8,9 @@ class MovieIO:
     
     Provides standardized methods for movie I/O to the saved_movies directory.
     """
-    
+
     @staticmethod
-    def save_movie(dm, movie_file_name, movie=None): 
+    def save_movie(dm, movie_file_name, movie=None):
         """Save a movie to disk in the saved_movies directory.
         
         Args:
@@ -22,10 +21,10 @@ class MovieIO:
         Returns:
             Full path to the saved .avi file.
         """
-        
+
         # create the saved_movies directory if it doesn't exist
         miniscope_dir_path = dm.metadata['calcium imaging directory']
-        
+
         saved_movies_dir = os.path.join(miniscope_dir_path, 'saved_movies')
         os.makedirs(saved_movies_dir, exist_ok=True)
 
@@ -39,10 +38,10 @@ class MovieIO:
             movie.save(file_name, compress=0)
         else:
             dm.movie.save(file_name, compress=0)
-        
+
         # return the full file path
         return file_name
-    
+
     @staticmethod
     def load_movie(miniscope_dir_path, movie_file_name):
         """Load a movie from the saved_movies directory.
@@ -57,4 +56,3 @@ class MovieIO:
         # Load the movie from the specified file path
         path = os.path.join(miniscope_dir_path, 'saved_movies', movie_file_name)
         return cm.load(path)
-    

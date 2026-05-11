@@ -1,16 +1,16 @@
-import csv
 import json
 import os
-import caiman as cm
-from caiman.base.movies import movie
-import numpy as np
-from aceneurotools.shared.path_finder import PathFinder
-from aceneurotools.shared.experiment_data_manager import ExperimentDataManager
-import aceneurotools.shared.file_downloader as file_downloader
 from abc import ABC, abstractmethod
-from aceneurotools.shared.exceptions import DataImportError
-from typing import List, Tuple, Optional, Union, Dict, cast, Any, Tuple, Type, TypeVar, cast
 from pathlib import Path
+from typing import Any, TypeVar, cast
+
+import caiman as cm
+import numpy as np
+from caiman.base.movies import movie
+
+import aceneurotools.shared.file_downloader as file_downloader
+from aceneurotools.shared.experiment_data_manager import ExperimentDataManager
+from aceneurotools.shared.path_finder import PathFinder
 
 T = TypeVar("T", bound="MiniscopeDataManager")
 
@@ -28,35 +28,32 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
         movie: Loaded CaImAn movie object.
         fr: Frame rate from metadata.
     """
-    
-    _registry: List[Type['MiniscopeDataManager']] = []
+
+    _registry: list[type['MiniscopeDataManager']] = []
+
+    # --- Loading-only attributes (part of the declared interface) ---
     line_num: int
-    time_stamps: Optional[np.ndarray]
-    frame_numbers: Optional[np.ndarray]
-    all_movie_filepaths: List[Union[Path, str]]
-    chosen_movie_filepaths: Optional[List[Union[str, Path]]]
+    time_stamps: np.ndarray | None
+    frame_numbers: np.ndarray | None
+    all_movie_filepaths: list[Path | str]
+    chosen_movie_filepaths: list[str | Path] | None
     movie: movie
     fr: float
-    projections: Any
-    preprocessed_movie_filepath: Optional[str]
-    coords: Optional[Dict[str, int]]
-    motion_corrected_movie_filepath: Optional[str]
-    CNMFE_obj: Any
-    estimates_filepath: Optional[str]
-    opts_caiman_filepath: Optional[str]
-    analysis_params: Optional[Dict[str, Any]]
-    dview: Any
-    opts_caiman: Any
-    ca_events_idx: Any
-    PSD_spect: Any
-    t_spect: Any
-    freqs_spect: Any
-    p_spect: Any
-    miniscope_phases: Any
-    filter_object: Any
     miniscope_events: Any
-    Cn: Optional[np.ndarray]
-    filenames: Optional[List[str]]
+    filenames: list[str] | None
+
+    # --- Processing-stage attributes (set to None in __init__ for backward
+    #     compatibility; no longer part of the declared class interface).
+    #     Prefer accessing these via the structured result dataclasses stored
+    #     on each processor instance after the stage completes:
+    #       preprocessor.result  -> PreprocessingResult
+    #       processor.result     -> ProcessingResult
+    #       postprocessor.result -> PostprocessingResult
+    # -----------------------------------------------------------------------
+    # projections, preprocessed_movie_filepath, coords,
+    # motion_corrected_movie_filepath, CNMFE_obj, estimates_filepath,
+    # opts_caiman_filepath, dview, opts_caiman, ca_events_idx, PSD_spect,
+    # t_spect, freqs_spect, p_spect, miniscope_phases, filter_object
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -65,10 +62,10 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
 
     @classmethod
     def create(
-        cls: Type[T], 
-        line_num: int, 
-        project_path: Optional[Union[str, Path]] = None,
-        data_path: Optional[Union[str, Path]] = None,
+        cls: type[T],
+        line_num: int,
+        project_path: str | Path | None = None,
+        data_path: str | Path | None = None,
         **kwargs: Any
     ) -> T:
         """Factory method to select the correct subclass for the directory.
@@ -80,40 +77,40 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
             **kwargs: Additional arguments for subclass initialization.
         """
         temp_edm = ExperimentDataManager(
-            line_num, 
-            project_path=project_path, 
+            line_num,
+            project_path=project_path,
             data_path=data_path,
-            auto_import_metadata=True, 
+            auto_import_metadata=True,
             auto_import_analysis_params=False
         )
         directory = temp_edm.get_miniscope_directory()
-        
+
         if directory is None:
              raise ValueError(f"No miniscope directory set in metadata for line {line_num}")
-             
+
         for subclass in cls._registry:
             if subclass.can_handle(directory):
                 return cast(T, subclass(
-                    line_num=line_num, 
+                    line_num=line_num,
                     project_path=project_path,
                     data_path=data_path,
                     **kwargs
                 ))
-                
+
         raise ValueError(f"No MiniscopeDataManager subclass found that can handle directory: {directory}")
 
     @classmethod
     @abstractmethod
-    def can_handle(cls, directory: Union[str, Path]) -> bool:
+    def can_handle(cls, directory: str | Path) -> bool:
         """Return True if this class can handle the format in the given directory."""
         pass
 
     def __init__(
-        self, 
-        line_num: int, 
-        project_path: Optional[Union[str, Path]] = None,
-        data_path: Optional[Union[str, Path]] = None,
-        filenames: List[str] = [], 
+        self,
+        line_num: int,
+        project_path: str | Path | None = None,
+        data_path: str | Path | None = None,
+        filenames: list[str] = [],
         auto_import_data: bool = True
     ) -> None:
         """Initialize data manager and optionally load movie data.
@@ -129,23 +126,23 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
         self.line_num = line_num
         self.time_stamps = None
         self.frame_numbers = None
-        
+
         experiments_csv = self.project_path / "experiments.csv"
         file_downloader.verify_file_by_line(
-            line_num, 
-            experiments_csv, 
-            "miniscope", 
+            line_num,
+            experiments_csv,
+            "miniscope",
             filenames,
             base_file_path=self.data_path
         )
-        self.all_movie_filepaths = cast(List[Union[Path, str]], self._find_movie_file_paths())
+        self.all_movie_filepaths = cast(list[Path | str], self._find_movie_file_paths())
         self.chosen_movie_filepaths = self._get_specific_filepaths(filenames)
-        
+
         if (auto_import_data):
             self.load_attributes(self.chosen_movie_filepaths if self.chosen_movie_filepaths else self.all_movie_filepaths)
-            
+
         #Attributes below are filled in automatically during the miniscope_pipeline pipeline: preprocessing->processing->postprocessing
-        
+
         self.projections = None
         self.preprocessed_movie_filepath = None #Your preprocessed movie must be saved to disk and its filepath stored here before processing
         self.coords = None #contains the coordinates/shape of your cropped movie
@@ -161,9 +158,9 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
         self.p_spect = None
         self.miniscope_phases = None
         self.filter_object = None
-            
 
-    def load_attributes(self, filepaths: List[Union[str, Path]]) -> None:
+
+    def load_attributes(self, filepaths: list[str | Path]) -> None:
         """Load movie data and metadata from disk.
         
         Populates metadata, timestamps, movie array, events, and frame rate.
@@ -183,11 +180,11 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
 
     @abstractmethod
     def sync_timestamps(
-        self, 
-        ephys_dm: Optional[Any] = None, 
-        channel_name: Optional[str] = None, 
+        self,
+        ephys_dm: Any | None = None,
+        channel_name: str | None = None,
         **kwargs: Any
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Synchronize miniscope frame timestamps to ephys time.
         
@@ -203,10 +200,10 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
         pass
 
     def convert_ca_movies(
-        self, 
-        filenames: Optional[List[str]] = None, 
-        new_file_type: str = '.tif', 
-        join_movies: bool = False, 
+        self,
+        filenames: list[str] | None = None,
+        new_file_type: str = '.tif',
+        join_movies: bool = False,
         metadata_convert: bool = True
     ) -> None:
         """
@@ -224,7 +221,7 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
 
         # If no filenames provided, try to load from self.movieFilePaths
         if filenames is None:
-            filenames_list: List[str] = [str(p) for p in self.all_movie_filepaths]
+            filenames_list: list[str] = [str(p) for p in self.all_movie_filepaths]
         elif not isinstance(filenames, list):
             filenames_list = [filenames]
         else:
@@ -310,26 +307,26 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
 
 
     @abstractmethod
-    def _get_miniscope_metadata(self) -> Dict[str, Any]:
+    def _get_miniscope_metadata(self) -> dict[str, Any]:
         pass
 
     @abstractmethod
-    def _get_timestamps(self) -> Tuple[Any, Any]:
+    def _get_timestamps(self) -> tuple[Any, Any]:
         pass
 
-    def _get_movies(self, filenames: Optional[Union[str, Path, List[Union[str, Path]]]] = None) -> movie:
+    def _get_movies(self, filenames: str | Path | list[str | Path] | None = None) -> movie:
         """Import calcium imaging data. Not necessary if using processCaMovies().
         FILENAMES can be a single movie file or a list of movie files (in the order that you want them). 
         If FILENAMES doesn't point to a file (either absolute or relative path from the PWD), 
         it will append the path to the calcium imaging directory to the front of the filename."""
-        
+
         print(f"Converting these filepaths into caiman movies: {filenames}")
         if filenames is None:
             filenames = self.all_movie_filepaths
 
         # Convert PosixPath objects to strings if necessary.
         if isinstance(filenames, list):
-            f_names: List[str] = [str(f) for f in filenames]
+            f_names: list[str] = [str(f) for f in filenames]
             print(f_names)
             m: movie = cm.load_movie_chain(f_names)
         else:
@@ -337,8 +334,8 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
             m = cm.load(f_name)
 
         return m
-    
-    def _get_specific_filepaths(self, filenames: List[str]) -> Optional[List[Union[str, Path]]]:
+
+    def _get_specific_filepaths(self, filenames: list[str]) -> list[str | Path] | None:
         """Filter movie paths to only those matching provided filenames.
         
         Args:
@@ -349,8 +346,8 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
         """
         if filenames is None or not isinstance(filenames, list) or len(filenames) == 0:
             return None
-        
-        matched_paths: List[Union[str, Path]] = []
+
+        matched_paths: list[str | Path] = []
 
         for path in self.all_movie_filepaths:
             basename = os.path.basename(str(path))  # Extract basename (e.g., '0.avi' from '/path/to/0.avi')
@@ -368,10 +365,10 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
         """Returns the directory where calcium imaging data is stored."""
         return str(self.metadata['calcium imaging directory']) if self.metadata else ""
 
-    def _find_file_paths(self, suffix: str, prefix: str = "") -> Union[str, List[str]]:
+    def _find_file_paths(self, suffix: str, prefix: str = "") -> str | list[str]:
         """Generalized helper to find files with the given suffix and prefix."""
         filepaths = PathFinder.find(directory=self._calcium_imaging_directory, suffix=suffix, prefix=prefix)
-        
+
         #handle the case where filepaths is a list with only one item
         if isinstance(filepaths, list) and len(filepaths) == 1:
             return str(filepaths[0])
@@ -379,7 +376,7 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
             return [str(f) for f in filepaths]
         return str(filepaths)
 
-    def _find_metadata_paths(self) -> List[str]:
+    def _find_metadata_paths(self) -> list[str]:
         """Finds and returns the metadata JSON file path."""
         res = self._find_file_paths(suffix=".json", prefix="metaData")
         return [res] if isinstance(res, str) else res
@@ -389,11 +386,11 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
         res = self._find_file_paths(suffix=".csv", prefix="timeStamps")
         return res[0] if isinstance(res, list) and res else str(res)
 
-    def _find_movie_file_paths(self) -> List[str]:
+    def _find_movie_file_paths(self) -> list[str]:
         """Finds and returns the list of movie file paths (.avi)."""
         res = self._find_file_paths(suffix=".avi")
         return [res] if isinstance(res, str) else res
-        
+
     def _extract_numeric_suffix(self, filename: str) -> str:
         """
         Extracts and returns the substring of filename starting from the first digit.
@@ -403,4 +400,3 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
             if char.isdigit():
                 return filename[i:]
         return filename
-        

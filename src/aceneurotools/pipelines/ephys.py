@@ -1,30 +1,24 @@
+import argparse
+import logging
+import sys
+import tkinter
+from pathlib import Path
+
 from aceneurotools.ephys.channel_worker import ChannelWorker
 from aceneurotools.ephys.ephys_data_manager import EphysDataManager
-from aceneurotools.ephys.rhs2116_data_manager import RHS2116DataManager
-from aceneurotools.ephys.neuralynx_data_manager import NeuralynxDataManager
-from aceneurotools.ephys.visualizer import Visualizer
-from aceneurotools.shared.experiment_data_manager import ExperimentDataManager
-from typing import List, Optional, Union, Dict, Any
-from pathlib import Path
-from aceneurotools.shared import file_downloader
-import logging
-import argparse
-import sys
-import matplotlib
-import tkinter
-from aceneurotools.shared.exceptions import (
-    AceNeuroError,
-    DataNotFoundError,
-    PipelineExecutionError,
-    print_cli_error,
-)
+from aceneurotools.ephys.ephys_loader import load_ephys_for_analysis
 from aceneurotools.shared.cli_utils import (
     apply_headless_policy,
     build_run_params,
     run_allowed_keys,
     validate_run_params,
 )
-
+from aceneurotools.shared.exceptions import (
+    AceNeuroError,
+    PipelineExecutionError,
+    print_cli_error,
+)
+from aceneurotools.shared.experiment_data_manager import ExperimentDataManager
 
 
 class EphysPipeline:
@@ -42,23 +36,23 @@ class EphysPipeline:
     def __init__(self) -> None:
         """Initialize the EphysPipeline."""
         pass
-    
+
 
 
     def run(
-        self, 
+        self,
         line_num: int,
-        project_path: Optional[Union[str, Path]] = None,
-        data_path: Optional[Union[str, Path]] = None,
+        project_path: str | Path | None = None,
+        data_path: str | Path | None = None,
         channel_name: str = 'PFCLFPvsCBEEG',
         remove_artifacts: bool = False,
-        filter_type: Optional[str] = None, # If desired, enter the type, eg "butter"
-        filter_range: List[float] = [0.5, 4],
+        filter_type: str | None = None, # If desired, enter the type, eg "butter"
+        filter_range: list[float] = [0.5, 4],
         compute_phases: bool = False,
         plot_channel: bool = False,
         plot_spectrogram: bool = False,
         plot_phases: bool = False,
-        logging_level: Union[str, int] = "CRITICAL",
+        logging_level: str | int = "CRITICAL",
         headless: bool = False
     ) -> None:
         """Run the ephys analysis pipeline for a single channel.
@@ -81,121 +75,36 @@ class EphysPipeline:
             logging_level: Logging verbosity ('DEBUG', 'INFO', 'CRITICAL').
             headless: If True, disable GUI and use Agg backend.
         """
-        
+
+        from aceneurotools.shared.plotting import set_backend
+        set_backend(headless=headless)
         if headless:
             print("Running in HEADLESS mode. Plotting disabled.", flush=True)
             plot_channel = False
             plot_spectrogram = False
             plot_phases = False
-            matplotlib.use('Agg')
         elif hasattr(tkinter, '_default_root') and tkinter._default_root:
             tkinter._default_root.destroy()
-            matplotlib.use('Qt5Agg')
-
 
         logger = logging.getLogger(__name__)
         logger.setLevel(logging_level)
 
-        # Set the filter boolean based on if filter_type is None
-        filter_bool = True if filter_type is not None else False
+        filter_bool = filter_type is not None
 
-        try:
-            experiment_data_manager = ExperimentDataManager(
-                line_num,
-                project_path=project_path,
-                data_path=data_path,
-                logging_level=logging_level,
-            )
-        except FileNotFoundError as e:
-            raise DataNotFoundError(
-                "Project metadata files were not found for ephys run.",
-                stage="load_experiment_metadata",
-                line_num=line_num,
-                project_path=project_path,
-                data_path=data_path,
-                hint="Ensure project_path points to a directory containing experiments.csv.",
-            ) from e
-        except Exception as e:
-            raise PipelineExecutionError(
-                "Failed to initialize ExperimentDataManager for ephys run.",
-                stage="load_experiment_metadata",
-                line_num=line_num,
-                project_path=project_path,
-                data_path=data_path,
-                hint="Check metadata formatting and path configuration.",
-            ) from e
+        # Delegate all loading logic to the ephys-layer function so that
+        # multimodal/ can call that function directly without importing pipelines/.
+        self.ephys_data_manager = load_ephys_for_analysis(
+            line_num=line_num,
+            project_path=project_path,
+            data_path=data_path,
+            channel_names=[channel_name],
+            filter_type=filter_type,
+            filter_range=filter_range,
+            remove_artifacts=remove_artifacts,
+            logging_level=logging_level,
+        )
 
-        # Extract the one relevant piece of information that EphysDataManager needs from metadata--the path to the ephys directory
-        ephys_directory = experiment_data_manager.get_ephys_directory()
-        
-        # Verify we downloaded the Ephys Data
-        experiments_csv = experiment_data_manager.project_path / "experiments.csv"
-        try:
-            file_downloader.verify_file_by_line(
-                line_num=line_num,
-                csv_path=experiments_csv,
-                do_type="ephys",
-                base_file_path=experiment_data_manager.data_path,
-            )
-        except Exception as e:
-            raise PipelineExecutionError(
-                "Ephys data verification failed.",
-                stage="verify_ephys_data",
-                line_num=line_num,
-                project_path=project_path,
-                data_path=data_path,
-                hint="Confirm ephys files are present and accessible from metadata paths.",
-            ) from e
-
-        if ephys_directory is None:
-             raise ValueError("Ephys directory could not be determined from experiment metadata.")
-
-        # Create instance of EphysDataManager, process the block into channels
-        try:
-            self.ephys_data_manager = EphysDataManager.create(
-                ephys_directory=ephys_directory,
-                auto_import_ephys_block=True,
-                auto_process_block=False,
-                auto_compute_phases=False,
-            )
-            self.ephys_data_manager.process_ephys_block_to_channels(
-                remove_artifacts=remove_artifacts,
-                channels=[channel_name],
-            )
-        except Exception as e:
-            raise PipelineExecutionError(
-                "Failed to import/process ephys block into channels.",
-                stage="process_ephys_block",
-                line_num=line_num,
-                project_path=project_path,
-                data_path=data_path,
-                hint="Verify ephys channel metadata and raw recording format compatibility.",
-            ) from e
-
-        logger.debug(self.ephys_data_manager.channels)
-
-        # If filter_type is not None, filter the signal and add it to ephys_data_manager.channels[channel_name].signal_filtered
-        if filter_bool:
-            print(f'Filtering ephys data with filter type "{filter_type}" and cut {filter_range}')
-            try:
-                self.ephys_data_manager.filter_ephys(
-                    channel_name,
-                    ftype=str(filter_type),
-                    cut=filter_range,
-                    replace_signal=False,
-                )
-            except Exception as e:
-                raise PipelineExecutionError(
-                    "Ephys filtering failed.",
-                    stage="filter_ephys",
-                    line_num=line_num,
-                    project_path=project_path,
-                    data_path=data_path,
-                    hint="Check filter_type/filter_range for valid values.",
-                ) from e
-        
         if compute_phases:
-            # Compute phases after filtering
             try:
                 self.ephys_data_manager.compute_phases_all_channels()
             except Exception as e:
@@ -208,7 +117,6 @@ class EphysPipeline:
                     hint="Ensure filtered channel data is available before computing phases.",
                 ) from e
 
-        # Extract correct channel and visualize
         logger.info(f"Visualizing channel: {channel_name}")
         try:
             channel = self.ephys_data_manager.get_channel(channel_name)
@@ -222,28 +130,27 @@ class EphysPipeline:
                 hint="Confirm channel_name appears in experiment metadata and imported channels.",
             ) from e
         channel_worker = ChannelWorker(channel)
-        
 
         if plot_channel:
-            channel_worker.plot_channel(use_filtered = filter_bool)
+            channel_worker.plot_channel(use_filtered=filter_bool)
 
         if plot_spectrogram:
-            channel_worker.plot_spectrogram(use_filtered = filter_bool, plot_events=False)  
-            
+            channel_worker.plot_spectrogram(use_filtered=filter_bool, plot_events=False)
+
         if plot_phases:
             channel_worker.plot_phases()
-            
+
 
 
     def run_all_channels(
-        self, 
+        self,
         line_num: int,
         remove_artifacts: bool = False,
-        filter_type: Optional[str] = None, # if desired, enter the type, eg "butter"
-        filter_range: List[float] = [0.5, 4],
+        filter_type: str | None = None, # if desired, enter the type, eg "butter"
+        filter_range: list[float] = [0.5, 4],
         plot_channel: bool = False,
         plot_spectrogram: bool = False,
-        logging_level: Union[str, int] = "CRITICAL"
+        logging_level: str | int = "CRITICAL"
     ) -> None:
         """Run ephys analysis pipeline for all channels in an experiment.
         
@@ -259,11 +166,11 @@ class EphysPipeline:
             plot_spectrogram: If True, plot spectrograms.
             logging_level: Logging verbosity.
         """
-        
+
 
         logger = logging.getLogger(__name__)
         logger.setLevel(logging_level)
-        
+
         # set the filter boolean based on if filter_type is None
         filter: bool = True if filter_type is not None else False
 
@@ -272,11 +179,72 @@ class EphysPipeline:
         if experiment_data_manager.metadata is None:
              raise ValueError(f"Metadata could not be loaded for line {line_num}")
         channels_str = experiment_data_manager.metadata['LFP and EEG CSCs']
-        channels_list: List = [*channels_str] # unpack
-        
+        channels_list: list = [*channels_str] # unpack
+
         ephys_directory = experiment_data_manager.get_ephys_directory()
 
 
+    def run_multiple_channels(
+        self,
+        line_num: int,
+        channel_names: list[str],
+        project_path: str | Path | None = None,
+        data_path: str | Path | None = None,
+        remove_artifacts: bool = False,
+        filter_type: str | None = None,
+        filter_range: list[float] = [0.5, 4],
+        logging_level: str | int = "CRITICAL",
+        headless: bool = False,
+    ) -> None:
+        """Run the ephys pipeline loading the recording block exactly once.
+
+        Unlike calling :meth:`run` once per channel (which reads the raw file
+        from disk each time), this method loads the ephys block a single time
+        and then processes all requested *channel_names* from it.  This is
+        critical for multi-GB recordings where repeated :py:meth:`read_block`
+        calls dominate wall-clock time.
+
+        After this method returns, every channel in *channel_names* is
+        available via ``self.ephys_data_manager.get_channel(name)``.
+
+        Args:
+            line_num: Experiment row in ``experiments.csv``.
+            channel_names: List of channel names to load and (optionally) filter.
+                All names must be present in the recording file.
+            project_path: Directory containing ``experiments.csv``.
+            data_path: Base directory for raw experimental data.
+            remove_artifacts: If ``True``, apply Hann-window artifact removal.
+            filter_type: Filter family (``'butter'``, ``'fir'``) or ``None``
+                to skip filtering.
+            filter_range: ``[low_hz, high_hz]`` bandpass cutoffs.
+            logging_level: Python logging level string or integer.
+            headless: If ``True``, disable GUI and use the Agg backend.
+
+        Raises:
+            :class:`~aceneurotools.shared.exceptions.DataNotFoundError`: If
+                experiment metadata files are missing.
+            :class:`~aceneurotools.shared.exceptions.PipelineExecutionError`: On
+                any loading, processing, or filtering failure.
+        """
+        from aceneurotools.shared.plotting import set_backend
+        set_backend(headless=headless)
+        if not headless and hasattr(tkinter, "_default_root") and tkinter._default_root:
+            tkinter._default_root.destroy()
+
+        logger = logging.getLogger(__name__)
+        logger.setLevel(logging_level)
+
+        # Delegate all loading logic to the ephys-layer function (single disk read).
+        self.ephys_data_manager = load_ephys_for_analysis(
+            line_num=line_num,
+            project_path=project_path,
+            data_path=data_path,
+            channel_names=channel_names,
+            filter_type=filter_type,
+            filter_range=filter_range,
+            remove_artifacts=remove_artifacts,
+            logging_level=logging_level,
+        )
 
 
 
@@ -301,9 +269,9 @@ Examples:
                         help="Base path for raw experimental data")
     parser.add_argument('--headless', action='store_true',
                         help="Run in headless mode (no GUI)")
-    
+
     args = parser.parse_args()
-    
+
     # Default parameters
     defaults = {
         'channel_name': 'PFCLFPvsCBEEG',
@@ -316,7 +284,7 @@ Examples:
         'plot_phases': False,
         'logging_level': "DEBUG"
     }
-    
+
     from aceneurotools.shared.config_utils import load_analysis_params
     run_params = build_run_params(
         defaults=defaults,

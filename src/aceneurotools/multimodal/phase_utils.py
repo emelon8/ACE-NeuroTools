@@ -1,17 +1,18 @@
+from typing import TYPE_CHECKING, Any, cast
+
 import numpy as np
+
 from aceneurotools.shared import misc_functions
-import pandas as pd
-from typing import Optional, List, Union, Tuple, Any, Dict, TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from aceneurotools.ephys.channel import Channel
 
 
 def ephys_phase_ca_events(
-    ephys_idx_ca_events: Dict[int, np.ndarray], 
-    channel_object: 'Channel', 
-    neurons: Union[str, List[int]] = 'all'
-) -> Dict[int, np.ndarray]:
+    ephys_idx_ca_events: dict[int, np.ndarray],
+    channel_object: 'Channel',
+    neurons: str | list[int] = 'all'
+) -> dict[int, np.ndarray]:
     """Compare calcium events to the phase extracted from a specified ephys channel.
     channel_object: channel object containing channel_name, signal, time_vector, smapling_rate, and the phases of the signal
     neurons: the neuron number (i.e., the integer row number in self.estimates.C, starting with 0) of the neuron you want to compare. If you want to compare all of the neurons in the recording, pass 'all' as the argument."""
@@ -22,25 +23,25 @@ def ephys_phase_ca_events(
         neurons_list = [int(neurons)]
     else:
         neurons_list = [int(n) for n in neurons]
-    
+
     if channel_object.phases is None:
         raise ValueError(f"Phases for channel {channel_object.name} have not been calculated.")
-        
-    ca_events_phases_ephys: Dict[int, np.ndarray] = {}
+
+    ca_events_phases_ephys: dict[int, np.ndarray] = {}
     for k in neurons_list:
         phases_list = []
         for j in range(len(ephys_idx_ca_events[k])):
             phases_list.append(channel_object.phases[ephys_idx_ca_events[k][j]])
         ca_events_phases_ephys[k] = np.array(phases_list)
-        
+
     return ca_events_phases_ephys
 
 
 def miniscope_phase_ca_events(
-    ca_events_idx: Dict[int, np.ndarray], 
-    miniscope_phases: np.ndarray, 
-    neurons: Union[str, List[int], int] = 'all'
-) -> Dict[int, np.ndarray]:
+    ca_events_idx: dict[int, np.ndarray],
+    miniscope_phases: np.ndarray,
+    neurons: str | list[int] | int = 'all'
+) -> dict[int, np.ndarray]:
     """Compare calcium events to the phase extracted from the mean fluorescence of the (cropped) miniscope recording.
     miniscope_phases: the phase calculatied from the movie that is given to MiniscopePostprocessor
     neurons: the neuron number (i.e., the integer row number in self.estimates.C, starting with 0) of the neuron you want to compare. If you want to compare all of the neurons in the recording, pass 'all' as the argument."""
@@ -52,27 +53,27 @@ def miniscope_phase_ca_events(
     else:
         neurons_list = [int(n) for n in neurons]
 
-    ca_events_phases_miniscope: Dict[int, np.ndarray] = {}
+    ca_events_phases_miniscope: dict[int, np.ndarray] = {}
     for k in neurons_list:
         phases_list = []
         for j in range(len(ca_events_idx[k])):
             phases_list.append(miniscope_phases[ca_events_idx[k][j]])
         ca_events_phases_miniscope[k] = np.array(phases_list)
-    
+
     return ca_events_phases_miniscope
 
-    
-    
+
+
 def phase_ca_events_histogram(
-    ca_events_phases: Dict[int, np.ndarray], 
-    neurons: Union[str, List[int], int] = 'all', 
-    bins: int = 18, 
-    hist_range: Tuple[float, float] = (-np.pi, np.pi), 
-    density: bool = False, 
-    mean_density: bool = False, 
-    combined: bool = True, 
+    ca_events_phases: dict[int, np.ndarray],
+    neurons: str | list[int] | int = 'all',
+    bins: int = 18,
+    hist_range: tuple[float, float] = (-np.pi, np.pi),
+    density: bool = False,
+    mean_density: bool = False,
+    combined: bool = True,
     plot_histogram: bool = True
-) -> Union[Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, float, float], Tuple[Dict[int, np.ndarray], Dict[int, np.ndarray]]]:
+) -> tuple[np.ndarray, np.ndarray] | tuple[np.ndarray, np.ndarray, float, float] | tuple[dict[int, np.ndarray], dict[int, np.ndarray]]:
     """Compute the histogram of calcium events/probability density vs phase.
     Leave the parameters in their default values if you want to plot a combined histogram of phase counts of all neurons
 
@@ -85,9 +86,9 @@ def phase_ca_events_histogram(
     combined: a boolean that determines whether to combine the data from all of the specified neurons or whether to create histograms for each of the specified neurons.
     
     """
-        
+
     if neurons != 'all' and not isinstance(neurons, list):
-        neurons_list_hist: List[int] = [int(neurons)]
+        neurons_list_hist: list[int] = [int(neurons)]
     elif isinstance(neurons, list):
         neurons_list_hist = [int(n) for n in neurons]
     else:
@@ -97,12 +98,12 @@ def phase_ca_events_histogram(
             #calculates histograms but does not plot them
             hist, bin_edges = _calculate_histograms_without_plotting(ca_events_phases, neurons_list_hist, bins, hist_range, density, combined)
             return cast(Any, (hist, bin_edges))
-        
+
     if mean_density and neurons == 'all':
         #plot the mean of the density histogram of phases of all neurons
         hist_tuple = _mean_density_histogram(ca_events_phases, neurons, bins, hist_range)
         return cast(Any, hist_tuple)
-            
+
     if combined:
         if neurons == 'all':
             if density:
@@ -111,7 +112,7 @@ def phase_ca_events_histogram(
             else:
                 #plot the counts of each phase of all neurons
                 hist_ret, bin_edges_ret = _counts_histogram(ca_events_phases, neurons, bins, hist_range)
-                
+
         else: # neurons != 'all'
             if density:
                 #plot probability density of phases of your selected neurons WARNING THIS FUNCTION MAY NOT WORK AS INTENDED
@@ -119,25 +120,25 @@ def phase_ca_events_histogram(
             else:
                 #plot the counts of each phase of your selected neurons
                 hist_ret, bin_edges_ret = _neuron_subset_counts_histogram(ca_events_phases, neurons_list_hist, bins, hist_range)
-                
+
     else: # not combined
         # Plot each of the neurons as separate histograms either all together or a subset of the neurons
         if neurons == 'all':
             hist_ret, bin_edges_ret = _individual_neuron_histograms(ca_events_phases, bins, hist_range, density)
         else:
             hist_ret, bin_edges_ret = _neuron_subset_individual_neuron_histograms(ca_events_phases, neurons_list_hist, bins, hist_range, density)
-    
+
     return cast(Any, (hist_ret, bin_edges_ret))
-                    
+
 
 #The following helper methods are all intended to compute histograms using the parameters of the above function
 #This method directly below, in addition to computing and plotting a histogram, also computes mean vectors
 def _mean_density_histogram(
-    ca_events_phases: Dict[int, np.ndarray], 
-    neurons: Union[str, List[int], int], 
-    bins: int, 
-    hist_range: Tuple[float, float]
-) -> Tuple[np.ndarray, np.ndarray, float, float]:
+    ca_events_phases: dict[int, np.ndarray],
+    neurons: str | list[int] | int,
+    bins: int,
+    hist_range: tuple[float, float]
+) -> tuple[np.ndarray, np.ndarray, float, float]:
     """Compute mean density histogram with mean phase vectors.
     
     Args:
@@ -169,7 +170,7 @@ def _mean_density_histogram(
         ax_plot = ax[0]
     else:
         ax_plot = ax
-        
+
     ax_plot.hist(cast(Any, bin_edges[:-1]), bins=cast(Any, bin_edges), weights=cast(Any, hist))
     ax_plot.set_xlabel('Phase (rad)')
     ax_plot.set_ylabel('Events')
@@ -179,16 +180,16 @@ def _mean_density_histogram(
     mean_neuron_vector = np.mean(mean_ca_events_vectors, axis=0)
     mean_neuron_vector_theta = np.arctan2(mean_neuron_vector[1], mean_neuron_vector[0])
     mean_neuron_vector_radius = np.sqrt(mean_neuron_vector[0]**2 + mean_neuron_vector[1]**2)
-    
+
     return hist, bin_edges, mean_neuron_vector_theta, mean_neuron_vector_radius
-        
-    
+
+
 def _density_histogram(
-    ca_events_phases: Dict[int, np.ndarray], 
-    neurons: Union[str, List[int], int], 
-    bins: int, 
-    hist_range: Tuple[float, float]
-) -> Tuple[np.ndarray, np.ndarray]:
+    ca_events_phases: dict[int, np.ndarray],
+    neurons: str | list[int] | int,
+    bins: int,
+    hist_range: tuple[float, float]
+) -> tuple[np.ndarray, np.ndarray]:
     """Compute stacked density histogram across neurons."""
     # Barstacked density histogram across neurons
     ca_events_phases_hist_list = list(ca_events_phases.values())
@@ -197,17 +198,17 @@ def _density_histogram(
         ax_plot = ax[0]
     else:
         ax_plot = ax
-        
+
     hist, bin_edges, _ = ax_plot.hist(ca_events_phases_hist_list, bins=bins, range=hist_range, density=True, histtype='barstacked')
     return cast(Any, (hist, bin_edges))
 
 
 def _counts_histogram(
-    ca_events_phases: Dict[int, np.ndarray], 
-    neurons: Union[str, List[int], int], 
-    bins: int, 
-    hist_range: Tuple[float, float]
-) -> Tuple[np.ndarray, np.ndarray]:
+    ca_events_phases: dict[int, np.ndarray],
+    neurons: str | list[int] | int,
+    bins: int,
+    hist_range: tuple[float, float]
+) -> tuple[np.ndarray, np.ndarray]:
     """Compute event counts histogram pooled across all neurons."""
     all_ca_events_phases = np.array([])
     for k in list(ca_events_phases.keys()):
@@ -217,17 +218,17 @@ def _counts_histogram(
         ax_plot = ax[0]
     else:
         ax_plot = ax
-        
+
     hist, bin_edges, _ = ax_plot.hist(all_ca_events_phases, bins=bins, range=hist_range)
     return cast(Any, (hist, bin_edges))
 
 
 def _neuron_subset_density_histogram(
-    ca_events_phases: Dict[int, np.ndarray], 
-    neurons: List[int], 
-    bins: int, 
-    hist_range: Tuple[float, float]
-) -> Tuple[np.ndarray, np.ndarray]:
+    ca_events_phases: dict[int, np.ndarray],
+    neurons: list[int],
+    bins: int,
+    hist_range: tuple[float, float]
+) -> tuple[np.ndarray, np.ndarray]:
     """Compute density histogram for a subset of neurons."""
     ca_events_phases_hist = {}
     for k in neurons:
@@ -237,17 +238,17 @@ def _neuron_subset_density_histogram(
         ax_plot = ax[0]
     else:
         ax_plot = ax
-        
+
     hist, bin_edges, _ = ax_plot.hist(list(ca_events_phases_hist.values()), bins=bins, range=hist_range, density=True, histtype='barstacked')
     return cast(Any, (hist, bin_edges))
 
 
 def _neuron_subset_counts_histogram(
-    ca_events_phases: Dict[int, np.ndarray], 
-    neurons: List[int], 
-    bins: int, 
-    hist_range: Tuple[float, float]
-) -> Tuple[np.ndarray, np.ndarray]:
+    ca_events_phases: dict[int, np.ndarray],
+    neurons: list[int],
+    bins: int,
+    hist_range: tuple[float, float]
+) -> tuple[np.ndarray, np.ndarray]:
     """Compute counts histogram for a subset of neurons."""
     all_ca_events_phases = np.array([])
     for k in neurons:
@@ -257,17 +258,17 @@ def _neuron_subset_counts_histogram(
         ax_plot = ax[0]
     else:
         ax_plot = ax
-        
+
     hist, bin_edges, _ = ax_plot.hist(all_ca_events_phases, bins=bins, range=hist_range)
     return cast(Any, (hist, bin_edges))
 
 
 def _individual_neuron_histograms(
-    ca_events_phases: Dict[int, np.ndarray], 
-    bins: int, 
-    hist_range: Tuple[float, float], 
+    ca_events_phases: dict[int, np.ndarray],
+    bins: int,
+    hist_range: tuple[float, float],
     density: bool
-) -> Tuple[Dict[int, np.ndarray], Dict[int, np.ndarray]]:
+) -> tuple[dict[int, np.ndarray], dict[int, np.ndarray]]:
     """Create individual histograms for each neuron."""
     ax = []
     hist = {}
@@ -286,12 +287,12 @@ def _individual_neuron_histograms(
 
 
 def _neuron_subset_individual_neuron_histograms(
-    ca_events_phases: Dict[int, np.ndarray], 
-    neurons: List[int], 
-    bins: int, 
-    hist_range: Tuple[float, float], 
+    ca_events_phases: dict[int, np.ndarray],
+    neurons: list[int],
+    bins: int,
+    hist_range: tuple[float, float],
     density: bool
-) -> Tuple[Dict[int, np.ndarray], Dict[int, np.ndarray]]:
+) -> tuple[dict[int, np.ndarray], dict[int, np.ndarray]]:
     """Create individual histograms for a subset of neurons."""
     ax = []
     hist = {}
@@ -307,13 +308,13 @@ def _neuron_subset_individual_neuron_histograms(
 
 
 def _calculate_histograms_without_plotting(
-    ca_events_phases: Dict[int, np.ndarray], 
-    neurons: Union[str, List[int], int], 
-    bins: int, 
-    hist_range: Tuple[float, float], 
-    density: bool, 
+    ca_events_phases: dict[int, np.ndarray],
+    neurons: str | list[int] | int,
+    bins: int,
+    hist_range: tuple[float, float],
+    density: bool,
     combined: bool
-) -> Tuple[Union[np.ndarray, Dict[int, np.ndarray]], Union[np.ndarray, Dict[int, np.ndarray]]]:
+) -> tuple[np.ndarray | dict[int, np.ndarray], np.ndarray | dict[int, np.ndarray]]:
     """Compute phase histograms without generating plots.
     
     Args:
@@ -327,16 +328,16 @@ def _calculate_histograms_without_plotting(
     Returns:
         Tuple of (hist, bin_edges) - arrays if combined, dicts if not.
     """
-    hist_dict: Dict[int, np.ndarray] = {}
-    bin_edges_dict: Dict[int, np.ndarray] = {}
-    
+    hist_dict: dict[int, np.ndarray] = {}
+    bin_edges_dict: dict[int, np.ndarray] = {}
+
     if neurons == 'all':
         neurons_list = list(ca_events_phases.keys())
     elif not isinstance(neurons, list):
         neurons_list = [int(neurons)]
     else:
         neurons_list = [int(n) for n in neurons]
-        
+
     if combined:
         all_ca_events_phases = np.array([])
         for k in neurons_list:
@@ -349,7 +350,6 @@ def _calculate_histograms_without_plotting(
             hist_dict[k] = h
             bin_edges_dict[k] = b
         return hist_dict, bin_edges_dict
-    
-    
-    
-    
+
+
+

@@ -1,9 +1,34 @@
-import pandas as pd
 import ast
-from datetime import datetime
 import json
-from typing import Dict, Any, Optional, Union, List
+from datetime import datetime
 from pathlib import Path
+from typing import Any
+
+import pandas as pd
+
+# ---------------------------------------------------------------------------
+# CSV column schema constants
+# ---------------------------------------------------------------------------
+
+# Columns that must remain as plain strings (no numeric coercion).
+# Extend via the ``extra_string_columns`` parameter to :meth:`CSVWorker.convert_data_types`
+# rather than by modifying this set — that keeps schema evolution localised
+# to the call site without touching shared code.
+STRING_COLUMNS: frozenset = frozenset({
+    'id',
+    'calcium imaging directory',
+    'ephys directory',
+    'method_deconvolution',
+    'method_init',
+    'border_nan',
+    'comments',
+})
+
+# Columns whose string value should be split on ';' to produce a list.
+SEMICOLON_LIST_COLUMNS: frozenset = frozenset({
+    'LFP and EEG CSCs',
+})
+
 
 class CSVWorker:
     """Utility class for reading and parsing experiment CSV files.
@@ -13,7 +38,7 @@ class CSVWorker:
     """
 
     @staticmethod
-    def csv_row_to_dict(csv_file: Union[str, Path], line_num: Union[int, str]) -> Optional[Dict[str, Any]]:
+    def csv_row_to_dict(csv_file: str | Path, line_num: int | str) -> dict[str, Any] | None:
         """Load a single row from a CSV file as a dictionary.
         
         Args:
@@ -28,14 +53,17 @@ class CSVWorker:
         """
         import csv as csv_mod
         from typing import cast
-        
+
         path_obj = Path(csv_file)
-        
+
         # Validate CSV structure before pandas reads it.
         try:
             with open(path_obj) as f:
                 reader = csv_mod.reader(f)
-                header = next(reader)
+                try:
+                    header = next(reader)
+                except StopIteration:
+                    return None  # empty file
                 for row_num, data_row in enumerate(reader, start=2):
                     if not any(data_row):  # skip empty rows
                         continue
@@ -50,52 +78,93 @@ class CSVWorker:
         except FileNotFoundError:
             print(f"File {csv_file} not found")
             return None
-        
+
         try:
             df = pd.read_csv(path_obj)
+
+            # Check for the required 'line number' column before querying.
+            if 'line number' not in df.columns:
+                available = list(df.columns)
+                raise ValueError(
+                    f"Required column 'line number' not found in {csv_file}.\n"
+                    f"  Your CSV has columns: {available}\n"
+                    "  ACE-NeuroTools expects exact column names.  Run\n"
+                    "    python -m aceneurotools.init --project-path <dir>\n"
+                    "  to generate an experiments_template.csv showing all "
+                    "required column headers."
+                )
+
             line_num_str = str(line_num)
             row = df.loc[df['line number'].astype(str) == line_num_str]
             if row.empty:
-                raise ValueError(f"Line number {line_num} (as string: '{line_num_str}') not found")
+                raise ValueError(
+                    f"Subject line number {line_num} not found in {csv_file}.\n"
+                    "  Check that the 'line number' column contains this value "
+                    "and that there are no leading/trailing spaces."
+                )
             res = row.squeeze()
             if hasattr(res, 'to_dict'):
-                return cast(Dict[str, Any], res.to_dict())
+                return cast(dict[str, Any], res.to_dict())
             return None
         except FileNotFoundError:
-            print(f"File {csv_file} not found")
+            print(
+                f"experiments.csv not found: {csv_file}\n"
+                "  Ensure --project-path points to the directory containing "
+                "experiments.csv."
+            )
             return None
         except (pd.errors.EmptyDataError, pd.errors.ParserError) as e:
-            print(f"Error parsing CSV: {e}")
+            print(f"Error parsing CSV {csv_file}: {e}")
             return None
 
 
     @staticmethod
-    def convert_data_types(params_dict: Dict[str, Any]) -> Dict[str, Any]:
+    def convert_data_types(
+        params_dict: dict[str, Any],
+        extra_string_columns: frozenset | None = None,
+        extra_list_columns: frozenset | None = None,
+    ) -> dict[str, Any]:
         """Convert string values in a dict to appropriate Python types.
-        
+
         Handles lists, tuples, booleans, floats, dates, and None values.
-        
+        Columns in :data:`STRING_COLUMNS` are kept as plain strings.
+        Columns in :data:`SEMICOLON_LIST_COLUMNS` are split on ``';'`` to
+        produce a list.
+
+        The built-in column sets can be extended without modifying source code
+        by passing *extra_string_columns* or *extra_list_columns*.  This
+        enables callers to register additional schema-specific columns that
+        should bypass numeric coercion.
+
         Args:
             params_dict: Dictionary with string values from CSV.
-            
+            extra_string_columns: Optional :class:`frozenset` of additional
+                column names that must remain as plain strings.  Merged with
+                :data:`STRING_COLUMNS` at call time.
+            extra_list_columns: Optional :class:`frozenset` of additional
+                column names whose values should be split on ``';'`` to
+                produce a list.  Merged with :data:`SEMICOLON_LIST_COLUMNS`.
+
         Returns:
             Dict with values converted to appropriate types.
         """
-        non_numeric_keys = ['id', 'calcium imaging directory', 'ephys directory',
-                           'method_deconvolution', 'method_init', 'border_nan', 'LFP and EEG CSCs']
-        converted_params: Dict[str, Any] = {}
-        
+        string_cols = STRING_COLUMNS | (extra_string_columns or frozenset())
+        list_cols = SEMICOLON_LIST_COLUMNS | (extra_list_columns or frozenset())
+
+        converted_params: dict[str, Any] = {}
+
         for key, value in params_dict.items():
-            if key in non_numeric_keys:
-                if key == 'LFP and EEG CSCs':
-                    converted_params[key] = str(params_dict[key]).split(";")
-                    continue
+            if key in list_cols:
+                converted_params[key] = str(value).split(";")
+                continue
+
+            if key in string_cols:
                 converted_params[key] = value
                 continue
-            
+
             converted_value = CSVWorker._convert_value(value, key)
             converted_params[key] = converted_value
-    
+
         return converted_params
 
     @staticmethod
@@ -109,7 +178,7 @@ class CSVWorker:
 
         # Check if the value is already a float
         if isinstance(raw_value, float):
-            if pd.isna(raw_value): 
+            if pd.isna(raw_value):
                 return None
             else:
                 return raw_value
@@ -155,10 +224,10 @@ class CSVWorker:
             return float(raw_value)
         except ValueError:
             return raw_value
-        
+
 
     @staticmethod
-    def _convert_date(date_str: Any) -> Union[datetime, Any]:
+    def _convert_date(date_str: Any) -> datetime | Any:
         """
         Converts a date string in the format YYMMDD to a datetime object.
         

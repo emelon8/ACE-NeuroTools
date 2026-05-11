@@ -1,5 +1,7 @@
+from typing import Any
+
 import numpy as np
-from typing import Dict, Any, Optional
+
 
 class Channel:
     """Represents a single electrophysiology recording channel.
@@ -21,11 +23,11 @@ class Channel:
     signal: np.ndarray
     sampling_rate: float
     time_vector: np.ndarray
-    events: Dict[str, Any]
-    signal_filtered: Optional[np.ndarray]
-    phases: Optional[np.ndarray]
-    
-    def __init__(self, name: str, signal: np.ndarray, sampling_rate: float, time_vector: np.ndarray, events: Dict[str, Any]):
+    events: dict[str, Any]
+    signal_filtered: np.ndarray | None
+    phases: np.ndarray | None
+
+    def __init__(self, name: str, signal: np.ndarray, sampling_rate: float, time_vector: np.ndarray, events: dict[str, Any]):
         """Initialize a Channel with signal data and metadata.
         
         Args:

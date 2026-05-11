@@ -1,14 +1,17 @@
+from typing import TYPE_CHECKING
+
 import caiman as cm
-import numpy as np
-from aceneurotools.miniscope.projections import Projections
 import matplotlib.pyplot as plt
-from scipy.signal import detrend
+import numpy as np
 from caiman import movie as cm_movie
+from scipy.signal import detrend
 from tqdm import tqdm
+
 from aceneurotools.miniscope.gui_utils import crop_gui
 from aceneurotools.miniscope.movie_io import MovieIO
+from aceneurotools.miniscope.pipeline_results import PreprocessingResult
+from aceneurotools.miniscope.projections import Projections
 from aceneurotools.shared.exceptions import ProcessingError
-from typing import List, Optional, Union, Dict, Any, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
@@ -28,6 +31,7 @@ class MiniscopePreprocessor:
 
     data_manager: 'MiniscopeDataManager'
     frame_rate: float
+    result: PreprocessingResult  # populated after preprocess_calcium_movie() returns
 
     def __init__(self, data_manager: 'MiniscopeDataManager') -> None:
         """Initialize preprocessor with data manager.
@@ -37,25 +41,25 @@ class MiniscopePreprocessor:
         """
         self.data_manager = data_manager
         self.frame_rate = float(data_manager.movie.fr)
-    
+
 
     def preprocess_calcium_movie(
-        self, 
-        coords_dict: Optional[Dict[str, int]] = None, 
-        crop: bool = False, 
-        detrend_method: Optional[str] = None, 
-        df_over_f: bool = False, 
+        self,
+        coords_dict: dict[str, int] | None = None,
+        crop: bool = False,
+        detrend_method: str | None = None,
+        df_over_f: bool = False,
         crop_job_name_for_file: str = "_cropped",
-        secs_window: float = 5, 
-        quantile_min: float = 8, 
-        df_over_f_method: str = 'delta_f_over_sqrt_f', 
+        secs_window: float = 5,
+        quantile_min: float = 8,
+        df_over_f_method: str = 'delta_f_over_sqrt_f',
         headless: bool = False
     ) -> 'MiniscopeDataManager':
         """Run preprocessing steps based on provided flags.
            coords_dict: is passed in and represents what you want the final coordinates for the movie to be in the form {'x0': A, 'y0': B, 'x1': C, 'y1': D}"""
-        
+
         steps_applied = ['preprocessed']
-        
+
         if crop:
             self.data_manager.projections = self.compute_projections(self.data_manager.movie)
             movie_height = self.data_manager.movie.shape[1]
@@ -75,65 +79,50 @@ class MiniscopePreprocessor:
             steps_applied.append('_dFoverF')
 
         movie_file_name = ''.join(steps_applied)
-        
+
         self.data_manager.preprocessed_movie_filepath = MovieIO.save_movie(self.data_manager, movie_file_name)
-        
+
         print(f"This is the movie shape after preprocessing: {self.data_manager.movie.shape}")
-        
+
+        # Capture outputs in a structured result for callers that prefer the
+        # dataclass API over interrogating data_manager directly.
+        self.result = PreprocessingResult(
+            preprocessed_movie_filepath=self.data_manager.preprocessed_movie_filepath,
+            coords=self.data_manager.coords,
+        )
+
         return self.data_manager
-    
-    
-    
-    
-    
-    def compute_projections(self, movie: Optional[cm.movie] = None) -> Projections:
+
+
+
+
+
+    def compute_projections(self, movie: cm.movie | None = None) -> Projections:
         """Compute spatial and temporal projections of the movie.
-        
-        Calculates max, min, mean, median, std, range projections and
-        mean fluorescence time series.
-        
+
+        Delegates to :func:`aceneurotools.miniscope.projections.compute_projections`
+        — the single canonical implementation shared with
+        :class:`~aceneurotools.miniscope.miniscope_postprocessor.MiniscopePostprocessor`.
+
         Args:
             movie: CaImAn movie object to compute projections from.
-            
+
         Returns:
             Projections object containing all computed projections.
         """
-        print("\n\nComputing projections...\n")
-        
-        operations = {
-            'max': lambda m: np.amax(m, axis=0),
-            'std': lambda m: np.std(m, axis=0),
-            'min': lambda m: np.amin(m, axis=0),
-            'mean': lambda m: np.mean(m, axis=0),
-            'median': lambda m: np.median(m, axis=0),
-            'time': lambda m: m.mean(axis=(1,2)),
-        }
+        from aceneurotools.miniscope.projections import compute_projections as _compute
 
-        results = {}
-        for name, op in tqdm(operations.items(), desc='Computing Projections'):
-            results[name] = op(movie)
+        return _compute(movie)
 
-        results['range'] = results['max'] - results['min']
-
-        return Projections(
-            results['max'],
-            results['std'],
-            results['min'],
-            results['mean'],
-            results['median'],
-            results['range'],
-            results['time']
-        )    
-    
 
     def get_crop_coordinates(
-        self, 
-        coords_dict: Optional[Dict[str, int]], 
-        projections: Projections, 
-        movie_height: int, 
-        movie_width: int, 
+        self,
+        coords_dict: dict[str, int] | None,
+        projections: Projections,
+        movie_height: int,
+        movie_width: int,
         headless: bool = False
-    ) -> Optional[Dict[str, int]]:
+    ) -> dict[str, int] | None:
         """Get crop coordinates from GUI or provided coordinates.
         
         In headless mode, returns the provided coordinates directly without
@@ -165,7 +154,7 @@ class MiniscopePreprocessor:
             return crop_gui(coords_dict, projections, movie_height, movie_width)
 
 
-    def crop_movie(self, movie: cm.movie, coords_dict: Dict[str, int]) -> Tuple[cm.movie, str]:
+    def crop_movie(self, movie: cm.movie, coords_dict: dict[str, int]) -> tuple[cm.movie, str]:
         """Crop a movie using the given coordinates.
         
         Performs y-coordinate flipping (GUI origin is bottom-left, numpy
@@ -181,24 +170,24 @@ class MiniscopePreprocessor:
         # Flip y-coordinates (GUI origin is bottom-left; numpy origin is top-left)
         y0_flipped = movie.shape[1] - coords_dict['y1']
         y1_flipped = movie.shape[1] - coords_dict['y0']
-        
+
         # Sort coordinates
         y0, y1 = sorted([y0_flipped, y1_flipped])
         x0, x1 = sorted([coords_dict['x0'], coords_dict['x1']])
-        
+
         #crop movie using our numpy coordinates
         cropped_movie = movie[:, y0:y1, x0:x1]
-        
+
         #Keep coords_dict in GUI notation so that it will display properly in the GUI if you want to view them again
         coords_string = f'({coords_dict["x0"]},{coords_dict["y0"]}, {coords_dict["x1"]},{coords_dict["y1"]})'
-        
+
         return cropped_movie, coords_string
-        
+
 
     def detrend_movie(
-        self, 
-        movie: cm.movie, 
-        method: str = 'median', 
+        self,
+        movie: cm.movie,
+        method: str = 'median',
         plot_trend: bool = True
     ) -> cm.movie:
         """Remove slow temporal trends from the movie.
@@ -215,7 +204,7 @@ class MiniscopePreprocessor:
             Detrended CaImAn movie.
         """
         detrended_movie = movie # Initialize with the original movie
-        try:                    
+        try:
             if method == 'linear':
                 detrended_movie = detrend(movie, axis=0)
             elif method == 'median':
@@ -229,38 +218,38 @@ class MiniscopePreprocessor:
         except (ValueError, np.linalg.LinAlgError) as e:
             print(f"Detrending failed ({e}), returning original movie")
             return movie
-        
+
         if plot_trend and detrended_movie is not None:
             fig, ax = plt.subplots()
             ax.set_xlabel('Frames')
             ax.set_ylabel('Mean Fluorescence')
-            
+
             # Plot original data
             original_mean = np.mean(movie, axis=(1, 2))
             ax.plot(original_mean, label='Original Data', color='blue')
-            
+
             # Plot detrended data
             detrended_mean = np.mean(detrended_movie, axis=(1, 2))
             ax.plot(detrended_mean, label='Detrended Data', color='red', linestyle='--')
-            
+
             ax.legend()
             ax.grid(True)
             plt.tight_layout()
             plt.show()
-            
+
         if isinstance(detrended_movie, np.ndarray):
             print("Ensuring that the movie that is returned is a caiman movie, not a numpy array...")
             detrended_movie = cm.movie(detrended_movie, fr=self.frame_rate)
-        
+
         print('Detrending was successful')
         return detrended_movie
-        
+
 
     def compute_df_over_f(
-        self, 
-        movie: Union[cm.movie, np.ndarray], 
-        secs_window: float = 5, 
-        quantile_min: float = 8, 
+        self,
+        movie: cm.movie | np.ndarray,
+        secs_window: float = 5,
+        quantile_min: float = 8,
         method: str = 'delta_f_over_sqrt_f'
     ) -> cm.movie:
         """Compute DF/F or DF/sqrt(F) normalization of the movie.
@@ -283,15 +272,15 @@ class MiniscopePreprocessor:
                 movie = movie - min_val
             if np.min(movie) == 0:
                 movie = movie + 1
-            
+
             if isinstance(movie, np.ndarray):
                 print("Ensuring that movie is turned back into a caiman object, not a numpy array...")
                 movie = cm.movie(movie, fr=self.frame_rate)
-            
+
             processed_movie, _ = cm_movie.computeDFF(movie, secs_window, quantile_min, method)
             print("Computing df over f / sqrt f was successful")
             return processed_movie
-        
+
         except (ZeroDivisionError, FloatingPointError, ValueError) as e:
             raise ProcessingError(f"Computing df over f failed: {e}") from e
 

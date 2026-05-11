@@ -1,39 +1,41 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 import os
-from aceneurotools.multimodal.miniscope_ephys_alignment_utils import find_ca_movie_filenums
+from typing import TYPE_CHECKING
+
 import caiman as cm
-from aceneurotools.shared.path_finder import PathFinder
+import matplotlib.animation as animation
+import matplotlib.pyplot as plt
+import numpy as np
+
 from aceneurotools.miniscope.miniscope_preprocessor import MiniscopePreprocessor
+from aceneurotools.multimodal.miniscope_ephys_alignment_utils import find_ca_movie_filenums
 from aceneurotools.shared.misc_functions import get_coords_dict_from_analysis_params
-from typing import List, Optional, Union, Dict, Any, Tuple, TYPE_CHECKING
+from aceneurotools.shared.path_finder import PathFinder
 
 if TYPE_CHECKING:
-    from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
     from aceneurotools.ephys.channel import Channel
+    from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
 
 def create_ca_ephys_movie(
-    miniscope_dm: 'MiniscopeDataManager', 
-    ephys_idx_all_TTL_events: np.ndarray, 
-    channel_object: 'Channel', 
-    time_range: Optional[List[float]] = None, 
-    movie_num: Optional[int] = None, 
-    crop: bool = False, 
-    crop_coords: Optional[Union[List[int], Tuple[int, int, int, int]]] = None,
-    plot_mean_fluorescence: bool = False, 
-    df_over_sqrt_f: bool = False, 
-    vmin: Optional[float] = None, 
-    vmax: Optional[float] = None, 
-    mark_start_systemic: bool = True, 
-    plot_ephys: bool = True, 
-    num_frames_of_traces: int = 10, 
-    time_stamps: bool = True, 
-    playback_interval: int = 33, 
-    play_movie: bool = True, 
+    miniscope_dm: 'MiniscopeDataManager',
+    ephys_idx_all_TTL_events: np.ndarray,
+    channel_object: 'Channel',
+    time_range: list[float] | None = None,
+    movie_num: int | None = None,
+    crop: bool = False,
+    crop_coords: list[int] | tuple[int, int, int, int] | None = None,
+    plot_mean_fluorescence: bool = False,
+    df_over_sqrt_f: bool = False,
+    vmin: float | None = None,
+    vmax: float | None = None,
+    mark_start_systemic: bool = True,
+    plot_ephys: bool = True,
+    num_frames_of_traces: int = 10,
+    time_stamps: bool = True,
+    playback_interval: int = 33,
+    play_movie: bool = True,
     save_movie: bool = False
 ) -> None:
-    
+
     """
     Accepts a list/integer for time_range or movie_num but only one parameter should have a value
     Display a calcium imaging movie that has a specific ephys signal overlayed. Which miniscope video is displayed depends on time_range or movie_num
@@ -44,22 +46,22 @@ def create_ca_ephys_movie(
     movie_num: An integer if you just want to dispay a specific movie (ie. pass in 0 if you want to see 'miniscope_dir/Miniscope/0.avi')
     save_movie: saves the movie to the 'saved_movies' folder in your miniscope directory
     """
-    
+
     if miniscope_dm.metadata is None:
         print("Error: Miniscope metadata is missing. Cannot proceed.")
         return
-        
+
     miniscope_dir_path = str(miniscope_dm.metadata['calcium imaging directory'])
-    
+
     if not plot_ephys and not plot_mean_fluorescence:
         print('Note: you have chosen not to overlay an ephys signal nor the mean fluroescence.')
         return
-    
+
     if type(time_range) == list:
         if movie_num != None:
             print('Please only provide either a time range or a video number, not both! Proceeding with time range...')
         movie_filepaths_in_range, movie_frames = find_ca_movie_filenums(channel_object, ephys_idx_all_TTL_events, miniscope_dm, time_range)
-        movie = cm.load_movie_chain(movie_filepaths_in_range)      
+        movie = cm.load_movie_chain(movie_filepaths_in_range)
     elif type(movie_num) == int:
         movie_filepaths = PathFinder.find(miniscope_dir_path, suffix='.avi', prefix=str(movie_num))
         if movie_filepaths is None or len(movie_filepaths) == 0:
@@ -72,7 +74,7 @@ def create_ca_ephys_movie(
     else:
         print('Please provide either a time range or a movie number!')
         return
-    
+
     # Crop the movie if desired.
     if crop:
         if crop_coords is not None:
@@ -87,17 +89,17 @@ def create_ca_ephys_movie(
         final_coords = preprocessor.get_crop_coordinates(coords_dict, projections, movie.shape[1], movie.shape[2])
         if final_coords is not None:
             movie, _ = preprocessor.crop_movie(movie, final_coords)
-    
-    
+
+
     # Adjust the movie frame numbers so that they are with respect to the imported movies, not the entire recording.
     adjusted_movie_frames = np.zeros(2, dtype=int)
     frames_per_file = int(miniscope_dm.metadata.get('framesPerFile', 1000))
     adjusted_movie_frames[0] = movie_frames[0] % frames_per_file
     adjusted_movie_frames[1] = adjusted_movie_frames[0] + np.diff(movie_frames)[0]
     movie = movie[adjusted_movie_frames[0]:adjusted_movie_frames[1]+1]
-    
+
     time_projection = movie.mean(axis=(1,2))
-    
+
     if plot_mean_fluorescence:
         time_projection -= np.mean(time_projection) # Maybe not needed for the filtered signal, but this is applied to both filtered and non-filtered just in case the filter doesn't exclude the DC component (0 Hz).
     if df_over_sqrt_f:
@@ -108,7 +110,7 @@ def create_ca_ephys_movie(
         print('vmin = ' + str(vmin))
     if vmax == None:
         vmax = movie.mean() + movie.std()*4
-        print('vmax = ' + str(vmax))          
+        print('vmax = ' + str(vmax))
     if mark_start_systemic:
         sys_start_idx = np.where(np.char.find(channel_object.events['labels'], 'start') == 0)[0][0]
         print('''Found event labeled: "''' + channel_object.events['labels'][sys_start_idx] + '''" at ''' + str(channel_object.events['timestamps'][sys_start_idx]) + ' s.')
@@ -128,21 +130,21 @@ def create_ca_ephys_movie(
             frame: Frame index to render.
         """
         # Initialize variables to avoid unbound name errors
-        mean_fluorescence_segment: Optional[np.ndarray] = None
-        ephys_segment: Optional[np.ndarray] = None
-        
+        mean_fluorescence_segment: np.ndarray | None = None
+        ephys_segment: np.ndarray | None = None
+
         # Clear the plot
         ax.clear()
 
         # Plot the frame
         ax.imshow(movie[frame], vmin=vmin, vmax=vmax, cmap='gray')
-        
+
         if plot_mean_fluorescence:
             if frame >= num_frames_of_traces:
                 mean_fluorescence_segment = time_projection[frame-num_frames_of_traces:frame]
             else:
                 mean_fluorescence_segment = np.concatenate((np.ones(num_frames_of_traces - frame) * np.nan, time_projection[0:frame]))
-        
+
         # Get the corresponding segment of the ephys recording
         frame += movie_frames[0]
         if plot_ephys:
@@ -162,7 +164,7 @@ def create_ca_ephys_movie(
             ax.plot(np.linspace(-0.5, movie.shape[2]-0.5, len(ephys_segment)), ephys_segment*ephys_scaling + (movie.shape[1]/6), color='red', linewidth=2)
         if time_stamps:
             time_stamp = channel_object.time_vector[ephys_idx_all_TTL_events[frame]] - channel_object.time_vector[ephys_idx_all_TTL_events[movie_frames[0]]]
-            ax.text(0.9375*movie.shape[2], 10*movie.shape[1]/608, '{:.2f}'.format(time_stamp) + ' s', ha='right', color=[1, 1, 1]) # Also could do color=[0.7,0.7,1]
+            ax.text(0.9375*movie.shape[2], 10*movie.shape[1]/608, f'{time_stamp:.2f}' + ' s', ha='right', color=[1, 1, 1]) # Also could do color=[0.7,0.7,1]
         if mark_start_systemic:
             total_sys_time = miniscope_dm.metadata.get('total systemic time (min)', 0)
             sys_drug = miniscope_dm.metadata.get('systemic drug', 'Drug')
@@ -184,5 +186,4 @@ def create_ca_ephys_movie(
     if save_movie:
         dir_str = os.path.join(miniscope_dir_path, 'saved_movies')
         ani.save(os.path.join(dir_str, 'miniscope_ephys_animation' + '.mp4'), dpi=300)
-        
-        
+

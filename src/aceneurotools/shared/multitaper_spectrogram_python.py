@@ -2,42 +2,43 @@
 
 # Analysis Imports
 import math
-import numpy as np
-from scipy.signal.windows import dpss
-from scipy.signal import detrend
+import timeit
+
 # Logistical Imports
 import warnings
-import timeit
-from joblib import Parallel, delayed, cpu_count
+from typing import Any, cast
+
 # Visualization imports
 # noinspection PyUnresolvedReferences
-import colorcet  # this import is necessary to add rainbow colormap to matplotlib
 import matplotlib.pyplot as plt
-from matplotlib.figure import Figure, SubFigure
+import numpy as np
+from joblib import Parallel, cpu_count, delayed
 from matplotlib.axes import Axes
-from typing import Optional, List, Union, Tuple, Any, Dict, TYPE_CHECKING, cast
+from matplotlib.figure import Figure, SubFigure
+from scipy.signal import detrend
+from scipy.signal.windows import dpss
 
 
 # MULTITAPER SPECTROGRAM #
 def multitaper_spectrogram(
-    data: np.ndarray, 
-    fs: float, 
-    frequency_range: Optional[List[float]] = None, 
-    time_bandwidth: float = 5, 
-    num_tapers: Optional[int] = None, 
-    window_params: Optional[List[float]] = None,
-    min_nfft: int = 0, 
-    detrend_opt: str = 'linear', 
-    multiprocess: bool = False, 
-    n_jobs: Optional[int] = None, 
+    data: np.ndarray,
+    fs: float,
+    frequency_range: list[float] | None = None,
+    time_bandwidth: float = 5,
+    num_tapers: int | None = None,
+    window_params: list[float] | None = None,
+    min_nfft: int = 0,
+    detrend_opt: str = 'linear',
+    multiprocess: bool = False,
+    n_jobs: int | None = None,
     weighting: str = 'unity',
-    plot_on: bool = True, 
-    return_fig: bool = False, 
-    clim_scale: bool = True, 
-    verbose: bool = True, 
-    xyflip: bool = False, 
-    ax: Optional[plt.Axes] = None
-) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, Tuple[Union[Figure, SubFigure, None], Axes]]]:
+    plot_on: bool = True,
+    return_fig: bool = False,
+    clim_scale: bool = True,
+    verbose: bool = True,
+    xyflip: bool = False,
+    ax: plt.Axes | None = None
+) -> tuple[np.ndarray, np.ndarray, np.ndarray] | tuple[np.ndarray, np.ndarray, np.ndarray, tuple[Figure | SubFigure | None, Axes]]:
     """ Compute multitaper spectrogram of timeseries data
     Usage:
     mt_spectrogram, stimes, sfreqs = multitaper_spectrogram(data, fs, frequency_range=None, time_bandwidth=5,
@@ -232,17 +233,17 @@ def multitaper_spectrogram(
 
 # Process User Inputs #
 def process_input(
-    data: np.ndarray, 
-    fs: float, 
-    frequency_range: Optional[List[float]] = None, 
-    time_bandwidth: float = 5, 
-    num_tapers: Optional[int] = None, 
-    window_params: Optional[List[float]] = None, 
+    data: np.ndarray,
+    fs: float,
+    frequency_range: list[float] | None = None,
+    time_bandwidth: float = 5,
+    num_tapers: int | None = None,
+    window_params: list[float] | None = None,
     min_nfft: int = 0,
-    detrend_opt: str = 'linear', 
-    plot_on: bool = True, 
+    detrend_opt: str = 'linear',
+    plot_on: bool = True,
     verbose: bool = True
-) -> List[Any]:
+) -> list[Any]:
     """ Helper function to process multitaper_spectrogram() arguments
             Arguments:
                     data (1d np.array): time series data-- required
@@ -360,12 +361,12 @@ def process_input(
 
 # PROCESS THE SPECTROGRAM PARAMETERS #
 def process_spectrogram_params(
-    fs: float, 
-    nfft: int, 
-    frequency_range: List[float], 
-    window_start: np.ndarray, 
+    fs: float,
+    nfft: int,
+    frequency_range: list[float],
+    window_start: np.ndarray,
     datawin_size: int
-) -> List[Any]:
+) -> list[Any]:
     """ Helper function to create frequency vector and window indices
         Arguments:
              fs (float): sampling frequency in Hz  -- required
@@ -404,12 +405,12 @@ def process_spectrogram_params(
 
 # DISPLAY SPECTROGRAM PROPERTIES
 def display_spectrogram_props(
-    fs: float, 
-    time_bandwidth: float, 
-    num_tapers: int, 
-    data_window_params: Union[List[int], np.ndarray], 
-    frequency_range: List[float], 
-    nfft: int, 
+    fs: float,
+    time_bandwidth: float,
+    num_tapers: int,
+    data_window_params: list[int] | np.ndarray,
+    frequency_range: list[float],
+    nfft: int,
     detrend_opt: str
 ) -> None:
     """ Prints spectrogram properties
@@ -440,7 +441,7 @@ def display_spectrogram_props(
 
 
 # NANPOW2DB
-def nanpow2db(y: Union[int, float, List[float], np.ndarray]) -> Union[float, np.ndarray]:
+def nanpow2db(y: int | float | list[float] | np.ndarray) -> float | np.ndarray:
     """ Power to dB conversion, setting bad values to nans
         Arguments:
             y (float or array-like): power
@@ -478,15 +479,15 @@ def is_outlier(data: np.ndarray) -> np.ndarray:
 
 # CALCULATE MULTITAPER SPECTRUM ON SINGLE SEGMENT
 def calc_mts_segment(
-    data_segment: np.ndarray, 
-    dpss_tapers: np.ndarray, 
-    nfft: int, 
-    freq_inds: np.ndarray, 
-    detrend_opt: str, 
-    num_tapers: int, 
-    dpss_eigen: np.ndarray, 
-    weighting: str, 
-    wt: Union[int, float, np.ndarray]
+    data_segment: np.ndarray,
+    dpss_tapers: np.ndarray,
+    nfft: int,
+    freq_inds: np.ndarray,
+    detrend_opt: str,
+    num_tapers: int,
+    dpss_eigen: np.ndarray,
+    weighting: str,
+    wt: int | float | np.ndarray
 ) -> np.ndarray:
     """ Helper function to calculate the multitaper spectrum of a single segment of data
         Arguments:

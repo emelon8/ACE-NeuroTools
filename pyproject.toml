@@ -15,6 +15,7 @@ authors = [
     { name = "Reed Pennock" },
     { name = "Luke Richards" },
     { name = "Eric Melonakos" },
+    { name = "Elijah Keldsen" },
 ]
 keywords = [
     "neuroscience",
@@ -39,11 +40,11 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "numpy>=1.23",
+    "numpy>=1.23,<2.0",
     "scipy>=1.9",
     "matplotlib>=3.5",
     "pandas>=1.5",
-    "opencv-python>=4.6",
+    "opencv-python>=4.6,<4.10",
     "tqdm>=4.64",
     "h5py>=3.7",
     "colorcet>=3.0",
@@ -54,6 +55,9 @@ dependencies = [
     "freesimplegui>=5.0",
     "Pillow>=9.0",
 ]
+
+[project.scripts]
+ace-neuro = "aceneurotools.cli:main"
 
 [project.optional-dependencies]
 box = [

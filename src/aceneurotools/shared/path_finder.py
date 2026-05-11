@@ -1,16 +1,17 @@
-from typing import List, Optional, Tuple, Union
 from pathlib import Path
+
 
 class PathFinder:
     """Utility class for finding files by extension and prefix using pathlib."""
-    
+
     @staticmethod
     def find(
-        directory: Optional[Union[str, Path]] = None,
-        suffix: Optional[Union[str, List[str], Tuple[str, ...]]] = None, 
-        prefix: Optional[Union[str, List[str], Tuple[str, ...]]] = None, 
-        file_and_directory: bool = False
-    ) -> Optional[Union[List[Path], Tuple[List[Path], List[Path]]]]:
+        directory: str | Path | None = None,
+        suffix: str | list[str] | tuple[str, ...] | None = None,
+        prefix: str | list[str] | tuple[str, ...] | None = None,
+        file_and_directory: bool = False,
+        exclude_dirs: tuple[str, ...] | None = ('saved_movies',),
+    ) -> list[Path] | tuple[list[Path], list[Path]] | None:
         """
         Modernized file finder using pathlib.
         Returns a sorted list of matching Path objects.
@@ -21,9 +22,9 @@ class PathFinder:
         dir_path: Path = Path(directory)
         if not dir_path.exists():
             raise FileNotFoundError(f"Directory not found: {dir_path}")
-        
+
         # Normalize input parameters for suffix and prefix:
-        ext_tuple: Optional[Tuple[str, ...]] = None
+        ext_tuple: tuple[str, ...] | None = None
         if suffix is not None:
             if isinstance(suffix, str):
                 ext_tuple = (suffix,)
@@ -32,7 +33,7 @@ class PathFinder:
             else:
                 ext_tuple = suffix
 
-        start_tuple: Optional[Tuple[str, ...]] = None
+        start_tuple: tuple[str, ...] | None = None
         if prefix is not None:
             if isinstance(prefix, str):
                 start_tuple = (prefix,)
@@ -41,13 +42,13 @@ class PathFinder:
             else:
                 start_tuple = prefix
 
-        matches: List[Path] = []
+        matches: list[Path] = []
         for path in dir_path.rglob('*'):
             if not path.is_file():
                 continue
-            
-            if 'saved_movies' in path.parts:
-                    continue
+
+            if exclude_dirs and any(part in path.parts for part in exclude_dirs):
+                continue
 
             # Check file extension if provided.
             if ext_tuple and path.suffix not in ext_tuple:
@@ -64,10 +65,10 @@ class PathFinder:
             return None
 
         # Sort by modification time.
-        sorted_paths: List[Path] = sorted(matches, key=lambda p: p.stat().st_mtime)
+        sorted_paths: list[Path] = sorted(matches, key=lambda p: p.stat().st_mtime)
 
         if file_and_directory:
-            dirs: List[Path] = sorted(list({p.parent for p in sorted_paths}), key=lambda p: p.stat().st_mtime)
+            dirs: list[Path] = sorted(list({p.parent for p in sorted_paths}), key=lambda p: p.stat().st_mtime)
             return sorted_paths, dirs
 
         return sorted_paths

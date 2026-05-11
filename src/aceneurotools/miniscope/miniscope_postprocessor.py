@@ -1,22 +1,21 @@
-import aceneurotools.shared.misc_functions as misc_functions
+from typing import TYPE_CHECKING, Any
+
 import caiman as cm
 import numpy as np
-from tqdm import tqdm
-from aceneurotools.miniscope.projections import Projections
 from scipy.signal import find_peaks, hilbert
-from aceneurotools.miniscope.gui_utils import component_gui
-from aceneurotools.shared.multitaper_spectrogram_python import multitaper_spectrogram
+
+import aceneurotools.shared.misc_functions as misc_functions
 from aceneurotools.miniscope.filtered_miniscope_data import FilterMiniscopeData
-import cv2
-import time
-import matplotlib.pyplot as plt
-from aceneurotools.miniscope.movie_io import MovieIO
-from typing import List, Optional, Union, Dict, Any, Tuple, TYPE_CHECKING
+from aceneurotools.miniscope.gui_utils import component_gui
+from aceneurotools.miniscope.pipeline_results import PostprocessingResult
+from aceneurotools.miniscope.projections import Projections
+from aceneurotools.shared.multitaper_spectrogram_python import multitaper_spectrogram
 
 if TYPE_CHECKING:
-    from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
-    from caiman.source_extraction.cnmf.params import CNMFParams
     from caiman.source_extraction.cnmf.estimates import Estimates
+    from caiman.source_extraction.cnmf.params import CNMFParams
+
+    from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
 
 #Methods for loading and manipulating components after CNMF-E is run
 class MiniscopePostprocessor:
@@ -34,7 +33,8 @@ class MiniscopePostprocessor:
     data_manager: 'MiniscopeDataManager'
     frame_rate: float
     dview: Any
-    
+    result: PostprocessingResult  # populated after postprocess_calcium_movie() returns
+
     def __init__(self, data_manager: 'MiniscopeDataManager') -> None:
         """Initialize post-processor with data manager.
         
@@ -47,25 +47,25 @@ class MiniscopePostprocessor:
         self.data_manager.projections = self.compute_projections(self.data_manager.movie)
         self.frame_rate = float(self.data_manager.fr)
         self.dview = self.data_manager.dview
-    
-    
+
+
     def postprocess_calcium_movie(
-        self, 
-        remove_components_with_gui: bool = True,  
+        self,
+        remove_components_with_gui: bool = True,
         find_calcium_events: bool = True,
-        derivative_for_estimates: str = 'first', 
-        event_height: float = 5, 
-        compute_miniscope_phase: bool = True, 
+        derivative_for_estimates: str = 'first',
+        event_height: float = 5,
+        compute_miniscope_phase: bool = True,
         filter_miniscope_data: bool = True,
-        n: int = 2, 
-        cut: List[float] = [0.1, 1.5], 
-        ftype: str = 'butter', 
-        btype: str = 'bandpass', 
+        n: int = 2,
+        cut: list[float] = [0.1, 1.5],
+        ftype: str = 'butter',
+        btype: str = 'bandpass',
         inline: bool = False,
         compute_miniscope_spectrogram: bool = True,
-        window_length: float = 30, 
-        window_step: float = 3, 
-        freq_lims: List[float] = [0, 15], 
+        window_length: float = 30,
+        window_step: float = 3,
+        freq_lims: list[float] = [0, 15],
         time_bandwidth: float = 2
     ) -> 'MiniscopeDataManager':
         """Run the complete post-processing pipeline on CNMF-E results.
@@ -94,7 +94,7 @@ class MiniscopePostprocessor:
         Returns:
             Updated MiniscopeDataManager with all post-processing results.
         """
-        
+
         if remove_components_with_gui:
             if self.data_manager.CNMFE_obj is not None and self.data_manager.CNMFE_obj.estimates.A is not None and self.data_manager.CNMFE_obj.estimates.A.shape[0] > 0:
                 if hasattr(self.data_manager, 'diag_logger') and self.data_manager.diag_logger is not None: self.data_manager.diag_logger.pause_timer()
@@ -103,82 +103,73 @@ class MiniscopePostprocessor:
                 if hasattr(self.data_manager, 'diag_logger') and self.data_manager.diag_logger is not None: self.data_manager.diag_logger.resume_timer()
             else:
                 print("No components found or CNMF-E object is None. Skipping component GUI.")
-            
+
         if find_calcium_events:
             if self.data_manager.CNMFE_obj is not None and self.data_manager.CNMFE_obj.estimates.C is not None:
                 self.data_manager.ca_events_idx = self.find_calcium_events_with_derivatives(self.data_manager.CNMFE_obj.estimates, derivative_for_estimates, event_height)
             else:
                 print("WARNING: No CNMF-E components found (estimates.C is None). Skipping calcium event detection.")
                 self.data_manager.ca_events_idx = {}
-        
+
         if compute_miniscope_spectrogram:
             data = self.data_manager.projections.time
             PSDSpectMiniscope, tSpect, freqsSpect, pSpectMiniscope = self.compute_miniscope_spectrogram(data, frame_rate=self.frame_rate, window_length=window_length, window_step=window_step, freq_lims=freq_lims, time_bandwidth=time_bandwidth)
             h, ax = misc_functions.spectrogram(tSpect/60, freqsSpect, pSpectMiniscope, xLabel='Time (min)')
             self.data_manager.PSD_spect, self.data_manager.t_spect, self.data_manager.freqs_spect, self.data_manager.p_spect = PSDSpectMiniscope, tSpect, freqsSpect, pSpectMiniscope
-            
+
         if compute_miniscope_phase:
             self.data_manager.miniscope_phases = self.compute_miniscope_phase(self.data_manager.projections.time)
-            
+
         if filter_miniscope_data:
             filter_object = FilterMiniscopeData(self.data_manager.projections, self.frame_rate, n=n, cut=cut, ftype=ftype, btype=btype)
             filter_object.filter_miniscope_data
             self.data_manager.filter_object = filter_object
-            
+
             if inline == True:
                 self.data_manager.projections.time = filter_object.filtered_data
-        
+
+        # Capture outputs in a structured result for callers that prefer the
+        # dataclass API over interrogating data_manager directly.
+        self.result = PostprocessingResult(
+            projections=self.data_manager.projections,
+            ca_events_idx=self.data_manager.ca_events_idx,
+            PSD_spect=self.data_manager.PSD_spect,
+            t_spect=self.data_manager.t_spect,
+            freqs_spect=self.data_manager.freqs_spect,
+            p_spect=self.data_manager.p_spect,
+            miniscope_phases=self.data_manager.miniscope_phases,
+            filter_object=self.data_manager.filter_object,
+        )
+
         return self.data_manager
-            
 
 
-    def compute_projections(self, movie: Optional[cm.movie] = None) -> Projections:
+
+    def compute_projections(self, movie: cm.movie | None = None) -> Projections:
         """Compute spatial and temporal projections of the movie.
-        
-        Calculates max, min, mean, median, std, range projections and
-        mean fluorescence time series.
-        
+
+        Delegates to :func:`aceneurotools.miniscope.projections.compute_projections`
+        — the single canonical implementation shared with
+        :class:`~aceneurotools.miniscope.miniscope_preprocessor.MiniscopePreprocessor`.
+
         Args:
             movie: CaImAn movie object to compute projections from.
-            
+
         Returns:
             Projections object containing all computed projections.
         """
-        print("\n\nComputing projections...\n")
-        
-        operations = {
-            'max': lambda m: np.amax(m, axis=0),
-            'std': lambda m: np.std(m, axis=0),
-            'min': lambda m: np.amin(m, axis=0),
-            'mean': lambda m: np.mean(m, axis=0),
-            'median': lambda m: np.median(m, axis=0),
-            'time': lambda m: m.mean(axis=(1,2)),
-        }
+        from aceneurotools.miniscope.projections import compute_projections as _compute
 
-        results = {}
-        for name, op in tqdm(operations.items(), desc='Computing Projections'):
-            results[name] = op(movie)
-
-        results['range'] = results['max'] - results['min']
-
-        return Projections(
-            results['max'],
-            results['std'],
-            results['min'],
-            results['mean'],
-            results['median'],
-            results['range'],
-            results['time']
-        )
+        return _compute(movie)
 
 
     def evaluate_components(
-        self, 
-        estimates: 'Estimates', 
-        opts_caiman: 'CNMFParams', 
-        min_SNR: float = 3, 
+        self,
+        estimates: 'Estimates',
+        opts_caiman: 'CNMFParams',
+        min_SNR: float = 3,
         r_values_min: float = 0.85
-    ) -> Tuple['Estimates', 'CNMFParams']:
+    ) -> tuple['Estimates', 'CNMFParams']:
         """Compute quality metrics for CNMF-E components.
         
         Evaluates each component's SNR and spatial correlation, storing
@@ -200,15 +191,15 @@ class MiniscopePostprocessor:
         opts_caiman.set('quality', {'min_SNR': min_SNR, 'rval_thr': r_values_min, 'use_cnn': False})
         estimates.evaluate_components(images, opts_caiman)
         return estimates, opts_caiman
-    
-    
+
+
     def find_calcium_events_with_deconvolution(
-        self, 
-        estimates: 'Estimates', 
-        opts_caiman: 'CNMFParams', 
-        dview: Any, 
+        self,
+        estimates: 'Estimates',
+        opts_caiman: 'CNMFParams',
+        dview: Any,
         dff_flag: bool = False
-    ) -> Dict[int, np.ndarray]:
+    ) -> dict[int, np.ndarray]:
         """Detect calcium events using deconvolution-based spike inference.
         
         Uses CaImAn's deconvolution to extract spike trains from calcium
@@ -227,20 +218,20 @@ class MiniscopePostprocessor:
         #ensure deconvolution has not already been performed on estimates
         if not hasattr(estimates, 'S') or estimates.S is None:
             estimates.deconvolve(opts_caiman, dview=dview, dff_flag=dff_flag)
-            
+
         for k in range(estimates.C.shape[0]):
             spike_train = estimates.S[k]  # Spike train for neuron k
             event_indices = np.where(spike_train > 0)[0]  # Indices of non-zero spikes
             ca_events_idx[k] = event_indices.astype(int)
         return ca_events_idx
-    
-      
+
+
     def find_calcium_events_with_derivatives(
-        self, 
-        estimates: 'Estimates', 
-        derivative: str = 'first', 
+        self,
+        estimates: 'Estimates',
+        derivative: str = 'first',
         event_height: float = 5
-    ) -> Dict[int, np.ndarray]:
+    ) -> dict[int, np.ndarray]:
         """Detect calcium events using derivative-based peak detection.
         
         Computes the specified derivative of calcium traces and finds
@@ -260,7 +251,7 @@ class MiniscopePostprocessor:
 
         if derivative not in ['zeroth', 'first', 'second']:
             raise ValueError("derivative must be 'zeroth', 'first', or 'second'")
-            
+
         ca_events_idx = {}
         for k in neuron_indices:
             trace = estimates.C[k]
@@ -278,18 +269,18 @@ class MiniscopePostprocessor:
             else:
                 ca_events_idx[k] = np.array([], dtype=int)  # Empty array for no peaks
         return ca_events_idx
-    
-    
+
+
     @staticmethod
     def compute_miniscope_spectrogram(
-        data: np.ndarray, 
-        frame_rate: float, 
-        window_length: float = 30, 
-        window_step: float = 3, 
-        freq_lims: List[float] = [0, 15], 
-        time_bandwidth: float = 2, 
+        data: np.ndarray,
+        frame_rate: float,
+        window_length: float = 30,
+        window_step: float = 3,
+        freq_lims: list[float] = [0, 15],
+        time_bandwidth: float = 2,
         plot_spectrogram: bool = True
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Compute multitaper spectrogram of mean fluorescence signal.
         
         Uses the multitaper method for robust spectral estimation with
@@ -322,15 +313,15 @@ class MiniscopePostprocessor:
         clim_scale = False # do not auto-scale colormap
         verbose = True  # print extra info
         xyflip = False  # do not transpose spect output matrix
-        
+
         # Compute the multitaper spectrogram and convert the output to decibels
         mt_result = multitaper_spectrogram(data, fs, freq_lims, time_bandwidth, num_tapers, window_params, minNfft, detrend_opt, multiprocess, n_jobs, weighting, plot_on, return_fig, clim_scale, verbose, xyflip)
         PSDSpectMiniscope, tSpect, freqsSpect = mt_result[:3]
         pSpectMiniscope = 10 * np.log10(PSDSpectMiniscope)
-        
+
         if plot_spectrogram:
-            h, ax = misc_functions.spectrogram(tSpect/60, freqsSpect, pSpectMiniscope, xLabel='Time (min)')        
-    
+            h, ax = misc_functions.spectrogram(tSpect/60, freqsSpect, pSpectMiniscope, xLabel='Time (min)')
+
         return PSDSpectMiniscope, tSpect, freqsSpect, pSpectMiniscope
 
 
@@ -345,9 +336,9 @@ class MiniscopePostprocessor:
         """
         analytic_signal_miniscope = hilbert(data)
         return np.angle(analytic_signal_miniscope)
-    
-    
-    def calculate_component_movie(self, dm: 'MiniscopeDataManager') -> Tuple[cm.movie, cm.movie]:
+
+
+    def calculate_component_movie(self, dm: 'MiniscopeDataManager') -> tuple[cm.movie, cm.movie]:
         """Create movies showing neural activity and background separately.
         
         Reconstructs the movie as A*C (neural) plus background model.
@@ -361,11 +352,11 @@ class MiniscopePostprocessor:
         Yr, dims, T = cm.load_memmap(dm.opts_caiman.get('data', 'fnames')[0])
         neural_activity = dm.CNMFE_obj.estimates.A @ dm.CNMFE_obj.estimates.C  # AC
         neural_movie = cm.movie(neural_activity).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
-        background_model = dm.CNMFE_obj.estimates.compute_background(Yr);  # build in function -- explore source code for details
+        background_model = dm.CNMFE_obj.estimates.compute_background(Yr)  # build in function -- explore source code for details
         bg_movie = cm.movie(background_model).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
-        
+
         return neural_movie, bg_movie
-    
+
     def calculate_black_component_movie(self, dm: 'MiniscopeDataManager') -> cm.movie:
         """Create a movie with detected neuron regions blacked out.
         
@@ -384,11 +375,10 @@ class MiniscopePostprocessor:
         movie_without_neurons = dm.movie.copy()
         for frame in range(num_frames):
             movie_without_neurons[frame][neuron_mask] = 0
-        
+
         print("Calculations complete. Attempting to play movie...", flush=True)
         return movie_without_neurons
-    
-    
 
-    
-    
+
+
+

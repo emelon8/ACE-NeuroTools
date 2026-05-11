@@ -1,5 +1,6 @@
 import caiman as cm
 
+
 # Functions that don't apply to a single experiment
 def find_same_neurons(session_list, FOV_dims, template_list = None, background=None, plot_results=False):
     """Track ROIs across multiple imaging sessions.

@@ -5,12 +5,11 @@ This module provides functions to load experiment configuration from
 CSV files. Project paths must be provided explicitly.
 """
 
-import warnings
-from typing import Dict, Any, List, Optional
 from pathlib import Path
+from typing import Any
 
 
-def load_analysis_params(line_num: int, project_path: Optional[Path] = None) -> Dict[str, Any]:
+def load_analysis_params(line_num: int, project_path: Path | None = None) -> dict[str, Any]:
     """Load analysis parameters for an experiment from the project directory.
     
     Reads from ``project_path/analysis_parameters.csv``.
@@ -34,31 +33,31 @@ def load_analysis_params(line_num: int, project_path: Optional[Path] = None) -> 
         >>> api.run(line_num=96, project_path="/path/to/project", **params)
     """
     from aceneurotools.shared.csv_worker import CSVWorker
-    
+
     if project_path is None:
         raise ValueError(
             "project_path is required. Pass the path to the directory "
             "containing your analysis_parameters.csv."
         )
-    
+
     active_project = Path(project_path)
     target_csv = active_project / "analysis_parameters.csv"
-    
+
     if not target_csv.exists():
         raise FileNotFoundError(
             f"Analysis parameters not found: {target_csv}\n"
             f"Make sure project_path is correct (currently: {active_project})"
         )
-    
+
     raw = CSVWorker.csv_row_to_dict(target_csv, line_num)
     if raw is None:
         raise ValueError(f"Line {line_num} not found in {target_csv}")
-    
+
     converted = CSVWorker.convert_data_types(raw)
     return parse_analysis_params(converted)
 
 
-def parse_analysis_params(params: Dict[str, Any]) -> Dict[str, Any]:
+def parse_analysis_params(params: dict[str, Any]) -> dict[str, Any]:
     """Convert CSV column values to pipeline kwargs.
     
     Maps column names from analysis_parameters.csv to the exact argument
@@ -72,7 +71,7 @@ def parse_analysis_params(params: Dict[str, Any]) -> Dict[str, Any]:
         Dict with keys matching pipeline.run() arguments
     """
     # Columns that map directly (CSV column name == kwarg name)
-    DIRECT_KEYS: List[str] = [
+    DIRECT_KEYS: list[str] = [
         # Miniscope preprocessing
         'filenames', 'crop_coords',
         'detrend_method', 'df_over_f', 'secs_window', 'quantile_min',
@@ -91,22 +90,22 @@ def parse_analysis_params(params: Dict[str, Any]) -> Dict[str, Any]:
         'compute_phases', 'plot_channel', 'plot_spectrogram', 'plot_phases',
         'logging_level'
     ]
-    
+
     # Columns with different names in CSV vs kwargs
-    RENAMED_KEYS: Dict[str, str] = {
+    RENAMED_KEYS: dict[str, str] = {
         'filter_data': 'filter_miniscope_data',
         'spectrogram': 'compute_miniscope_spectrogram',
         'method': 'df_over_f_method',
     }
-    
-    args: Dict[str, Any] = {}
-    
+
+    args: dict[str, Any] = {}
+
     for key in DIRECT_KEYS:
         if key in params and params[key] is not None:
             args[key] = params[key]
-    
+
     for csv_key, kwarg_key in RENAMED_KEYS.items():
         if csv_key in params and params[csv_key] is not None:
             args[kwarg_key] = params[csv_key]
-    
+
     return args

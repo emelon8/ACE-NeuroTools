@@ -1,8 +1,11 @@
-import os
 import csv
-from typing import List, Optional, Union, Any, Tuple, Dict, cast
-from aceneurotools.shared.misc_functions import conv_quat_to_euler
+import os
+from typing import cast
+
 import matplotlib.pyplot as plt
+
+from aceneurotools.shared.misc_functions import conv_quat_to_euler
+
 
 # two functions for computing/plotting rat head direction data
 def quat_file_to_euler(filename: str = 'head_orientation.csv', nf: str = 'True'):

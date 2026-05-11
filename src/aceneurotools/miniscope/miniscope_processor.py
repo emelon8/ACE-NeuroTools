@@ -1,21 +1,37 @@
-from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
-from aceneurotools.shared.exceptions import ProcessingError
-import aceneurotools.shared.misc_functions as misc_functions
-import caiman as cm
-import numpy as np
-from pathlib import Path
 import os
-import matplotlib.pyplot as plt
-from copy import deepcopy
-from aceneurotools.miniscope.movie_io import MovieIO
-import matplotlib.widgets
 import tkinter
-import matplotlib
-from typing import List, Optional, Union, Dict, Any, Tuple, TYPE_CHECKING, cast
+from copy import deepcopy
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, cast
+
+import caiman as cm
+import matplotlib.pyplot as plt
+import numpy as np
+
+import aceneurotools.shared.misc_functions as misc_functions
+from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
+from aceneurotools.miniscope.pipeline_results import ProcessingResult
+from aceneurotools.shared.exceptions import ProcessingError
 
 if TYPE_CHECKING:
-    from caiman.source_extraction.cnmf import CNMF
     from caiman.source_extraction.cnmf.params import CNMFParams
+
+
+# Maps each CaImAn parameter name to the group(s) it belongs to in CNMFParams.
+# Extracted from _prepare_opts_caiman so it can be inspected without running the method.
+_CAIMAN_PARAM_GROUPS: dict[str, list[str]] = {
+    'data': ['fnames', 'dims', 'fr', 'decay_time', 'dxy', 'var_name_hdf5', 'caiman_version', 'last_commit'],
+    'patch': ['border_pix', 'del_duplicates', 'in_memory', 'low_rank_background', 'memory_fact', 'n_processes', 'nb_patch', 'only_init', 'p_patch', 'remove_very_bad_comps', 'rf', 'skip_refinement', 'p_ssub', 'stride', 'p_tsub'],
+    'preprocess': ['check_nan', 'compute_g', 'include_noise', 'lags', 'max_num_samples_fft', 'n_pixels_per_process', 'noise_method', 'noise_range', 'p', 'pixels', 'sn'],
+    'init': ['K', 'SC_kernel', 'SC_sigma', 'SC_thr', 'SC_normalize', 'SC_use_NN', 'SC_nnn', 'alpha_snmf', 'center_psf', 'gSig', 'gSiz', 'greedyroi_nmf_init_method', 'greedyroi_nmf_max_iter', 'init_iter', 'kernel', 'lambda_gnmf', 'snmf_l1_ratio', 'maxIter', 'max_iter_snmf', 'method_init', 'min_corr', 'min_pnr', 'nIter', 'nb', 'normalize_init', 'options_local_NMF', 'perc_baseline_snmf', 'ring_size_factor', 'rolling_length', 'rolling_sum', 'seed_method', 'sigma_smooth_snmf', 'ssub', 'ssub_B', 'tsub'],
+    'spatial': ['dist', 'expandCore', 'extract_cc', 'maxthr', 'medw', 'method_exp', 'method_ls', 'n_pixels_per_process', 'normalize_yyt_one', 'nrgthr', 'num_blocks_per_run_spat', 'se', 'ss', 'thr_method', 'update_background_components'],
+    'temporal': ['ITER', 'bas_nonneg', 'block_size_temp', 'fudge_factor', 'lags', 'optimize_g', 'method_deconvolution', 'noise_method', 'noise_range', 'num_blocks_per_run_temp', 'p', 's_min', 'solvers', 'verbosity'],
+    'merging': ['do_merge', 'merge_thr', 'merge_parallel'],
+    'quality': ['SNR_lowest', 'cnn_lowest', 'gSig_range', 'min_SNR', 'min_cnn_thr', 'rval_lowest', 'rval_thr', 'use_cnn', 'use_ecc', 'max_ecc'],
+    'online': ['N_samples_exceptionality', 'batch_update_suff_stat', 'dist_shape_update', 'ds_factor', 'epochs', 'expected_comps', 'full_XXt', 'init_batch', 'init_method', 'iters_shape', 'max_comp_update_shape', 'max_num_added', 'max_shifts_online', 'min_SNR', 'min_num_trial', 'minibatch_shape', 'minibatch_suff_stat', 'motion_correct', 'movie_name_online', 'normalize', 'n_refit', 'num_times_comp_updated', 'opencv_codec', 'path_to_model', 'ring_CNN', 'rval_thr', 'save_online_movie', 'show_movie', 'simultaneously', 'sniper_mode', 'stop_detection', 'test_both', 'thresh_CNN_noisy', 'thresh_fitness_delta', 'thresh_fitness_raw', 'thresh_overlap', 'update_freq', 'update_num_comps', 'use_corr_img', 'use_dense', 'use_peak_max', 'W_update_factor'],
+    'motion': ['border_nan', 'gSig_filt', 'is3D', 'max_deviation_rigid', 'max_shifts', 'min_mov', 'niter_rig', 'nonneg_movie', 'num_frames_split', 'num_splits_to_process_els', 'num_splits_to_process_rig', 'overlaps', 'pw_rigid', 'shifts_interpolate', 'shifts_opencv', 'splits_els', 'splits_rig', 'strides', 'upsample_factor_grid', 'use_cuda', 'indices'],
+    'ring_CNN': ['n_channels', 'use_bias', 'use_add', 'pct', 'patience', 'max_epochs', 'width', 'loss_fn', 'lr', 'lr_scheduler', 'path_to_model', 'remove_activity', 'reuse_model'],
+}
 
 
 class MiniscopeProcessor:
@@ -32,6 +48,7 @@ class MiniscopeProcessor:
 
     data_manager: MiniscopeDataManager
     preprocessed_movie: cm.movie
+    result: ProcessingResult  # populated after process_calcium_movie() returns
 
     def __init__(self, data_manager: MiniscopeDataManager) -> None:
         """
@@ -45,22 +62,22 @@ class MiniscopeProcessor:
             5. Save any results
             
         """
-        
+
         self.data_manager = data_manager
         self.preprocessed_movie = deepcopy(data_manager.movie)
         self._prepare_opts_caiman()
-        
-    
+
+
     def process_calcium_movie(
-        self, 
-        parallel: bool = True, 
-        n_processes: int = 12, 
-        apply_motion_correction: bool = True, 
-        inspect_motion_correction: bool = False, 
-        plot_params: bool = False, 
+        self,
+        parallel: bool = True,
+        n_processes: int = 12,
+        apply_motion_correction: bool = True,
+        inspect_motion_correction: bool = False,
+        plot_params: bool = False,
         run_CNMFE: bool = True,
-        save_estimates: bool = True, 
-        save_CNMFE_estimates_filename: str = 'estimates.hdf5', 
+        save_estimates: bool = True,
+        save_CNMFE_estimates_filename: str = 'estimates.hdf5',
         save_CNMFE_params: bool = False
     ) -> MiniscopeDataManager:
         """Run the complete calcium movie processing pipeline.
@@ -88,19 +105,19 @@ class MiniscopeProcessor:
         if parallel:
             print('Setting up cluster for caiman parallel processing on your computer')
             c, dview, n_processes = cm.cluster.setup_cluster(backend='multiprocessing', n_processes=n_processes, single_thread=False)
-            
+
         #Apply motion correction, then saves a memory map to opts_caiman to prepare for CNMFE.
         self.data_manager = self.motion_correction_manager(self.data_manager, dview, apply_motion_correction, inspect_motion_correction)
-        
+
         #Prepare additional analysis parameters for CNMFE
         self.data_manager, images = self.cnmfe_parameter_handler(self.data_manager, plot_params=plot_params)
-        
+
         #intialize CNMFE object
         self.data_manager.CNMFE_obj = cm.source_extraction.cnmf.CNMF(n_processes=n_processes, dview=dview, Ain=None, params=self.data_manager.opts_caiman)
-        
+
         #reupdate data_manager.movie with motion-corrected movie, otherwise the movie returned below is the same if you did not motion correct
         self.data_manager.movie = cm.movie(images, fr=self.data_manager.fr)
-            
+
         #run CNMFE. Do not run unless you have optimal parameters or the neuron estimates will be junk
         if run_CNMFE:
             print('Running CNMFE...')
@@ -110,26 +127,36 @@ class MiniscopeProcessor:
                 print('CNMFE failed to run. Please check the parameters and try again.')
                 print('No estimates were saved to disk. Do not continue to post-processing or multimodal analysis')
                 raise ProcessingError(f"CNMFE failed: {e}") from e
-            
+
         #save results 'estimates' to disk and update data_manager with their filepaths
         self.data_manager = self._save_processed_data(self.data_manager, save_estimates, save_CNMFE_estimates_filename, save_CNMFE_params)
-        
+
         try:
             cm.stop_server(dview=dview)
         except (OSError, AttributeError) as e:
             print(f"Warning: could not stop CaImAn processing server: {e}")
-        
+
+        # Capture outputs in a structured result for callers that prefer the
+        # dataclass API over interrogating data_manager directly.
+        self.result = ProcessingResult(
+            CNMFE_obj=self.data_manager.CNMFE_obj,
+            estimates_filepath=self.data_manager.estimates_filepath,
+            opts_caiman_filepath=getattr(self.data_manager, 'opts_caiman_filepath', None),
+            opts_caiman=self.data_manager.opts_caiman,
+            motion_corrected_movie_filepath=getattr(self.data_manager, 'motion_corrected_movie_filepath', None),
+        )
+
         return self.data_manager
-        
-        
-        
-        
-        
+
+
+
+
+
     def motion_correction_manager(
-        self, 
-        data_manager: MiniscopeDataManager, 
-        dview: Any, 
-        apply_motion_correction: bool, 
+        self,
+        data_manager: MiniscopeDataManager,
+        dview: Any,
+        apply_motion_correction: bool,
         inspect_motion_correction: bool
     ) -> MiniscopeDataManager:
         """Manage the motion correction workflow.
@@ -156,26 +183,21 @@ class MiniscopeProcessor:
         else:
             #add our non-motion-corrected movie to opts_caiman to prepare for CNMFE
             data_manager.opts_caiman = self._add_temp_mmap_to_opts_caiman(data_manager.opts_caiman.get('data', 'fnames'), data_manager.opts_caiman, data_manager.opts_caiman.get('patch', 'border_pix'), dview)
-        
+
         if inspect_motion_correction and apply_motion_correction and motion_correction_object is not None:
             self.inspect_motion_correction(motion_correction_object, data_manager.opts_caiman, self.preprocessed_movie, self.data_manager.fr)
-        
+
         return data_manager
-    
+
     def cleanup_tkinter(self) -> None:
-        """Helper to cleanup tkinter root if it exists."""
+        """Destroy any active Tkinter root and set the interactive matplotlib backend."""
         root = getattr(tkinter, '_default_root', None)
         if root:
             root.destroy()
-        # Set Matplotlib backend to Qt5Agg for interactive plotting
-        try:
-            matplotlib.use('Qt5Agg')
-            print("Matplotlib backend set to Qt5Agg")
-        except Exception as e:
-            print(f"Error setting Qt5Agg backend: {e}")
-            matplotlib.use('Agg')  # Fallback to non-interactive backend
-            
-    def cnmfe_parameter_handler(self, dm: MiniscopeDataManager, plot_params: bool = False) -> Tuple[MiniscopeDataManager, np.ndarray]:
+        from aceneurotools.shared.plotting import set_backend
+        set_backend(headless=False)
+
+    def cnmfe_parameter_handler(self, dm: MiniscopeDataManager, plot_params: bool = False) -> tuple[MiniscopeDataManager, np.ndarray]:
         """
         -This is an important step before CNMFE. It handles the most important CNMFE parameters.
         
@@ -190,15 +212,15 @@ class MiniscopeProcessor:
         at least 3-4 neuron diameters can fit into each patch, and at least one neuron fits in the overlap region between patches.
         If patches and overlaps seem a bit large that is ok: our main concern is that they not be too small.
         """
-        
+
         self.cleanup_tkinter()
-            
+
         #load memory map and recompute movie from it
         Yr, dims, T = cm.load_memmap(dm.opts_caiman.get('data', 'fnames')[0])
         dm.opts_caiman.change_params({'data': {'dims': dims}})
         images = Yr.T.reshape((T,) + dims, order='F')
-        
-        
+
+
         if plot_params:
             #calculate min correlation/min pnr and plot them
             gsig_tmp = (3,3)
@@ -207,35 +229,35 @@ class MiniscopeProcessor:
             cm.utils.visualization.inspect_correlation_pnr(correlation_image, peak_to_noise_ratio)
             plt.show(block=True)
             if hasattr(dm, 'diag_logger') and dm.diag_logger is not None: dm.diag_logger.resume_timer()
-            
+
             #Calculate stride/overlap and plot them
             cnmfe_patch_width = dm.opts_caiman.get('patch', 'rf') * 2 + 1
             cnmfe_patch_overlap = dm.opts_caiman.get('patch', 'stride') + 1
             cnmfe_patch_stride = cnmfe_patch_width - cnmfe_patch_overlap
             print(f'Patch width: {cnmfe_patch_width} , Stride: {cnmfe_patch_stride}, Overlap: {cnmfe_patch_overlap}')
-            
+
             if hasattr(dm, 'diag_logger') and dm.diag_logger is not None: dm.diag_logger.pause_timer()
-            patch_ax = cm.utils.visualization.view_quilt(correlation_image, cnmfe_patch_stride, cnmfe_patch_overlap, vmin=np.percentile(np.ravel(correlation_image), 50), 
+            patch_ax = cm.utils.visualization.view_quilt(correlation_image, cnmfe_patch_stride, cnmfe_patch_overlap, vmin=np.percentile(np.ravel(correlation_image), 50),
                                                          vmax=np.percentile(np.ravel(correlation_image), 99.5), color='yellow', figsize=(4,4))
             patch_ax.set_title(f'CNMFE Patch Width {cnmfe_patch_width}, Overlap {cnmfe_patch_overlap}')
             plt.show(block=True)
             if hasattr(dm, 'diag_logger') and dm.diag_logger is not None: dm.diag_logger.resume_timer()
-            
+
             #REMEMBER! Change analysis_parameter.csv so that these paramters are optimal BEFORE running CNMFE, then skip this step when they are optimal
         return dm, images
 
 
     def inspect_motion_correction(
-        self, 
-        mc: Any, 
-        opts_caiman: 'CNMFParams', 
-        original_movie: cm.movie, 
-        frame_rate: float, 
-        plot_rigid_motion_correction: bool = True, 
-        plot_shifts: bool = True, 
-        play_concatenated_movies: bool = True, 
-        down_sample_ratio: float = 0.2, 
-        plot_correlation: bool = True, 
+        self,
+        mc: Any,
+        opts_caiman: 'CNMFParams',
+        original_movie: cm.movie,
+        frame_rate: float,
+        plot_rigid_motion_correction: bool = True,
+        plot_shifts: bool = True,
+        play_concatenated_movies: bool = True,
+        down_sample_ratio: float = 0.2,
+        plot_correlation: bool = True,
         plot_advanced_MC_inspection: bool = True
     ) -> None:
         """This function is a mess and needs a lot of work. It does not work well at all.
@@ -251,7 +273,7 @@ class MiniscopeProcessor:
         print('Inspecting motion correction...')
         if plot_rigid_motion_correction:
             h, ax_any = misc_functions._prep_axes(xLabel=['', 'Frames'], yLabel=['', 'Pixels'], subPlots=[1, 2])
-            ax = cast(List[Any], ax_any)
+            ax = cast(list[Any], ax_any)
             ax[0].imshow(mc.total_template_rig)  # % plot template
             ax[1].plot(mc.shifts_rig)  # % plot rigid shifts
             ax[1].legend(['X Shifts', 'Y Shifts'])
@@ -268,7 +290,7 @@ class MiniscopeProcessor:
             else:
                 h, ax_any = misc_functions._prep_axes(xLabel=['', 'Frames'],
                                                  yLabel=['X Shifts (Pixels)', 'Y Shifts (Pixels)'], subPlots=[2, 1])
-                ax = cast(List[Any], ax_any)
+                ax = cast(list[Any], ax_any)
                 ax[0].plot(mc.x_shifts_els)
                 ax[1].plot(mc.y_shifts_els)
 
@@ -280,14 +302,14 @@ class MiniscopeProcessor:
                 # Get dimensions of motion-corrected movie
                 mc_height = mc_movie.shape[1]  # Height (dimension 1)
                 mc_width = mc_movie.shape[2]   # Width (dimension 2)
-                
+
                 # Crop original movie to match mc_movie dimensions
                 before_movie = original_movie[:, 0:mc_height, 0:mc_width]
-                
+
                 # Resize movies
                 m1 = before_movie.resize(1, 1, down_sample_ratio)
                 m2 = mc_movie.resize(1, 1, down_sample_ratio)
-                
+
                 # Handle NaN and inf values
                 if np.any(np.isnan(m1)) or np.any(np.isinf(m1)):
                     print('Found NaN or inf values in the original movie...')
@@ -295,18 +317,18 @@ class MiniscopeProcessor:
                 if np.any(np.isnan(m2)) or np.any(np.isinf(m2)):
                     print('Found NaN or inf values in the motion-corrected movie...')
                     m2[np.isnan(m2) | np.isinf(m2)] = np.nanmean(m2[np.isfinite(m2)])
-                
+
                 # Clip negative values
                 m1 = np.clip(m1, 0, None)
                 m2 = np.clip(m2, 0, None)
-                
+
                 # Independent normalization
                 m1 = (m1 - np.min(m1)) / (np.max(m1) - np.min(m1) + 1e-10)
                 m2 = (m2 - np.nanmin(m2)) / (np.nanmax(m2) - np.nanmin(m2) + 1e-10)
-                
+
                 # Boost m1 brightness
                 m1 = np.clip(m1 * 3, 0, 1)  # Adjust multiplier (e.g., 1.2 to 2.0) as needed
-            
+
                 # Concatenate and play
                 if hasattr(self.data_manager, 'diag_logger') and self.data_manager.diag_logger is not None: self.data_manager.diag_logger.pause_timer()
                 cm.concatenate([m1, m2], axis=2).play(fr=15, gain=1.0, magnification=2)
@@ -314,10 +336,10 @@ class MiniscopeProcessor:
                 if play_concatenated_movies:
                     print("WARNING! The concatenated clips being shown are different in brightness but still represent your movie before and after motion correction.")
                     cm.concatenate([self.preprocessed_movie, mc_movie.resize(1, 1, down_sample_ratio)]).play(q_max=99.5, fr=frame_rate, magnification=2)
-            
+
             if plot_correlation:
                 h, ax_any = misc_functions._prep_axes(xLabel=['Original Movie', 'Motion Corrected Movie'], subPlots=[1, 2])
-                ax = cast(List[Any], ax_any)
+                ax = cast(list[Any], ax_any)
                 ax[0].imshow(original_movie.local_correlations(eight_neighbours=True, swap_dim=False))
                 ax[1].imshow(mc_movie.local_correlations(eight_neighbours=True, swap_dim=False))
 
@@ -338,7 +360,7 @@ class MiniscopeProcessor:
 
             if plot_correlation:
                 fig, ax_any = plt.subplots(1, 2, sharex=True, sharey=True)
-                ax = cast(List[Any], ax_any)
+                ax = cast(list[Any], ax_any)
                 ax[0].plot(correlations_orig)
                 ax[0].plot(correlations_mc)
                 ax[0].legend(['Original', 'Corrected'])
@@ -349,7 +371,7 @@ class MiniscopeProcessor:
                 ax[1].set_xlabel('Original Correlation')
                 ax[1].set_ylabel('Corrected Correlation')
                 ax[1].set_title('Correlation Comparison')
-            
+
             # print crispness values
             print('Crispness original: ' + str(int(crispness_orig)))
             print('Crispness motion corrected: ' + str(int(crispness_mc)))
@@ -361,8 +383,8 @@ class MiniscopeProcessor:
             h, ax_any = misc_functions._prep_axes(title=['Mean', 'Corr Image', 'Mean Optical Flow', '', '', ''],
                                              xLabel=['Original', '', '', 'Motion Corrected', '', ''], yLabel=['', '', '', '', '', ''],
                                              subPlots=[2, 3])
-            ax = cast(List[Any], ax_any)
-            
+            ax = cast(list[Any], ax_any)
+
             for cnt, fl in zip(range(len(fls)), fls):
                 print(f"loading file into numpy: {fl}")
                 with np.load(fl) as ld:
@@ -385,12 +407,12 @@ class MiniscopeProcessor:
                             np.sqrt(ld['flows'][:, :, :, 0] ** 2 + ld['flows'][:, :, :, 1] ** 2), 0), vmin=0, vmax=0.3)
                         plt.colorbar(mappable=mappable, ax=ax[3 * cnt + 3]) #FIXME colorbar() is NOT an attribute of ax. It is of plt though"
 
-    
-    def _apply_motion_correction(self, opts_caiman: 'CNMFParams', dview: Any = None) -> Tuple[Any, 'CNMFParams']:
+
+    def _apply_motion_correction(self, opts_caiman: 'CNMFParams', dview: Any = None) -> tuple[Any, 'CNMFParams']:
         """Motion corrects using a passed in caiman parameters object opts_caiman and calculates bord_px"""
         mc = cm.motion_correction.MotionCorrect(self.data_manager.preprocessed_movie_filepath, dview=dview, **opts_caiman.get_group('motion'))
         print(f"Motion correcting with these parameters: {opts_caiman.get_group('motion')}")
-        
+
         #save_movie=True below saves a .npz file for the motion corrected movie to the same folder as self.movie_filepath, and allows us to save it as a mmap using method below this one
         mc.motion_correct(save_movie=True)
         if opts_caiman.get('motion', 'pw_rigid'):
@@ -401,13 +423,13 @@ class MiniscopeProcessor:
         opts_caiman.change_params({'patch': {'border_pix': bord_px}})
         print(f'Updating border_pix with: {bord_px}')
         return mc, opts_caiman
-    
-    
+
+
     def _add_temp_mmap_to_opts_caiman(
-        self, 
-        filepath: Union[str, List[str], Path],
-        opts_caiman: 'CNMFParams', 
-        bord_px: int, 
+        self,
+        filepath: str | list[str] | Path,
+        opts_caiman: 'CNMFParams',
+        bord_px: int,
         dview: Any = None
     ) -> 'CNMFParams':
         """Save movie to memory-mapped file and update CaImAn options.
@@ -427,13 +449,13 @@ class MiniscopeProcessor:
         motion_corrected_mmap_filepath = cm.save_memmap(filepath, base_name="", order='C', border_to_0=bord_px, dview=dview)
         opts_caiman.change_params({'data': {'fnames': motion_corrected_mmap_filepath}})
         return opts_caiman
-    
-    
+
+
     def _save_processed_data(
-        self, 
-        dm: MiniscopeDataManager, 
-        save_estimates: bool, 
-        save_CNMFE_estimates_filename: str, 
+        self,
+        dm: MiniscopeDataManager,
+        save_estimates: bool,
+        save_CNMFE_estimates_filename: str,
         save_CNMFE_params: bool
     ) -> MiniscopeDataManager:
         """Save CNMF-E results and parameters to disk.
@@ -454,22 +476,22 @@ class MiniscopeProcessor:
             cal_imaging_dir = str(dm.metadata['calcium imaging directory'])
             save_dir = os.path.join(cal_imaging_dir, "saved_movies")
             os.makedirs(save_dir, exist_ok=True)
-            
+
             if save_estimates and dm.CNMFE_obj is not None:
                 CNMFE_obj_filepath = os.path.join(save_dir, str(save_CNMFE_estimates_filename))
                 print('Saving CNMF-E estimates in ' + CNMFE_obj_filepath)
                 dm.CNMFE_obj.save(CNMFE_obj_filepath) #saves the estimates from CNMFE to a file
                 dm.estimates_filepath = CNMFE_obj_filepath
-            
+
             if save_CNMFE_params and dm.opts_caiman is not None:
                 opts_caiman_json_filepath = os.path.join(save_dir, "opts_caiman.json")
                 print(f"Saving CaImAn params to {opts_caiman_json_filepath}")
                 dm.opts_caiman.to_jsonfile(targfn=opts_caiman_json_filepath)
                 dm.opts_caiman_filepath = opts_caiman_json_filepath
-        
+
         return dm
-            
-            
+
+
     def _prepare_opts_caiman(self) -> None:
         """Prepare CaImAn parameters from analysis_params.
         
@@ -487,56 +509,41 @@ class MiniscopeProcessor:
             for key, value in self.data_manager.analysis_params.items():
                 if isinstance(value, float) and value.is_integer():
                     self.data_manager.analysis_params[key] = int(value)
-            
+
             print(f'updated dimensions in bottom with {self.data_manager.movie.shape[1:]}')
             self.data_manager.analysis_params['fnames'] = self.data_manager.preprocessed_movie_filepath
             self.data_manager.analysis_params['dims'] = self.data_manager.movie.shape[1:]
             self.data_manager.analysis_params['fr'] = self.data_manager.fr
-        
+
         # Create a clean dictionary for CaImAn
         if self.data_manager.analysis_params is None:
             caiman_params = {}
         else:
             caiman_params = self.data_manager.analysis_params.copy()
         keys_to_remove = [
-            'line number', 'id', 'date (YYMMDD)', 'Box calcium folder ID', 
-            'calcium imaging directory', 'Box ephys folder ID', 'ephys directory', 
-            'indices of TTL events to delete', 'zero time (s)', 'baseline period (min)', 
-            'crop', 'crop_coords', 'periods of high slow wave power (s)', 'control periods (s)', 
-            'ca_ephys_baseline_video_num', 'ca_ephys_slow_wave_video_num', 
+            'line number', 'id', 'date (YYMMDD)', 'Box calcium folder ID',
+            'calcium imaging directory', 'Box ephys folder ID', 'ephys directory',
+            'indices of TTL events to delete', 'zero time (s)', 'baseline period (min)',
+            'crop', 'crop_coords', 'periods of high slow wave power (s)', 'control periods (s)',
+            'ca_ephys_baseline_video_num', 'ca_ephys_slow_wave_video_num',
             'ca_ephys_burst_suppression_video_num', 'comments'
         ]
-        
+
         for key in keys_to_remove:
             caiman_params.pop(key, None)
 
-        # Define parameter groups to map flat parameters to their respective groups
-        # This prevents the "non-pathed parameters" deprecation warning in CaImAn
+        # Map flat analysis_params keys to their CaImAn parameter groups.
+        # The mapping lives in the module-level constant _CAIMAN_PARAM_GROUPS.
         structured_params = {}
-        
-        # Based on CaImAn CNMFParams groups
-        param_groups = {
-            'data': ['fnames', 'dims', 'fr', 'decay_time', 'dxy', 'var_name_hdf5', 'caiman_version', 'last_commit'],
-            'patch': ['border_pix', 'del_duplicates', 'in_memory', 'low_rank_background', 'memory_fact', 'n_processes', 'nb_patch', 'only_init', 'p_patch', 'remove_very_bad_comps', 'rf', 'skip_refinement', 'p_ssub', 'stride', 'p_tsub'],
-            'preprocess': ['check_nan', 'compute_g', 'include_noise', 'lags', 'max_num_samples_fft', 'n_pixels_per_process', 'noise_method', 'noise_range', 'p', 'pixels', 'sn'],
-            'init': ['K', 'SC_kernel', 'SC_sigma', 'SC_thr', 'SC_normalize', 'SC_use_NN', 'SC_nnn', 'alpha_snmf', 'center_psf', 'gSig', 'gSiz', 'greedyroi_nmf_init_method', 'greedyroi_nmf_max_iter', 'init_iter', 'kernel', 'lambda_gnmf', 'snmf_l1_ratio', 'maxIter', 'max_iter_snmf', 'method_init', 'min_corr', 'min_pnr', 'nIter', 'nb', 'normalize_init', 'options_local_NMF', 'perc_baseline_snmf', 'ring_size_factor', 'rolling_length', 'rolling_sum', 'seed_method', 'sigma_smooth_snmf', 'ssub', 'ssub_B', 'tsub'],
-            'spatial': ['dist', 'expandCore', 'extract_cc', 'maxthr', 'medw', 'method_exp', 'method_ls', 'n_pixels_per_process', 'normalize_yyt_one', 'nrgthr', 'num_blocks_per_run_spat', 'se', 'ss', 'thr_method', 'update_background_components'],
-            'temporal': ['ITER', 'bas_nonneg', 'block_size_temp', 'fudge_factor', 'lags', 'optimize_g', 'method_deconvolution', 'noise_method', 'noise_range', 'num_blocks_per_run_temp', 'p', 's_min', 'solvers', 'verbosity'],
-            'merging': ['do_merge', 'merge_thr', 'merge_parallel'],
-            'quality': ['SNR_lowest', 'cnn_lowest', 'gSig_range', 'min_SNR', 'min_cnn_thr', 'rval_lowest', 'rval_thr', 'use_cnn', 'use_ecc', 'max_ecc'],
-            'online': ['N_samples_exceptionality', 'batch_update_suff_stat', 'dist_shape_update', 'ds_factor', 'epochs', 'expected_comps', 'full_XXt', 'init_batch', 'init_method', 'iters_shape', 'max_comp_update_shape', 'max_num_added', 'max_shifts_online', 'min_SNR', 'min_num_trial', 'minibatch_shape', 'minibatch_suff_stat', 'motion_correct', 'movie_name_online', 'normalize', 'n_refit', 'num_times_comp_updated', 'opencv_codec', 'path_to_model', 'ring_CNN', 'rval_thr', 'save_online_movie', 'show_movie', 'simultaneously', 'sniper_mode', 'stop_detection', 'test_both', 'thresh_CNN_noisy', 'thresh_fitness_delta', 'thresh_fitness_raw', 'thresh_overlap', 'update_freq', 'update_num_comps', 'use_corr_img', 'use_dense', 'use_peak_max', 'W_update_factor'],
-            'motion': ['border_nan', 'gSig_filt', 'is3D', 'max_deviation_rigid', 'max_shifts', 'min_mov', 'niter_rig', 'nonneg_movie', 'num_frames_split', 'num_splits_to_process_els', 'num_splits_to_process_rig', 'overlaps', 'pw_rigid', 'shifts_interpolate', 'shifts_opencv', 'splits_els', 'splits_rig', 'strides', 'upsample_factor_grid', 'use_cuda', 'indices'],
-            'ring_CNN': ['n_channels', 'use_bias', 'use_add', 'pct', 'patience', 'max_epochs', 'width', 'loss_fn', 'lr', 'lr_scheduler', 'path_to_model', 'remove_activity', 'reuse_model']
-        }
 
         # Reverse mapping for easy lookup
-        key_to_groups = {}
-        for group, keys in param_groups.items():
+        key_to_groups: dict[str, list[str]] = {}
+        for group, keys in _CAIMAN_PARAM_GROUPS.items():
             for key in keys:
                 if key not in key_to_groups:
                     key_to_groups[key] = []
                 key_to_groups[key].append(group)
-        
+
         for key, value in caiman_params.items():
             if key in key_to_groups:
                 for group in key_to_groups[key]:
@@ -548,4 +555,3 @@ class MiniscopeProcessor:
                  print(f"Warning: Parameter '{key}' is not recognized in the standard CaImAn groups. It will be ignored.")
 
         self.data_manager.opts_caiman = cm.source_extraction.cnmf.params.CNMFParams(params_dict=structured_params) #intialize caiman CNMFParams object
-                

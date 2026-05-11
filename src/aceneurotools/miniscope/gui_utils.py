@@ -1,12 +1,12 @@
-import numpy as np
+import base64
+import io
+
+import caiman as cm
 import FreeSimpleGUI as sg
 import matplotlib.pyplot as plt
-import caiman as cm
-import io
-import base64
-import sys
+import numpy as np
+
 from aceneurotools.miniscope.projections import Projections
-from PIL import Image
 
 
 def _create_contour_fig(sfootprints, background, estimates_obj, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, display_numbers=True, max_number=None,
@@ -141,7 +141,7 @@ def _component_image(estimates, projections, movie, graph, max=False, min=False,
         if not pic_data:
             print("Error: No image data generated")
             return
-        
+
         pic_hash = base64.b64encode(pic_data)
 
         graph.draw_image(data=pic_hash, location=(0, 0))
@@ -166,18 +166,18 @@ def component_gui(movie, estimates, projections):
         Updated estimates object with rejected components removed.
     """
     if estimates.idx_components_bad is None:
-        estimates.idx_components_bad = [] 
+        estimates.idx_components_bad = []
 
     print(f'This is the movie shape after processing: {movie.shape}')
     print(f'Initial estimates.idx_components_bad: {estimates.idx_components_bad}')
-    
+
     cmapOptions = ['viridis', 'jet', 'plasma', 'inferno', 'magma', 'cividis', 'Greys', 'Purples', 'Blues', 'Greens',
                    'Oranges', 'Reds', 'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu','GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn', 'binary', 'gist_yarg', 'gist_gray', 'gray','bone','pink', 'spring', 'summer', 'autumn', 'winter', 'cool','Wistia', 'hot', 'afmhot', 'gist_heat', 'copper', 'PiYG', 'PRGn', 'BrBG', 'PuOr', 'RdGy', 'RdBu','RdYlBu','RdYlGn', 'Spectral', 'coolwarm', 'bwr', 'seismic', 'Pastel1', 'Pastel2', 'Paired', 'Accent','Dark2','Set1', 'Set2', 'Set3', 'tab10', 'tab20', 'tab20b','tab20c']
 
     initial_listbox_selections_1based = [idx + 1 for idx in estimates.idx_components_bad]
 
 
-    
+
     layout = [[sg.Text('Components', key='-TITLE-')],
               [sg.Graph((movie.shape[2], movie.shape[1]), (0, movie.shape[1]), (movie.shape[2], 0), key='-GRAPH-',
                          enable_events=True)],
@@ -188,53 +188,53 @@ def component_gui(movie, estimates, projections):
               [sg.Text("CMAP:"), sg.Combo(cmapOptions, key='-CMAP-', default_value='viridis', readonly=True,
                                                  auto_size_text=True, enable_events=True)],
               [sg.Text("Select to reject: ")],
-              [sg.Listbox(values=[i + 1 for i in range(len(estimates.C))], 
-                           default_values=initial_listbox_selections_1based, 
-                           size=(3, 3), key='-LISTCOMP-', select_mode='multiple', 
+              [sg.Listbox(values=[i + 1 for i in range(len(estimates.C))],
+                           default_values=initial_listbox_selections_1based,
+                           size=(3, 3), key='-LISTCOMP-', select_mode='multiple',
                            background_color="white", highlight_background_color="red", enable_events = True)],
               [sg.Button('Cancel', key="-CANCEL-"), sg.Button('Submit', key="-SUBMIT-")]]
-    
+
     window = sg.Window('Components', layout, finalize=True, resizable=True,
                          element_justification='center', font='Helvetica 18')
 
     graph = window['-GRAPH-']
-    
-    plt.close('all') 
-    
+
+    plt.close('all')
+
     # Initial drawing of the image
-    event, values = window.read(timeout=100) 
+    event, values = window.read(timeout=100)
     _component_image(estimates, projections, movie, graph, max=True, cmap=values['-CMAP-'])
-    
+
     while True:
-        event, values = window.read() 
-        
+        event, values = window.read()
+
 
         if event == '-LISTCOMP-':
             selected_gui_values_to_reject = np.array(values['-LISTCOMP-'], dtype=int)
-            estimates.idx_components_bad = sorted(list(selected_gui_values_to_reject - 1)) 
-    
-            window['-LISTCOMP-'].update(set_to_index=[x for x in estimates.idx_components_bad], 
+            estimates.idx_components_bad = sorted(list(selected_gui_values_to_reject - 1))
+
+            window['-LISTCOMP-'].update(set_to_index=[x for x in estimates.idx_components_bad],
                                         scroll_to_index=estimates.idx_components_bad[0] if estimates.idx_components_bad else 0)
         if event == sg.WINDOW_CLOSED or event == '-CANCEL-':
             break
 
         proj_type_flags = {
-            'max': False, 'min': False, 'std': False, 
+            'max': False, 'min': False, 'std': False,
             'mean': False, 'median': False, 'range': False
         }
-        
+
         selected_proj = values['-OPTION-'].lower()
-        
+
         if selected_proj in proj_type_flags:
             proj_type_flags[selected_proj] = True
 
         # Redraw the component image on any relevant event
         if event in ('-OPTION-', '-CMAP-', '-LISTCOMP-'):
             _component_image(
-                estimates, projections, movie, graph, 
-                max=proj_type_flags['max'], min=proj_type_flags['min'], 
-                STD=proj_type_flags['std'], mean=proj_type_flags['mean'], 
-                median=proj_type_flags['median'], range=proj_type_flags['range'], 
+                estimates, projections, movie, graph,
+                max=proj_type_flags['max'], min=proj_type_flags['min'],
+                STD=proj_type_flags['std'], mean=proj_type_flags['mean'],
+                median=proj_type_flags['median'], range=proj_type_flags['range'],
                 cmap=values['-CMAP-']
             )
 
@@ -248,20 +248,20 @@ def component_gui(movie, estimates, projections):
             if ret is not None:
                 estimates = ret
             break
-            
+
     plt.close('all')
     window.close()
     return estimates
 
-        
 
 
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
+
 def crop_gui(coords_dict, projections: Projections, movie_height, movie_width, previous_coords=None) -> dict:
     """
     Creates and handles all events for the freesimplegui cropping application.  Returns a dictionary of coordinates!
@@ -420,7 +420,7 @@ def crop_gui(coords_dict, projections: Projections, movie_height, movie_width, p
                 index = not index
         elif event.endswith('+UP'):
              x0, y0 = None, None
-    
+
     plt.close()
     window.close()
 
@@ -460,9 +460,8 @@ def _update_coords(window, x0, y0, x1, y1, coords_dict) -> dict:
     window['-BOX-'].update(f'Box: ({abs(x1 - x0 + 1)}, {abs(y1 - y0 + 1)})')
 
     return coords_dict
-    
-    
-    
 
-        
-        
+
+
+
+

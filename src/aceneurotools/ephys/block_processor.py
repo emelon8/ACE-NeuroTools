@@ -19,12 +19,15 @@ Block (entire experiment)
 An event object in neo contains info like "light turned on: 5:48" or "drug applied: 6:00"
 
 """
-import numpy as np
-from scipy.signal.windows import hann  # type: ignore
-from aceneurotools.ephys.channel import Channel
-from neo.core import Block  # type: ignore
 import logging
-from typing import List, Dict, Union, Tuple, Optional, Any
+from typing import Any
+
+import numpy as np
+from neo.core import Block  # type: ignore
+from scipy.signal.windows import hann  # type: ignore
+
+from aceneurotools.ephys.channel import Channel
+
 
 class BlockProcessor:
     """Processes a Neo Block containing raw ephys data into Channel objects.
@@ -39,7 +42,7 @@ class BlockProcessor:
 
     logger: logging.Logger
     ephys_block: Block
-    
+
     def __init__(self, ephys_block: Block, logger: logging.Logger):
         """Initialize a BlockProcessor with an ephys Block.
         
@@ -50,12 +53,12 @@ class BlockProcessor:
         self.logger = logger
         self.ephys_block = ephys_block
 
-        
+
     def process_raw_ephys(
-        self, 
-        channels: Union[str, List[str]], 
+        self,
+        channels: str | list[str],
         remove_artifacts: bool = False
-    ) -> Dict[str, Channel]:
+    ) -> dict[str, Channel]:
         """Convert raw ephys data into processed Channel objects.
         
         Iterates through requested channel names, extracts signal data from
@@ -73,10 +76,10 @@ class BlockProcessor:
         """
         if not self.ephys_block:
             raise ValueError("Load raw data first using EphysDataManager.import_ephys_data()")
-        
+
         if type(channels) == str:
             channels = [channels]
-        
+
         print('Processing raw ephys data into channels...')
 
         channels_dict = {}
@@ -95,14 +98,14 @@ class BlockProcessor:
 
         return channels_dict
 
-            
 
-            
+
+
     def remove_artifacts(
-        self, 
-        channel: Channel, 
-        volt_threshold: float = 1500, 
-        time_threshold: float = 60, 
+        self,
+        channel: Channel,
+        volt_threshold: float = 1500,
+        time_threshold: float = 60,
         hannNum: int = 75
     ) -> None:
         """Remove high-amplitude artifacts from a channel using Hann window smoothing.
@@ -120,15 +123,15 @@ class BlockProcessor:
         dt = channel.time_vector[1] - channel.time_vector[0]
         mean = np.mean(channel.signal)
         channel.signal = channel.signal - mean
-        
+
         mask = np.abs(channel.signal) > volt_threshold
         mask = self._fill_gaps(mask, dt, time_threshold)
         han_window = self._create_hann_window(hannNum)
-        
-        self._apply_hann_window(channel, mask, han_window, dt)
-        
 
-            
+        self._apply_hann_window(channel, mask, han_window, dt)
+
+
+
     def _process_single_channel(self, channel_name: str) -> Channel:
         """Process a single channel from raw segment data.
         
@@ -153,7 +156,7 @@ class BlockProcessor:
         try:
             # Get the channel and its index in the first segment
             channel_index, channel = next(
-                (i, c) for i, c in enumerate(first_segment) 
+                (i, c) for i, c in enumerate(first_segment)
                 if c.name == channel_name
             )
         except StopIteration:
@@ -185,11 +188,11 @@ class BlockProcessor:
 
 
     def _scan_segments(
-        self, 
-        channel_index: int, 
-        channel_name: str, 
+        self,
+        channel_index: int,
+        channel_name: str,
         time_vector: np.ndarray
-    ) -> Tuple[np.ndarray, Dict[str, Any]]:
+    ) -> tuple[np.ndarray, dict[str, Any]]:
         """Construct a continuous signal array from multiple Neo segments.
         
         Iterates through all segments in the ephys block, extracting signal
@@ -210,7 +213,7 @@ class BlockProcessor:
 
         unsorted_labels = []
         unsorted_timestamps = []
-        
+
         for seg in self.ephys_block.segments:
 
 
@@ -230,7 +233,7 @@ class BlockProcessor:
 
 
             # PREVIOUSLY IMPORTNEURALYNXEVENTS()
-            # event processing Luke's: 
+            # event processing Luke's:
             # for event in seg.events:
             #     for t in event.times:
             #         events.append((event.name, t.magnitude.item()))
@@ -252,15 +255,15 @@ class BlockProcessor:
             'labels': event_labels,
             'timestamps': event_timestamps
         }
-        
+
         return signal, events
-        
+
     def _interpolate_missing_data(
-        self, 
-        channel_name: str, 
-        signal: np.ndarray, 
-        start_idx: int, 
-        time_vector: np.ndarray, 
+        self,
+        channel_name: str,
+        signal: np.ndarray,
+        start_idx: int,
+        time_vector: np.ndarray,
         t_start: float
     ) -> None:
         """Fill gaps between segments with linear interpolation.
@@ -279,9 +282,9 @@ class BlockProcessor:
         interp_length = start_idx - interp_start
         x = np.linspace(signal[interp_start - 1], signal[interp_start], interp_length + 2)
         signal[interp_start:start_idx] = x[1:-1]
-        
 
-            
+
+
     def _fill_gaps(self, mask: np.ndarray, dt: float, threshold: float) -> np.ndarray:
         """Extend artifact mask to fill short gaps between detected artifacts.
         
@@ -297,13 +300,13 @@ class BlockProcessor:
         """
         diff = np.diff(mask.astype(int))
         starts = np.where(diff == -1)[0]
-        
+
         for start in starts:
             end = np.where(diff[start:] == 1)[0]
             if end.size > 0 and (end[0] * dt) < threshold:
                 mask[start:start + end[0] + 1] = True
         return mask
-        
+
     def _create_hann_window(self, size: int) -> np.ndarray:
         """Create an inverted Hann window for artifact smoothing.
         
@@ -318,7 +321,7 @@ class BlockProcessor:
         """
         window = hann(size)
         return np.abs(window - 1)
-        
+
     def _apply_hann_window(self, channel: Channel, mask: np.ndarray, window: np.ndarray, dt: float) -> None:
         """Apply Hann window smoothing to artifact regions in the signal.
         
@@ -333,7 +336,7 @@ class BlockProcessor:
         """
         half_len = len(window) // 2
         indices = np.where(mask)[0]
-        
+
         for idx in indices:
             start = max(0, idx - half_len)
             end = min(len(channel.signal), idx + half_len + 1)

@@ -1,10 +1,12 @@
+
+import matplotlib.pyplot as plt
+import numpy as np
+
 from aceneurotools.ephys.channel import Channel
 from aceneurotools.ephys.spectrogram import Spectrogram
 from aceneurotools.ephys.visualizer import Visualizer
 from aceneurotools.shared.multitaper_spectrogram_python import multitaper_spectrogram
-import numpy as np
-import matplotlib.pyplot as plt
-from typing import Optional, List, Union, Tuple, Any
+
 
 class ChannelWorker:
     """Worker class for processing and visualizing a single ephys channel.
@@ -20,8 +22,8 @@ class ChannelWorker:
 
     channel: Channel
     visualizer: Visualizer
-    spectrogram: Optional[Spectrogram]
-    
+    spectrogram: Spectrogram | None
+
     def __init__(self, channel: Channel):
         """Initialize a ChannelWorker with a Channel object.
         
@@ -42,14 +44,14 @@ class ChannelWorker:
 
 
     def plot_spectrogram(
-        self, 
-        window_length: float = 30, 
+        self,
+        window_length: float = 30,
         window_step: float = 3,
-        freq_limits: List[float] = [0, 50], 
-        time_bandwidth: float = 2, 
-        plot_events: bool = False, 
+        freq_limits: list[float] = [0, 50],
+        time_bandwidth: float = 2,
+        plot_events: bool = False,
         use_filtered: bool = False
-    ) -> Optional[Spectrogram]:
+    ) -> Spectrogram | None:
         """Compute and plot the spectrogram for this channel.
         
         Args:
@@ -68,15 +70,15 @@ class ChannelWorker:
         events = None if not plot_events else self.channel.events
         self.visualizer.plot_spectrogram(spectrogram, events = events)
         return self.spectrogram
-    
+
 
     def compute_spectrogram(
-        self, 
-        channel: Channel, 
-        window_length: float = 30, 
+        self,
+        channel: Channel,
+        window_length: float = 30,
         window_step: float = 3,
-        freq_limits: List[float] = [0, 50], 
-        time_bandwidth: float = 2, 
+        freq_limits: list[float] = [0, 50],
+        time_bandwidth: float = 2,
         use_filtered: bool = False
     ) -> Spectrogram:
         """Compute the multitaper spectrogram for a channel.
@@ -104,7 +106,7 @@ class ChannelWorker:
         )
         psd, stimes, sfreqs = result[:3]
 
-        
+
         # Convert to decibel scale (dB re 1 µV²/Hz)
         psd_db = 10 * np.log10(psd)
 
@@ -128,7 +130,7 @@ class ChannelWorker:
         print("Min and Max phase:", np.min(self.channel.phases), np.max(self.channel.phases))
         print("Any NaN values?", np.any(np.isnan(self.channel.phases)))
         print("Any infinite values?", np.any(np.isinf(self.channel.phases)))
-    
+
         # Step 2: Plot a histogram of phase values
         plt.figure(figsize=(10, 6), facecolor='white')  # Create a figure with white background
         plt.hist(self.channel.phases, bins=50, color='blue', alpha=0.7, label=f'Phase Distribution of {self.channel.name}')

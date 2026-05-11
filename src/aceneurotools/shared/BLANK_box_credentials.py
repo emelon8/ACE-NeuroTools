@@ -12,7 +12,6 @@ To properly set up this file:
 3. You're done!"""
 
 from box_sdk_gen import BoxCCGAuth, CCGConfig
-from aceneurotools.shared.paths import DATA_DIR
 
 dev_token = 'PUT_YOUR_BOX_DEVELOPER_TOKEN_HERE'
 
