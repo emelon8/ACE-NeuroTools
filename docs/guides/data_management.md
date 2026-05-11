@@ -64,6 +64,25 @@ pipeline.run(
 )
 ```
 
+## Optional: Box Cloud Integration
+
+If your lab uses Box to store and share raw data, ACE-NeuroTools can automatically download missing files for a specific experiment before the analysis begins. This is an **optional opt-in feature**.
+
+### 1. Enable Box in Metadata
+In your `experiments.csv`, fill in the **Box Calcium Folder ID** and/or **Box ephys folder ID** columns for the experiments you want to sync. If these columns are empty, ACE-NeuroTools will only look for data at the local paths provided.
+
+### 2. Configure Authentication
+To allow the code to talk to Box, you must provide your own API credentials:
+1.  **Install the SDK**: Ensure you have the optional dependencies installed: `pip install aceneurotools[box]`
+2.  **Locate the Template**: Find `src/aceneurotools/shared/BLANK_box_credentials.py` in the package source.
+3.  **Setup your file**: Copy it to `src/aceneurotools/shared/box_credentials.py`.
+4.  **Enter Credentials**: Enter your **Client ID**, **Client Secret**, and **User ID** (obtained from the [Box Developer Console](https://app.box.com/developers/console)).
+
+### How it Works
+- **Local First**: If the data already exists at the specified local path, the pipeline starts immediately without connecting to Box.
+- **Smart Sync**: If files are missing locally **and** a Box ID is provided, the system will connect to Box and download the required files automatically.
+- **Graceful Fallback**: If Box IDs are present but you haven't configured your credentials, the system will print a reminder with setup instructions and proceed using only what is available locally.
+
 ### Where are the outputs saved?
 
 By default, ACE-NeuroTools saves all intermediate and final analysis results (such as HDF5 files, filtered movies, and generated plots) **directly adjacent to the raw data**.

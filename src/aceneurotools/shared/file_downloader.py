@@ -5,18 +5,21 @@ from typing import Any
 
 import pandas as pd
 
-# Box cloud storage is optional.  If box_credentials.py or box-sdk-gen are not
-# present, the module loads cleanly and USING_BOX defaults to False (assumes
-# all data is already available locally).
-try:
-    from box_sdk_gen import BoxClient, BoxDeveloperTokenAuth  # type: ignore[import]
+def is_box_installed() -> bool:
+    """Check if the Box SDK is installed."""
+    try:
+        from box_sdk_gen import BoxClient, BoxDeveloperTokenAuth  # noqa: F401
+        return True
+    except ImportError:
+        return False
 
-    from aceneurotools.shared.box_credentials import auth, dev_token  # type: ignore[import]
-    _BOX_AVAILABLE = True
-except ImportError:
-    _BOX_AVAILABLE = False
-
-USING_BOX: bool = _BOX_AVAILABLE
+def is_box_configured() -> bool:
+    """Check if box_credentials.py exists and is not the blank template."""
+    try:
+        from aceneurotools.shared.box_credentials import auth  # noqa: F401
+        return True
+    except ImportError:
+        return False
 
 def verify_avi(miniscope_path: str, avi: str, base_file_path: str | Path | None = None) -> bool:
     """Check if a specific AVI file exists in the Miniscope directory."""
@@ -26,7 +29,7 @@ def verify_avi(miniscope_path: str, avi: str, base_file_path: str | Path | None 
 
 def verify_path(path: str, base_file_path: str | Path | None = None) -> bool:
     """Checks the path where the file should be.
-    If a folder doesn't exist, break the search and call download_file(path) to download and store the file
+    If a folder doesn't exist, returns False.
     """
     if base_file_path is None:
         raise ValueError("base_file_path is required.")
@@ -37,7 +40,7 @@ def verify_path(path: str, base_file_path: str | Path | None = None) -> bool:
             return False #If the folder is empty (i.e., the download connection failed), it will still return false so verify_file will download it.
         return True # This will  return True even if the downloads are incomplete
     else:
-        makedirs(full_path) # Makes a folder for our downloads
+        # Note: We don't makedirs here anymore; we let the download process or the user handle it.
         return False
 
 def verify_file_by_line(
@@ -46,97 +49,132 @@ def verify_file_by_line(
     do_type: str = "both",
     avi_list: list[str] = [],
     base_file_path: str | Path | None = None
-) -> bool | None:
-    """Finds the path from the CSV line_num given and checks if it exists in our 
-    downloaded data. If a folder doesn't exist, it calls download_file().
+) -> bool:
+    """Checks if experimental data exists locally. If files are missing and Box IDs
+    are provided in the CSV, attempts to download them from Box.
     
+    This function implements an 'optional' Box integration:
+    1. If local files are present, it returns True (no Box needed).
+    2. If files are missing and Box IDs are in the CSV:
+       - If Box is configured, it syncs/downloads missing files.
+       - If Box is NOT configured, it prompts the user for setup.
+    3. If Box IDs are missing, it simply returns whether local files exist.
+
     Args:
         line_num: The experiment line number.
         csv_path: Path to experiments.csv.
         do_type: 'both', 'miniscope', or 'ephys'.
         avi_list: Specific filenames to check/download.
         base_file_path: Base path for data storage. Required.
+    
+    Returns:
+        True if all requested data is available locally (or was successfully downloaded).
+        False if data is missing and cannot be retrieved.
     """
+    if base_file_path is None:
+        raise ValueError("base_file_path is required.")
 
-    if  USING_BOX: # This code will run if you're using box to store your data.
-        if base_file_path is None:
-            raise ValueError("base_file_path is required for Box file verification.")
-        # If not, you can rewrite this file to interface with your cloud storage of choice
-        # Currently, if USING_BOX is False, we assume everthing is already stored locally, and the function will return None
+    line_num_str = str(line_num)
+    if do_type not in ["both", "miniscope", "ephys"]:
+        raise ValueError("variable 'do_type' must be 'both', 'miniscope', or 'ephys'")
 
-        # Verify the arguments
-        line_num_str: str = str(line_num)
-        if do_type not in ["both", "miniscope", "ephys"]:
-            raise ValueError("variable 'do_type' must be 'both', 'miniscope', or 'ephys' in order to work")
-
-        # print("Getting path and ID from CSV")
-        try:
-            df = pd.read_csv(csv_path, index_col="line number") # Tries to read the CSV
-            df.index = df.index.astype(str)  # Ensure consistent string-based index lookup
-            print(f"Loaded CSV: {csv_path}")
-        except (pd.errors.EmptyDataError, FileNotFoundError, pd.errors.ParserError):
-            return False # Will return false if we can't read the CSV
-
-        miniscope_id = df.at[line_num_str, "Box Calcium Folder ID"]
-        miniscope_path = df.at[line_num_str, "calcium imaging directory"]
-        ephys_id = df.at[line_num_str, "Box ephys folder ID"]
-        ephys_path = df.at[line_num_str, "ephys directory"]
-
-        downloaded_miniscope: bool = False
-        downloaded_ephys: bool = False
-        need_to_download: list[str] = [avi for avi in avi_list if not verify_avi(miniscope_path, avi, base_file_path=base_file_path)] # Makes a list of avi files we don't already have and need to download
-
-        client: Any | None = None # Declaring client here, but only initializing it if we actually need to download something
-
-        if do_type in ["both", "miniscope"]:
-            if pd.isnull(miniscope_path) or pd.isnull(miniscope_id): # Checks if we have the data we need to perform the download
-                print("The miniscope path or ID do not exist in the CSV file, cannot download") # DEBUG: Prints the error
-            else:
-                if not verify_path(miniscope_path, base_file_path=base_file_path): # Checks if we've already downloaded this folder
-                    if not client: # Checks if we've established the client yet
-                        client = make_auth() # Makes the client now that we need to download something, conserves API calls
-                        if not client: # Return false if we have an error establishing the client and can't download our files
-                            return False
-                    downloaded_miniscope = download_file(client, miniscope_path, int(miniscope_id), need_to_download, base_file_path=base_file_path) # Updates download status for return statement
-                elif need_to_download or avi_list == []: # If the folder already exists but we need specific avi files, or we want ALL files (avi_list=[]), re-check Box for any missing files
-                    if not client: # Checks if we've established the client yet
-                        client = make_auth() # Makes the client now that we need to download something, conserves API calls
-                        if not client: # Return false if we have an error establishing the client and can't download our files
-                            return False
-                    downloaded_miniscope = download_file(client, miniscope_path, int(miniscope_id), need_to_download, base_file_path=base_file_path) # Updates download status for return statement
-        if do_type in ["both", "ephys"]:
-            if pd.isnull(ephys_path) or pd.isnull(ephys_id): # Checks if we have the data we need to perform the download
-                print("The ephys path or ID do not exist in the CSV file, cannot download") # DEBUG: Prints the error
-                pass
-            elif not verify_path(ephys_path, base_file_path=base_file_path): # Checks if we've already downloaded this folder
-                if not client: # Checks if we've established the client yet
-                    client = make_auth() # Makes the client now that we need to download something, conserves API calls
-                    if not client: # Return false if we have an error establishing the client and can't download our files
-                        return False
-                downloaded_ephys = download_file(client, ephys_path, int(ephys_id), base_file_path=base_file_path) # Updates download status for return statement
-
-        # Final return statement logic
-        if do_type == "both":
-            return downloaded_miniscope and downloaded_ephys
-        elif do_type == "miniscope":
-            return downloaded_miniscope
-        elif do_type == "ephys":
-            return downloaded_ephys
+    try:
+        df = pd.read_csv(csv_path, index_col="line number")
+        df.index = df.index.astype(str)
+    except (pd.errors.EmptyDataError, FileNotFoundError, pd.errors.ParserError):
+        print(f"Error: Could not read CSV at {csv_path}")
         return False
+
+    if line_num_str not in df.index:
+        print(f"Error: Line {line_num_str} not found in {csv_path}")
+        return False
+
+    miniscope_id = df.at[line_num_str, "Box Calcium Folder ID"]
+    miniscope_path = df.at[line_num_str, "calcium imaging directory"]
+    ephys_id = df.at[line_num_str, "Box ephys folder ID"]
+    ephys_path = df.at[line_num_str, "ephys directory"]
+
+    # --- 1. Check Local Status ---
+    has_miniscope = False
+    if not pd.isnull(miniscope_path):
+        folder_exists = verify_path(miniscope_path, base_file_path=base_file_path)
+        missing_avis = [avi for avi in avi_list if not verify_avi(miniscope_path, avi, base_file_path=base_file_path)]
+        has_miniscope = folder_exists and not missing_avis
     else:
-        return None
+        missing_avis = [] # No path, so we can't have missing avis
+
+    has_ephys = False
+    if not pd.isnull(ephys_path):
+        has_ephys = verify_path(ephys_path, base_file_path=base_file_path)
+
+    # Determine if we are already satisfied locally
+    if do_type == "miniscope":
+        if has_miniscope: return True
+    elif do_type == "ephys":
+        if has_ephys: return True
+    elif do_type == "both":
+        if has_miniscope and has_ephys: return True
+
+    # --- 2. Box Sync (If needed and IDs are present) ---
+    box_miniscope_needed = (do_type in ["both", "miniscope"]) and not has_miniscope and not pd.isnull(miniscope_id)
+    box_ephys_needed = (do_type in ["both", "ephys"]) and not has_ephys and not pd.isnull(ephys_id)
+
+    if box_miniscope_needed or box_ephys_needed:
+        if not is_box_installed():
+            print("\n[Box Integration] Box IDs found in metadata, but the Box SDK is not installed.")
+            print("To enable automatic downloads, run: pip install aceneurotools[box]\n")
+            return False
+        
+        if not is_box_configured():
+            print("\n[Box Integration] Box IDs found in metadata, but authentication is not configured.")
+            print("Please follow these steps to enable automatic downloads:")
+            print("1. Locate 'src/aceneurotools/shared/BLANK_box_credentials.py'")
+            print("2. Copy it to 'src/aceneurotools/shared/box_credentials.py'")
+            print("3. Enter your Box API credentials in the new file.\n")
+            return False
+
+        # If we get here, we have IDs and Auth
+        client = make_auth()
+        if not client:
+            return False
+
+        downloaded_miniscope = True
+        if box_miniscope_needed:
+            print(f"Syncing Miniscope data from Box (ID: {miniscope_id})...")
+            if not os_path.exists(f"{base_file_path}/{miniscope_path}"):
+                makedirs(f"{base_file_path}/{miniscope_path}")
+            downloaded_miniscope = download_file(client, miniscope_path, int(miniscope_id), missing_avis, base_file_path=base_file_path)
+
+        downloaded_ephys = True
+        if box_ephys_needed:
+            print(f"Syncing Ephys data from Box (ID: {ephys_id})...")
+            if not os_path.exists(f"{base_file_path}/{ephys_path}"):
+                makedirs(f"{base_file_path}/{ephys_path}")
+            downloaded_ephys = download_file(client, ephys_path, int(ephys_id), base_file_path=base_file_path)
+
+        return downloaded_miniscope and downloaded_ephys
+
+    # If we get here, either IDs were missing or we didn't need to download anything but were still unsatisfied
+    # This usually means local files are missing and no Box ID was provided to fetch them.
+    return False
 
 def make_auth() -> Any | None:
-    """Creates the box client object to connect to the box servers.
-    When you are using this file normally, use CCGAuth
-    * When you are debugging, use the box developer token since you'll be making more API calls and most box contracts will charge extra if you make too many api calls that aren't with dev tokens"""
-    # auth = BoxDeveloperTokenAuth(token=dev_token) # UNCOMMENT THIS LINE TO TEMPORARILY OVERRIDE CCGAUTH WITH THE BOX DEVELOPER TOKEN
+    """Creates the box client object to connect to the box servers."""
+    if not is_box_configured():
+        return None
+    
     try:
+        from box_sdk_gen import BoxClient
+        from aceneurotools.shared.box_credentials import auth, dev_token # noqa: F401
+        
+        # Use developer token if uncommented in the credentials file (legacy support)
+        # client = BoxClient(auth=BoxDeveloperTokenAuth(token=dev_token)) 
+        
         client = BoxClient(auth=auth)
         print("Successfully connected to Box client")
         return client
     except Exception as e:
-        print(e)
+        print(f"Failed to connect to Box: {e}")
         return None
 
 def download_file(
@@ -160,9 +198,7 @@ def download_file(
         raise ValueError("base_file_path is required for downloading files.")
     try:
         for item in client.folders.get_folder_items(str(ID)).entries: #Goes to the folder we want to download
-            print(item.name) # Debug print statement to know what item we're currently looking at
             if item.type == 'folder': # Additional code to download any subfolders
-                print(f"Found a folder: {item.name}") # DEBUG: Print statement that we found a folder
                 if not os_path.exists(f"{base_file_path}/{path}/{item.name}"): # Checks if the subfolder already exists
                     makedirs(f"{base_file_path}/{path}/{item.name}") # Makes new directory for sub folder
                 if item.name == "Miniscope": # Checks if the subfolder is miniscope
@@ -187,6 +223,29 @@ def download_file(
     except Exception as e: #Catches any error
         print(f"Download failed: {e}")
         return False
+
+if __name__ == '__main__': # Runs when we run the file.
+    import argparse
+    parser = argparse.ArgumentParser(description="Download experiment data from Box")
+    parser.add_argument('--project-path', type=str, required=True,
+                        help="Path to project directory (containing experiments.csv)")
+    parser.add_argument('--data-path', type=str, required=True,
+                        help="Base path for raw experimental data storage")
+    parser.add_argument('--line-num', type=int, default=96,
+                        help="Experiment line number")
+    parser.add_argument('--do-type', type=str, default="miniscope",
+                        choices=["both", "miniscope", "ephys"])
+    args = parser.parse_args()
+
+    experiments_csv = Path(args.project_path) / "experiments.csv"
+    verify_file_by_line(
+        line_num=args.line_num,
+        csv_path=experiments_csv,
+        do_type=args.do_type,
+        avi_list=["0.avi"],
+        base_file_path=args.data_path
+    )
+
 
 if __name__ == '__main__': # Runs when we run the file.
     import argparse

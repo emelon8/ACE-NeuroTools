@@ -37,7 +37,7 @@ sbatch submit_job.slurm
 Since ACE-NeuroTools is driven by an `experiments.csv` file, you can easily wrap it in a simple Python loop or bash script to process hundreds of recording sessions with a single command.
 
 ### Cloud Integration
-The pipeline uses `aceneurotools/shared/file_downloader.py` to check for data locally. If missing, and if `box_credentials.py` is configured, it will automatically pull the required binary data from Box.
+The pipeline can automatically pull missing data from Box if configured. See the [Data Management Guide](guides/data_management.md#optional-box-cloud-integration) for setup instructions.
 
 ## 4. Interactive Tutorials
 

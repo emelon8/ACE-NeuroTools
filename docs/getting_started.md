@@ -184,4 +184,4 @@ python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /path/
 ## 6. Resources and Documentation
 - **Docs home**: [index.md](index.md) (includes tutorial links).
 - **Examples**: [examples.md](examples.md).
-- **Box integration**: `aceneurotools/shared/file_downloader.py` for automated retrieval when credentials are configured.
+- **Box integration**: See the [Data Management Guide](guides/data_management.md#optional-box-cloud-integration) for setup instructions.

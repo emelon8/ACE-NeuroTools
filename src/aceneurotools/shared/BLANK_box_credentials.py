@@ -9,7 +9,11 @@ To properly set up this file:
       a. Navigate to configuration and select the box labeled "Write all files and folders stored in Box"
       b. For temporary testing, use the box developer token. It lasts for an hour.
       c. For a permanant set up, use the client id, client secret, and user id to authenticate, you'll have to request authorization from your enterprise in order to set this up
-3. You're done!"""
+3. You're done!
+
+TODO: In a future release, move this configuration to a user-specific config directory 
+(e.g., ~/.config/aceneurotools/) to better support package distribution via Conda/PyPI.
+"""
 
 from box_sdk_gen import BoxCCGAuth, CCGConfig
 
