@@ -1,0 +1,321 @@
+{
+  "_description": "ACE-NeuroTools lab configuration.  Replace ALL example values below with your study-specific data.  Fields beginning with '_' are documentation only and are ignored by the analysis pipeline.",
+  "_notes": {
+    "primary_channel": "The ephys channel name exactly as stored in your Neuralynx recording files (the .ncs filename without the extension).  Example: if your channel file is 'CBvsPCEEG.ncs', enter 'CBvsPCEEG'.  This is used for EEG-calcium analyses and as the TTL-sync driver for EEG-EEG analyses.",
+    "secondary_channel": "Optional.  Only required for the coherence_ephys_ephys analysis (two-channel EEG coherence).  Set to null (JSON) or remove this field if you are not running that analysis.",
+    "freq_range": "Bandpass filter range [lowcut_Hz, highcut_Hz].  The example [0.5, 4.0] targets the delta band.  Change to match the frequency band relevant to your study.",
+    "conditions": "Your experimental conditions.  Keys are free-form labels \u2014 use any string that describes the condition ('propofol', 'saline control', '5 mg/kg ketamine', etc.).  Each condition requires:\n  subjects  \u2014 list of line numbers from experiments.csv\n  is_drug   \u2014 true if the condition involves drug/treatment administration; false for baseline or control conditions (controls whether drug-infusion events are expected in the recording).",
+    "time_windows": "Per-subject control and treatment analysis windows in MINUTES.  Keys are subject line numbers written as strings (JSON requirement).  Format:\n  \"<line_num>\": [[ctrl_start, ctrl_end], [treat_start, treat_end]]\nEvery subject listed in 'conditions' must have an entry here.",
+    "paths": "File system paths for this project.  Edit ALL values to match your machine before running ace-neuro.\n  project_path       \u2014 directory containing experiments.csv (usually the same folder as this file)\n  data_path          \u2014 base directory for raw experimental data; on Windows use forward slashes or null to resolve paths relative to project_path\n  output_dir         \u2014 where results CSVs and figures are saved; created automatically if absent\n  calcium_signal_dir \u2014 where meanFluorescence_<N>.npz files are written by compute mode and read by stats mode",
+    "run": "Pipeline execution settings.\n  mode       \u2014 'compute' generates calcium signal files from raw videos; 'stats' runs statistical analyses; 'all' runs both in sequence (default)\n  analyses   \u2014 list of analysis keys; null shows an interactive menu.  Valid keys: coherence_ephys_calcium, coherence_ephys_ephys, scatter_correlation\n  line_nums  \u2014 subjects to process; null uses all subjects listed in 'conditions'\n  headless   \u2014 true disables all GUIs (required for automated/HPC runs)\n  verbose    \u2014 true prints per-subject progress messages"
+  },
+  "primary_channel": "CBvsPCEEG",
+  "secondary_channel": "PFCEEGvsCBEEG",
+  "freq_range": [
+    0.5,
+    4.0
+  ],
+  "conditions": {
+    "dexmedetomidine: 0.00045": {
+      "subjects": [
+        46,
+        47,
+        64,
+        88,
+        97,
+        101
+      ],
+      "is_drug": true
+    },
+    "dexmedetomidine: 0.0003": {
+      "subjects": [
+        40,
+        41,
+        48,
+        87,
+        93,
+        94
+      ],
+      "is_drug": true
+    },
+    "propofol": {
+      "subjects": [
+        36,
+        43,
+        44,
+        86,
+        99,
+        103
+      ],
+      "is_drug": true
+    },
+    "ketamine": {
+      "subjects": [
+        39,
+        42,
+        45,
+        85,
+        96,
+        112
+      ],
+      "is_drug": true
+    }
+  },
+  "time_windows": {
+    "46": [
+      [
+        1,
+        20
+      ],
+      [
+        28.24,
+        75
+      ]
+    ],
+    "47": [
+      [
+        1,
+        20
+      ],
+      [
+        28.24,
+        75
+      ]
+    ],
+    "64": [
+      [
+        4,
+        17
+      ],
+      [
+        28.24,
+        75
+      ]
+    ],
+    "88": [
+      [
+        1,
+        8
+      ],
+      [
+        28.24,
+        83.24
+      ]
+    ],
+    "97": [
+      [
+        1,
+        13
+      ],
+      [
+        28.24,
+        83.24
+      ]
+    ],
+    "101": [
+      [
+        1,
+        25
+      ],
+      [
+        37,
+        90
+      ]
+    ],
+    "40": [
+      [
+        8,
+        20
+      ],
+      [
+        55,
+        75
+      ]
+    ],
+    "41": [
+      [
+        10,
+        19
+      ],
+      [
+        60,
+        68
+      ]
+    ],
+    "48": [
+      [
+        1,
+        20
+      ],
+      [
+        25,
+        35
+      ]
+    ],
+    "87": [
+      [
+        5,
+        13
+      ],
+      [
+        73,
+        85
+      ]
+    ],
+    "93": [
+      [
+        18,
+        28
+      ],
+      [
+        75,
+        95
+      ]
+    ],
+    "94": [
+      [
+        1,
+        20
+      ],
+      [
+        75,
+        90
+      ]
+    ],
+    "36": [
+      [
+        1,
+        11
+      ],
+      [
+        55,
+        67
+      ]
+    ],
+    "43": [
+      [
+        15,
+        20
+      ],
+      [
+        40,
+        60
+      ]
+    ],
+    "44": [
+      [
+        0,
+        21
+      ],
+      [
+        40,
+        65
+      ]
+    ],
+    "86": [
+      [
+        5,
+        16
+      ],
+      [
+        33,
+        65
+      ]
+    ],
+    "99": [
+      [
+        0,
+        19
+      ],
+      [
+        33,
+        45
+      ]
+    ],
+    "103": [
+      [
+        1,
+        17
+      ],
+      [
+        38,
+        65
+      ]
+    ],
+    "39": [
+      [
+        10,
+        20
+      ],
+      [
+        38,
+        50
+      ]
+    ],
+    "42": [
+      [
+        1,
+        20
+      ],
+      [
+        40,
+        51
+      ]
+    ],
+    "45": [
+      [
+        1,
+        15
+      ],
+      [
+        40,
+        60
+      ]
+    ],
+    "85": [
+      [
+        14,
+        24
+      ],
+      [
+        30,
+        50
+      ]
+    ],
+    "96": [
+      [
+        1,
+        12
+      ],
+      [
+        38,
+        55
+      ]
+    ],
+    "112": [
+      [
+        1,
+        10
+      ],
+      [
+        40,
+        60
+      ]
+    ]
+  },
+  "paths": {
+    "project_path": "/path/to/your/project",
+    "data_path": null,
+    "output_dir": null,
+    "calcium_signal_dir": null
+  },
+  "run": {
+    "mode": "all",
+    "analyses": [
+      "coherence_ephys_calcium"
+    ],
+    "line_nums": null,
+    "headless": false,
+    "verbose": true
+  }
+}

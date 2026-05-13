@@ -1,0 +1,39 @@
+{
+  "_description": "ACE-NeuroTools algorithm parameters.  The defaults reproduce the settings used in the original analysis scripts.  Most labs will not need to change this file.  Fields beginning with '_' are documentation only.",
+  "_notes": {
+    "lowcut / highcut": "Butterworth bandpass cutoffs in Hz.  Overridden at runtime by freq_range in lab_config.json or --freq-range on the CLI.",
+    "filter_order": "Butterworth filter order.  2 gives smooth phase response.",
+    "edge_trim_seconds": "Seconds trimmed from each end of a filtered segment to remove Butterworth transients.  Only applied by the scatter correlation analysis; coherence analysis ignores this.",
+    "normalization_method": "'zscore' or 'none'.  The original coherence script uses 'none'; scatter correlation uses 'zscore'.",
+    "coherence_nperseg_seconds": "Welch segment length in seconds.  null uses scipy's default (256 samples), matching the legacy analysis scripts.",
+    "spectrogram_verbose": "The original compute_power() passes verbose=True to multitaper_spectrogram.  This implementation passes verbose=False to suppress output.  This does not affect computed values."
+  },
+  "lowcut": 0.5,
+  "highcut": 4.0,
+  "filter_order": 2,
+  "edge_trim_seconds": 5.0,
+  "normalization_method": "none",
+  "global_normalization": true,
+  "correct_autocorrelation": true,
+  "confidence_level": 0.95,
+  "max_acf_lags": 100,
+  "bootstrap_iterations": 10000,
+  "paired_test": "wilcoxon",
+  "min_subjects_for_stats": 3,
+  "coherence_nperseg_seconds": null,
+  "coherogram_window_length": 5.0,
+  "coherogram_window_step": 2.5,
+  "coherogram_nrolling": 8,
+  "spectrogram_window_length": 60.0,
+  "spectrogram_window_step": 3.0,
+  "spectrogram_time_bandwidth": 2.0,
+  "spectrogram_freq_lims": [
+    0.0,
+    20.0
+  ],
+  "plot_formats": [
+    "svg"
+  ],
+  "color_dpi": 300,
+  "headless": true
+}

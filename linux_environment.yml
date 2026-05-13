@@ -1,4 +1,4 @@
-name: caiman
+name: aceneurotools
 channels:
   - conda-forge
   - defaults

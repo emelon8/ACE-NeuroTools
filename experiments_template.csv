@@ -1,0 +1,3 @@
+line number,id,date (YYMMDD),rat weight (kg),ephys directory,calcium imaging directory,LFP and EEG CSCs,method_deconvolution,method_init,border_nan
+1,rat_001,230415,0.35,/data/raw/experiment_001/ephys,/data/raw/experiment_001/miniscope,CBvsPCEEG;PFCEEGvsCBEEG,oasis,greedy_roi,copy
+2,rat_002,230416,0.38,/data/raw/experiment_002/ephys,/data/raw/experiment_002/miniscope,CBvsPCEEG;PFCEEGvsCBEEG,oasis,greedy_roi,copy
