@@ -895,6 +895,11 @@ def update_csv_cell(data: Any, columnTitle: str, lineNum: int, csvFile: str | Pa
         reader = csv.DictReader(file)
         if reader.fieldnames is not None:
             fieldnames = list(reader.fieldnames)
+        
+        # If the column we want to update doesn't exist, add it to the header
+        if fieldnames is not None and columnTitle not in fieldnames:
+            fieldnames.append(columnTitle)
+            
         for row in reader:
             if row.get('line number') == str(lineNum):
                 row[columnTitle] = str(data)
