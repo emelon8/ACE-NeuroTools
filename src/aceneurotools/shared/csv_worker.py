@@ -94,13 +94,13 @@ class CSVWorker:
                     "required column headers."
                 )
 
-            line_num_str = str(line_num)
-            row = df.loc[df['line number'].astype(str) == line_num_str]
+            line_num_int = int(line_num)
+            # Use numeric comparison to be robust against pandas auto-converting to float (e.g. 97 vs 97.0)
+            row = df.loc[pd.to_numeric(df['line number'], errors='coerce') == line_num_int]
             if row.empty:
                 raise ValueError(
                     f"Subject line number {line_num} not found in {csv_file}.\n"
-                    "  Check that the 'line number' column contains this value "
-                    "and that there are no leading/trailing spaces."
+                    "  Check that the 'line number' column contains this value."
                 )
             res = row.squeeze()
             if hasattr(res, 'to_dict'):

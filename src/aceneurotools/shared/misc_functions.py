@@ -906,8 +906,14 @@ def update_csv_cell(data: Any, columnTitle: str, lineNum: int, csvFile: str | Pa
     if columnTitle not in df.columns:
         df[columnTitle] = None
 
-    # Update the specific row
-    mask = df['line number'].astype(str) == str(lineNum)
+    # Update the specific row using numeric comparison
+    try:
+        line_num_int = int(lineNum)
+        mask = pd.to_numeric(df['line number'], errors='coerce') == line_num_int
+    except ValueError:
+        print(f"Error: lineNum {lineNum} must be an integer.")
+        return
+
     if not mask.any():
         print(f"Warning: Line {lineNum} not found in {csvFile}. No update performed.")
         return
