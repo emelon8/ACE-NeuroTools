@@ -108,15 +108,20 @@ def verify_file_by_line(
         has_ephys = verify_path(ephys_path, base_file_path=base_file_path)
 
     # Determine if we are already satisfied locally
+    # Note: If avi_list is empty, we assume a "sync all" mode and only skip if the 
+    # folder exists and is not empty.
     if do_type == "miniscope":
-        if has_miniscope: return True
+        if has_miniscope and avi_list: return True
     elif do_type == "ephys":
         if has_ephys: return True
     elif do_type == "both":
-        if has_miniscope and has_ephys: return True
+        if (has_miniscope and avi_list) and has_ephys: return True
 
     # --- 2. Box Sync (If needed and IDs are present) ---
-    box_miniscope_needed = (do_type in ["both", "miniscope"]) and not has_miniscope and not pd.isnull(miniscope_id)
+    # We trigger sync if:
+    # A) Specific files (avi_list) are missing
+    # B) No specific files are requested (avi_list=[]) and we haven't checked the folder yet
+    box_miniscope_needed = (do_type in ["both", "miniscope"]) and (not has_miniscope or not avi_list) and not pd.isnull(miniscope_id)
     box_ephys_needed = (do_type in ["both", "ephys"]) and not has_ephys and not pd.isnull(ephys_id)
 
     if box_miniscope_needed or box_ephys_needed:
@@ -233,6 +238,8 @@ if __name__ == '__main__': # Runs when we run the file.
                         help="Base path for raw experimental data storage")
     parser.add_argument('--line-num', type=int, default=96,
                         help="Experiment line number")
+    parser.add_argument('--filenames', nargs='*', default=[],
+                        help="Specific filenames to download (default: all)")
     parser.add_argument('--do-type', type=str, default="miniscope",
                         choices=["both", "miniscope", "ephys"])
     args = parser.parse_args()
@@ -242,29 +249,6 @@ if __name__ == '__main__': # Runs when we run the file.
         line_num=args.line_num,
         csv_path=experiments_csv,
         do_type=args.do_type,
-        avi_list=["0.avi"],
-        base_file_path=args.data_path
-    )
-
-
-if __name__ == '__main__': # Runs when we run the file.
-    import argparse
-    parser = argparse.ArgumentParser(description="Download experiment data from Box")
-    parser.add_argument('--project-path', type=str, required=True,
-                        help="Path to project directory (containing experiments.csv)")
-    parser.add_argument('--data-path', type=str, required=True,
-                        help="Base path for raw experimental data storage")
-    parser.add_argument('--line-num', type=int, default=96,
-                        help="Experiment line number")
-    parser.add_argument('--do-type', type=str, default="miniscope",
-                        choices=["both", "miniscope", "ephys"])
-    args = parser.parse_args()
-
-    experiments_csv = Path(args.project_path) / "experiments.csv"
-    verify_file_by_line(
-        line_num=args.line_num,
-        csv_path=experiments_csv,
-        do_type=args.do_type,
-        avi_list=["0.avi"],
+        avi_list=args.filenames,
         base_file_path=args.data_path
     )

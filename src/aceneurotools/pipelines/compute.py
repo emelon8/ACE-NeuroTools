@@ -85,9 +85,18 @@ class ComputePipeline:
 
         from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
         from aceneurotools.miniscope.miniscope_preprocessor import MiniscopePreprocessor
+        from aceneurotools.shared import file_downloader
         from aceneurotools.shared.experiment_data_manager import ExperimentDataManager
         from aceneurotools.shared.misc_functions import get_coords_dict_from_analysis_params
         from aceneurotools.shared.path_finder import PathFinder
+
+        # Ensure data is downloaded if Box IDs are present
+        file_downloader.verify_file_by_line(
+            line_num,
+            project_path / "experiments.csv",
+            "miniscope",
+            base_file_path=data_path if data_path else project_path
+        )
 
         meta_dm = ExperimentDataManager(
             line_num,
