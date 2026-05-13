@@ -880,7 +880,7 @@ def filter_data(
 
 
 def update_csv_cell(data: Any, columnTitle: str, lineNum: int, csvFile: str | Path) -> None:
-    """Update a single cell in a CSV file.
+    """Update a single cell in a CSV file using pandas.
     
     Args:
         data: New value to write.
@@ -888,28 +888,37 @@ def update_csv_cell(data: Any, columnTitle: str, lineNum: int, csvFile: str | Pa
         lineNum: Line number to update.
         csvFile: Path to CSV file.
     """
-    csvData: list[dict[str, str]] = []
-    fieldnames: list[str] | None = None
+    import pandas as pd
+    
+    # Read the CSV
+    try:
+        df = pd.read_csv(csvFile)
+    except Exception as e:
+        print(f"Error reading CSV {csvFile}: {e}")
+        return
 
-    with open(csvFile) as file:
-        reader = csv.DictReader(file)
-        if reader.fieldnames is not None:
-            fieldnames = list(reader.fieldnames)
-        
-        # If the column we want to update doesn't exist, add it to the header
-        if fieldnames is not None and columnTitle not in fieldnames:
-            fieldnames.append(columnTitle)
-            
-        for row in reader:
-            if row.get('line number') == str(lineNum):
-                row[columnTitle] = str(data)
-            csvData.append(row)
+    # Ensure 'line number' column exists and is treated as string for matching
+    if 'line number' not in df.columns:
+        print(f"Error: 'line number' column missing from {csvFile}")
+        return
 
-    if fieldnames:
-        with open(csvFile, 'w', newline='') as writeFile:
-            writer = csv.DictWriter(writeFile, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(csvData)
+    # Add the column if it doesn't exist
+    if columnTitle not in df.columns:
+        df[columnTitle] = None
+
+    # Update the specific row
+    mask = df['line number'].astype(str) == str(lineNum)
+    if not mask.any():
+        print(f"Warning: Line {lineNum} not found in {csvFile}. No update performed.")
+        return
+
+    df.loc[mask, columnTitle] = str(data)
+
+    # Write back to CSV
+    try:
+        df.to_csv(csvFile, index=False)
+    except Exception as e:
+        print(f"Error writing to CSV {csvFile}: {e}")
 
 
 def append_row_csv(data: dict[str, Any], filename: str | Path) -> None:
