@@ -28,6 +28,7 @@ class ComputePipeline:
         calcium_signal_dir: str | Path,
         data_path: str | Path | None = None,
         line_nums: list[int] | None = None,
+        filenames: list[str] | None = None,
         headless: bool = False,
         verbose: bool = False,
     ) -> dict[int, Path]:
@@ -50,6 +51,7 @@ class ComputePipeline:
                     project_path=project_path,
                     data_path=Path(data_path) if data_path is not None else None,
                     output_dir=output_dir,
+                    filenames=filenames,
                     headless=headless,
                     verbose=verbose,
                 )
@@ -72,6 +74,7 @@ class ComputePipeline:
         project_path: Path,
         data_path: Path | None,
         output_dir: Path,
+        filenames: list[str] | None,
         headless: bool,
         verbose: bool,
     ) -> Path | None:
@@ -95,6 +98,7 @@ class ComputePipeline:
             line_num,
             project_path / "experiments.csv",
             "miniscope",
+            avi_list=filenames if filenames else [],
             base_file_path=data_path if data_path else project_path
         )
 
@@ -129,9 +133,15 @@ class ComputePipeline:
                 key=lambda p: p.stem,
             )
 
+        # Filter by filenames if provided
+        if filenames:
+            sorted_filepaths = [fp for fp in sorted_filepaths if fp.name in filenames]
+            if not sorted_filepaths:
+                raise FileNotFoundError(f"None of the requested files {filenames} found in {movie_directory}")
+
         n_files = len(sorted_filepaths)
         if verbose:
-            print(f"    Found {n_files} .avi file(s) in {movie_directory}")
+            print(f"    Found {n_files} .avi file(s) to process in {movie_directory}")
 
         # use middle 10 files for crop preview, not the start/end of the recording
         mid_start = max(0, n_files // 2 - 5)
@@ -241,6 +251,12 @@ if __name__ == "__main__":
         help="Subjects to process.  Defaults to all subjects in lab_config.json.",
     )
     parser.add_argument(
+        "--filenames",
+        nargs="+",
+        metavar="FILE",
+        help="Specific .avi files to process (e.g. 0.avi 1.avi). Defaults to all.",
+    )
+    parser.add_argument(
         "--headless",
         action="store_true",
         help="Skip crop GUI; use saved coordinates or full-frame mean.",
@@ -269,6 +285,7 @@ if __name__ == "__main__":
         lab_config=_lab_config,
         calcium_signal_dir=_args.calcium_signal_dir,
         line_nums=_args.line_nums,
+        filenames=_args.filenames,
         headless=_args.headless,
         verbose=_args.verbose,
     )
