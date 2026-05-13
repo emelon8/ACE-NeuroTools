@@ -20,12 +20,14 @@ class UCLADataManager(MiniscopeDataManager):
 
     @classmethod
     def can_handle(cls, directory: str | Path) -> bool:
-        """Returns True if standard metaData.json is found in the directory."""
+        """Returns True if standard metadata or .avi files are found."""
         dir_path = Path(directory)
         if not dir_path.exists():
             return False
-        # Search for any metaData*.json or timeStamps*.csv
-        return len(list(dir_path.rglob('metaData*.json'))) > 0 or len(list(dir_path.rglob('timeStamps*.csv'))) > 0
+        # Search for any metaData*.json, timeStamps*.csv, or .avi files
+        has_metadata = len(list(dir_path.rglob('metaData*.json'))) > 0 or len(list(dir_path.rglob('timeStamps*.csv'))) > 0
+        has_movies = len(list(dir_path.rglob('*.avi'))) > 0
+        return has_metadata or has_movies
 
     def _get_miniscope_metadata(self) -> dict[str, Any]:
         """
