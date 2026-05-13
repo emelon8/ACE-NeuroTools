@@ -91,9 +91,10 @@ class ComputePipeline:
         from aceneurotools.shared import file_downloader
         from aceneurotools.shared.experiment_data_manager import ExperimentDataManager
         from aceneurotools.shared.misc_functions import get_coords_dict_from_analysis_params
+        from aceneurotools.shared.exceptions import DataNotFoundError
         from aceneurotools.shared.path_finder import PathFinder
 
-        # Ensure data is downloaded if Box IDs are present
+        # 1. Attempt Box download (safely handled by file_downloader)
         file_downloader.verify_file_by_line(
             line_num,
             project_path / "experiments.csv",
@@ -118,9 +119,19 @@ class ComputePipeline:
                 f"No 'calcium imaging directory' set in experiments.csv for line {line_num}"
             )
 
-        raw_paths = PathFinder.find(str(movie_directory), suffix=".avi")
-        if not raw_paths:
-            raise FileNotFoundError(f"No .avi files found in {movie_directory}")
+        # 2. Local Verification with Graceful Error Handling
+        try:
+            raw_paths = PathFinder.find(str(movie_directory), suffix=".avi")
+            if not raw_paths:
+                raise FileNotFoundError()
+        except FileNotFoundError:
+            raise DataNotFoundError(
+                f"No .avi files found in {movie_directory}",
+                line_num=line_num,
+                data_path=movie_directory,
+                hint="Required .avi files are missing from the local directory. "
+                     "Ensure files are present locally, or set up Box integration to download them automatically."
+            )
 
         try:
             sorted_filepaths = sorted(
@@ -133,11 +144,16 @@ class ComputePipeline:
                 key=lambda p: p.stem,
             )
 
-        # Filter by filenames if provided
+        # 3. Filter by filenames with Graceful Error Handling
         if filenames:
             sorted_filepaths = [fp for fp in sorted_filepaths if fp.name in filenames]
             if not sorted_filepaths:
-                raise FileNotFoundError(f"None of the requested files {filenames} found in {movie_directory}")
+                raise DataNotFoundError(
+                    f"None of the requested files {filenames} found in {movie_directory}",
+                    line_num=line_num,
+                    data_path=movie_directory,
+                    hint="The specific files you requested are missing. Check your --filenames argument or sync them from Box."
+                )
 
         n_files = len(sorted_filepaths)
         if verbose:

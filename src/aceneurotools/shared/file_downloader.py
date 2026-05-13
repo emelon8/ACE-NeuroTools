@@ -40,7 +40,7 @@ def verify_path(path: str, base_file_path: str | Path | None = None) -> bool:
             return False #If the folder is empty (i.e., the download connection failed), it will still return false so verify_file will download it.
         return True # This will  return True even if the downloads are incomplete
     else:
-        # Note: We don't makedirs here anymore; we let the download process or the user handle it.
+        # Note: In recursive mode, the downloader handles makedirs
         return False
 
 def verify_file_by_line(
@@ -53,13 +53,6 @@ def verify_file_by_line(
     """Checks if experimental data exists locally. If files are missing and Box IDs
     are provided in the CSV, attempts to download them from Box.
     
-    This function implements an 'optional' Box integration:
-    1. If local files are present, it returns True (no Box needed).
-    2. If files are missing and Box IDs are in the CSV:
-       - If Box is configured, it syncs/downloads missing files.
-       - If Box is NOT configured, it prompts the user for setup.
-    3. If Box IDs are missing, it simply returns whether local files exist.
-
     Args:
         line_num: The experiment line number.
         csv_path: Path to experiments.csv.
@@ -74,94 +67,68 @@ def verify_file_by_line(
     if base_file_path is None:
         raise ValueError("base_file_path is required.")
 
-    line_num_str = str(line_num)
-    if do_type not in ["both", "miniscope", "ephys"]:
-        raise ValueError("variable 'do_type' must be 'both', 'miniscope', or 'ephys'")
+    # Implementation logic matches user-provided script but preserves decoupling
+    if is_box_configured():
+        line_num_str = str(line_num)
+        if do_type not in ["both", "miniscope", "ephys"]:
+            raise ValueError("variable 'do_type' must be 'both', 'miniscope', or 'ephys'")
 
-    try:
-        df = pd.read_csv(csv_path, index_col="line number")
-        df.index = df.index.astype(str)
-    except (pd.errors.EmptyDataError, FileNotFoundError, pd.errors.ParserError):
-        print(f"Error: Could not read CSV at {csv_path}")
-        return False
+        try:
+            df = pd.read_csv(csv_path, index_col="line number")
+            df.index = df.index.astype(str)
+        except (pd.errors.EmptyDataError, FileNotFoundError, pd.errors.ParserError):
+            print(f"Error: Could not read CSV at {csv_path}")
+            return False
 
-    if line_num_str not in df.index:
-        print(f"Error: Line {line_num_str} not found in {csv_path}")
-        return False
+        if line_num_str not in df.index:
+            print(f"Error: Line {line_num_str} not found in {csv_path}")
+            return False
 
-    miniscope_id = df.at[line_num_str, "Box Calcium Folder ID"]
-    miniscope_path = df.at[line_num_str, "calcium imaging directory"]
-    ephys_id = df.at[line_num_str, "Box ephys folder ID"]
-    ephys_path = df.at[line_num_str, "ephys directory"]
+        miniscope_id = df.at[line_num_str, "Box Calcium Folder ID"]
+        miniscope_path = df.at[line_num_str, "calcium imaging directory"]
+        ephys_id = df.at[line_num_str, "Box ephys folder ID"]
+        ephys_path = df.at[line_num_str, "ephys directory"]
 
-    # --- 1. Check Local Status ---
-    has_miniscope = False
-    if not pd.isnull(miniscope_path):
-        folder_exists = verify_path(miniscope_path, base_file_path=base_file_path)
-        missing_avis = [avi for avi in avi_list if not verify_avi(miniscope_path, avi, base_file_path=base_file_path)]
-        has_miniscope = folder_exists and not missing_avis
+        downloaded_miniscope, downloaded_ephys = False, False
+        need_to_download = [avi for avi in avi_list if not verify_avi(miniscope_path, avi, base_file_path=base_file_path)]
+
+        client = None
+
+        if do_type in ["both", "miniscope"]:
+            if pd.isnull(miniscope_path) or pd.isnull(miniscope_id):
+                print("The miniscope path or ID do not exist in the CSV file, cannot download")
+            else:
+                # Trigger sync if path missing, or if specific files requested, or if avi_list is empty (sync all)
+                if not verify_path(miniscope_path, base_file_path=base_file_path) or need_to_download or not avi_list:
+                    if not client:
+                        client = make_auth()
+                        if not client: return False
+                    print(f"Syncing Miniscope data from Box (ID: {miniscope_id})...")
+                    downloaded_miniscope = download_file(client, miniscope_path, int(miniscope_id), need_to_download, base_file_path=base_file_path)
+                else:
+                    downloaded_miniscope = True
+
+        if do_type in ["both", "ephys"]:
+            if pd.isnull(ephys_path) or pd.isnull(ephys_id):
+                print("The ephys path or ID do not exist in the CSV file, cannot download")
+            elif not verify_path(ephys_path, base_file_path=base_file_path):
+                if not client:
+                    client = make_auth()
+                    if not client: return False
+                print(f"Syncing Ephys data from Box (ID: {ephys_id})...")
+                downloaded_ephys = download_file(client, ephys_path, int(ephys_id), base_file_path=base_file_path)
+            else:
+                downloaded_ephys = True
+
+        if do_type == "both":
+            return downloaded_miniscope and downloaded_ephys
+        elif do_type == "miniscope":
+            return downloaded_miniscope
+        elif do_type == "ephys":
+            return downloaded_ephys
     else:
-        missing_avis = [] # No path, so we can't have missing avis
-
-    has_ephys = False
-    if not pd.isnull(ephys_path):
-        has_ephys = verify_path(ephys_path, base_file_path=base_file_path)
-
-    # Determine if we are already satisfied locally
-    # Note: If avi_list is empty, we assume a "sync all" mode and only skip if the 
-    # folder exists and is not empty.
-    if do_type == "miniscope":
-        if has_miniscope and avi_list: return True
-    elif do_type == "ephys":
-        if has_ephys: return True
-    elif do_type == "both":
-        if (has_miniscope and avi_list) and has_ephys: return True
-
-    # --- 2. Box Sync (If needed and IDs are present) ---
-    # We trigger sync if:
-    # A) Specific files (avi_list) are missing
-    # B) No specific files are requested (avi_list=[]) and we haven't checked the folder yet
-    box_miniscope_needed = (do_type in ["both", "miniscope"]) and (not has_miniscope or not avi_list) and not pd.isnull(miniscope_id)
-    box_ephys_needed = (do_type in ["both", "ephys"]) and not has_ephys and not pd.isnull(ephys_id)
-
-    if box_miniscope_needed or box_ephys_needed:
-        if not is_box_installed():
-            print("\n[Box Integration] Box IDs found in metadata, but the Box SDK is not installed.")
-            print("To enable automatic downloads, run: pip install aceneurotools[box]\n")
-            return False
-        
-        if not is_box_configured():
-            print("\n[Box Integration] Box IDs found in metadata, but authentication is not configured.")
-            print("Please follow these steps to enable automatic downloads:")
-            print("1. Locate 'src/aceneurotools/shared/BLANK_box_credentials.py'")
-            print("2. Copy it to 'src/aceneurotools/shared/box_credentials.py'")
-            print("3. Enter your Box API credentials in the new file.\n")
-            return False
-
-        # If we get here, we have IDs and Auth
-        client = make_auth()
-        if not client:
-            return False
-
-        downloaded_miniscope = True
-        if box_miniscope_needed:
-            print(f"Syncing Miniscope data from Box (ID: {miniscope_id})...")
-            if not os_path.exists(f"{base_file_path}/{miniscope_path}"):
-                makedirs(f"{base_file_path}/{miniscope_path}")
-            downloaded_miniscope = download_file(client, miniscope_path, int(miniscope_id), missing_avis, base_file_path=base_file_path)
-
-        downloaded_ephys = True
-        if box_ephys_needed:
-            print(f"Syncing Ephys data from Box (ID: {ephys_id})...")
-            if not os_path.exists(f"{base_file_path}/{ephys_path}"):
-                makedirs(f"{base_file_path}/{ephys_path}")
-            downloaded_ephys = download_file(client, ephys_path, int(ephys_id), base_file_path=base_file_path)
-
-        return downloaded_miniscope and downloaded_ephys
-
-    # If we get here, either IDs were missing or we didn't need to download anything but were still unsatisfied
-    # This usually means local files are missing and no Box ID was provided to fetch them.
-    return False
+        # If Box is not configured, we assume everything is local
+        return None
 
 def make_auth() -> Any | None:
     """Creates the box client object to connect to the box servers."""
@@ -172,15 +139,25 @@ def make_auth() -> Any | None:
         from box_sdk_gen import BoxClient
         from aceneurotools.shared.box_credentials import auth, dev_token # noqa: F401
         
-        # Use developer token if uncommented in the credentials file (legacy support)
-        # client = BoxClient(auth=BoxDeveloperTokenAuth(token=dev_token)) 
-        
         client = BoxClient(auth=auth)
         print("Successfully connected to Box client")
         return client
     except Exception as e:
         print(f"Failed to connect to Box: {e}")
         return None
+
+def get_all_folder_items(client: Any, folder_id: int | str) -> list[Any]:
+    """Retrieve all items from a Box folder, handling pagination."""
+    all_items = []
+    offset = 0
+    limit = 1000
+    while True:
+        page = client.folders.get_folder_items(str(folder_id), offset=offset, limit=limit)
+        all_items.extend(page.entries)
+        if len(page.entries) < limit:
+            break
+        offset += limit
+    return all_items
 
 def download_file(
     client: Any,
@@ -189,52 +166,55 @@ def download_file(
     need_to_download: list[str] = [],
     base_file_path: str | Path | None = None
 ) -> bool:
-    """Connects to the client and tries to download everything in the folder and 
-    child folders if they haven't already been downloaded.
-    
-    Args:
-        client: BoxClient instance.
-        path: Relative path within the data directory.
-        ID: Box folder ID.
-        need_to_download: Optional list of specific filenames to retrieve.
-        base_file_path: Base path for data storage. Required.
-    """
+    """Recursively download files from a Box folder."""
     if base_file_path is None:
         raise ValueError("base_file_path is required for downloading files.")
+    
     try:
-        for item in client.folders.get_folder_items(str(ID)).entries: #Goes to the folder we want to download
-            if item.type == 'folder': # Additional code to download any subfolders
-                if not os_path.exists(f"{base_file_path}/{path}/{item.name}"): # Checks if the subfolder already exists
-                    makedirs(f"{base_file_path}/{path}/{item.name}") # Makes new directory for sub folder
-                if item.name == "Miniscope": # Checks if the subfolder is miniscope
-                    for sub_item in client.folders.get_folder_items(item.id).entries:  # Look at each item in the miniscope folder
-                        if (sub_item.name in need_to_download or need_to_download == []) or "avi" not in sub_item.name: # If we need to download it or we're downloading everyting
-                            filepath = f"{base_file_path}/{path}/Miniscope/{sub_item.name}"
-                            if not os_path.exists(filepath): # Will only download a file if it doesn't already exist (Only applies if we're downloading everything)
-                                with open(filepath, "wb") as output_file: # Creates a file to store the data
-                                    client.downloads.download_file_to_output_stream(sub_item.id, output_stream=output_file) # Downloads data to the file
-                                    print(f"File '{sub_item.name}' downloaded successfully to '{filepath}'") # DEBUG: Prints that we've successfully downloaded a file. Line won't run if there's an error
-                else: # If for some reason we have a sub-folder that isn't the miniscope folder, we recursively call the function to download it.
+        items = get_all_folder_items(client, ID)
+        for item in items:
+            if item.type == 'folder':
+                sub_path = f"{base_file_path}/{path}/{item.name}"
+                if not os_path.exists(sub_path):
+                    makedirs(sub_path)
+                
+                if item.name == "Miniscope":
+                    # Special logic for Miniscope folder: filter by need_to_download if provided
+                    for sub_item in get_all_folder_items(client, item.id):
+                        is_requested = (sub_item.name in need_to_download) or (not need_to_download)
+                        is_not_avi = "avi" not in sub_item.name
+                        
+                        if is_requested or is_not_avi:
+                            filepath = f"{sub_path}/{sub_item.name}"
+                            if not os_path.exists(filepath):
+                                with open(filepath, "wb") as output_file:
+                                    client.downloads.download_file_to_output_stream(sub_item.id, output_stream=output_file)
+                                    print(f"File '{sub_item.name}' downloaded successfully to '{filepath}'")
+                else:
+                    # Recursive download for other folders
                     download_file(client, f"{path}/{item.name}", int(item.id), need_to_download, base_file_path=base_file_path)
-
             else:
                 filepath = f"{base_file_path}/{path}/{item.name}"
-                if not os_path.exists(filepath): # Will only download a file if it doesn't already exist.
-                    with open(filepath, "wb") as output_file: # Creates a file to store the data
-                        client.downloads.download_file_to_output_stream(item.id, output_stream=output_file) # Downloads data to the file
-                        print(f"File '{item.name}' downloaded successfully to '{filepath}'") # DEBUG: Prints that we've successfully downloaded a file. Line won't run if there's an error
-
-        return True # Returns True once everthing is downloaded
-    except Exception as e: #Catches any error
+                if not os_path.exists(filepath):
+                    with open(filepath, "wb") as output_file:
+                        client.downloads.download_file_to_output_stream(item.id, output_stream=output_file)
+                        print(f"File '{item.name}' downloaded successfully to '{filepath}'")
+        return True
+    except Exception as e:
         print(f"Download failed: {e}")
         return False
 
-if __name__ == '__main__': # Runs when we run the file.
+if __name__ == '__main__':
     import argparse
+    import sys
+    from aceneurotools.multimodal.lab_config import LabConfig
+
     parser = argparse.ArgumentParser(description="Download experiment data from Box")
     parser.add_argument('--project-path', type=str, required=True,
                         help="Path to project directory (containing experiments.csv)")
-    parser.add_argument('--data-path', type=str, required=True,
+    parser.add_argument('--config', type=str,
+                        help="Path to lab_config.json (to resolve data-path automatically)")
+    parser.add_argument('--data-path', type=str,
                         help="Base path for raw experimental data storage")
     parser.add_argument('--line-num', type=int, default=96,
                         help="Experiment line number")
@@ -244,11 +224,25 @@ if __name__ == '__main__': # Runs when we run the file.
                         choices=["both", "miniscope", "ephys"])
     args = parser.parse_args()
 
+    # Resolve data_path
+    data_path = args.data_path
+    if not data_path and args.config:
+        try:
+            config = LabConfig.from_json(Path(args.config))
+            if config.paths:
+                data_path = config.paths.data_path
+        except Exception as e:
+            print(f"Warning: Could not load data_path from config: {e}")
+
+    if not data_path:
+        print("Error: --data-path or --config (with data_path set) is required.")
+        sys.exit(1)
+
     experiments_csv = Path(args.project_path) / "experiments.csv"
     verify_file_by_line(
         line_num=args.line_num,
         csv_path=experiments_csv,
         do_type=args.do_type,
         avi_list=args.filenames,
-        base_file_path=args.data_path
+        base_file_path=data_path
     )
