@@ -238,6 +238,12 @@ First-time setup:
         help="Override which subjects to process.",
     )
     parser.add_argument(
+        "--filenames",
+        nargs="+",
+        metavar="FILE",
+        help="Specific .avi files to process (compute mode only).",
+    )
+    parser.add_argument(
         "--headless",
         action="store_true",
         help="Disable all GUIs and use the matplotlib Agg backend.",
@@ -385,6 +391,7 @@ def main(argv: list[str] | None = None) -> int:
             lab_config=lab_config,
             calcium_signal_dir=calcium_signal_dir,
             line_nums=effective_line_nums,
+            filenames=args.filenames,
             headless=effective_headless,
             verbose=effective_verbose,
         )
