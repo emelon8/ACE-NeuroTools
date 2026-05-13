@@ -403,12 +403,14 @@ Examples:
                         help="Base path for raw experimental data")
     parser.add_argument('--headless', action='store_true',
                         help="Run in headless mode (no GUI)")
+    parser.add_argument('--filenames', nargs='+',
+                        help="Specific .avi files to process (e.g. 0.avi 1.avi)")
 
     args = parser.parse_args()
 
     # Default parameters
     defaults = {
-        'filenames': ['0.avi'],
+        'filenames': args.filenames if args.filenames else ['0.avi'],
         # Preprocessing
         'crop': True,
         'detrend_method': None,
