@@ -38,6 +38,8 @@ def parse_args():
                    help="Frame rate (Hz). Pulled from HDF5 params if omitted.")
     p.add_argument("--out-dir", default=None,
                    help="Output directory. Defaults to same folder as hdf5.")
+    p.add_argument("--window", type=float, default=30.0,
+                   help="Seconds of trace to show in the zoomed panel (default: 30).")
     return p.parse_args()
 
 # ── Load ──────────────────────────────────────────────────────────────────────
@@ -70,14 +72,15 @@ BG_COLOR     = "#0d1117"
 TEXT_COLOR   = "#e6edf3"
 
 class NeuronCurator:
-    def __init__(self, obj, dims, fr):
-        self.obj   = obj
-        self.dims  = dims
-        self.fr    = fr
-        self.A     = obj.estimates.A          # (pixels, n_neurons) sparse
-        self.C     = obj.estimates.C          # (n_neurons, T)
-        self.n     = self.A.shape[1]
-        self.bg    = make_background(self.A, dims)
+    def __init__(self, obj, dims, fr, window_s=30.0):
+        self.obj      = obj
+        self.dims     = dims
+        self.fr       = fr
+        self.window_s = window_s
+        self.A        = obj.estimates.A          # (pixels, n_neurons) sparse
+        self.C        = obj.estimates.C          # (n_neurons, T)
+        self.n        = self.A.shape[1]
+        self.bg       = make_background(self.A, dims)
 
         # decision array: None=undecided, True=keep, False=reject
         self.decisions = [None] * self.n
@@ -105,7 +108,7 @@ class NeuronCurator:
         self.fig.suptitle("", fontsize=13, color=TEXT_COLOR, fontfamily='monospace')
 
         gs = gridspec.GridSpec(
-            2, 3,
+            2, 2,
             figure=self.fig,
             left=0.05, right=0.95,
             top=0.88, bottom=0.12,
@@ -114,10 +117,9 @@ class NeuronCurator:
 
         self.ax_bg       = self.fig.add_subplot(gs[0, 0])   # all footprints
         self.ax_fp       = self.fig.add_subplot(gs[0, 1])   # this neuron
-        self.ax_overlay  = self.fig.add_subplot(gs[0, 2])   # overlay
         self.ax_trace    = self.fig.add_subplot(gs[1, :])   # Ca trace
 
-        for ax in [self.ax_bg, self.ax_fp, self.ax_overlay]:
+        for ax in [self.ax_bg, self.ax_fp]:
             ax.set_xticks([]); ax.set_yticks([])
 
         # ── Buttons ──────────────────────────────────────────────────────────
@@ -192,25 +194,41 @@ class NeuronCurator:
         self.ax_fp.set_title(f"Neuron {i+1} footprint", fontsize=9)
         self.ax_fp.set_xticks([]); self.ax_fp.set_yticks([])
 
-        # overlay
-        self.ax_overlay.clear()
-        overlay = np.stack([
-            np.clip(self.bg * 0.5 + fp * 0.7, 0, 1),
-            np.clip(self.bg * 0.5,             0, 1),
-            np.clip(self.bg * 0.5,             0, 1),
-        ], axis=-1)
-        self.ax_overlay.imshow(overlay, aspect='auto')
-        self.ax_overlay.set_title("Overlay (neuron = red channel)", fontsize=9)
-        self.ax_overlay.set_xticks([]); self.ax_overlay.set_yticks([])
 
-        # Ca trace
+        # ── Fluorescence trace — raw C row, zoomed to window around peak ─────
         self.ax_trace.clear()
         if self.C is not None and i < self.C.shape[0]:
-            t = np.arange(self.C.shape[1]) / self.fr
-            self.ax_trace.plot(t, self.C[i], color='#58a6ff', lw=0.8, alpha=0.9)
+            trace = self.C[i]
+            T     = trace.shape[0]
+            t     = np.arange(T) / self.fr
+
+            half    = self.window_s / 2.0
+            peak_fr = int(np.argmax(trace))    # frame index of the peak
+            peak_s  = peak_fr / self.fr
+
+            t_start = max(0.0,   peak_s - half)
+            t_end   = min(t[-1], peak_s + half)
+
+            # if the window clips an edge, extend the opposite side
+            if (t_end - t_start) < self.window_s:
+                if t_start == 0.0:
+                    t_end   = min(t[-1], self.window_s)
+                else:
+                    t_start = max(0.0, t_end - self.window_s)
+
+            f_start = int(t_start * self.fr)
+            f_end   = min(T, int(t_end * self.fr) + 1)
+
+            self.ax_trace.plot(t[f_start:f_end], trace[f_start:f_end],
+                               color='#58a6ff', lw=0.9, alpha=0.9)
+            self.ax_trace.set_xlim(t_start, t_end)
             self.ax_trace.set_xlabel("Time (s)", fontsize=9)
-            self.ax_trace.set_ylabel("ΔF/F (a.u.)", fontsize=9)
-        self.ax_trace.set_title("Calcium trace", fontsize=9)
+            self.ax_trace.set_ylabel("Fluorescence (a.u.)", fontsize=9)
+
+        self.ax_trace.set_title(
+            f"Fluorescence trace  ({self.window_s:.0f} s window centred on peak)",
+            fontsize=9,
+        )
         self.ax_trace.set_facecolor(BG_COLOR)
 
         # progress bar
@@ -380,7 +398,7 @@ def main():
         except Exception:
             continue
 
-    curator = NeuronCurator(obj, dims, fr)
+    curator = NeuronCurator(obj, dims, fr, window_s=args.window)
     kept    = curator.run()
 
     if not kept:
