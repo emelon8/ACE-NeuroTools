@@ -8,7 +8,7 @@ name = "aceneurotools"
 version = "0.1.0"
 description = "Analysis of Calcium Imaging and Electrophysiology — integrated pipelines for calcium imaging, electrophysical, and multimodal alignment."
 readme = "README.md"
-license = { text = "GPL-3.0-or-later" }
+license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [
@@ -29,7 +29,6 @@ keywords = [
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
@@ -40,11 +39,11 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "numpy>=1.23,<2.0",
+    "numpy>=1.23",
     "scipy>=1.9",
     "matplotlib>=3.5",
     "pandas>=1.5",
-    "opencv-python>=4.6,<4.10",
+    "opencv-python>=4.6",
     "tqdm>=4.64",
     "h5py>=3.7",
     "colorcet>=3.0",
