@@ -28,7 +28,11 @@ from aceneurotools.shared.exceptions import (
     PipelineExecutionError,
     print_cli_error,
 )
-from aceneurotools.shared.misc_functions import get_coords_dict_from_analysis_params, update_csv_cell
+from aceneurotools.shared.misc_functions import (
+    crop_coords_to_dict,
+    get_coords_dict_from_analysis_params,
+    update_csv_cell,
+)
 
 
 class MiniscopePipeline:
@@ -201,11 +205,8 @@ class MiniscopePipeline:
 
 
         #get cropping coordinates from crop_coords argument or from analysis_params
-        if crop_coords is not None:
-            coords_dict = {
-                'x0': crop_coords[0], 'y0': crop_coords[1],
-                'x1': crop_coords[2], 'y1': crop_coords[3]
-            }
+        coords_dict = crop_coords_to_dict(crop_coords)
+        if coords_dict is not None:
             crop_job_name = '_crop'
         else:
             coords_dict, crop_job_name = get_coords_dict_from_analysis_params(self.miniscope_data_manager)

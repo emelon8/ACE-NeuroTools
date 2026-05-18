@@ -918,7 +918,11 @@ def update_csv_cell(data: Any, columnTitle: str, lineNum: int, csvFile: str | Pa
         print(f"Warning: Line {lineNum} not found in {csvFile}. No update performed.")
         return
 
-    df.loc[mask, columnTitle] = str(data)
+    if columnTitle in ('crop_coords', 'crop'):
+        cell_value = format_crop_coords_for_csv(data)
+    else:
+        cell_value = str(data)
+    df.loc[mask, columnTitle] = cell_value
 
     # Write back to CSV
     try:
@@ -1024,6 +1028,58 @@ def z_score(dataArray: np.ndarray, frameWindow: int = 1000) -> np.ndarray:
     return np.nan_to_num(zScoreArray)
 
 
+def crop_coords_to_dict(crop_coords: Any) -> dict[str, int] | None:
+    """Normalize crop coordinates from CSV, API kwargs, or GUI output to {x0,y0,x1,y1}.
+
+    Accepts:
+    - dict with x0/y0/x1/y1 keys (as saved by update_csv_cell after interactive crop)
+    - list or tuple of four numbers: (x0, y0, x1, y1)
+    - string forms of either, e.g. "(196, 372, 434, 192)"
+    """
+    if crop_coords is None:
+        return None
+
+    if isinstance(crop_coords, dict):
+        keys = ('x0', 'y0', 'x1', 'y1')
+        if all(k in crop_coords for k in keys):
+            return {k: int(crop_coords[k]) for k in keys}
+        return None
+
+    if isinstance(crop_coords, str):
+        crop_coords = crop_coords.strip()
+        if not crop_coords:
+            return None
+        try:
+            import ast
+            parsed = ast.literal_eval(crop_coords)
+        except (ValueError, SyntaxError):
+            return None
+        return crop_coords_to_dict(parsed)
+
+    try:
+        if len(crop_coords) >= 4:  # type: ignore[arg-type]
+            return {
+                'x0': int(crop_coords[0]),
+                'y0': int(crop_coords[1]),
+                'x1': int(crop_coords[2]),
+                'y1': int(crop_coords[3]),
+            }
+    except (TypeError, KeyError, IndexError, ValueError):
+        pass
+    return None
+
+
+def format_crop_coords_for_csv(coords: Any) -> str:
+    """Serialize crop coordinates for analysis_parameters.csv."""
+    coords_dict = crop_coords_to_dict(coords)
+    if coords_dict is None:
+        return str(coords)
+    return (
+        f"({coords_dict['x0']}, {coords_dict['y0']}, "
+        f"{coords_dict['x1']}, {coords_dict['y1']})"
+    )
+
+
 def get_coords_dict_from_analysis_params(miniscope_data_manager: Any) -> tuple[dict[str, int] | None, str]:
     """Extract crop coordinates from analysis parameters.
     
@@ -1042,13 +1098,10 @@ def get_coords_dict_from_analysis_params(miniscope_data_manager: Any) -> tuple[d
     try:
         if miniscope_data_manager.analysis_params:
             previous_coords = miniscope_data_manager.analysis_params.get('crop_coords')
-            if previous_coords and len(previous_coords) >= 4:
-                coords_dict = {
-                    'x0': int(previous_coords[0]),
-                    'y0': int(previous_coords[1]),
-                    'x1': int(previous_coords[2]),
-                    'y1': int(previous_coords[3])
-                }
+            if previous_coords is None:
+                previous_coords = miniscope_data_manager.analysis_params.get('crop')
+            coords_dict = crop_coords_to_dict(previous_coords)
+            if coords_dict is not None:
                 crop_job_name = '_crop'
     except (KeyError, TypeError, IndexError):
         print("Did not find valid crop coordinates in analysis_params['crop_coords']")

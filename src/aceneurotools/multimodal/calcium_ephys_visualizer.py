@@ -77,12 +77,10 @@ def create_ca_ephys_movie(
 
     # Crop the movie if desired.
     if crop:
-        if crop_coords is not None:
-            coords_dict = {
-                'x0': crop_coords[0], 'y0': crop_coords[1],
-                'x1': crop_coords[2], 'y1': crop_coords[3]
-            }
-        else:
+        from aceneurotools.shared.misc_functions import crop_coords_to_dict
+
+        coords_dict = crop_coords_to_dict(crop_coords)
+        if coords_dict is None:
             coords_dict, _ = get_coords_dict_from_analysis_params(miniscope_dm)
         preprocessor = MiniscopePreprocessor(miniscope_dm)
         projections = preprocessor.compute_projections(movie)
