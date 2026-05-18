@@ -203,11 +203,16 @@ def component_gui(movie, estimates, projections):
 
     # Initial drawing of the image
     event, values = window.read(timeout=100)
-    _component_image(estimates, projections, movie, graph, max=True, cmap=values['-CMAP-'])
+    _component_image(
+        estimates, projections, movie, graph, max=True,
+        cmap=values.get('-CMAP-') or 'viridis',
+    )
 
     while True:
         event, values = window.read()
 
+        if event in (sg.WINDOW_CLOSED, '-CANCEL-', None):
+            break
 
         if event == '-LISTCOMP-':
             selected_gui_values_to_reject = np.array(values['-LISTCOMP-'], dtype=int)
@@ -215,30 +220,8 @@ def component_gui(movie, estimates, projections):
 
             window['-LISTCOMP-'].update(set_to_index=[x for x in estimates.idx_components_bad],
                                         scroll_to_index=estimates.idx_components_bad[0] if estimates.idx_components_bad else 0)
-        if event == sg.WINDOW_CLOSED or event == '-CANCEL-':
-            break
 
-        proj_type_flags = {
-            'max': False, 'min': False, 'std': False,
-            'mean': False, 'median': False, 'range': False
-        }
-
-        selected_proj = values['-OPTION-'].lower()
-
-        if selected_proj in proj_type_flags:
-            proj_type_flags[selected_proj] = True
-
-        # Redraw the component image on any relevant event
-        if event in ('-OPTION-', '-CMAP-', '-LISTCOMP-'):
-            _component_image(
-                estimates, projections, movie, graph,
-                max=proj_type_flags['max'], min=proj_type_flags['min'],
-                STD=proj_type_flags['std'], mean=proj_type_flags['mean'],
-                median=proj_type_flags['median'], range=proj_type_flags['range'],
-                cmap=values['-CMAP-']
-            )
-
-        elif event == '-SUBMIT-':
+        if event == '-SUBMIT-':
             selected_0_based_to_reject = set(estimates.idx_components_bad)
             all_indices_0_based = np.arange(len(estimates.C))
             good_components_indices = [idx for idx in all_indices_0_based if idx not in selected_0_based_to_reject]
@@ -248,6 +231,22 @@ def component_gui(movie, estimates, projections):
             if ret is not None:
                 estimates = ret
             break
+
+        if event in ('-OPTION-', '-CMAP-', '-LISTCOMP-'):
+            proj_type_flags = {
+                'max': False, 'min': False, 'std': False,
+                'mean': False, 'median': False, 'range': False
+            }
+            selected_proj = (values.get('-OPTION-') or 'Max').lower()
+            if selected_proj in proj_type_flags:
+                proj_type_flags[selected_proj] = True
+            _component_image(
+                estimates, projections, movie, graph,
+                max=proj_type_flags['max'], min=proj_type_flags['min'],
+                STD=proj_type_flags['std'], mean=proj_type_flags['mean'],
+                median=proj_type_flags['median'], range=proj_type_flags['range'],
+                cmap=values.get('-CMAP-') or 'viridis',
+            )
 
     plt.close('all')
     window.close()
