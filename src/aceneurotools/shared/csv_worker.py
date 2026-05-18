@@ -81,6 +81,8 @@ class CSVWorker:
 
         try:
             df = pd.read_csv(path_obj)
+            # Strip whitespace from column names to be robust against "line number " etc.
+            df.columns = df.columns.str.strip()
 
             # Check for the required 'line number' column before querying.
             if 'line number' not in df.columns:
@@ -96,11 +98,13 @@ class CSVWorker:
 
             line_num_int = int(line_num)
             # Use numeric comparison to be robust against pandas auto-converting to float (e.g. 97 vs 97.0)
+            # pd.to_numeric handles leading/trailing spaces in values automatically.
             row = df.loc[pd.to_numeric(df['line number'], errors='coerce') == line_num_int]
             if row.empty:
                 raise ValueError(
                     f"Subject line number {line_num} not found in {csv_file}.\n"
-                    "  Check that the 'line number' column contains this value."
+                    "  Check that the 'line number' column contains this value and "
+                    "that there are no leading/trailing spaces in the CSV cell."
                 )
             res = row.squeeze()
             if hasattr(res, 'to_dict'):

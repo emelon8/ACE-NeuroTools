@@ -74,7 +74,12 @@ def verify_file_by_line(
             raise ValueError("variable 'do_type' must be 'both', 'miniscope', or 'ephys'")
 
         try:
-            df = pd.read_csv(csv_path, index_col="line number")
+            df = pd.read_csv(csv_path)
+            df.columns = df.columns.str.strip()
+            if "line number" not in df.columns:
+                print(f"Error: 'line number' column missing in {csv_path}")
+                return False
+            df.set_index("line number", inplace=True)
             df.index = df.index.astype(str)
         except (pd.errors.EmptyDataError, FileNotFoundError, pd.errors.ParserError):
             print(f"Error: Could not read CSV at {csv_path}")

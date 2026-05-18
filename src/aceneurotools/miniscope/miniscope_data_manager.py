@@ -76,6 +76,11 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
             data_path: Optional explicit data storage path.
             **kwargs: Additional arguments for subclass initialization.
         """
+        # Import subclasses here to ensure they are registered in _registry
+        # before we iterate through it.  Deferred to avoid circular imports.
+        from aceneurotools.miniscope.onix_miniscope_data_manager import OnixMiniscopeDataManager  # noqa: F401
+        from aceneurotools.miniscope.ucla_data_manager import UCLADataManager  # noqa: F401
+
         temp_edm = ExperimentDataManager(
             line_num,
             project_path=project_path,
@@ -87,6 +92,17 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
 
         if directory is None:
              raise ValueError(f"No miniscope directory set in metadata for line {line_num}")
+
+        # Ensure data is downloaded (if Box is configured) before checking subclasses.
+        # Otherwise, can_handle() will return False because the directory is empty.
+        from aceneurotools.shared import file_downloader
+        file_downloader.verify_file_by_line(
+            line_num,
+            temp_edm.project_path / "experiments.csv",
+            "miniscope",
+            kwargs.get("filenames", []),
+            base_file_path=temp_edm.data_path
+        )
 
         for subclass in cls._registry:
             if subclass.can_handle(directory):

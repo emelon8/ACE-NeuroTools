@@ -33,6 +33,11 @@ class EphysDataManager(ABC):
         if ephys_directory is None:
             raise ValueError("ephys_directory must be provided to create() factory.")
 
+        # Import subclasses here to ensure they are registered in _registry
+        # before we iterate through it.  Deferred to avoid circular imports.
+        from aceneurotools.ephys.neuralynx_data_manager import NeuralynxDataManager  # noqa: F401
+        from aceneurotools.ephys.rhs2116_data_manager import Rhs2116DataManager  # noqa: F401
+
         for subclass in cls._registry:
             if subclass.can_handle(ephys_directory):
                 return cast(T, subclass(ephys_directory=ephys_directory, **kwargs))
