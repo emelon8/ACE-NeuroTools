@@ -113,7 +113,22 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
                     **kwargs
                 ))
 
-        raise ValueError(f"No MiniscopeDataManager subclass found that can handle directory: {directory}")
+        # If we got here, no subclass matched.  Provide helpful diagnostics.
+        dir_path = Path(directory)
+        exists = dir_path.exists()
+        is_dir = dir_path.is_dir()
+        files = list(dir_path.iterdir()) if exists and is_dir else []
+
+        error_msg = [
+            f"No MiniscopeDataManager subclass found that can handle directory: {directory}",
+            f"  Directory exists: {exists}",
+            f"  Is directory: {is_dir}",
+            f"  Contents: {[f.name for f in files[:10]]}{' ...' if len(files) > 10 else ''}",
+            "  Registry contains: " + ", ".join([s.__name__ for s in cls._registry]),
+            "  ACE-NeuroTools expects specific files (e.g., .avi, metaData.json, timeStamps.csv) "
+            "to identify the recording format."
+        ]
+        raise ValueError("\n".join(error_msg))
 
     @classmethod
     @abstractmethod

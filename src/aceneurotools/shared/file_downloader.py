@@ -132,7 +132,23 @@ def verify_file_by_line(
         elif do_type == "ephys":
             return downloaded_ephys
     else:
-        # If Box is not configured, we assume everything is local
+        # If Box is not configured, we check if IDs were intended
+        try:
+            df = pd.read_csv(csv_path)
+            df.columns = df.columns.str.strip()
+            if "line number" in df.columns:
+                df.set_index("line number", inplace=True)
+                line_num_str = str(line_num)
+                if line_num_str in df.index:
+                    m_id = df.at[line_num_str, "Box Calcium Folder ID"]
+                    e_id = df.at[line_num_str, "Box ephys folder ID"]
+                    if not pd.isnull(m_id) or not pd.isnull(e_id):
+                        print("\n[Box Sync skipped]")
+                        print("Box IDs found in metadata, but credentials (box_credentials.py) are not configured.")
+                        print("To enable automatic downloads, follow setup instructions in:")
+                        print("  docs/guides/data_management.md#optional-box-cloud-integration\n")
+        except Exception:
+            pass
         return None
 
 def make_auth() -> Any | None:
