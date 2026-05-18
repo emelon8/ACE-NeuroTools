@@ -98,7 +98,9 @@ class MiniscopePostprocessor:
         if remove_components_with_gui:
             if self.data_manager.CNMFE_obj is not None and self.data_manager.CNMFE_obj.estimates.A is not None and self.data_manager.CNMFE_obj.estimates.A.shape[0] > 0:
                 if hasattr(self.data_manager, 'diag_logger') and self.data_manager.diag_logger is not None: self.data_manager.diag_logger.pause_timer()
+                import matplotlib.pyplot as plt
                 self.data_manager.CNMFE_obj.estimates.plot_contours()
+                plt.close('all')  # close CaImAn preview so it does not fight the SG window
                 self.data_manager.CNMFE_obj.estimates = component_gui(self.data_manager.movie, self.data_manager.CNMFE_obj.estimates, self.data_manager.projections)
                 if hasattr(self.data_manager, 'diag_logger') and self.data_manager.diag_logger is not None: self.data_manager.diag_logger.resume_timer()
             else:

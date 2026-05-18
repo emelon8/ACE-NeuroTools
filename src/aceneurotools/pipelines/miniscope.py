@@ -1,7 +1,6 @@
 
 import argparse
 import sys
-import tkinter
 from pathlib import Path
 
 from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
@@ -272,9 +271,9 @@ class MiniscopePipeline:
         if self.miniscope_data_manager.CNMFE_obj is not None:
             from aceneurotools.shared.plotting import set_backend
             set_backend(headless=headless)
-            if not headless:
-                if hasattr(tkinter, '_default_root') and tkinter._default_root:
-                    tkinter._default_root.destroy()
+            # Do not destroy tkinter._default_root here: FreeSimpleGUI needs a live
+            # Tk root for the component curation window (destroying it makes the GUI
+            # flash and exit immediately on Windows).
 
             try:
                 self.postprocessor = MiniscopePostprocessor(self.miniscope_data_manager)

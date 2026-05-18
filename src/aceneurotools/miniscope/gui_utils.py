@@ -208,10 +208,14 @@ def component_gui(movie, estimates, projections):
         cmap=values.get('-CMAP-') or 'viridis',
     )
 
+    timeout_key = getattr(sg, 'TIMEOUT_KEY', '__TIMEOUT__')
+
     while True:
         event, values = window.read()
 
-        if event in (sg.WINDOW_CLOSED, '-CANCEL-', None):
+        if event in (timeout_key, '__TIMEOUT__'):
+            continue
+        if event in (sg.WINDOW_CLOSED, '-CANCEL-'):
             break
 
         if event == '-LISTCOMP-':
