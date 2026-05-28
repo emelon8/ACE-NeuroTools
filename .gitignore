@@ -32,5 +32,15 @@ scripts/
 .vscode/
 .idea/
 
+# Claude Code / AI assistants
+.claude/
+.claude.json
+.claude.local.json
+CLAUDE.md
+CLAUDE.local.md
+.anthropic/
+memory/
+MEMORY.md
+
 # Tests (temporarily untracked due to size)
 tests/

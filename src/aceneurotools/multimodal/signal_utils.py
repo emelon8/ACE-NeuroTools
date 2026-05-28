@@ -5,7 +5,7 @@ from __future__ import annotations
 import warnings
 
 import numpy as np
-from scipy.signal import butter, correlate, correlation_lags, filtfilt
+from scipy.signal import butter, correlate, correlation_lags, filtfilt, freqz, hilbert
 from scipy.signal import coherence as scipy_coherence
 
 
@@ -237,3 +237,59 @@ def compute_signal_stats(
     coh     = compute_coherence(signal_1, signal_2, fr, freq_range, coherence_nperseg_seconds)
     xc, lag = compute_cross_correlation(signal_1, signal_2, fr)
     return [power_1, power_2, coh, xc, lag]
+
+
+def compute_hilbert_envelope(signal: np.ndarray) -> np.ndarray:
+    """Magnitude (envelope) of the analytic signal via the Hilbert transform.
+
+    Complements ea's existing inline Hilbert *phase* extraction. Required as
+    a building block for ``detect_oscillatory_events``.
+
+    Parameters
+    ----------
+    signal : np.ndarray, 1D
+        Bandpass-filtered signal.
+
+    Returns
+    -------
+    np.ndarray
+        Envelope (same shape as input).
+    """
+    return np.abs(hilbert(signal))
+
+
+def get_filter_frequency_response(
+    freq_range: float | tuple[float, float] | list[float],
+    fr: float,
+    filter_type: str = "bandpass",
+    order: int = 2,
+    worN: int = 1024,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Frequency-response magnitude of a Butterworth filter.
+
+    Diagnostic for filter design — pairs with :func:`filter_signals`.
+
+    Parameters
+    ----------
+    freq_range : float or (float, float)
+        Cutoff frequency in Hz. Scalar for ``'lowpass'``/``'highpass'``;
+        ``(low, high)`` for ``'bandpass'``/``'bandstop'``.
+    fr : float
+        Sampling rate in Hz.
+    filter_type : str, default ``'bandpass'``
+        One of ``'lowpass'``, ``'highpass'``, ``'bandpass'``, ``'bandstop'``.
+    order : int, default 2
+        Filter order. Matches the default in :func:`filter_signals`.
+    worN : int, default 1024
+        Number of frequency points at which to evaluate ``freqz``.
+
+    Returns
+    -------
+    freqs : np.ndarray
+        Frequencies in Hz, length ``worN``.
+    magnitude : np.ndarray
+        ``|H(f)|`` at each frequency (linear, not dB).
+    """
+    b, a = butter(order, freq_range, btype=filter_type, fs=fr)
+    w, h = freqz(b, a, worN=worN, fs=fr)
+    return np.asarray(w), np.abs(h)
