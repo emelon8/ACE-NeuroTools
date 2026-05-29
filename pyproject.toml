@@ -13,7 +13,6 @@ license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [
     { name = "Reed Pennock" },
-    { name = "Luke Richards" },
     { name = "Eric Melonakos" },
     { name = "Elijah Keldsen" },
 ]
@@ -87,9 +86,7 @@ Repository = "https://github.com/emelon8/experiment_analysis"
 "Bug Tracker" = "https://github.com/emelon8/experiment_analysis/issues"
 
 
-# ---------------------------------------------------------------------------
 # Setuptools
-# ---------------------------------------------------------------------------
 [tool.setuptools.packages.find]
 where = ["src"]
 
@@ -97,9 +94,7 @@ where = ["src"]
 aceneurotools = ["py.typed", "shared/metadata_templates/*.csv"]
 
 
-# ---------------------------------------------------------------------------
 # Pytest
-# ---------------------------------------------------------------------------
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
@@ -109,9 +104,7 @@ markers = [
     "integration: heavier integration-level tests",
 ]
 
-# ---------------------------------------------------------------------------
 # Coverage (pytest-cov / coverage.py)
-# ---------------------------------------------------------------------------
 [tool.coverage.run]
 branch = true
 source = ["src/aceneurotools"]
@@ -125,9 +118,7 @@ show_missing = true
 skip_empty = true
 
 
-# ---------------------------------------------------------------------------
 # Ruff (linter + formatter)
-# ---------------------------------------------------------------------------
 [tool.ruff]
 target-version = "py310"
 line-length = 120
@@ -147,9 +138,7 @@ ignore = [
 ]
 
 
-# ---------------------------------------------------------------------------
 # Pyrefly (type checking)
-# ---------------------------------------------------------------------------
 [tool.pyrefly]
 python-version = "3.10"
 ignore-missing-imports = [
