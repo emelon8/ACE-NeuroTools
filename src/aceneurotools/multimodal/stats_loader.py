@@ -16,7 +16,7 @@ time-aligned signals at the miniscope frame rate:
 4. Downsample the ephys signal(s) to the miniscope frame rate via
    :func:`~aceneurotools.multimodal.miniscope_ephys_alignment_utils.find_ephys_idx_of_TTL_events`.
 5. Optionally load mean-fluorescence ``.npz`` files produced by the
-   :mod:`~aceneurotools.multimodal.time_projection_script`.
+   :class:`~aceneurotools.pipelines.compute.ComputePipeline`.
 
 The returned objects are ready for the coherence and scatter analysis engines.
 
@@ -330,7 +330,7 @@ def load_calcium_signal(
 
     The expected filename pattern is
     ``<calcium_signal_dir>/meanFluorescence_<line_num>.npz``, matching the
-    output of :mod:`~aceneurotools.multimodal.time_projection_script`.
+    output of :class:`~aceneurotools.pipelines.compute.ComputePipeline`.
 
     Args:
         miniscope_dm: A MiniscopeDataManager; the loaded array is stored in
@@ -347,7 +347,8 @@ def load_calcium_signal(
     if not filepath.exists():
         warnings.warn(
             f"Calcium signal file not found: {filepath}.  "
-            "Run time_projection_script first, or check --calcium-signal-dir.",
+            "Run the compute pipeline first (python -m aceneurotools.pipelines.compute), "
+            "or check --calcium-signal-dir.",
             stacklevel=2,
         )
         return None
