@@ -48,52 +48,6 @@ _W = 80  # banner / divider width
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Banner
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _banner() -> str:
-    """Return the 80-column ASCII art welcome banner."""
-    border = "#" * _W
-    blank = "%%" + " " * (_W - 4) + "%%"
-
-    def _row(text: str) -> str:
-        return "%%" + ("  " + text).ljust(_W - 4) + "%%"
-
-    # 5-row block letters for A, C, E, N, E, U, R, O
-    A = [" ### ", "#   #", "#####", "#   #", "#   #"]
-    C = ["#### ", "#    ", "#    ", "#    ", "#### "]
-    E = ["#####", "#    ", "###  ", "#    ", "#####"]
-    N = ["#   #", "##  #", "# # #", "#  ##", "#   #"]
-    U = ["#   #", "#   #", "#   #", "#   #", " ### "]
-    R = ["#### ", "#   #", "#### ", "# #  ", "#  ##"]
-    O = [" ### ", "#   #", "#   #", "#   #", " ### "]
-
-    sep = " "   # 1-char gap between letters
-    gap = "    "  # 4-char gap between ACE and NEURO
-
-    art_rows: list[str] = []
-    for i in range(5):
-        row = (
-            A[i] + sep + C[i] + sep + E[i]
-            + gap
-            + N[i] + sep + E[i] + sep + U[i] + sep + R[i] + sep + O[i]
-        )
-        art_rows.append(row)
-
-    return "\n".join([
-        border,
-        blank,
-        *[_row(line) for line in art_rows],
-        blank,
-        _row("              T  O  O  L  S   ·   v 0 . 1 . 0"),
-        blank,
-        _row("    Analysis of Calcium Imaging & Electrophysiology"),
-        blank,
-        border,
-    ])
-
-
-# ─────────────────────────────────────────────────────────────────────────────
 # Interactive UI helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -155,32 +109,278 @@ def _select_mode(lab_config: LabConfig) -> str | None:
     Returns ``None`` if the user interrupted or quit.
     If ``lab_config.run.mode`` is already set, that value is returned
     immediately without prompting.
+
+    Stats is a modular opt-in component: the default selection (option 1)
+    runs only the compute pipeline, and a follow-up prompt after compute
+    finishes asks whether to run statistical analyses.
     """
     if lab_config.run and lab_config.run.mode:
         return lab_config.run.mode
 
     print(_divider("Select Pipeline Mode"))
     print()
-    print("  1.  compute  —  Generate calcium signal files from raw videos")
-    print("  2.  stats    —  Run statistical analyses (requires calcium signal files)")
-    print("  3.  all      —  Run compute then stats  [default]")
+    print("  1.  compute          —  Generate calcium signal files from raw videos  [default]")
+    print("  2.  compute + stats  —  Then run statistical analyses on those files")
+    print("  3.  stats only       —  Run stats on existing calcium signal files")
+    print()
+    print("  (You can also skip this menu by setting run.mode in lab_config.json.)")
     print()
 
     try:
-        answer = input("  Selection [3]: ").strip().lower()
+        answer = input("  Selection [1]: ").strip().lower()
     except (EOFError, KeyboardInterrupt):
         print("\n  Interrupted.")
         return None
 
-    if answer in ("", "3", "all"):
-        return "all"
-    if answer in ("1", "compute"):
+    if answer in ("", "1", "compute"):
         return "compute"
-    if answer in ("2", "stats"):
+    if answer in ("2", "all", "compute + stats", "compute+stats"):
+        return "all"
+    if answer in ("3", "stats", "stats only"):
         return "stats"
 
-    print(f"  Unrecognised selection {answer!r} — defaulting to 'all'.")
-    return "all"
+    print(f"  Unrecognised selection {answer!r} — defaulting to 'compute'.")
+    return "compute"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# First-time setup wizard + data-path tutorial
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _tutorial(project_path: Path) -> None:
+    """Walk the user through every data path they need to fill in.
+
+    Covers the four ``paths`` keys in lab_config.json plus the per-subject
+    ``ephys directory`` and ``calcium imaging directory`` columns in
+    experiments.csv. Each section gives: what it is, why it's needed, an
+    example value, and the common pitfalls.
+    """
+    from rich.console import Console
+    from rich.text import Text
+
+    console = Console()
+
+    def _section(label: str) -> None:
+        console.print()
+        console.print(Text(label, style="bold cyan"))
+
+    def _field(name: str, lines: list[str]) -> None:
+        title = Text()
+        title.append("  ", style="default")
+        title.append(name, style="bold green")
+        console.print(title)
+        for line in lines:
+            console.print(f"      {line}")
+
+    _section("Guided tutorial: data paths")
+    console.print(
+        "  ACE-NeuroTools needs to know where your data lives.  There are "
+        "four directories"
+    )
+    console.print(
+        "  in lab_config.json (project-wide) and two columns in "
+        "experiments.csv (per-subject)."
+    )
+
+    # ── lab_config.json paths ────────────────────────────────────────────────
+    _section("lab_config.json  →  paths")
+
+    _field("project_path", [
+        "What:   The directory that contains lab_config.json and experiments.csv.",
+        "Why:    All other lab_config paths are resolved relative to this if",
+        "        left as null.  It is also the default output location.",
+        f"Example: {project_path}",
+        "Gotcha: Use forward slashes on Windows (C:/Users/...) — JSON treats",
+        "        backslashes as escape characters.",
+    ])
+
+    _field("data_path", [
+        "What:   Base directory containing the raw experimental data — both",
+        "        the Neuralynx .ncs files and the Miniscope recordings.",
+        "Why:    Per-subject 'ephys directory' and 'calcium imaging directory'",
+        "        entries in experiments.csv are resolved relative to this.",
+        "        Set to null to resolve them relative to project_path instead.",
+        "Example: /Volumes/lab-nas/raw_recordings",
+        "Gotcha: Must be readable from wherever you run ace-neuro.  On an HPC",
+        "        cluster, that means the shared filesystem path, not your laptop.",
+    ])
+
+    _field("output_dir", [
+        "What:   Where statistical results (CSVs, figures, run_log.json) go.",
+        "Why:    Each pipeline run writes one subdirectory per analysis here.",
+        "Example: /path/to/project/stats_results",
+        "Gotcha: Created automatically if it does not exist.  Set to null to",
+        "        default to <project_path>/stats_results.",
+    ])
+
+    _field("calcium_signal_dir", [
+        "What:   Where meanFluorescence_<line_num>.npz files are stored.",
+        "Why:    Mode 'compute' WRITES these files; mode 'stats' READS them.",
+        "        If you only ever run mode 'all', this is the bridge between",
+        "        the two halves of the pipeline.",
+        "Example: /path/to/project/calcium_signals",
+        "Gotcha: Set to null to default to <project_path>/calcium_signals.",
+        "        Stats mode will error if the .npz file for a subject is missing.",
+    ])
+
+    # ── experiments.csv per-subject paths ────────────────────────────────────
+    _section("experiments.csv  →  per-subject paths")
+
+    _field("ephys directory", [
+        "What:   Path to the Neuralynx folder for ONE subject.  Contains the",
+        "        per-channel .ncs files (e.g. CBvsPCEEG.ncs) and the Events.nev.",
+        "Why:    Drives every ephys load: filtering, TTL-event sync, coherence.",
+        "Example: ExampleRat/2024-01-01_12-00-00",
+        "Gotcha: Relative path — resolved against data_path (or project_path",
+        "        if data_path is null).  Match the exact case of the folder name.",
+    ])
+
+    _field("calcium imaging directory", [
+        "What:   Path to the Miniscope recording folder for ONE subject.",
+        "        Contains the .avi movies and timeStamps.csv (UCLA V3) or .raw",
+        "        timestamp files (ONIX V4).",
+        "Why:    Drives calcium loading, preprocessing, and TTL alignment.",
+        "Example: ExampleRat/2024_01_01/12_00_00",
+        "Gotcha: Same as ephys directory — relative to data_path/project_path.",
+        "        For ONIX recordings, point at the directory containing the",
+        "        timestamp .raw files, not the .avi files themselves.",
+    ])
+
+    # ── Pipeline structure (compute vs stats) ────────────────────────────────
+    _section("Pipeline structure: compute vs stats")
+    console.print(
+        "  ACE-NeuroTools has two halves and they run independently:"
+    )
+    console.print()
+    console.print("    [bold green]compute[/bold green]  →  reads raw .avi / .ncs, "
+                  "writes meanFluorescence_<N>.npz")
+    console.print("    [bold green]stats[/bold green]    →  reads those .npz files, "
+                  "produces coherence / scatter results + figures")
+    console.print()
+    console.print(
+        "  Stats is a [bold]modular opt-in[/bold] — running ace-neuro defaults to "
+        "compute only."
+    )
+    console.print(
+        "  When compute finishes you'll be asked whether to run stats on "
+        "the results."
+    )
+    console.print(
+        "  You can also choose 'compute + stats' in the menu, or set run.mode = 'all' "
+    )
+    console.print("  in lab_config.json to skip the prompt.")
+
+    # ── Sanity check + next step ─────────────────────────────────────────────
+    _section("Quick mental check")
+    console.print("  Open lab_config.json and confirm:")
+    console.print("    1. paths.project_path points at the folder containing this file")
+    console.print("    2. paths.data_path either points at your raw-data root, or is null")
+    console.print("    3. Every subject in conditions has an entry in time_windows")
+    console.print("    4. Every subject is also a row in experiments.csv")
+    console.print()
+    console.print(Text("Tutorial complete.", style="bold green"))
+
+
+def _setup_wizard() -> int:
+    """Interactive first-time setup. Generates templates and prints next steps.
+
+    Returns the shell exit code (0 = success, non-zero = abort).
+    """
+    from rich.console import Console
+    from rich.text import Text
+
+    from aceneurotools.init import main as init_main
+
+    console = Console()
+
+    def _step(num: int, title: str) -> None:
+        console.print()
+        console.print(Text(f"Step {num} — {title}", style="bold cyan"))
+
+    # ── Step 1: choose project path ──────────────────────────────────────────
+    _step(1, "Choose a project directory")
+    cwd = Path.cwd()
+    console.print(f"  Where would you like the configuration files to live?")
+    console.print(f"  Press Enter to use the current directory: [dim]{cwd}[/dim]")
+    try:
+        answer = input("  Project path: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        console.print("\n  Setup cancelled.")
+        return 1
+
+    project_path = Path(answer).expanduser().resolve() if answer else cwd
+
+    # ── Step 2: handle existing files ────────────────────────────────────────
+    _step(2, "Generate template files")
+    existing = [
+        f for f in ("lab_config.json", "stats_config.json", "experiments_template.csv")
+        if (project_path / f).exists()
+    ]
+    force = False
+    if existing:
+        console.print(f"  The following file(s) already exist in {project_path}:")
+        for f in existing:
+            console.print(f"    [yellow]• {f}[/yellow]")
+        try:
+            ans = input("  Overwrite? [y/N]: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            console.print("\n  Setup cancelled.")
+            return 1
+        if ans not in ("y", "yes"):
+            console.print("  Keeping existing files. Skipping template generation.")
+        else:
+            force = True
+
+    if not existing or force:
+        import contextlib
+        import io
+
+        argv = ["--project-path", str(project_path)]
+        if force:
+            argv.append("--force")
+        # init_main also prints its own next-steps guide that overlaps with
+        # ours — capture its stdout and re-emit only the per-file Created lines.
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = init_main(argv)
+        if rc != 0:
+            console.print(
+                Text("  Template generation failed; aborting.", style="bold red")
+            )
+            console.print(buf.getvalue())
+            return rc
+        for line in buf.getvalue().splitlines():
+            stripped = line.lstrip()
+            if stripped.startswith("Created:"):
+                console.print(f"  ✓ {stripped[len('Created:'):].strip()}")
+
+    # ── Step 3: offer the in-depth path tutorial ─────────────────────────────
+    _step(3, "Optional: guided tutorial")
+    console.print(
+        "  Would you like a guided tour of every data path you need to fill in?"
+    )
+    console.print("  (4 lab_config keys + 2 experiments.csv columns, with examples)")
+    try:
+        ans = input("  Show tutorial? [Y/n]: ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        ans = "n"
+
+    if ans in ("", "y", "yes"):
+        _tutorial(project_path)
+    else:
+        console.print()
+        console.print(Text("Setup complete.", style="bold green"))
+        console.print("  Edit lab_config.json + experiments.csv, then run:")
+        if project_path == cwd:
+            console.print(Text("      ace-neuro", style="bold cyan"))
+        else:
+            console.print(
+                Text(
+                    f"      ace-neuro --config {project_path}/lab_config.json",
+                    style="bold cyan",
+                )
+            )
+    return 0
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -252,6 +452,15 @@ First-time setup:
         action="store_true",
         help="Skip the path-confirmation prompt.",
     )
+    parser.add_argument(
+        "--setup",
+        action="store_true",
+        help=(
+            "Run the interactive first-time setup wizard.  "
+            "Generates template configuration files and walks you through "
+            "the fields you need to fill in before running the pipeline."
+        ),
+    )
     return parser
 
 
@@ -265,22 +474,24 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     # ── Print banner ──────────────────────────────────────────────────────────
-    print(_banner())
+    from aceneurotools.shared.banner import welcome
+    welcome()
 
     # ── Locate lab_config.json ────────────────────────────────────────────────
     config_path = Path(args.config) if args.config else Path.cwd() / "lab_config.json"
 
+    # ── First-time setup wizard ───────────────────────────────────────────────
+    # Run the wizard if the user asked for it explicitly, OR if no config was
+    # found in the cwd (auto first-run experience). When --config was given
+    # explicitly and points at a missing file, that's a user error — just exit
+    # without the wizard so we don't surprise them by creating files elsewhere.
+    if args.setup or (not config_path.exists() and not args.config):
+        return _setup_wizard()
+
     if not config_path.exists():
-        print(
-            f"\n  ERROR: lab_config.json not found at {config_path}\n"
-            "\n"
-            "  Generate template files with:\n"
-            f"    python -m aceneurotools.init --project-path {Path.cwd()}\n"
-            "\n"
-            "  Or specify the config location explicitly:\n"
-            "    ace-neuro --config /path/to/lab_config.json\n"
-        )
-        return 1
+        # Explicit --config that doesn't exist — exit silently; no scary
+        # error and no wizard since the user knew where they wanted to look.
+        return 0
 
     # ── Load lab config ───────────────────────────────────────────────────────
     from aceneurotools.multimodal.lab_config import LabConfig
@@ -332,8 +543,9 @@ def main(argv: list[str] | None = None) -> int:
     mode: str | None = args.mode
     if mode is None:
         if effective_headless:
-            # In headless mode we cannot prompt; fall back to config or 'all'.
-            mode = (lab_config.run.mode if lab_config.run else None) or "all"
+            # In headless mode we cannot prompt; fall back to config, or
+            # default to compute-only (stats remains an explicit opt-in).
+            mode = (lab_config.run.mode if lab_config.run else None) or "compute"
         else:
             mode = _select_mode(lab_config)
     if mode is None:
@@ -388,6 +600,34 @@ def main(argv: list[str] | None = None) -> int:
             headless=effective_headless,
             verbose=effective_verbose,
         )
+
+    # ── Optional post-compute stats opt-in ───────────────────────────────────
+    # Stats is modular: when a user chose 'compute' alone (interactively or by
+    # config), we ask whether they want to run statistical analyses now on the
+    # freshly-produced .npz files. Promotes 'compute' to 'all' on yes; otherwise
+    # the run ends here. Skip the prompt for headless / --yes / explicit modes.
+    if (
+        mode == "compute"
+        and not effective_headless
+        and not args.yes
+    ):
+        print()
+        print(_divider("Compute complete"))
+        print()
+        print("  Statistical analyses (coherence / scatter correlations) are")
+        print("  available as a modular next step.  They run on the calcium")
+        print("  signal files just produced and require no extra raw data.")
+        print()
+        try:
+            ans = input("  Run statistical analyses now? [y/N]: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print("\n  Skipping stats.")
+            return 0
+        if ans in ("y", "yes"):
+            mode = "all"  # fall through into the stats block below
+        else:
+            print("\n  Done.  Re-run with --mode stats or --mode all to run stats later.")
+            return 0
 
     # ── stats mode ────────────────────────────────────────────────────────────
     if mode in ("stats", "all"):

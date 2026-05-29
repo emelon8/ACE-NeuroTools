@@ -168,7 +168,11 @@ def _lab_config_template() -> dict:
             "calcium_signal_dir": None,
         },
         "run": {
-            "mode": "all",
+            # Stats is an OPT-IN component. Default mode is 'compute' (calcium
+            # signal generation only). Users opt into statistical analyses
+            # either at the post-compute prompt, by selecting 'compute + stats'
+            # in the menu, by setting mode to 'all' here, or via --mode all.
+            "mode": "compute",
             "analyses": ["coherence_ephys_calcium"],
             "line_nums": None,
             "headless": False,

@@ -53,6 +53,7 @@ dependencies = [
     "caiman>=1.11",
     "freesimplegui>=5.0",
     "Pillow>=9.0",
+    "rich>=13",
 ]
 
 [project.scripts]
