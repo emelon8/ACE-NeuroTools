@@ -13,6 +13,10 @@ scatter_analysis    — ScatterAnalysis engine (Pearson r, Fisher-z CIs, populat
 event_correlograms  — ACG/CCG/event-correlogram and ISI distribution for event trains
 surrogate           — Surrogate event-train generators (jitter/shift/shuffle/resample) for
                       null-distribution testing
+oscillatory_events  — Band-limited oscillatory burst detection (slow waves, spindles,
+                      K-complexes, propofol-alpha) via envelope thresholding
+perievent           — Peri-event slice extraction + event/spike-triggered averages on
+                      regularly sampled signals
 
 Heavy modules (stats_loader, coherence_analysis, scatter_analysis) transitively import
 caiman and are NOT eagerly imported here — import them directly when needed.
@@ -25,6 +29,12 @@ from aceneurotools.multimodal.event_correlograms import (
     compute_isi_distribution,
 )
 from aceneurotools.multimodal.lab_config import ConditionSpec, LabConfig
+from aceneurotools.multimodal.oscillatory_events import detect_oscillatory_events
+from aceneurotools.multimodal.perievent import (
+    compute_event_triggered_average,
+    compute_perievent,
+    compute_spike_triggered_average,
+)
 from aceneurotools.multimodal.signal_utils import (
     compute_coherence,
     compute_cross_correlation,
@@ -77,6 +87,12 @@ __all__ = [
     "shuffle_event_intervals",
     "resample_event_times",
     "apply_to_group",
+    # oscillatory events
+    "detect_oscillatory_events",
+    # perievent
+    "compute_perievent",
+    "compute_event_triggered_average",
+    "compute_spike_triggered_average",
     # heavy modules available via direct import:
     # from aceneurotools.multimodal.stats_loader import load_for_stats, load_for_stats_two_channels, load_calcium_signal
     # from aceneurotools.multimodal.coherence_analysis import CoherenceAnalysis, SubjectCoherenceResult

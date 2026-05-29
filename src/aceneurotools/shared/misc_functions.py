@@ -925,7 +925,12 @@ def spike_trig_avg(eventArray: np.ndarray, dataArray: np.ndarray, framesb: int, 
     """
     Compute the average spike values starting 'framesb' before the event
     and ending 'framesa' after the event.
-    
+
+    .. deprecated::
+       Use :func:`aceneurotools.multimodal.perievent.compute_event_triggered_average`
+       which operates on signals + event times in seconds and returns the
+       mean alongside per-event SEM/std/matrix.
+
     Args:
         eventArray: A numpy array of when and/or where events occur. Can either
                     be in the format of [[component, frame],...] or
@@ -939,6 +944,14 @@ def spike_trig_avg(eventArray: np.ndarray, dataArray: np.ndarray, framesb: int, 
                       a numpy array of the average values at each frame
                       of the designated window around the event
     """
+    import warnings as _warnings
+    _warnings.warn(
+        "spike_trig_avg is deprecated; use "
+        "aceneurotools.multimodal.perievent.compute_event_triggered_average "
+        "for a sample-rate-aware peri-event average.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     avgEventDict: dict[int, np.ndarray] = {}
     if dataArray.ndim == 1:
         valid_events = 0
