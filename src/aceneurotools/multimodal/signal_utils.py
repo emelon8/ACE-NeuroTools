@@ -293,3 +293,75 @@ def get_filter_frequency_response(
     b, a = butter(order, freq_range, btype=filter_type, fs=fr)
     w, h = freqz(b, a, worN=worN, fs=fr)
     return np.asarray(w), np.abs(h)
+
+
+def compute_mutual_information(
+    tuning_curve: np.ndarray,
+    occupancy: np.ndarray,
+    mean_rate: float | None = None,
+) -> tuple[float, float]:
+    """Skaggs mutual information between a continuous variable and a rate.
+
+    Implements the Skaggs et al. (1993) metric for the information content of
+    a "rate" (firing, calcium event rate, instantaneous power, …) with respect
+    to a binned continuous variable. ea use case: quantify how much the
+    calcium-event rate of a neuron is informative about LFP-power state under
+    sedation, complementing Pearson r in :mod:`scatter_analysis`.
+
+    The bits-per-second is:
+
+        I = sum_x P(x) * lambda(x) * log2( lambda(x) / mean_rate )
+
+    where ``P(x)`` is the occupancy probability in bin ``x`` and
+    ``lambda(x)`` is the rate in bin ``x``.
+
+    Parameters
+    ----------
+    tuning_curve : np.ndarray, shape (n_bins,)
+        Per-bin mean rate of the variable being decoded (e.g. calcium-event
+        rate in Hz).
+    occupancy : np.ndarray, shape (n_bins,)
+        Per-bin occupancy. Either probabilities (summing to 1) or raw counts —
+        either way the function normalises before use.
+    mean_rate : float, optional
+        Overall mean rate. If None, estimated from ``tuning_curve`` weighted
+        by occupancy.
+
+    Returns
+    -------
+    (bits_per_sec, bits_per_spike) : tuple of float
+        Mutual information in bits/second and bits/spike (or bits/event).
+        ``bits_per_spike`` is NaN when ``mean_rate`` is 0.
+
+    References
+    ----------
+    Skaggs WE, McNaughton BL, Gothard KM (1993). An information-theoretic
+    approach to deciphering the hippocampal code. NIPS 5: 1030–1037.
+    """
+    tc = np.asarray(tuning_curve, dtype=np.float64).ravel()
+    occ = np.asarray(occupancy, dtype=np.float64).ravel()
+    if tc.shape != occ.shape:
+        raise ValueError("tuning_curve and occupancy must have the same shape.")
+    if tc.size == 0:
+        return 0.0, float("nan")
+
+    occ_total = np.nansum(occ)
+    if occ_total == 0:
+        return 0.0, float("nan")
+    p_x = occ / occ_total
+
+    if mean_rate is None:
+        mean_rate = float(np.nansum(p_x * tc))
+
+    if mean_rate == 0:
+        return 0.0, float("nan")
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        ratio = tc / mean_rate
+        log_ratio = np.log2(ratio)
+    log_ratio[~np.isfinite(log_ratio)] = 0.0
+
+    bits_per_sec = float(np.nansum(p_x * tc * log_ratio))
+    bits_per_spike = bits_per_sec / mean_rate
+    return bits_per_sec, bits_per_spike

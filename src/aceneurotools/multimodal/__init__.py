@@ -17,6 +17,7 @@ oscillatory_events  — Band-limited oscillatory burst detection (slow waves, sp
                       K-complexes, propofol-alpha) via envelope thresholding
 perievent           — Peri-event slice extraction + event/spike-triggered averages on
                       regularly sampled signals
+wavelets            — Morlet continuous wavelet transform (time-frequency analysis)
 
 Heavy modules (stats_loader, coherence_analysis, scatter_analysis) transitively import
 caiman and are NOT eagerly imported here — import them directly when needed.
@@ -39,6 +40,7 @@ from aceneurotools.multimodal.signal_utils import (
     compute_coherence,
     compute_cross_correlation,
     compute_hilbert_envelope,
+    compute_mutual_information,
     compute_signal_stats,
     compute_spectral_power,
     filter_signals,
@@ -49,6 +51,10 @@ from aceneurotools.multimodal.signal_utils import (
     trim_filter_edges,
 )
 from aceneurotools.multimodal.stats_config import StatsConfig, StudyMetadata
+from aceneurotools.multimodal.wavelets import (
+    compute_wavelet_transform,
+    generate_morlet_filterbank,
+)
 from aceneurotools.multimodal.surrogate import (
     apply_to_group,
     jitter_event_times,
@@ -76,6 +82,7 @@ __all__ = [
     "compute_signal_stats",
     "compute_hilbert_envelope",
     "get_filter_frequency_response",
+    "compute_mutual_information",
     # event correlograms
     "compute_autocorrelogram",
     "compute_crosscorrelogram",
@@ -93,6 +100,9 @@ __all__ = [
     "compute_perievent",
     "compute_event_triggered_average",
     "compute_spike_triggered_average",
+    # wavelets
+    "compute_wavelet_transform",
+    "generate_morlet_filterbank",
     # heavy modules available via direct import:
     # from aceneurotools.multimodal.stats_loader import load_for_stats, load_for_stats_two_channels, load_calcium_signal
     # from aceneurotools.multimodal.coherence_analysis import CoherenceAnalysis, SubjectCoherenceResult
