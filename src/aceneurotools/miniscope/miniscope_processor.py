@@ -1,6 +1,5 @@
 import os
 import tkinter
-from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -64,7 +63,13 @@ class MiniscopeProcessor:
         """
 
         self.data_manager = data_manager
-        self.preprocessed_movie = deepcopy(data_manager.movie)
+        # Keep a reference to the pre-processing movie rather than a full deep
+        # copy: it is only read (never mutated) and only when motion-correction
+        # inspection is enabled (default off). Motion correction works off the
+        # on-disk memmap and data_manager.movie is not reassigned until after
+        # the inspection point, so the reference stays pristine. This avoids
+        # doubling peak RAM on every run.
+        self.preprocessed_movie = data_manager.movie
         self._prepare_opts_caiman()
 
 
