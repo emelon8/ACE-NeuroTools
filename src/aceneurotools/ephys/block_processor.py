@@ -24,6 +24,7 @@ from typing import Any
 
 import numpy as np
 from neo.core import Block  # type: ignore
+from scipy.ndimage import distance_transform_edt  # type: ignore
 from scipy.signal.windows import hann  # type: ignore
 
 from aceneurotools.ephys.channel import Channel
@@ -324,21 +325,36 @@ class BlockProcessor:
 
     def _apply_hann_window(self, channel: Channel, mask: np.ndarray, window: np.ndarray, dt: float) -> None:
         """Apply Hann window smoothing to artifact regions in the signal.
-        
-        Multiplies signal values in and around artifact regions by the
-        Hann window to create smooth transitions.
-        
+
+        Builds a single per-sample attenuation envelope and applies it once.
+        Each sample is attenuated by the inverted-Hann value at its distance to
+        the nearest artifact sample, so overlapping artifact regions combine as
+        one smooth envelope (nearest wins) rather than being multiplied
+        repeatedly. For isolated artifacts (no overlap) this is identical to the
+        previous per-sample loop; for adjacent/contiguous artifacts it removes
+        the old over-attenuation of the flanks.
+
         Args:
             channel: Channel object with signal to modify (in-place).
             mask: Boolean array marking artifact samples.
-            window: Pre-computed Hann window array.
-            dt: Sample interval in seconds.
+            window: Pre-computed inverted-Hann window array.
+            dt: Sample interval in seconds (unused; kept for interface parity).
         """
-        half_len = len(window) // 2
-        indices = np.where(mask)[0]
+        n = len(channel.signal)
+        win_len = len(window)
+        if n == 0 or win_len == 0:
+            return
 
-        for idx in indices:
-            start = max(0, idx - half_len)
-            end = min(len(channel.signal), idx + half_len + 1)
-            segment = channel.signal[start:end]
-            channel.signal[start:end] = segment * window[:len(segment)]
+        mask = np.asarray(mask, dtype=bool)
+        if not mask.any():
+            return
+
+        half_len = win_len // 2
+        # Distance (in samples) from each point to the nearest artifact sample.
+        distance = distance_transform_edt(~mask).astype(np.int64)
+        env = np.ones(n, dtype=np.float64)
+        within = distance <= half_len
+        window_idx = np.clip(half_len + distance[within], 0, win_len - 1)
+        env[within] = window[window_idx]
+
+        channel.signal = (channel.signal * env).astype(channel.signal.dtype, copy=False)

@@ -176,15 +176,21 @@ class ComputePipeline:
                     "    Processing full frame — mean fluorescence computed over all pixels."
                 )
 
-        mean_fluorescence = np.array([])
+        # Accumulate per-file time projections in a list and concatenate once at
+        # the end. Concatenating inside the loop reallocated and copied the whole
+        # growing accumulator every iteration (O(n^2) over the file count).
+        # (Loads stay sequential on purpose: each cm.load holds a full movie in
+        # RAM, so parallel loads would multiply peak memory by the worker count.)
+        projections: list[np.ndarray] = []
         for fp in sorted_filepaths:
             if verbose:
                 print(f"    processing: {fp.name}")
             movie = cm.load(str(fp))
             if final_coords is not None:
                 movie, _ = preprocessor.crop_movie(movie, final_coords)
-            time_projection = movie.mean(axis=(1, 2))
-            mean_fluorescence = np.concatenate((mean_fluorescence, time_projection))
+            projections.append(movie.mean(axis=(1, 2)))
+
+        mean_fluorescence = np.concatenate(projections) if projections else np.array([])
 
         save_path = output_dir / f"meanFluorescence_{line_num}.npz"
         np.savez_compressed(str(save_path), meanFluorescence=mean_fluorescence)
