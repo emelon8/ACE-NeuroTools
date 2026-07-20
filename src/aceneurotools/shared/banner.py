@@ -1,8 +1,8 @@
 """ACE-NeuroTools welcome banner.
 
-Renders a heavy-block ASCII "NEUROTOOLS" / "NEURO" / "N" (picked by
-terminal width) with a calcium-green to instrument-cyan vertical
-gradient. Optional "Tips for getting started" panel below.
+Renders a heavy-block ASCII rendering of "NEUROTOOLS" / "NEURO" / "N"
+(picked by terminal width) with a calcium-green to instrument-cyan vertical
+gradient. Includes a short "Tips for getting started" panel below.
 
 Honors ``NO_COLOR`` (https://no-color.org/) and skips colorization when stdout
 is not a TTY so output piped to a file stays clean.
@@ -44,10 +44,33 @@ TINY_LOGO = r"""███╗   ██╗
 ██║ ╚████║
 ╚═╝  ╚═══╝"""
 
+# Ace-of-diamonds playing card — plays on the project name (ACE-NeuroTools).
+# Frame matches NEUROTOOLS' bevel chars (╔═╗ ║ ╚═╝); central pip is a
+# symmetric diamond built from Unicode quadrant blocks (▟ ▙ ▜ ▛) so the
+# four points read as rounded. Index "A" sits in the top-left and
+# bottom-right corners as on a real playing card. Exactly 6 rows tall to
+# align with the title. Skipped in tiny mode.
+LOGO_ICON = "\n".join([
+    "╔════════╗",
+    "║A  ▟▙   ║",
+    "║  ▟██▙  ║", 
+    "║  ▜██▛  ║",
+    "║   ▜▛  A║",
+    "╚════════╝",
+])
+
+# Back-compat alias for any external code that imported the previous name.
+TERMINAL_ICON = LOGO_ICON
+
+# Width of the icon + a generous gutter between it and the logo so NEUROTOOLS
+# isn't crowded by the card.
+_ICON_WIDTH = max(len(line) for line in LOGO_ICON.splitlines())
+_ICON_GUTTER = "     "  # 5 spaces
+
 # Width thresholds (columns) for picking which variant to render.
-# Each is the logo width + a 1-col safety gutter.
-_LONG_MIN_COLS = 87 + 1   # 88
-_SHORT_MIN_COLS = 44 + 1  # 45
+# Each accounts for icon (when present) + logo + a small safety gutter.
+_LONG_MIN_COLS = _ICON_WIDTH + len(_ICON_GUTTER) + 87 + 1   # 103
+_SHORT_MIN_COLS = _ICON_WIDTH + len(_ICON_GUTTER) + 44 + 1  # 60
 
 # Calcium-green → instrument-cyan vertical gradient endpoints.
 _GRADIENT_START = (0x00, 0xff, 0x88)  # bright GCaMP green
@@ -115,7 +138,20 @@ def render_banner(width: int | None = None, console=None) -> None:
         Defaults to a new Console bound to stdout.
     """
     logo = _pick_logo(width)
-    lines = logo.splitlines()
+    logo_lines = logo.splitlines()
+
+    # Compose icon + logo row-by-row. Skip the icon in tiny mode so a single
+    # letter doesn't sit beside a disproportionately large terminal frame.
+    show_icon = logo is not TINY_LOGO
+    if show_icon:
+        icon_lines = LOGO_ICON.splitlines()
+        lines = [
+            icon + _ICON_GUTTER + body
+            for icon, body in zip(icon_lines, logo_lines, strict=True)
+        ]
+    else:
+        lines = logo_lines
+
     art_width = max(len(l) for l in lines)
     show_tagline = art_width >= len(_TAGLINE)
     use_color = _should_use_color()
