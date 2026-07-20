@@ -56,8 +56,10 @@ from aceneurotools.multimodal.wavelets import (
     generate_morlet_filterbank,
 )
 from aceneurotools.multimodal.surrogate import (
+    PermutationTestResult,
     apply_to_group,
     jitter_event_times,
+    permutation_test,
     resample_event_times,
     shift_event_times,
     shuffle_event_intervals,
@@ -94,6 +96,8 @@ __all__ = [
     "shuffle_event_intervals",
     "resample_event_times",
     "apply_to_group",
+    "permutation_test",
+    "PermutationTestResult",
     # oscillatory events
     "detect_oscillatory_events",
     # perievent

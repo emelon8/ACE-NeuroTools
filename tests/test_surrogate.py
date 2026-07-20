@@ -5,7 +5,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from aceneurotools.multimodal.surrogate import (
+from aceneurotools.multimodal.surrogate import (  # noqa: F401
+    PermutationTestResult,
+    permutation_test,
     apply_to_group,
     jitter_event_times,
     resample_event_times,
@@ -183,3 +185,78 @@ def test_apply_to_group_dispatches_per_unit():
     assert set(out.keys()) == {0, 1}
     assert out[0].size == 30
     assert out[1].size == 50
+
+
+# ---------------------------------------------------------------------------
+# permutation_test driver
+# ---------------------------------------------------------------------------
+
+
+def test_permutation_test_extreme_observed_is_significant():
+    # Null statistics ~ N(0, 1); an observed value of 12 is far in both tails.
+    result = permutation_test(
+        observed_statistic=12.0,
+        surrogate_statistic_fn=lambda g: float(g.standard_normal()),
+        n_surrogates=500,
+        rng=np.random.default_rng(0),
+    )
+    assert isinstance(result, PermutationTestResult)
+    assert result.null_distribution.shape == (500,)
+    # No surrogate should exceed 12 -> smallest possible p = 1/(n+1).
+    assert result.p_value == pytest.approx(1.0 / 501.0)
+
+
+def test_permutation_test_central_observed_not_significant():
+    result = permutation_test(
+        observed_statistic=0.0,
+        surrogate_statistic_fn=lambda g: float(g.standard_normal()),
+        n_surrogates=1000,
+        rng=np.random.default_rng(1),
+    )
+    assert result.p_value > 0.5  # 0 is central in a N(0,1) null
+
+
+def test_permutation_test_one_sided_greater():
+    result = permutation_test(
+        observed_statistic=0.0,
+        surrogate_statistic_fn=lambda g: float(g.standard_normal()),
+        n_surrogates=2000,
+        alternative="greater",
+        rng=np.random.default_rng(2),
+    )
+    # ~half the null exceeds 0.
+    assert 0.4 < result.p_value < 0.6
+
+
+def test_permutation_test_reproducible_and_parallel_equivalent():
+    def make(seed):
+        return permutation_test(
+            observed_statistic=1.5,
+            surrogate_statistic_fn=lambda g: float(g.standard_normal()),
+            n_surrogates=200,
+            rng=np.random.default_rng(seed),
+            n_jobs=1,
+        )
+
+    a = make(7)
+    b = make(7)
+    np.testing.assert_array_equal(a.null_distribution, b.null_distribution)
+    assert a.p_value == b.p_value
+
+    # n_jobs>1 must give identical results (deterministically spawned child RNGs).
+    parallel = permutation_test(
+        observed_statistic=1.5,
+        surrogate_statistic_fn=lambda g: float(g.standard_normal()),
+        n_surrogates=200,
+        rng=np.random.default_rng(7),
+        n_jobs=2,
+    )
+    np.testing.assert_array_equal(parallel.null_distribution, a.null_distribution)
+    assert parallel.p_value == a.p_value
+
+
+def test_permutation_test_validates_arguments():
+    with pytest.raises(ValueError, match="alternative"):
+        permutation_test(0.0, lambda g: 0.0, alternative="bogus")
+    with pytest.raises(ValueError, match="n_surrogates"):
+        permutation_test(0.0, lambda g: 0.0, n_surrogates=0)

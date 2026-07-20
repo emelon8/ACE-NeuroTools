@@ -245,26 +245,3 @@ if __name__ == '__main__': # Runs when we run the file.
         avi_list=["0.avi"],
         base_file_path=args.data_path
     )
-
-
-if __name__ == '__main__': # Runs when we run the file.
-    import argparse
-    parser = argparse.ArgumentParser(description="Download experiment data from Box")
-    parser.add_argument('--project-path', type=str, required=True,
-                        help="Path to project directory (containing experiments.csv)")
-    parser.add_argument('--data-path', type=str, required=True,
-                        help="Base path for raw experimental data storage")
-    parser.add_argument('--line-num', type=int, default=96,
-                        help="Experiment line number")
-    parser.add_argument('--do-type', type=str, default="miniscope",
-                        choices=["both", "miniscope", "ephys"])
-    args = parser.parse_args()
-
-    experiments_csv = Path(args.project_path) / "experiments.csv"
-    verify_file_by_line(
-        line_num=args.line_num,
-        csv_path=experiments_csv,
-        do_type=args.do_type,
-        avi_list=["0.avi"],
-        base_file_path=args.data_path
-    )

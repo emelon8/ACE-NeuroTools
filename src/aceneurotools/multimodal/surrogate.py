@@ -14,6 +14,7 @@ Combine with :func:`apply_to_group` to operate on per-unit event dicts.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Callable
 
 import numpy as np
@@ -21,6 +22,102 @@ import numpy as np
 
 def _rng(rng: np.random.Generator | None) -> np.random.Generator:
     return rng if rng is not None else np.random.default_rng()
+
+
+@dataclass
+class PermutationTestResult:
+    """Result of a Monte-Carlo permutation test.
+
+    Attributes
+    ----------
+    observed : float
+        The statistic computed on the real data.
+    null_distribution : np.ndarray
+        The ``n_surrogates`` statistics computed on surrogate data.
+    p_value : float
+        Monte-Carlo p-value with the standard ``(1 + count) / (1 + n)``
+        correction (never exactly zero).
+    n_surrogates : int
+        Number of surrogate draws.
+    alternative : str
+        ``'two-sided'``, ``'greater'``, or ``'less'``.
+    """
+
+    observed: float
+    null_distribution: np.ndarray
+    p_value: float
+    n_surrogates: int
+    alternative: str
+
+
+def permutation_test(
+    observed_statistic: float,
+    surrogate_statistic_fn: Callable[[np.random.Generator], float],
+    n_surrogates: int = 1000,
+    alternative: str = "two-sided",
+    rng: np.random.Generator | None = None,
+    n_jobs: int = 1,
+) -> PermutationTestResult:
+    """Monte-Carlo permutation test against a surrogate null distribution.
+
+    This is the missing driver that ties the surrogate generators above to a
+    p-value. It is deliberately statistic-agnostic: the caller supplies a
+    closure that, given a random generator, produces **one** surrogate
+    statistic (e.g. shuffle the events with :func:`shuffle_event_intervals`,
+    recompute coherence/correlation, return the scalar). The expensive base
+    transform of any fixed signal can therefore be precomputed once inside the
+    closure rather than per draw.
+
+    Parameters
+    ----------
+    observed_statistic : float
+        Statistic computed on the real data.
+    surrogate_statistic_fn : callable
+        ``fn(child_rng) -> float``; computes one surrogate statistic using the
+        supplied :class:`numpy.random.Generator` (guarantees reproducibility
+        even under parallelism).
+    n_surrogates : int, default 1000
+        Number of surrogate draws.
+    alternative : ``'two-sided'``, ``'greater'``, or ``'less'``
+        Tail(s) for the p-value.
+    rng : np.random.Generator, optional
+        Seeds the independent per-surrogate child generators.
+    n_jobs : int, default 1
+        Parallel workers (joblib). Draws are independent, so this scales
+        linearly. Results are identical to ``n_jobs=1`` because each draw uses a
+        deterministically-spawned child generator.
+
+    Returns
+    -------
+    PermutationTestResult
+    """
+    if alternative not in ("two-sided", "greater", "less"):
+        raise ValueError("alternative must be 'two-sided', 'greater', or 'less'.")
+    if n_surrogates < 1:
+        raise ValueError("n_surrogates must be >= 1.")
+
+    child_rngs = _rng(rng).spawn(n_surrogates)
+
+    if n_jobs == 1:
+        null = np.array([float(surrogate_statistic_fn(cr)) for cr in child_rngs], dtype=np.float64)
+    else:
+        from joblib import Parallel, delayed
+
+        null = np.asarray(
+            Parallel(n_jobs=n_jobs)(delayed(surrogate_statistic_fn)(cr) for cr in child_rngs),
+            dtype=np.float64,
+        )
+
+    obs = float(observed_statistic)
+    if alternative == "two-sided":
+        count = int(np.sum(np.abs(null) >= abs(obs)))
+    elif alternative == "greater":
+        count = int(np.sum(null >= obs))
+    else:  # less
+        count = int(np.sum(null <= obs))
+
+    p_value = (1.0 + count) / (1.0 + n_surrogates)
+    return PermutationTestResult(obs, null, p_value, n_surrogates, alternative)
 
 
 def _validate_support(t_start: float, t_end: float) -> None:
