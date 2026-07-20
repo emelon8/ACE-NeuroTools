@@ -23,6 +23,12 @@ analysis_parameters.csv
 box_credentials.py
 src/aceneurotools/shared/box_credentials.py
 
+# Runtime-generated configs written into the working directory by the setup
+# wizard / pipelines (canonical templates live in shared/metadata_templates/).
+/experiments_template.csv
+/lab_config.json
+/stats_config.json
+
 # MkDocs — build output only (source lives in docs/)
 site/
 .cache/
@@ -46,6 +52,3 @@ CLAUDE.local.md
 .anthropic/
 memory/
 MEMORY.md
-
-# Tests (temporarily untracked due to size)
-tests/

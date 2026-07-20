@@ -62,6 +62,12 @@ ace-neuro = "aceneurotools.cli:main"
 box = [
     "box-sdk-gen>=1.0",
 ]
+# Optional accelerated coherogram path in multimodal.coherence_analysis
+# (falls back to a pure-scipy implementation when these are absent).
+coherence = [
+    "xarray>=2023.1",
+    "xrscipy>=2.2",
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
@@ -76,7 +82,7 @@ docs = [
     "python-markdown-math>=0.8",
 ]
 all = [
-    "aceneurotools[box]",
+    "aceneurotools[box,coherence]",
 ]
 
 [project.urls]
