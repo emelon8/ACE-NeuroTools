@@ -115,7 +115,7 @@ class MultimodalPipeline:
         window_length: float = 30,
         window_step: float = 3,
         freq_lims: list[float] = [0, 15],
-        time_bandwidth: float = 23,
+        time_bandwidth: float = 2,
 
         # multimodal parameters
         delete_TTLs: bool = True,

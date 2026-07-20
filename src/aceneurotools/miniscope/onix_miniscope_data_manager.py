@@ -16,6 +16,8 @@ class OnixMiniscopeDataManager(MiniscopeDataManager):
     Handles UCLA V4 Miniscope data formats (start-time_*_miniscope.csv, ucla-miniscope-v4-clock_*.raw).
     """
 
+    suffix: str  # recording suffix parsed from start-time_<suffix>_miniscope.csv
+
     @classmethod
     def can_handle(cls, directory: str | Path) -> bool:
         """Returns True if V4 miniscope format files are found."""
@@ -125,7 +127,7 @@ class OnixMiniscopeDataManager(MiniscopeDataManager):
         print("ONIX timestamps are natively synchronized via hardware clock. Returning native timestamps.")
 
         # low_confidence_periods is empty for native syncing
-        low_confidence_periods = __import__('numpy').empty((0, 2))
+        low_confidence_periods = np.empty((0, 2))
 
         # We already extracted time_stamps in load_attributes()
         if hasattr(self, 'time_stamps') and self.time_stamps is not None:

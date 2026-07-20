@@ -122,7 +122,7 @@ class MiniscopePostprocessor:
 
         if filter_miniscope_data:
             filter_object = FilterMiniscopeData(self.data_manager.projections, self.frame_rate, n=n, cut=cut, ftype=ftype, btype=btype)
-            filter_object.filter_miniscope_data
+            filter_object.filter_miniscope_data()
             self.data_manager.filter_object = filter_object
 
             if inline == True:

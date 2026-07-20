@@ -3,6 +3,7 @@ RHS2116 Ephys Data Manager
 
 Manages the import of RHS2116 .raw ephys data (AC/DC/Clock) using neo.rawio.
 """
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -84,9 +85,19 @@ class RHS2116DataManager(EphysDataManager):
     def process_ephys_block_to_channels(
         self,
         channels: list[str] | None = None,
-        remove_artifacts: bool = False
+        remove_artifacts: bool = False,
+        max_samples: int | None = None
     ) -> None:
-        """Process RawBinarySignalRawIO data into Channel objects natively."""
+        """Process RawBinarySignalRawIO data into Channel objects natively.
+
+        Args:
+            channels: Channel names/indices to keep (default: all 32).
+            remove_artifacts: Unused for RHS2116 (kept for interface parity).
+            max_samples: Optional cap on the number of samples to load. Defaults
+                to ``None``, which loads the entire recording. When set and the
+                recording is longer, the load is truncated and a warning is
+                logged so data is never dropped silently.
+        """
         if not self.ephys_block:
             raise ValueError("Data not imported. Call import_ephys_block first.")
 
@@ -108,13 +119,28 @@ class RHS2116DataManager(EphysDataManager):
         )
         reader.parse_header()
 
-        # Load in a large but safe chunk
+        # Load the full recording by default. The number of available samples
+        # is bounded by both the analog file and the clock vector; only an
+        # explicit ``max_samples`` cap truncates it, and that is logged.
+        n_available = reader.get_signal_size(block_index=0, seg_index=0, stream_index=0)
+        i_stop = min(int(n_available), len(time_vector))
+        if max_samples is not None and max_samples < i_stop:
+            # warnings.warn (not logger) so the truncation is visible even when
+            # the manager runs at its default CRITICAL logging level.
+            warnings.warn(
+                f"Truncating RHS2116 load to {max_samples} of {i_stop} samples "
+                f"(max_samples cap); {i_stop - max_samples} samples dropped.",
+                UserWarning,
+                stacklevel=2,
+            )
+            i_stop = max_samples
+
         print("Fetching analog signal chunk...")
         ac_data = reader.get_analogsignal_chunk(
             block_index=0,
             seg_index=0,
             i_start=0,
-            i_stop=min(3000000, len(time_vector)),
+            i_stop=i_stop,
             stream_index=0
         )
         print("Rescaling chunk...")
