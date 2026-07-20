@@ -5,8 +5,10 @@ from __future__ import annotations
 import warnings
 
 import numpy as np
-from scipy.signal import butter, correlate, correlation_lags, filtfilt, freqz, hilbert
+from scipy.signal import butter, correlate, correlation_lags, freqz, hilbert
 from scipy.signal import coherence as scipy_coherence
+
+from aceneurotools.shared.signal_processing import filter_signal
 
 
 def slice_signal(
@@ -44,12 +46,15 @@ def filter_signals(
     freq_range: list[float],
     order: int = 2,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Zero-phase Butterworth bandpass filter applied to two signals."""
-    nyq = 0.5 * fr
-    low  = freq_range[0] / nyq
-    high = freq_range[1] / nyq
-    b, a = butter(order, [low, high], btype="band")
-    return filtfilt(b, a, signal_1), filtfilt(b, a, signal_2)
+    """Zero-phase Butterworth bandpass filter applied to two signals.
+
+    Delegates to the canonical :func:`aceneurotools.shared.signal_processing.filter_signal`
+    (passing ``fs=fr`` handles the Nyquist normalization) so filter behavior
+    stays consistent with the rest of the package.
+    """
+    s1 = filter_signal(signal_1, n=order, cut=freq_range, ftype="butter", btype="band", fs=fr)
+    s2 = filter_signal(signal_2, n=order, cut=freq_range, ftype="butter", btype="band", fs=fr)
+    return s1, s2
 
 
 def trim_filter_edges(signal: np.ndarray, fr: float, trim_seconds: float = 5.0) -> np.ndarray:

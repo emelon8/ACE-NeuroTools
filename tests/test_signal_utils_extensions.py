@@ -98,3 +98,32 @@ def test_freq_response_returns_ndarrays():
     assert isinstance(freqs, np.ndarray)
     assert isinstance(mag, np.ndarray)
     assert freqs.shape == mag.shape
+
+
+# ---------------------------------------------------------------------------
+# filter_signals delegates to the canonical filter
+# ---------------------------------------------------------------------------
+
+
+def test_filter_signals_matches_canonical_and_manual():
+    from scipy.signal import filtfilt
+
+    from aceneurotools.multimodal.signal_utils import filter_signals
+    from aceneurotools.shared.signal_processing import filter_signal
+
+    rng = np.random.default_rng(0)
+    s1 = rng.standard_normal(4000)
+    s2 = rng.standard_normal(4000)
+    fr, freq_range, order = 200.0, [4.0, 12.0], 2
+
+    out1, out2 = filter_signals(s1, s2, fr, freq_range, order)
+
+    # Matches the canonical filter_signal ...
+    np.testing.assert_array_equal(
+        out1, filter_signal(s1, n=order, cut=freq_range, ftype="butter", btype="band", fs=fr)
+    )
+    # ... and the old manual Nyquist-normalized butter/filtfilt.
+    nyq = 0.5 * fr
+    b, a = butter(order, [freq_range[0] / nyq, freq_range[1] / nyq], btype="band")
+    np.testing.assert_allclose(out1, filtfilt(b, a, s1))
+    np.testing.assert_allclose(out2, filtfilt(b, a, s2))
