@@ -3,7 +3,7 @@ from typing import Any
 import numpy as np
 
 from aceneurotools.miniscope.projections import Projections
-from aceneurotools.shared.misc_functions import filter_data
+from aceneurotools.shared.signal_processing import filter_data
 
 
 class FilterMiniscopeData:

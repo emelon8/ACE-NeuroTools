@@ -34,10 +34,9 @@ from aceneurotools.shared.exceptions import (
     print_cli_error,
 )
 from aceneurotools.shared.experiment_data_manager import ExperimentDataManager
-from aceneurotools.shared.misc_functions import filter_data
 from aceneurotools.shared.path_finder import PathFinder
 from aceneurotools.shared.plotting import set_backend
-from aceneurotools.shared.signal_processing import filter_signal
+from aceneurotools.shared.signal_processing import filter_data, filter_signal
 
 __all__ = [
     # Exceptions

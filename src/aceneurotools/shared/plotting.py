@@ -49,3 +49,7 @@ def set_backend(headless: bool) -> None:
         except Exception:
             # Qt5 not installed or display unavailable — use platform default.
             pass
+
+    # Embed text as text (not paths) in exported SVGs. Set here, at the plotting
+    # entry point, rather than as an import-time side effect of a utility module.
+    matplotlib.rcParams["svg.fonttype"] = "none"

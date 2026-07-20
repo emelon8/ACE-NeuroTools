@@ -111,3 +111,22 @@ def filter_signal(
         )
 
     return filtered_data
+
+
+def filter_data(
+    data: np.ndarray,
+    n: int,
+    cut: float | list[float] | np.ndarray,
+    ftype: str,
+    btype: str,
+    fs: float,
+    bodePlot: bool = False,
+) -> np.ndarray:
+    """Backward-compatible alias for :func:`filter_signal`.
+
+    Kept so existing callers (``from aceneurotools.shared import filter_data``)
+    keep working. Lives here rather than in ``shared/misc_functions`` so that
+    importing :mod:`aceneurotools.shared` does not pull in that module's heavy
+    (cv2 / matplotlib) import surface. All logic is in :func:`filter_signal`.
+    """
+    return filter_signal(data, n=n, cut=cut, ftype=ftype, btype=btype, fs=fs, bode_plot=bodePlot)

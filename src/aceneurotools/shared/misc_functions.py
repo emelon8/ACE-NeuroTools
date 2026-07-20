@@ -4,17 +4,22 @@ import math
 from pathlib import Path
 from typing import Any
 
-import matplotlib.pyplot as plt
-import numpy as np
-
-plt.rcParams['svg.fonttype'] = 'none'
 import csv
 import os
 
 import cv2
+import matplotlib.pyplot as plt
+import numpy as np
 from scipy import stats
 from scipy.signal import butter, filtfilt
 from tqdm import tqdm
+
+# NOTE: the SVG font preference formerly set here at import time now lives in
+# aceneurotools.shared.plotting.set_backend (the documented plotting entry
+# point), so importing this module no longer mutates global matplotlib state.
+# aceneurotools.shared no longer imports this module (filter_data now lives in
+# shared.signal_processing), so a plain `import aceneurotools.shared` no longer
+# pulls in cv2 / matplotlib.
 
 
 def _prep_axes(
