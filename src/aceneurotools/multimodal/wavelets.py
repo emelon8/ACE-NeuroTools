@@ -11,7 +11,7 @@ All functions operate on plain 1-D numpy arrays + a sampling rate in Hz.
 from __future__ import annotations
 
 import numpy as np
-from scipy.signal import fftconvolve
+from scipy.fft import fft, ifft, next_fast_len
 
 
 def _morlet(
@@ -189,15 +189,20 @@ def compute_wavelet_transform(
         freqs, fs, gaussian_width, window_length, precision
     )
 
-    n_freqs = filters.shape[0]
     n_samples = signal.size
-    cwt = np.empty((n_freqs, n_samples), dtype=np.complex128)
-    for k in range(n_freqs):
-        kernel = filters[k]
-        # Convolve real and imaginary parts separately to preserve complex result.
-        re = fftconvolve(signal, kernel.real, mode="same")
-        im = fftconvolve(signal, kernel.imag, mode="same")
-        cwt[k] = re + 1j * im
+    kernel_len = filters.shape[1]
+
+    # FFT the signal once and reuse its spectrum for every filter, rather than
+    # re-transforming it inside 2*n_freqs separate fftconvolve calls. Because
+    # the signal is real, conv(s, re) + 1j*conv(s, im) == conv(s, kernel), so a
+    # single complex convolution per frequency (vectorized here) suffices.
+    n_fft = next_fast_len(n_samples + kernel_len - 1)
+    signal_fft = fft(signal, n=n_fft)
+    filters_fft = fft(filters, n=n_fft, axis=1)
+    full = ifft(filters_fft * signal_fft[None, :], axis=1)
+    # scipy's "same" mode keeps the central n_samples of the full convolution.
+    start = (kernel_len - 1) // 2
+    cwt = np.ascontiguousarray(full[:, start:start + n_samples])
 
     freqs_arr = np.asarray(freqs, dtype=np.float64)
     if norm == "l1":

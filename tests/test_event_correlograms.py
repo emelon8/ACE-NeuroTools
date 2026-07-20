@@ -66,6 +66,58 @@ def test_cross_correlogram_empty_reference_returns_zeros():
     assert len(B) == len(C)
 
 
+def _cross_correlogram_reference(t1, t2, binsize, windowsize):
+    """Faithful copy of the pre-vectorization triple-nested loop."""
+    t1 = np.ascontiguousarray(t1, dtype=np.float64)
+    t2 = np.ascontiguousarray(t2, dtype=np.float64)
+    nbins = int((windowsize * 2) // binsize)
+    if nbins % 2 == 0:
+        nbins += 1
+    w = (nbins / 2) * binsize
+    C = np.zeros(nbins, dtype=np.float64)
+    nt1, nt2 = t1.size, t2.size
+    i2 = 0
+    for i1 in range(nt1):
+        lbound = t1[i1] - w
+        while i2 < nt2 and t2[i2] < lbound:
+            i2 += 1
+        while i2 > 0 and t2[i2 - 1] > lbound:
+            i2 -= 1
+        rbound = lbound
+        leftb = i2
+        for j in range(nbins):
+            k = 0
+            rbound += binsize
+            while leftb < nt2 and t2[leftb] < rbound:
+                leftb += 1
+                k += 1
+            C[j] += k
+    if nt1 > 0:
+        C /= (nt1 * binsize)
+    B = -w + binsize / 2 + np.arange(nbins) * binsize
+    return C, B
+
+
+@pytest.mark.parametrize("binsize,windowsize", [(0.05, 1.0), (0.01, 0.05), (0.1, 0.5), (0.02, 0.5)])
+def test_cross_correlogram_matches_reference_loop(binsize, windowsize):
+    """Vectorized implementation is bit-for-bit identical to the old loop."""
+    for seed in range(6):
+        t1 = _poisson_train(20.0, 60.0, seed)
+        t2 = _poisson_train(25.0, 60.0, seed + 100)
+        C_new, B_new = _cross_correlogram(t1, t2, binsize, windowsize)
+        C_ref, B_ref = _cross_correlogram_reference(t1, t2, binsize, windowsize)
+        np.testing.assert_array_equal(C_new, C_ref)
+        np.testing.assert_allclose(B_new, B_ref)
+
+
+def test_cross_correlogram_matches_reference_on_regular_train():
+    """Boundary-heavy regular train (values on exact bin edges) still matches."""
+    t = np.arange(0.0, 10.0, 0.1)
+    C_new, _ = _cross_correlogram(t, t, 0.01, 0.05)
+    C_ref, _ = _cross_correlogram_reference(t, t, 0.01, 0.05)
+    np.testing.assert_array_equal(C_new, C_ref)
+
+
 # ---------------------------------------------------------------------------
 # compute_autocorrelogram
 # ---------------------------------------------------------------------------

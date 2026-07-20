@@ -50,25 +50,17 @@ def _cross_correlogram(
     C = np.zeros(nbins, dtype=np.float64)
 
     nt1 = t1.size
-    nt2 = t2.size
-    i2 = 0
-
+    # Bin edges relative to each reference's left bound (t1[i1] - w). The inner
+    # per-bin pointer scan is replaced by a single searchsorted + histogram over
+    # only the t2 samples inside the window (left-inclusive, right-exclusive,
+    # matching the previous ``t2 < rbound`` semantics).
+    rel_edges = binsize * np.arange(nbins + 1)
     for i1 in range(nt1):
-        lbound = t1[i1] - w
-        while i2 < nt2 and t2[i2] < lbound:
-            i2 += 1
-        while i2 > 0 and t2[i2 - 1] > lbound:
-            i2 -= 1
-
-        rbound = lbound
-        leftb = i2
-        for j in range(nbins):
-            k = 0
-            rbound += binsize
-            while leftb < nt2 and t2[leftb] < rbound:
-                leftb += 1
-                k += 1
-            C[j] += k
+        edges = (t1[i1] - w) + rel_edges
+        lo = np.searchsorted(t2, edges[0], side="left")
+        hi = np.searchsorted(t2, edges[-1], side="left")
+        if hi > lo:
+            C += np.histogram(t2[lo:hi], edges)[0]
 
     if nt1 > 0:
         C /= (nt1 * binsize)

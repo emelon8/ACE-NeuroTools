@@ -5,11 +5,42 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from scipy.signal import fftconvolve
+
 from aceneurotools.multimodal.wavelets import (
     _morlet,
     compute_wavelet_transform,
     generate_morlet_filterbank,
 )
+
+
+def _cwt_reference(signal, freqs, fs, norm="l1"):
+    """Pre-vectorization CWT: two real fftconvolve calls per frequency."""
+    filters, _ = generate_morlet_filterbank(freqs, fs)
+    n_freqs, n = filters.shape[0], signal.size
+    cwt = np.empty((n_freqs, n), dtype=np.complex128)
+    for k in range(n_freqs):
+        re = fftconvolve(signal, filters[k].real, mode="same")
+        im = fftconvolve(signal, filters[k].imag, mode="same")
+        cwt[k] = re + 1j * im
+    freqs_arr = np.asarray(freqs, dtype=np.float64)
+    if norm == "l1":
+        cwt = cwt / (fs / freqs_arr)[:, None]
+    elif norm == "l2":
+        cwt = cwt / (fs / np.sqrt(freqs_arr))[:, None]
+    return cwt
+
+
+@pytest.mark.parametrize("norm", ["l1", "l2", None])
+def test_cwt_matches_fftconvolve_reference(norm):
+    fs = 1000.0
+    rng = np.random.default_rng(3)
+    t = np.arange(2048) / fs
+    signal = np.sin(2 * np.pi * 50.0 * t) + 0.3 * rng.standard_normal(t.size)
+    freqs = np.linspace(5, 120, 24)
+    new = compute_wavelet_transform(signal, freqs, fs, norm=norm)
+    ref = _cwt_reference(signal, freqs, fs, norm=norm)
+    np.testing.assert_allclose(new, ref, rtol=1e-9, atol=1e-9)
 
 
 # ---------------------------------------------------------------------------
