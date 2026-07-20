@@ -52,35 +52,40 @@ class CSVWorker:
             ValueError: If the CSV is malformed or the line number is not found.
         """
         import csv as csv_mod
+        import io
         from typing import cast
 
         path_obj = Path(csv_file)
 
-        # Validate CSV structure before pandas reads it.
+        # Read the file once, then validate and parse from the in-memory text so
+        # the disk is only touched a single time per call (this method runs once
+        # per subject for both experiments.csv and analysis_parameters.csv).
         try:
-            with open(path_obj) as f:
-                reader = csv_mod.reader(f)
-                try:
-                    header = next(reader)
-                except StopIteration:
-                    return None  # empty file
-                for row_num, data_row in enumerate(reader, start=2):
-                    if not any(data_row):  # skip empty rows
-                        continue
-                    if len(data_row) != len(header):
-                        raise ValueError(
-                            f"CSV malformed: '{csv_file}' row {row_num} has "
-                            f"{len(data_row)} fields but the header has {len(header)} columns. "
-                            f"This usually means there is a trailing comma or an unquoted "
-                            f"comma inside a value (e.g., coordinate tuples must be "
-                            f"quoted: \"(x0, y0, x1, y1)\")."
-                        )
+            text = path_obj.read_text()
         except FileNotFoundError:
             print(f"File {csv_file} not found")
             return None
 
+        # Validate CSV structure before pandas parses it.
+        reader = csv_mod.reader(io.StringIO(text))
         try:
-            df = pd.read_csv(path_obj)
+            header = next(reader)
+        except StopIteration:
+            return None  # empty file
+        for row_num, data_row in enumerate(reader, start=2):
+            if not any(data_row):  # skip empty rows
+                continue
+            if len(data_row) != len(header):
+                raise ValueError(
+                    f"CSV malformed: '{csv_file}' row {row_num} has "
+                    f"{len(data_row)} fields but the header has {len(header)} columns. "
+                    f"This usually means there is a trailing comma or an unquoted "
+                    f"comma inside a value (e.g., coordinate tuples must be "
+                    f"quoted: \"(x0, y0, x1, y1)\")."
+                )
+
+        try:
+            df = pd.read_csv(io.StringIO(text))
 
             # Check for the required 'line number' column before querying.
             if 'line number' not in df.columns:
@@ -105,13 +110,6 @@ class CSVWorker:
             res = row.squeeze()
             if hasattr(res, 'to_dict'):
                 return cast(dict[str, Any], res.to_dict())
-            return None
-        except FileNotFoundError:
-            print(
-                f"experiments.csv not found: {csv_file}\n"
-                "  Ensure --project-path points to the directory containing "
-                "experiments.csv."
-            )
             return None
         except (pd.errors.EmptyDataError, pd.errors.ParserError) as e:
             print(f"Error parsing CSV {csv_file}: {e}")

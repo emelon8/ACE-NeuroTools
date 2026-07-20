@@ -111,6 +111,33 @@ def _correct_tCaIm(
     return tCaIm, low_confidence_periods, miniscope_dm
 
 
+def _nearest_sorted_index(sorted_values: np.ndarray, queries: np.ndarray) -> np.ndarray:
+    """Return, for each query, the index of the nearest element in a sorted array.
+
+    Vectorized nearest-neighbor via :func:`numpy.searchsorted` (O((N+M)) instead
+    of a per-query scan). A query exactly between two samples resolves to the
+    lower index, matching the first-occurrence tie-break of the previous
+    ``np.abs(...).argmin()`` implementation. For monotonically increasing
+    ``time_vector`` and query timestamps this yields identical indices to the
+    old forward-scanning loop, while also removing its window-clamp artifact on
+    large TTL gaps.
+    """
+    sorted_values = np.asarray(sorted_values)
+    queries = np.asarray(queries)
+    n = len(sorted_values)
+    if n == 0:
+        return np.empty(0, dtype=int)
+    if n == 1:
+        return np.zeros(len(queries), dtype=int)
+
+    pos = np.searchsorted(sorted_values, queries)
+    pos = np.clip(pos, 1, n - 1)
+    left = sorted_values[pos - 1]
+    right = sorted_values[pos]
+    choose_left = (queries - left) <= (right - queries)
+    return np.where(choose_left, pos - 1, pos).astype(int)
+
+
 def find_ephys_idx_of_TTL_events(
     tCaIm: np.ndarray,
     channel: Channel,
@@ -123,40 +150,21 @@ def find_ephys_idx_of_TTL_events(
     ephys_idx_all_TTL_events: np.ndarray | None = None
     ephys_idx_ca_events_res: dict[int, np.ndarray] | None = None
 
+    time_vector = np.asarray(channel.time_vector)
+    tCaIm = np.asarray(tCaIm)
+
     # Match up all calcium movie timestamps with their corresponding ephys timestamps.
     if all_TTL_events:
         print('Finding the indices of ephys timestamps that are closest to all calcium movie frame acquisition TTL events...')
-        ephys_idx_all_TTL_events = np.empty(len(tCaIm),dtype=int)
-        # Choose a number of indices after the last_index before which you are confident that the next index will be.
-        # I am choosing the number of ephys indices during the time it takes for two calcium imaging frames.
-        endPoint = round(int(channel.sampling_rate) * 2 / int(frame_rate))
-        last_index = 0
-
-        for k, CaIm_TTL_Event in enumerate(tCaIm):
-            if k == 0:
-                ephys_idx_all_TTL_events[k] = np.abs(channel.time_vector[last_index:] - CaIm_TTL_Event).argmin() + last_index
-            elif len(channel.time_vector[last_index:]) - endPoint < 0:
-                ephys_idx_all_TTL_events[k] = np.abs(channel.time_vector[last_index:] - CaIm_TTL_Event).argmin() + last_index
-            else:
-                ephys_idx_all_TTL_events[k] = np.abs(channel.time_vector[last_index:(last_index + endPoint)] - CaIm_TTL_Event).argmin() + last_index
-            last_index = ephys_idx_all_TTL_events[k]
+        ephys_idx_all_TTL_events = _nearest_sorted_index(time_vector, tCaIm)
 
     # Look for the indices of the ephys timestamps that are closest to the calcium event (Neuralynx) timestamps.
     if ca_events_idx:
         print('Finding the indices of ephys timestamps that are closest to the calcium event (Neuralynx) timestamps...')
         ephys_idx_ca_events_res = {}
         for k in list(ca_events_idx.keys()):
-            temp_list = []
-            last_index = 0
-            for j in range(len(ca_events_idx[k])):
-                idx = np.abs(channel.time_vector[last_index:] - tCaIm[ca_events_idx[k][j]]).argmin() + last_index
-                temp_list.append(idx)
-                # Check to see if the gap between the calcium event time and the corresponding ephys timestamp is reasonable (within 1 frame's timestep).
-                if np.abs(channel.time_vector[idx]-tCaIm[ca_events_idx[k][j]]) > (1/frame_rate):
-                    # print('There are no ephys timestamps closer to the calcium event timestamp than the duration of a calcium movie frame!')
-                    pass
-                last_index = idx
-            ephys_idx_ca_events_res[k] = np.array(temp_list)
+            event_frame_idx = np.asarray(ca_events_idx[k], dtype=int)
+            ephys_idx_ca_events_res[k] = _nearest_sorted_index(time_vector, tCaIm[event_frame_idx])
 
     return ephys_idx_all_TTL_events, ephys_idx_ca_events_res
 
