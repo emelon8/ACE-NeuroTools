@@ -1,5 +1,4 @@
 import os
-import tkinter
 from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -190,12 +189,14 @@ class MiniscopeProcessor:
         return data_manager
 
     def cleanup_tkinter(self) -> None:
-        """Destroy any active Tkinter root and set the interactive matplotlib backend."""
-        root = getattr(tkinter, '_default_root', None)
-        if root:
-            root.destroy()
-        from aceneurotools.shared.plotting import set_backend
-        set_backend(headless=False)
+        """Close matplotlib figures without tearing down Tk.
+
+        Destroying ``tkinter._default_root`` here used to run after CropGUI and
+        then SIGSEGV when the component GUI opened a new FreeSimpleGUI window.
+        """
+        plt.close('all')
+        from aceneurotools.miniscope.gui_utils import ensure_tk_alive
+        ensure_tk_alive()
 
     def cnmfe_parameter_handler(self, dm: MiniscopeDataManager, plot_params: bool = False) -> tuple[MiniscopeDataManager, np.ndarray]:
         """

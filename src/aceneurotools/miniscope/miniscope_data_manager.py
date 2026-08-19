@@ -176,7 +176,20 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
         self.frame_numbers = np.array(fn) if fn is not None else None
         self.movie = self._get_movies(filepaths)  # import calcium imaging data
         self.miniscope_events = self._get_miniscope_events()
-        self.fr = float(self.metadata['frameRate']) if self.metadata else 30.0
+        if self.metadata and self.metadata.get('frameRate') not in (None, ''):
+            self.fr = float(self.metadata['frameRate'])
+        elif self.time_stamps is not None and len(self.time_stamps) > 1:
+            # Session-level metaData.json often omits frameRate; derive it from timestamps.
+            dt = np.diff(self.time_stamps.astype(float))
+            dt = dt[dt > 0]
+            self.fr = float(1.0 / np.median(dt)) if len(dt) else 30.0
+            self.metadata['frameRate'] = self.fr
+            print(f"frameRate missing from metadata; estimated {self.fr:.3f} Hz from timestamps")
+        else:
+            self.fr = 30.0
+            if self.metadata is not None:
+                self.metadata['frameRate'] = self.fr
+            print("frameRate missing from metadata and timestamps; defaulting to 30 Hz")
 
     @abstractmethod
     def sync_timestamps(

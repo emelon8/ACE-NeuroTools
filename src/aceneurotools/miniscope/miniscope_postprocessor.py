@@ -1,3 +1,4 @@
+import os
 from typing import TYPE_CHECKING, Any
 
 import caiman as cm
@@ -66,7 +67,9 @@ class MiniscopePostprocessor:
         window_length: float = 30,
         window_step: float = 3,
         freq_lims: list[float] = [0, 15],
-        time_bandwidth: float = 2
+        time_bandwidth: float = 2,
+        eeg_data: np.ndarray | None = None,
+        eeg_timestamps: np.ndarray | None = None,
     ) -> 'MiniscopeDataManager':
         """Run the complete post-processing pipeline on CNMF-E results.
         
@@ -90,7 +93,9 @@ class MiniscopePostprocessor:
             window_step: Spectrogram step size in seconds.
             freq_lims: [low, high] frequency limits for spectrogram.
             time_bandwidth: Time-bandwidth product for multitaper.
-            
+            eeg_data: Optional 1D EEG/ephys signal shown in the component GUI.
+            eeg_timestamps: Optional timestamps (seconds) for ``eeg_data``.
+
         Returns:
             Updated MiniscopeDataManager with all post-processing results.
         """
@@ -98,8 +103,21 @@ class MiniscopePostprocessor:
         if remove_components_with_gui:
             if self.data_manager.CNMFE_obj is not None and self.data_manager.CNMFE_obj.estimates.A is not None and self.data_manager.CNMFE_obj.estimates.A.shape[0] > 0:
                 if hasattr(self.data_manager, 'diag_logger') and self.data_manager.diag_logger is not None: self.data_manager.diag_logger.pause_timer()
-                self.data_manager.CNMFE_obj.estimates.plot_contours()
-                self.data_manager.CNMFE_obj.estimates = component_gui(self.data_manager.movie, self.data_manager.CNMFE_obj.estimates, self.data_manager.projections)
+                save_dir = None
+                if self.data_manager.metadata is not None and 'calcium imaging directory' in self.data_manager.metadata:
+                    save_dir = os.path.join(str(self.data_manager.metadata['calcium imaging directory']), "saved_movies")
+                self.data_manager.CNMFE_obj.estimates = component_gui(
+                    self.data_manager.movie,
+                    self.data_manager.CNMFE_obj.estimates,
+                    self.data_manager.projections,
+                    eeg_data=eeg_data,
+                    eeg_timestamps=eeg_timestamps,
+                    frame_rate=self.frame_rate,
+                    save_dir=save_dir,
+                )
+                # Same save as MiniscopeProcessor._save_processed_data: overwrite
+                # saved_movies/estimates.hdf5 (or whatever filename the process stage used).
+                self.save_estimates()
                 if hasattr(self.data_manager, 'diag_logger') and self.data_manager.diag_logger is not None: self.data_manager.diag_logger.resume_timer()
             else:
                 print("No components found or CNMF-E object is None. Skipping component GUI.")
@@ -143,7 +161,38 @@ class MiniscopePostprocessor:
 
         return self.data_manager
 
+    def save_estimates(self, filename: str | None = None) -> str | None:
+        """Save CNMF-E results the same way the processing stage does.
 
+        Writes ``CNMFE_obj.save(...)`` to ``{calcium imaging directory}/saved_movies/``.
+        If the process stage already set ``estimates_filepath``, that path is reused
+        (typically ``estimates.hdf5``).
+
+        Args:
+            filename: Optional HDF5 filename. Ignored when ``estimates_filepath`` is set.
+
+        Returns:
+            Full path to the saved file, or ``None`` if there is nothing to save.
+        """
+        if self.data_manager.CNMFE_obj is None:
+            print("Warning: No CNMFE object to save!")
+            return None
+
+        estimates_filepath = getattr(self.data_manager, 'estimates_filepath', None)
+        if estimates_filepath:
+            CNMFE_obj_filepath = str(estimates_filepath)
+        else:
+            if self.data_manager.metadata is None or 'calcium imaging directory' not in self.data_manager.metadata:
+                print("Warning: No calcium imaging directory in metadata; skipping estimates save.")
+                return None
+            save_dir = os.path.join(str(self.data_manager.metadata['calcium imaging directory']), "saved_movies")
+            os.makedirs(save_dir, exist_ok=True)
+            CNMFE_obj_filepath = os.path.join(save_dir, filename or 'estimates.hdf5')
+
+        print('Saving CNMF-E estimates in ' + CNMFE_obj_filepath)
+        self.data_manager.CNMFE_obj.save(CNMFE_obj_filepath)
+        self.data_manager.estimates_filepath = CNMFE_obj_filepath
+        return CNMFE_obj_filepath
 
     def compute_projections(self, movie: cm.movie | None = None) -> Projections:
         """Compute spatial and temporal projections of the movie.

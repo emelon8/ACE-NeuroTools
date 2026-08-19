@@ -881,30 +881,47 @@ def filter_data(
 
 def update_csv_cell(data: Any, columnTitle: str, lineNum: int, csvFile: str | Path) -> None:
     """Update a single cell in a CSV file.
-    
+
+    Writes to a temporary file first so a failed rewrite cannot wipe the original.
+
     Args:
         data: New value to write.
         columnTitle: Column header name.
         lineNum: Line number to update.
         csvFile: Path to CSV file.
     """
+    import tempfile
+
+    csv_path = Path(csvFile)
     csvData: list[dict[str, str]] = []
     fieldnames: list[str] | None = None
 
-    with open(csvFile) as file:
+    with open(csv_path, newline='') as file:
         reader = csv.DictReader(file)
         if reader.fieldnames is not None:
             fieldnames = list(reader.fieldnames)
         for row in reader:
             if row.get('line number') == str(lineNum):
-                row[columnTitle] = str(data)
+                if fieldnames is None or columnTitle in fieldnames:
+                    row[columnTitle] = str(data)
+                else:
+                    print(f"Column '{columnTitle}' not in {csv_path.name}; skipping cell update.")
             csvData.append(row)
 
-    if fieldnames:
-        with open(csvFile, 'w', newline='') as writeFile:
-            writer = csv.DictWriter(writeFile, fieldnames=fieldnames)
+    if not fieldnames:
+        return
+
+    fd, tmp_name = tempfile.mkstemp(suffix='.csv', dir=csv_path.parent)
+    try:
+        with os.fdopen(fd, 'w', newline='') as writeFile:
+            writer = csv.DictWriter(writeFile, fieldnames=fieldnames, extrasaction='ignore')
             writer.writeheader()
             writer.writerows(csvData)
+        os.replace(tmp_name, csv_path)
+    except Exception:
+        if os.path.exists(tmp_name):
+            os.remove(tmp_name)
+        raise
 
 
 def append_row_csv(data: dict[str, Any], filename: str | Path) -> None:
@@ -1034,7 +1051,10 @@ def get_coords_dict_from_analysis_params(miniscope_data_manager: Any) -> tuple[d
     crop_job_name: str = ''
     try:
         if miniscope_data_manager.analysis_params:
-            previous_coords = miniscope_data_manager.analysis_params.get('crop_coords')
+            previous_coords = (
+                miniscope_data_manager.analysis_params.get('crop_coords')
+                or miniscope_data_manager.analysis_params.get('crop')
+            )
             if previous_coords and len(previous_coords) >= 4:
                 coords_dict = {
                     'x0': int(previous_coords[0]),
@@ -1044,7 +1064,7 @@ def get_coords_dict_from_analysis_params(miniscope_data_manager: Any) -> tuple[d
                 }
                 crop_job_name = '_crop'
     except (KeyError, TypeError, IndexError):
-        print("Did not find valid crop coordinates in analysis_params['crop_coords']")
+        print("Did not find valid crop coordinates in analysis_params['crop_coords'] or ['crop']")
 
     return coords_dict, crop_job_name
 

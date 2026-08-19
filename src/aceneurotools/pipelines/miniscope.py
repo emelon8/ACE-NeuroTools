@@ -1,7 +1,6 @@
 
 import argparse
 import sys
-import tkinter
 from pathlib import Path
 
 from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
@@ -29,6 +28,22 @@ from aceneurotools.shared.exceptions import (
     print_cli_error,
 )
 from aceneurotools.shared.misc_functions import get_coords_dict_from_analysis_params, update_csv_cell
+
+
+def _crop_column_name(csv_path: Path) -> str | None:
+    """Return the crop-coordinate column present in analysis_parameters.csv.
+
+    Lab CSVs historically used ``crop``; newer templates use ``crop_coords``.
+    """
+    import csv
+
+    with open(csv_path, newline='') as file:
+        reader = csv.DictReader(file)
+        fields = reader.fieldnames or []
+    for name in ('crop_coords', 'crop'):
+        if name in fields:
+            return name
+    return None
 
 
 class MiniscopePipeline:
@@ -104,6 +119,8 @@ class MiniscopePipeline:
         window_step: float = 3,
         freq_lims: list[float] = [0, 15],
         time_bandwidth: float = 2,
+        eeg_data=None,
+        eeg_timestamps=None,
         headless: bool = False
     ) -> None:
         """Run the complete miniscope analysis pipeline.
@@ -237,7 +254,15 @@ class MiniscopePipeline:
         if self.miniscope_data_manager.coords is not None:
             analysis_params_csv = self.miniscope_data_manager.project_path / "analysis_parameters.csv"
             print(f"updating {analysis_params_csv} with your cropping coordinates", flush=True)
-            update_csv_cell(self.miniscope_data_manager.coords, 'crop_coords', line_num, analysis_params_csv)
+            crop_column = _crop_column_name(analysis_params_csv)
+            if crop_column is None:
+                print(
+                    f"Skipping crop-coordinate save: {analysis_params_csv} has neither "
+                    "'crop_coords' nor 'crop'.",
+                    flush=True,
+                )
+            else:
+                update_csv_cell(self.miniscope_data_manager.coords, crop_column, line_num, analysis_params_csv)
 
 
         #Ensure self.miniscope.data_manager has 'movie' and 'preprocessed_movie_filepath' filled in with the movie that you want to process before you process
@@ -269,11 +294,12 @@ class MiniscopePipeline:
 
 
         if self.miniscope_data_manager.CNMFE_obj is not None:
-            from aceneurotools.shared.plotting import set_backend
-            set_backend(headless=headless)
+            import matplotlib.pyplot as plt
+            from aceneurotools.miniscope.gui_utils import ensure_tk_alive
+
+            plt.close('all')
             if not headless:
-                if hasattr(tkinter, '_default_root') and tkinter._default_root:
-                    tkinter._default_root.destroy()
+                ensure_tk_alive()
 
             try:
                 self.postprocessor = MiniscopePostprocessor(self.miniscope_data_manager)
@@ -294,6 +320,8 @@ class MiniscopePipeline:
                     window_step,
                     freq_lims,
                     time_bandwidth,
+                    eeg_data,
+                    eeg_timestamps,
                 )
                 self.postprocessing_result = self.postprocessor.result
             except Exception as e:
@@ -378,6 +406,8 @@ class MiniscopePipeline:
             window_step=postprocess.window_step,
             freq_lims=postprocess.freq_lims,
             time_bandwidth=postprocess.time_bandwidth,
+            eeg_data=postprocess.eeg_data,
+            eeg_timestamps=postprocess.eeg_timestamps,
             headless=headless,
         )
 

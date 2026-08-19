@@ -168,6 +168,8 @@ class PostprocessConfig:
         window_step: Spectrogram step size in seconds.
         freq_lims: ``[low_hz, high_hz]`` frequency range for the spectrogram.
         time_bandwidth: Time-bandwidth product for multitaper estimation.
+        eeg_data: Optional 1D EEG/ephys signal shown in the component GUI.
+        eeg_timestamps: Optional timestamps (seconds) for ``eeg_data``.
     """
 
     remove_components_with_gui: bool = True
@@ -186,3 +188,5 @@ class PostprocessConfig:
     window_step: float = 3
     freq_lims: list[float] = field(default_factory=lambda: [0, 15])
     time_bandwidth: float = 2
+    eeg_data: Any = None
+    eeg_timestamps: Any = None
