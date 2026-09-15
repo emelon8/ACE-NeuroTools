@@ -1,0 +1,46 @@
+name: aceneurotools
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  # CaImAn is a compiled, conda-first dependency. Keep it here rather than in
+  # pyproject.toml: the project named "caiman" on PyPI is unrelated software.
+  - python=3.10
+  - caiman>=1.13,<1.14
+  - numpy>=1.23
+  - scipy>=1.9
+  - matplotlib>=3.5
+  - pandas>=1.5
+  - opencv>=4.6
+  - tqdm>=4.64
+  - h5py>=3.7
+  - colorcet>=3.0
+  - joblib>=1.2
+  - pillow>=9
+  - rich>=13
+  - pyyaml
+  - psutil
+  - scikit-learn
+  - xarray>=2023.1
+  - jupyterlab
+  - ipympl
+  # Development, packaging, and documentation tools.
+  - pytest>=7
+  - pytest-cov>=4
+  - ruff>=0.4
+  - pyrefly
+  - python-build>=1.2
+  - twine>=5
+  - conda-lock>=4
+  - mkdocs-material>=9
+  - mkdocstrings-python>=0.24
+  - pymdown-extensions>=10
+  - mkdocs-jupyter>=0.24
+  - python-markdown-math>=0.8
+  - pip
+  - pip:
+      - FreeSimpleGUI>=5.0
+      - box-sdk-gen>=1.0
+      - neo>=0.12
+      - quantities>=0.14
+      - xrscipy>=2.2

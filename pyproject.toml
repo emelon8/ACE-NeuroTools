@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=77.0", "setuptools-scm>=8.0"]
+requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 
@@ -13,8 +13,8 @@ license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [
     { name = "Reed Pennock" },
+    { name = "Luke Richards" },
     { name = "Eric Melonakos" },
-    { name = "Elijah Keldsen" },
 ]
 keywords = [
     "neuroscience",
@@ -49,7 +49,6 @@ dependencies = [
     "neo>=0.12",
     "quantities>=0.14",
     "joblib>=1.2",
-    "caiman>=1.11",
     "freesimplegui>=5.0",
     "Pillow>=9.0",
     "rich>=13",
@@ -69,10 +68,12 @@ coherence = [
     "xrscipy>=2.2",
 ]
 dev = [
+    "build>=1.2",
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "ruff>=0.4",
     "pyrefly",
+    "twine>=5.0",
 ]
 docs = [
     "mkdocs-material>=9.0",

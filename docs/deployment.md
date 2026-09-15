@@ -8,7 +8,9 @@
 ## Local preview
 
 ```bash
-pip install -e ".[docs]"
+micromamba create -n aceneurotools -f conda-lock.yml  # Linux or Windows
+micromamba activate aceneurotools
+pip install --no-deps -e .
 bash scripts/sync_notebooks_for_docs.sh
 mkdocs serve
 ```
@@ -21,7 +23,7 @@ Documentation is built and published by [Read the Docs](https://readthedocs.org/
 
 On each build, RTD:
 
-1. Installs the package with docs extras (`pip install -e ".[docs]"`).
+1. Installs the package and documentation dependencies configured in `.readthedocs.yaml`.
 2. Runs `scripts/sync_notebooks_for_docs.sh` so `docs/notebooks/` matches `notebooks/`.
 3. Runs `mkdocs build` with `mkdocs.yml`.
 

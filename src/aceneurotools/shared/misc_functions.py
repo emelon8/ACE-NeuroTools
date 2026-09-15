@@ -240,10 +240,10 @@ def load_obj(filename: str | Path) -> Any:
 
     Returns:
         * For ``.npz``: a :class:`numpy.lib.npyio.NpzFile` mapping of array names
-          to :class:`numpy.ndarray` objects.  Access individual arrays with
-          ``result['key']``.
+            to :class:`numpy.ndarray` objects. Access individual arrays with
+            ``result['key']``.
         * For ``.hdf5`` / ``.h5``: an open read-only :class:`h5py.File` handle.
-          The caller is responsible for closing it (use as a context manager).
+            The caller is responsible for closing it (use as a context manager).
 
     Raises:
         ValueError: If *filename* has an unsupported extension.
@@ -1052,4 +1052,3 @@ def get_coords_dict_from_analysis_params(miniscope_data_manager: Any) -> tuple[d
         print("Did not find valid crop coordinates in analysis_params['crop_coords']")
 
     return coords_dict, crop_job_name
-

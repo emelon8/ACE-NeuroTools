@@ -12,7 +12,7 @@ Usage:
        to ``src/aceneurotools/shared/box_credentials.py`` and filled in your Box
        client_id / client_secret / user_id (or dev_token).
     2. Edit the four constants under ``--- EDIT THESE ---`` below.
-    3. Activate the conda env (e.g. ``conda activate caiman``) and run:
+    3. Activate the environment (``micromamba activate aceneurotools``) and run:
 
            python examples/single_avi_smoke_test.py
 
@@ -180,7 +180,7 @@ def step_2_run_pipeline() -> None:
             "pipeline import",
             f"could not import MiniscopePipeline: {e!r}",
             "This is usually a CaImAn / Tk / PySimpleGUI install problem. "
-            "Re-create the conda env from linux_environment.yml or windows.yml.",
+            "Re-create the environment from environment.yml.",
         )
 
     api = MiniscopePipeline()
