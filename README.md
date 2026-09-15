@@ -100,11 +100,11 @@ classDiagram
    micromamba activate aceneurotools
    pip install --no-deps -e .
    ```
-3. **Configure Paths**: Use `--project-path` CLI arguments or pass paths to `Pipeline.run()` (see below).
+3. **Prepare your data**: Run `python -m aceneurotools.init --project-path /path/to/project`, then copy its `experiments_template.csv` to `experiments.csv` in that folder. Replace the example row with one of your own recordings: enter a unique `line number`, the relevant recording directory, and the actual ephys channel name when running ephys. Leave Box folder IDs blank when your files are already local. Note the folder containing your raw recordings. The [Getting Started guide](docs/getting_started.md) explains the CSV columns and folder layout.
 
 ### Project Setup
 
-The pipeline requires explicit paths — no hidden environment variables or config files:
+For a predictable run, provide both paths explicitly:
 
 1.  **CLI Arguments**: Use `--project-path` and `--data-path` when running scripts.
 2.  **Programmatic API**: Pass paths directly to the `Pipeline.run()` method.
@@ -113,38 +113,46 @@ The pipeline requires explicit paths — no hidden environment variables or conf
 from aceneurotools.pipelines.ephys import EphysPipeline
 
 api = EphysPipeline()
-api.run(line_num=96, project_path="/path/to/project")
+api.run(
+    line_num=96,
+    project_path="/path/to/project",
+    data_path="/path/to/raw_data",
+)
 ```
 
 For more details on directory structure and cloud integration, see the **[Getting Started guide on Read the Docs](https://aceneurotools.readthedocs.io/en/latest/getting_started/)** (source: [`docs/getting_started.md`](docs/getting_started.md)).
 
 ## Usage
 
-The project uses modular pipeline scripts as the primary entry points. Each pipeline loads parameters from your project's `analysis_parameters.csv` based on the experiment's line number.
+Replace `/path/to/project` with the folder containing `experiments.csv`, `/path/to/raw_data` with the root of your raw recordings, and `96` or `97` with a value in the CSV's `line number` column. The module commands combine their defaults with recognized values from an optional `analysis_parameters.csv`. Direct Python `run(...)` calls use the arguments you pass and their method defaults; they do not automatically merge CSV settings.
+
+For example, if `/path/to/raw_data/Rat01/session1/Miniscope/0.avi` contains a UCLA V3 recording with its metadata and timestamps, set `line number` to `96` and `calcium imaging directory` to `Rat01/session1` in that row of `experiments.csv`. The miniscope command below then selects that row and looks under the raw-data root. Replace these example values with your own recording before running it.
+
+For a miniscope run with CNMF-E enabled, look for `saved_movies/estimates.hdf5` inside the recording's calcium-imaging directory after processing. This file appears only when source extraction succeeds and estimates are saved. See the [miniscope guide](docs/guides/miniscope.md) for those options.
 
 ### 1. Miniscope Analysis
 **Entry point:** `python -m aceneurotools.pipelines.miniscope` (implementation under `src/aceneurotools/pipelines/miniscope.py`).
 
 ```bash
-# Run analysis for experiment line 96
-python -m aceneurotools.pipelines.miniscope --line-num 96
+# Run analysis for experiment ID 96
+python -m aceneurotools.pipelines.miniscope --line-num 96 --project-path /path/to/project --data-path /path/to/raw_data
 
 # Run in headless mode (e.g., for HPC/Slurm jobs)
-python -m aceneurotools.pipelines.miniscope --line-num 96 --headless
+python -m aceneurotools.pipelines.miniscope --line-num 96 --project-path /path/to/project --data-path /path/to/raw_data --headless
 ```
 
 ### 2. Electrophysiology Analysis
 **Entry point:** `python -m aceneurotools.pipelines.ephys` (implementation under `src/aceneurotools/pipelines/ephys.py`).
 
 ```bash
-python -m aceneurotools.pipelines.ephys --line-num 96
+python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /path/to/project --data-path /path/to/raw_data
 ```
 
 ### 3. Multimodal Analysis
 **Entry point:** `python -m aceneurotools.pipelines.multimodal` (implementation under `src/aceneurotools/pipelines/multimodal.py`).
 
 ```bash
-python -m aceneurotools.pipelines.multimodal --line-num 97
+python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /path/to/project --data-path /path/to/raw_data
 ```
 
 For detailed documentation, see the user guides: [Miniscope](docs/guides/miniscope.md), [Ephys](docs/guides/ephys.md), and [Multimodal](docs/guides/multimodal.md) (also published on [Read the Docs](https://aceneurotools.readthedocs.io/en/latest/)).

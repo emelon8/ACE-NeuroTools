@@ -13,19 +13,20 @@ in this same folder.
 
 ---
 
-## 1. Install miniforge / mambaforge (if you don't have conda already)
+## 1. Install micromamba
 
-- macOS / Linux: <https://github.com/conda-forge/miniforge#install>
-- Windows: install **Miniforge3** from the same page; pick the option that
-  installs "Miniforge Prompt" into the Start menu.
+Follow the [official micromamba installation instructions](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html)
+for your operating system. On Windows, open the terminal configured by the
+installer; on macOS or Linux, open a new terminal after installation.
 
 Verify:
 
 ```bash
-conda --version
+micromamba --version
 ```
 
-Anything `conda 23+` is fine.
+You should see a version number. If the command is not found, finish the
+installer's shell setup before continuing.
 
 ---
 
@@ -46,14 +47,17 @@ From here, all paths in this doc are **relative to** that
 
 ## 3. Create the conda environment
 
-Use the file that matches your OS:
+The committed lock covers Linux and Windows. Use it on those systems:
 
 ```bash
-# Linux / macOS
 micromamba create -n aceneurotools -f conda-lock.yml
+```
 
-# Windows
-micromamba create -n aceneurotools -f conda-lock.yml
+On macOS, use the human-maintained environment file instead; this checkout
+does not include a macOS lock:
+
+```bash
+micromamba create -f environment.yml
 ```
 
 This pulls in CaImAn and everything else and takes ~10–20 minutes. Then:
@@ -73,8 +77,9 @@ python -c "import caiman, aceneurotools; print('caiman + aceneurotools OK')"
 ```
 
 If that prints `caiman + aceneurotools OK`, the environment is good. If it fails
-on a CaImAn import, recreate the env (`conda env remove -n caiman`, then
-re-run step 3).
+on a CaImAn import, check that `aceneurotools` is active. If it still fails,
+remove the `aceneurotools` environment with `micromamba env remove -n aceneurotools`
+and re-run step 3.
 
 ---
 
@@ -128,18 +133,13 @@ Copy-Item src/aceneurotools/shared/BLANK_box_credentials.py src/aceneurotools/sh
 Open `src/aceneurotools/shared/box_credentials.py` in your editor and paste in
 the values from step 4:
 
-- If you used **Option A** (dev token): set `dev_token = '<your token>'`,
-  and additionally **uncomment line 122** in
-  `src/aceneurotools/shared/file_downloader.py`:
+- If you used **Option A** (developer token): replace
+  `PUT_YOUR_BOX_DEVELOPER_TOKEN_HERE` with your token in the `dev_token` field.
+  The credentials file then selects developer-token authentication. You do
+  not need to edit `file_downloader.py`.
 
-  ```python
-  auth = BoxDeveloperTokenAuth(token=dev_token)
-  ```
-
-  This makes `make_auth()` use your dev token instead of CCG.
-
-- If you used **Option B** (CCG): fill in `client_id`, `client_secret`,
-  `user_id`. Leave `file_downloader.py` alone.
+- If you used **Option B** (CCG): leave `dev_token` at its placeholder and fill
+  in `client_id`, `client_secret`, and `user_id`.
 
 `box_credentials.py` is in `.gitignore`, so it will not be committed. Don't
 share this file.
@@ -265,8 +265,8 @@ What you should see, in order:
 2. `Step 1/3: downloading AVI from Box...` — if the AVI is already on disk
    it skips immediately; otherwise it pulls it.
 3. `Step 2/3: running MiniscopePipeline...` — CaImAn does motion correction
-   (skipped by default) and CNMF-E. This is the slow step (minutes to
-   tens-of-minutes for one AVI). Then a **PySimpleGUI window opens** showing
+   (skipped in this script) and CNMF-E. This is the slow step (minutes to
+   tens-of-minutes for one AVI). Then a **FreeSimpleGUI window opens** showing
    the detected neurons over a max projection. Click the listbox entries
    for any components you want to reject, then **Submit**.
 4. `Step 3/3: locating estimates.hdf5` — prints the full path of the saved
@@ -304,6 +304,6 @@ You're now set up. From this point:
 | Dev token suddenly stops working ~1 hour in                          | That's expected — generate a fresh dev token (step 4-Option-A-3), or switch to CCG (Option B).    |
 | `The miniscope path or ID do not exist in the CSV file` in the logs  | The `experiments.csv` row is missing `Box Calcium Folder ID` or `calcium imaging directory`.       |
 | `0.avi did not land at ...`                                          | Box folder ID points at the wrong folder, or that folder doesn't actually contain `0.avi`.        |
-| GUI step crashes with `ModuleNotFoundError: PySimpleGUI`             | PySimpleGUI relicensed; reinstall via `pip install "PySimpleGUI<5.0.0"` from the legacy mirror.    |
+| GUI step crashes with `ModuleNotFoundError: FreeSimpleGUI`           | Check that the `aceneurotools` environment is active; its `environment.yml` installs FreeSimpleGUI. If the environment is incomplete, recreate it. |
 | `import caiman` fails                                                | The environment wasn't activated (`micromamba activate aceneurotools`) or setup did not finish — recreate it.   |
 | CNMF-E finishes with 0 neurons                                       | `gSig` / `min_corr` / `min_pnr` in `analysis_parameters.csv` are wrong for this recording.         |

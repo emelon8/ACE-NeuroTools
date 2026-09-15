@@ -179,7 +179,7 @@ def step_2_run_pipeline() -> None:
         _fail(
             "pipeline import",
             f"could not import MiniscopePipeline: {e!r}",
-            "This is usually a CaImAn / Tk / PySimpleGUI install problem. "
+            "This is usually a CaImAn / Tk / FreeSimpleGUI install problem. "
             "Re-create the environment from environment.yml.",
         )
 
@@ -224,7 +224,7 @@ def step_2_run_pipeline() -> None:
             "pipeline run",
             f"MiniscopePipeline.run raised: {e!r}",
             "Check the traceback above; common culprits are missing crop_coords / gSig / "
-            "min_corr / min_pnr in analysis_parameters.csv, or PySimpleGUI being uninstalled.",
+            "min_corr / min_pnr in analysis_parameters.csv, or FreeSimpleGUI being unavailable.",
         )
 
 

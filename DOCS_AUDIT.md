@@ -6,6 +6,8 @@ Audited on 2026-09-15 on branch `docs-accessibility-audit`. This review covers t
 
 The documentation has a useful structure and names the main workflows, but it is not yet a reliable guide for a reader who does not program. The primary path from installation to a first successful analysis relies on Git, a terminal, CSV editing, and Python concepts without explaining them. Several examples suggest a full analysis while the shown arguments only load or preprocess data. Accuracy problems in the setup and modality guides can lead to failed runs or wrong expectations about results.
 
+Follow-up on 2026-09-15: the high-priority findings below were addressed in the README, modality guides, Box guide, single-AVI checklist, and Box credentials template. The table records the original audit evidence; the remaining medium and low-priority findings and broader readability gaps still need work. The revised commands have not been exercised on a real recording.
+
 ## Findings, in repair order
 
 | Priority | Finding and evidence | Reader impact and recommended repair |

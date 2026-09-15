@@ -6,36 +6,39 @@ The miniscope pipeline performs calcium imaging analysis using CaImAn, including
 
 ### Prerequisites
 
-1. Ensure your project directory has:
-   - `experiments.csv` with experiment metadata
-   - `analysis_parameters.csv` with CaImAn and pipeline parameters
+1. Ensure your project directory has `experiments.csv` with a `line number` value matching the one you will run. `analysis_parameters.csv` is optional for the runtime, but recommended when you need per-experiment CaImAn settings or crop coordinates.
+2. Point `--data-path` at the root containing the recording paths listed in `experiments.csv`.
 
 ### Command Line
 
 ```bash
-# Run with explicit project path
-python -m aceneurotools.pipelines.miniscope --line-num 96 --project-path /my/project
-
-# Run with explicit project and data paths
+# Replace 96 with an experiment ID from the line number column
 python -m aceneurotools.pipelines.miniscope --line-num 96 --project-path /my/project --data-path /my/raw_data
 
 # Run in headless mode (no GUI)
-python -m aceneurotools.pipelines.miniscope --line-num 96 --project-path /my/project --headless
+python -m aceneurotools.pipelines.miniscope --line-num 96 --project-path /my/project --data-path /my/raw_data --headless
 ```
+
+The module command runs CNMF-E by default. Motion correction is optional; enable it through recognized CSV settings or the Python API.
 
 ### Python API
 
 ```python
 from aceneurotools.pipelines.miniscope import MiniscopePipeline
 
-api = MiniscopePipeline()
-api.run(
-    line_num=96, 
+pipeline = MiniscopePipeline()
+pipeline.run(
+    line_num=96,
     project_path="/my/project",
     data_path="/my/raw_data",
-    headless=True
+    crop=False,  # analyze the full movie; add crop coordinates if needed
+    run_CNMFE=True,
+    save_estimates=True,
+    headless=True,
 )
 ```
+
+Direct Python calls do not merge `analysis_parameters.csv` into `run(...)`. The Python defaults leave CNMF-E and motion correction off. The example explicitly enables CNMF-E and skips cropping. Add `apply_motion_correction=True` if your recording needs it; set `crop=True` with valid `crop_coords=(x0, y0, x1, y1)` to analyze only part of the movie.
 
 ## Pipeline Steps
 

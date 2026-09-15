@@ -81,7 +81,7 @@ To allow the code to talk to Box, you must provide your own API credentials:
 ### How it Works
 - **Local First**: If the data already exists at the specified local path, the pipeline starts immediately without connecting to Box.
 - **Smart Sync**: If files are missing locally **and** a Box ID is provided, the system will connect to Box and download the required files automatically.
-- **Graceful Fallback**: If Box IDs are present but you haven't configured your credentials, the system will print a reminder with setup instructions and proceed using only what is available locally.
+- **Missing credentials**: If the requested local files are already present, the run can continue without Box. If they are missing and Box credentials are not configured, the tool prints setup instructions, but it cannot process those missing files. Check that the paths in `experiments.csv` point to files under `data_path`, or configure Box and retry.
 
 ### Where are the outputs saved?
 

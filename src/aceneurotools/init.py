@@ -259,6 +259,18 @@ _CSV_COLUMNS: list[tuple[str, str, str, str]] = [
         "Animal/subject identifier string.",
     ),
     (
+        "Box Calcium Folder ID",
+        "",
+        "",
+        "Optional Box folder ID for calcium-imaging recordings. Leave blank when data is local.",
+    ),
+    (
+        "Box ephys folder ID",
+        "",
+        "",
+        "Optional Box folder ID for electrophysiology recordings. Leave blank when data is local.",
+    ),
+    (
         "date (YYMMDD)",
         "230415",
         "230416",

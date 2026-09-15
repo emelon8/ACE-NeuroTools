@@ -6,21 +6,16 @@ The ephys pipeline processes Neuralynx electrophysiology recordings, including c
 
 ### Prerequisites
 
-1. Ensure your project directory has:
-   - `experiments.csv` with experiment metadata
-   - `analysis_parameters.csv` with pipeline parameters
+1. Ensure your project directory has `experiments.csv` with an ephys directory and a matching `line number` value. `analysis_parameters.csv` is optional for the runtime and can supply per-experiment settings.
+2. Point `--data-path` at the root containing the recording paths listed in `experiments.csv`.
 
 ### Command Line
 
 ```bash
-# Run with explicit project path
-python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /my/project
-
-# Run with explicit project and data paths
 python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /my/project --data-path /my/raw_data
 
 # Run in headless mode
-python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /my/project --headless
+python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /my/project --data-path /my/raw_data --headless
 ```
 
 ### Python API
@@ -30,29 +25,34 @@ from aceneurotools.pipelines.ephys import EphysPipeline
 
 api = EphysPipeline()
 api.run(
-    line_num=96, 
+    line_num=96,
     project_path="/my/project",
     data_path="/my/raw_data",
-    channel_name='PFCLFPvsCBEEG'
+    channel_name="PFCLFPvsCBEEG",  # replace with a channel in your recording
+    filter_type="butter",
+    filter_range=[0.5, 4.0],  # frequencies in Hz
+    plot_spectrogram=True,
 )
 ```
+
+This call filters one channel with a bandpass filter and plots its spectrogram. Python calls do not automatically use values from `analysis_parameters.csv`. The module command plots a channel and spectrogram by default in interactive mode; filtering and phase computation remain optional.
 
 ## Pipeline Steps
 
 1. **Channel Loading**: Reads Neuralynx `.ncs` files and organizes by channel name
 2. **Artifact Removal**: Optional removal of electrical artifacts
-3. **Filtering**: Bandpass, lowpass, or highpass filtering with configurable parameters
-4. **Spectrogram**: Multi-taper spectral analysis with sliding windows
-5. **Phase Analysis**: Hilbert transform phase computation for specified frequency bands
-6. **Visualization**: Channel traces and spectrogram plotting
+3. **Filtering**: Optional bandpass filtering when `filter_type` is set to a filter family such as `butter` or `fir`
+4. **Spectrogram**: Optional multi-taper spectral analysis when plotting is enabled
+5. **Phase Analysis**: Optional Hilbert transform phase computation when `compute_phases=True`
+6. **Visualization**: Optional channel and spectrogram plots; the module CLI enables them in interactive mode
 
 ## Key Parameters in `analysis_parameters.csv`
 
 | Parameter | Description | Example |
 |-----------|-------------|---------|
 | `channel_name` | Neuralynx channel to analyze | `PFCLFPvsCBEEG` |
-| `filter_type` | Filter type (`bandpass`, `lowpass`, `highpass`) | `bandpass` |
-| `filter_range` | Filter frequency range [low, high] | `[0.5, 4]` |
+| `filter_type` | Filter family (`butter` or `fir`); omit to skip filtering | `butter` |
+| `filter_range` | Bandpass frequency cutoffs [low Hz, high Hz] | `[0.5, 4.0]` |
 | `zero time (s)` | Reference time for alignment | `0` |
 | `baseline period (min)` | Baseline duration | `10` |
 
