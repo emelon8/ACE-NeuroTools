@@ -20,7 +20,7 @@ Many differences between labs are handled without changing Python code:
 |-------------|-----------------|
 | Raw data layout under a shared root | `data_path` + columns in `experiments.csv` (e.g. **ephys directory**, **calcium imaging directory**) |
 | Per-session analysis choices | `analysis_parameters.csv` and kwargs to `run()` (see [Getting started](../getting_started.md) §3a) |
-| Imaging frame rate and file layout | Miniscope **metadata** (e.g. `frameRate`, paths to movies). TTL gap logic scales with `frameRate` when present (see [Multimodal integration](multimodal.md#ttl-synchronization-and-gap-detection)) |
+| Imaging frame rate and file layout | Miniscope **metadata** (e.g. `frameRate`, paths to movies). TTL gap logic scales with `frameRate` when present (see [Multimodal integration](multimodal.md#pipeline-steps)) |
 | Headless / cluster runs | `headless=True` and the same kwargs you would use locally |
 
 If your files match an existing **on-disk pattern** already recognized by the library, the factory will pick the right manager automatically (see Step 2).
@@ -59,7 +59,7 @@ For **ephys + miniscope** runs, your managers should agree on:
 2. **Sync events** — `get_sync_timestamps` should return times of **pulses that correspond to frames** (or your documented convention), so gap detection and index mapping stay meaningful.
 3. **Frame rate in metadata** — Supply **`frameRate`** where possible so TTL gap thresholds stay **rate-adaptive** rather than assuming a fixed Hz.
 
-Details and defaults are documented under [TTL synchronization and gap detection](multimodal.md#ttl-synchronization-and-gap-detection).
+Details and defaults are documented under [Multimodal pipeline steps](multimodal.md#pipeline-steps).
 
 ---
 

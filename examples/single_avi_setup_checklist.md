@@ -50,17 +50,17 @@ Use the file that matches your OS:
 
 ```bash
 # Linux / macOS
-conda env create -f linux_environment.yml
+micromamba create -n aceneurotools -f conda-lock.yml
 
 # Windows
-conda env create -f windows.yml
+micromamba create -n aceneurotools -f conda-lock.yml
 ```
 
 This pulls in CaImAn and everything else and takes ~10–20 minutes. Then:
 
 ```bash
-conda activate caiman
-pip install -e .
+micromamba activate aceneurotools
+pip install --no-deps -e .
 ```
 
 The `-e .` registers `aceneurotools` so `python -m aceneurotools.pipelines.miniscope`
@@ -254,7 +254,7 @@ PROJECT_PATH = Path(r"C:\Users\you\lab\correlation_project")
 Then, with the env active:
 
 ```bash
-conda activate caiman
+micromamba activate aceneurotools
 python examples/single_avi_smoke_test.py
 ```
 
@@ -305,5 +305,5 @@ You're now set up. From this point:
 | `The miniscope path or ID do not exist in the CSV file` in the logs  | The `experiments.csv` row is missing `Box Calcium Folder ID` or `calcium imaging directory`.       |
 | `0.avi did not land at ...`                                          | Box folder ID points at the wrong folder, or that folder doesn't actually contain `0.avi`.        |
 | GUI step crashes with `ModuleNotFoundError: PySimpleGUI`             | PySimpleGUI relicensed; reinstall via `pip install "PySimpleGUI<5.0.0"` from the legacy mirror.    |
-| `import caiman` fails                                                | Conda env wasn't activated (`conda activate caiman`) or step 3 didn't finish — recreate the env.   |
+| `import caiman` fails                                                | The environment wasn't activated (`micromamba activate aceneurotools`) or setup did not finish — recreate it.   |
 | CNMF-E finishes with 0 neurons                                       | `gSig` / `min_corr` / `min_pnr` in `analysis_parameters.csv` are wrong for this recording.         |

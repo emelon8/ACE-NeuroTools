@@ -1,77 +1,70 @@
-# Getting Started with ACE-NeuroTools
+# Getting started with ACE-NeuroTools
 
-Welcome to the Experiment Analysis pipeline! This guide will help you set up your environment, organize your data, and run your first analysis.
-
----
+This guide shows how to install ACE-NeuroTools, organize project metadata and raw data, and run your first pipeline.
 
 ## 1. Prerequisites
 
-* **Python 3.10+** (Recommended: 3.10.19)
-* **Conda/Mamba** (For managing dependencies)
-* **CaImAn** (Core dependency for miniscope analysis)
+- **micromamba or mamba**
+- **CaImAn from conda-forge**, installed by the environment file
 
----
+## 2. Install ACE-NeuroTools
 
-## 2. Installation
-
-Clone the repository and install the package in editable mode:
+Clone the repository, create its supported environment, and install the checkout in editable mode:
 
 ```bash
 git clone https://github.com/emelon8/experiment_analysis.git
 cd experiment_analysis
-
-# Recommended: Use the provided environment file
-conda env create -f linux_environment.yml
-conda activate caiman
-
-# Install the package
-pip install -e .
+micromamba create -n aceneurotools -f conda-lock.yml  # Linux or Windows
+micromamba activate aceneurotools
+pip install --no-deps -e .
 ```
 
----
+Do not run `pip install caiman`: that name on PyPI belongs to unrelated software. The neuroscience CaImAn package is supplied by conda-forge.
 
-## 3. Data Organization
+The committed lock covers Linux and Windows. On macOS, create from `environment.yml` instead; that platform has not yet been locked or QA-tested.
 
-The pipeline relies on a structured project directory. Each project should contain:
+## 3. Create project configuration
 
-### A. Project Repository (`project_path`)
-This directory holds your configuration files:
-- `experiments.csv`: Master list of every experiment/recording session.
-- `analysis_parameters.csv`: Parameter overrides (cropping, filtering, etc.) for specific experiments.
+Generate starter configuration and a metadata template in a separate project directory:
 
-### B. Shared Data Storage (`data_path`)
-This is where your raw experimental data lives:
-- **Miniscope Data**: `.avi` files, `metaData.json`, or ONIX-style `.csv/.raw` files.
-- **Ephys Data**: `.ncs` files or ONIX-style binary data.
+```bash
+python -m aceneurotools.init --project-path /path/to/project
+```
 
-Path fields inside `experiments.csv` (for example **ephys directory** and **calcium imaging directory**) are resolved **relative to `data_path`**, not inside `project_path`.
+Copy `experiments_template.csv` to `experiments.csv`. The initializer also creates `lab_config.json` and `stats_config.json`; edit their example values before using the `ace-neuro` launcher.
 
----
+Each project must contain `experiments.csv`, keyed by its `line number` column. An optional `analysis_parameters.csv` can supply per-experiment processing settings.
 
-## 3a. Passing parameters into the pipelines (read this)
+See [Data management](guides/data_management.md) for the metadata columns and template locations.
 
-Every pipeline is driven by **keyword arguments** to `run()`. There are three ways those kwargs get set; they stack in this order (later steps override earlier ones):
+## 4. Organize raw data
 
-| Source | What it sets | When to use |
-|--------|----------------|-------------|
-| **1. Defaults in code** | Built-in defaults inside `EphysPipeline.run`, `MiniscopePipeline.run`, `MultimodalPipeline.run` | Starting point; see [API — Pipelines](api/pipelines.md) or `help(EphysPipeline.run)` in Python. |
-| **`analysis_parameters.csv`** | Per–line-number overrides for the same kwarg names (via `load_analysis_params`) | Reproducible, shareable settings per experiment row. Column names match kwargs where possible (see `aceneurotools.shared.config_utils.parse_analysis_params`). |
-| **Your call** | Explicit arguments to `run(...)` or a dict you merge yourself | Final say: pass any kwarg the pipeline accepts. |
+`project_path` is the directory containing `experiments.csv` and configuration. `data_path` is the root under which relative raw-data paths are resolved.
 
-**Always required (for real data):**
+Supported inputs include:
 
-- `line_num` — row in `experiments.csv` / `analysis_parameters.csv`
-- `project_path` — directory containing those CSVs
-- `data_path` — raw data root (strongly recommended; if omitted, the library may fall back to a path under the repo)
+- **Miniscope data:** UCLA V3 videos with metadata and timestamp files, or UCLA V4/ONIX start-time, clock, and raw files.
+- **Electrophysiology data:** Neuralynx NEV and NCS files, or RHS2116/ONIX start-time and raw files.
 
-**Python — pass kwargs directly**
+Relative values in the `ephys directory` and `calcium imaging directory` columns are resolved under `data_path`. Absolute paths remain absolute.
+
+Pass both paths explicitly for real data. If omitted, defaults derive from `ACE_NEUROTOOLS_DATA` when set, or from the current working directory; ACE-NeuroTools does not load `.env` files.
+
+## 5. Pass pipeline parameters
+
+The miniscope, ephys, and multimodal APIs accept positional-or-keyword parameters through `run(...)`. Keyword arguments are recommended for clarity.
+
+### Python API
+
+Omitted values use the defaults in the selected `run(...)` signature. CSV values are not merged automatically.
 
 ```python
 from pathlib import Path
+
 from aceneurotools.pipelines.miniscope import MiniscopePipeline
 
-api = MiniscopePipeline()
-api.run(
+pipeline = MiniscopePipeline()
+pipeline.run(
     line_num=96,
     project_path=Path("/path/to/project"),
     data_path=Path("/path/to/raw_data"),
@@ -81,107 +74,95 @@ api.run(
 )
 ```
 
-**Python — merge CSV row, then override**
+To use per-experiment CSV settings, load them explicitly and keep only options accepted by the target pipeline:
 
 ```python
-from aceneurotools.shared.config_utils import load_analysis_params
-from aceneurotools.pipelines.ephys import EphysPipeline
+from pathlib import Path
 
+from aceneurotools.pipelines.ephys import EphysPipeline
+from aceneurotools.shared.cli_utils import run_allowed_keys
+from aceneurotools.shared.config_utils import load_analysis_params
+
+line_num = 96
 project = Path("/path/to/project")
-params = load_analysis_params(96, project_path=project)
-params.update(
+params = load_analysis_params(line_num, project_path=project)
+allowed = run_allowed_keys(EphysPipeline.run)
+params = {key: value for key, value in params.items() if key in allowed}
+params.update(filter_type="butter", filter_range=[0.5, 4.0])
+
+EphysPipeline().run(
+    line_num=line_num,
     project_path=project,
     data_path=Path("/path/to/raw_data"),
     headless=True,
-    filter_type="butter",
-    filter_range=[0.5, 4.0],
+    **params,
 )
-EphysPipeline().run(**params)
 ```
 
-`load_analysis_params` returns only keys present in your CSV; empty cells are skipped so pipeline defaults still apply.
+`load_analysis_params` converts recognized, nonempty columns into a combined pipeline-options dictionary. Low-level CaImAn fields in the same CSV are read later by miniscope components.
 
-**Command line — only a few flags; the rest comes from defaults + CSV**
+### Pipeline module CLIs
 
-The `python -m aceneurotools.pipelines.*` entry points accept **`--line-num`**, **`--project-path`**, optional **`--data-path`**, and usually **`--headless`**. They build a `run_params` dict (defaults), then **`run_params.update(load_analysis_params(...))`**, then apply CLI path/headless overrides. You **cannot** set arbitrary kwargs (e.g. `filter_range`) from the CLI unless you add flags or use the Python API / CSV.
+The `ephys`, `miniscope`, and `multimodal` module entry points accept `--line-num`, `--project-path`, optional `--data-path`, and `--headless`.
 
-**Where to see every parameter**
+They start with CLI-specific defaults, overlay CSV keys accepted by that pipeline, then apply the common CLI values. The CLI defaults can differ from the Python method defaults.
 
-- Docstrings: `help(MiniscopePipeline.run)` (same pattern for ephys and multimodal).
-- [API Reference — Pipelines](api/pipelines.md).
+Use Python or `analysis_parameters.csv` for analysis options without dedicated flags. If the CSV exists, it must contain the requested `line_num`.
 
----
+### Parameter reference
 
-## 3b. Tutorials (Jupyter + documentation site)
+- Run `help(MiniscopePipeline.run)` in Python, using the equivalent class for ephys or multimodal analysis.
+- See the [pipeline API reference](api/pipelines.md).
 
-Step-by-step notebooks stress-test this layout: they **assert both CSVs exist** under `project_path` before any pipeline runs.
+## 6. Run a pipeline
 
-| Topic | In the docs site | Notebook source in repo |
-|-------|------------------|-------------------------|
-| Miniscope | [Tutorial](https://aceneurotools.readthedocs.io/en/latest/notebooks/miniscope_pipeline_tutorial/) | `notebooks/miniscope_pipeline_tutorial.ipynb` |
-| Ephys | [Tutorial](https://aceneurotools.readthedocs.io/en/latest/notebooks/ephys_pipeline_tutorial/) | `notebooks/ephys_pipeline_tutorial.ipynb` |
-| Multimodal | [Tutorial](https://aceneurotools.readthedocs.io/en/latest/notebooks/multimodal_alignment_tutorial/) | `notebooks/multimodal_alignment_tutorial.ipynb` |
+These commands pass both project and raw-data paths explicitly. Adjust processing options in `analysis_parameters.csv`, or use the Python API for full control.
 
----
+### Miniscope analysis
 
-## 4. Configuring paths (still explicit)
-
-Paths are **`project_path`** and **`data_path`** — there are no hidden environment variables or `.env` files. See **§3a** for how paths combine with other parameters.
-
-### Option 1: Command line (scripts and HPC)
-
-Only path-related flags plus `headless`; other behavior comes from **defaults + `analysis_parameters.csv`** (see §3a).
+The module CLI preprocesses miniscope data and runs CNMF-E with its CLI defaults. Motion correction runs only when enabled in the CSV or Python API.
 
 ```bash
 python -m aceneurotools.pipelines.miniscope \
   --line-num 96 \
-  --project-path /path/to/your/project \
-  --data-path /path/to/your/raw_data \
-  --headless
+  --project-path /path/to/project \
+  --data-path /path/to/raw_data
 ```
 
-### Option 2: Programmatic API (notebooks and scripts)
+### Electrophysiology analysis
 
-Pass **all** kwargs to `run()` — see §3a for the full pattern.
+The module CLI loads the selected ephys channel and, in interactive mode, plots its signal and spectrogram. Configure filtering through the CSV or Python API.
 
-```python
-from aceneurotools.pipelines.miniscope import MiniscopePipeline
-
-api = MiniscopePipeline()
-api.run(
-    line_num=96,
-    project_path="/path/to/project",
-    data_path="/path/to/data",
-)
-```
-
-> **Note:** If `data_path` is omitted, it may default to a path under the repository; always pass it explicitly for real experiments.
-
----
-
-## 5. Running Your First Pipeline
-
-### Miniscope Analysis
-Executes preprocessing, motion correction, source extraction (CNMF-E), and post-processing.
 ```bash
-python -m aceneurotools.pipelines.miniscope --line-num 96 --project-path /path/to/project
+python -m aceneurotools.pipelines.ephys \
+  --line-num 96 \
+  --project-path /path/to/project \
+  --data-path /path/to/raw_data
 ```
 
-### Ephys Analysis
-Loads ephys channels, filters signals, and generates spectrograms.
+### Multimodal analysis
+
+The module CLI runs both modality pipelines, then aligns Neuralynx/UCLA recordings with TTLs or ONIX recordings with their shared hardware clock.
+
 ```bash
-python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /path/to/project
+python -m aceneurotools.pipelines.multimodal \
+  --line-num 97 \
+  --project-path /path/to/project \
+  --data-path /path/to/raw_data
 ```
 
-### Multimodal (Synchronized) Analysis
-Aligns miniscope and ephys data based on TTL pulses and performs synchronized analysis.
-```bash
-python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /path/to/project
-```
+Add `--headless` to any command to disable interactive GUIs for batch or HPC execution.
 
----
+## 7. Follow the tutorials
 
-## 6. Resources and Documentation
-- **Docs home**: [index.md](index.md) (includes tutorial links).
-- **Examples**: [examples.md](examples.md).
-- **Box integration**: See the [Data Management Guide](guides/data_management.md#optional-box-cloud-integration) for setup instructions.
+Each tutorial requires both `experiments.csv` and `analysis_parameters.csv` under `project_path`, even though the latter is optional for the runtime itself.
+
+- [Miniscope processing](notebooks/miniscope_pipeline_tutorial.ipynb)
+- [Ephys processing](notebooks/ephys_pipeline_tutorial.ipynb)
+- [Multimodal alignment](notebooks/multimodal_alignment_tutorial.ipynb)
+
+## 8. Further resources
+
+- [Documentation home](index.md)
+- [Examples](examples.md)
+- [Optional Box integration](guides/data_management.md#optional-box-cloud-integration)

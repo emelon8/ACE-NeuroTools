@@ -1,95 +1,93 @@
-# ACE-NeuroTools: Analysis of Calcium Imaging and Ephys
+# ACE-NeuroTools: Analysis of Calcium Imaging and Electrophysiology
 
-**ACE-NeuroTools** (Analysis of Calcium Imaging and Ephys) is an integrated, object-oriented Python library designed for the systems neuroscience community. It provides high-level pipelines for processing simultaneous 1-photon calcium imaging (Miniscope) and multi-channel electrophysiology (EEG/LFP) data.
+ACE-NeuroTools is an object-oriented Python library for systems neuroscience. It provides pipelines for 1-photon calcium imaging, multichannel electrophysiology, and multimodal analysis.
 
-For a **class-diagram overview** of core managers and processors, see the Mermaid diagram in the [README on GitHub](https://github.com/emelon8/experiment_analysis/blob/main/README.md#system-architecture).
+See the [system architecture diagram in the GitHub README](https://github.com/emelon8/experiment_analysis/blob/main/README.md#system-architecture) for an overview of the core managers and processors.
 
 ---
 
 <div class="grid cards" markdown>
 
--   __Unified Search__
-    
-    Full integrated search functionality across all pipelines, guides, and API references.
+-   __Miniscope processing__
 
--   __Multimodal Alignment__
-    
-    Seamlessly align miniscope movies with ephys timestamps using TTL pulses for cross-modal analysis.
+    Use configurable [CaImAn](https://github.com/flatironinstitute/CaImAn) wrappers for motion correction and CNMF-E source extraction from microendoscopic calcium imaging data.
 
--   __CNMF-E Integrated__
-    
-    Native wrappers around [CaImAn](https://github.com/flatironinstitute/CaImAn) for optimized source extraction in micro-endoscopic data.
+-   __Electrophysiology processing__
 
--   __HPC Ready__
-    
-    Headless mode and Slurm support built-in for high-throughput batch processing on supercomputers.
+    Import Neuralynx and RHS2116/ONIX recordings, remove Neuralynx artifacts, filter signals, compute phase, and run spectral analyses.
+
+-   __Multimodal alignment__
+
+    Align miniscope and ephys timestamps with Neuralynx TTL pulses or the shared ONIX hardware clock.
+
+-   __Batch-friendly execution__
+
+    Run pipelines without interactive GUIs in unattended batch or HPC jobs. Scheduler submission scripts, including Slurm scripts, remain under your control.
 
 </div>
 
 ---
 
-## Step-by-step tutorials
-
-These notebooks explain **`project_path`** (folder with **`experiments.csv`** and **`analysis_parameters.csv`**) vs **`data_path`** (raw recordings), then walk each pipeline stage by stage:
-
-- [Miniscope](notebooks/miniscope_pipeline_tutorial.ipynb)
-- [Ephys](notebooks/ephys_pipeline_tutorial.ipynb)
-- [Multimodal alignment](notebooks/multimodal_alignment_tutorial.ipynb)
----
-
 ## Installation
 
-Install ACE-NeuroTools and its core dependencies in your environment:
+Create the supported CaImAn environment, then install ACE-NeuroTools in editable mode:
 
 ```bash
-# Clone and install in editable mode
 git clone https://github.com/emelon8/experiment_analysis.git
 cd experiment_analysis
-pip install -e "."
+micromamba create -n aceneurotools -f conda-lock.yml  # Linux or Windows
+micromamba activate aceneurotools
+pip install --no-deps -e .
 ```
 
----
-
-## Tests and sample data
-
-- **`tests/data/sample_recording/`** — Committed fixtures for factory tests and the optional slow Miniscope CNMF-E end-to-end test.
-- To regenerate fixtures from a local `sample data/` tree, use `scripts/create_test_data.py` (see the [README](https://github.com/emelon8/experiment_analysis/blob/main/README.md#development-and-testing) Development and testing section).
+See [Getting started](getting_started.md) for prerequisites, data layout, configuration, and your first pipeline run.
 
 ---
 
-## API Overview
+## Step-by-step tutorials
 
-ACE-NeuroTools provides a clear, modular API optimized for both interactive use and automated scripts.
+The tutorials distinguish `project_path`, which contains `experiments.csv` and optional parameter files, from `data_path`, which contains raw recordings. Each notebook then walks through one pipeline:
+
+- [Miniscope processing](notebooks/miniscope_pipeline_tutorial.ipynb)
+- [Ephys processing](notebooks/ephys_pipeline_tutorial.ipynb)
+- [Multimodal alignment](notebooks/multimodal_alignment_tutorial.ipynb)
+
+---
+
+## API overview
+
+The miniscope, ephys, and multimodal pipelines expose a `run(...)` method for programmatic use:
 
 ```python
 from aceneurotools.pipelines.multimodal import MultimodalPipeline
 
-# Initialize and run a synchronized analysis
-api = MultimodalPipeline()
-api.run(
+pipeline = MultimodalPipeline()
+pipeline.run(
     line_num=97,
     project_path="/path/to/project",
     data_path="/path/to/raw_data",
-    headless=True  # Run without GUIs for batch processing
+    headless=True,
 )
 ```
 
-**Parameters:** every pipeline exposes a `run(...)` method whose arguments are **keyword-only in practice** (see docstrings). You set them via **Python kwargs**, optional **`analysis_parameters.csv`** (loaded with `load_analysis_params`), and **CLI defaults** for `python -m aceneurotools.pipelines.*`. The precedence and full pattern are spelled out under **§3a. Passing parameters into the pipelines** in [Getting started](getting_started.md).
+Pass options as keyword arguments for clarity. For direct Python use, supply them yourself or explicitly load values with `load_analysis_params(...)`.
+
+The pipeline CLI entry points combine their defaults, optional values from `analysis_parameters.csv`, and common CLI arguments.
+
+See [Pass pipeline parameters](getting_started.md#5-pass-pipeline-parameters) for precedence and examples.
 
 ---
 
-## Core Features
+## Supporting features
 
-*   **Miniscope**: Preprocessing, Motion Correction, CNMF-E, and Post-processing GUI.
-*   **Ephys**: Neuralynx/ONIX import, artifact removal, bandpass filtering, and spectral analysis.
-*   **Alignment**: TTL-based synchronization of dual-stream datasets.
-*   **Data Management**: CSV-driven experiment cohorts and automated Box cloud storage downloads.
-*   **Modern Infrastructure**: 100% Type-hinted, Google-style docstrings, and automated testing.
+- **Data management:** CSV-driven experiment metadata with optional Box downloads when folder IDs, the Box extra, and credentials are configured.
+- **Documentation search:** search the published guides, tutorials, and generated API reference from any documentation page.
+- **Project infrastructure:** a typed-package marker, type annotations across much of the public API, pytest coverage, and automated CI checks.
 
 ---
 
-<p align="center">
-  [Getting Started](getting_started.md){ .md-button .md-button--primary }
-  [Tutorials: Miniscope](notebooks/miniscope_pipeline_tutorial.ipynb){ .md-button }
-  [API Reference](api/index.md){ .md-button }
-</p>
+<div align="center" markdown>
+  [Getting started](getting_started.md){ .md-button .md-button--primary }
+  [Miniscope tutorial](notebooks/miniscope_pipeline_tutorial.ipynb){ .md-button }
+  [API reference](api/index.md){ .md-button }
+</div>

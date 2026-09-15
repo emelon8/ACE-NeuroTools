@@ -78,6 +78,7 @@ nav:
       - Ephys Processing: notebooks/ephys_pipeline_tutorial.ipynb
       - Multimodal Alignment: notebooks/multimodal_alignment_tutorial.ipynb
   - User Guides:
+      - Adapting to Your Lab: guides/adapting_to_your_lab.md
       - Miniscope Analysis: guides/miniscope.md
       - Ephys Analysis: guides/ephys.md
       - Multimodal Integration: guides/multimodal.md
@@ -90,3 +91,4 @@ nav:
       - Multimodal: api/multimodal.md
       - Shared Utils: api/shared.md
   - Deploying the docs: deployment.md
+  - Releasing: releasing.md

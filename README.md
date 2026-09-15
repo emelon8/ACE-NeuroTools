@@ -2,7 +2,7 @@
 
 **A comprehensive, open-source data analysis pipeline for systems neuroscience.**
 
-This software facilitates the processing, analysis, and visualization of simultaneous calcium imaging (Miniscope) and electrophysiology (EEG/LFP) data. It provides a modular and extensible framework for handling complex multimodal datasets, as described in **[Paper Title/Citation Placeholder]**.
+This software facilitates the processing, analysis, and visualization of simultaneous calcium imaging (Miniscope) and electrophysiology (EEG/LFP) data. Until the companion paper is available, cite the archived software release as described in [`CITATION.cff`](CITATION.cff).
 
 ## Key Features
 
@@ -91,13 +91,14 @@ classDiagram
 
 ## Installation
 
-1. **Prerequisites**: Python 3.10+, Mamba/Conda.
+1. **Prerequisites**: micromamba or mamba. The full application depends on the neuroscience CaImAn package from conda-forge; the similarly named project on PyPI is unrelated.
 2. **Clone & Install**:
    ```bash
    git clone https://github.com/emelon8/experiment_analysis.git
    cd experiment_analysis
-   mamba env create -f linux_environment.yml && conda activate caiman
-   pip install -e .
+   micromamba create -n aceneurotools -f conda-lock.yml  # Linux or Windows
+   micromamba activate aceneurotools
+   pip install --no-deps -e .
    ```
 3. **Configure Paths**: Use `--project-path` CLI arguments or pass paths to `Pipeline.run()` (see below).
 
@@ -168,23 +169,38 @@ Check the `examples/` directory for demonstration scripts:
 
 ### Test fixtures
 
-- **`tests/data/sample_recording/`** — Small committed recordings used by **autodetect** tests (`MiniscopeDataManager.create` / `EphysDataManager.create` routing) and by the **slow** Miniscope CNMF-E end-to-end test. A normal clone includes this tree; do not remove it if you want those tests to run.
+- **`tests/data/sample_recording/`** — Optional small recordings for data-dependent smoke tests. This directory is not included in the current clone; most tests generate synthetic inputs instead.
 - **Regenerating fixtures** — If you have the full raw `sample data/` folders at the project root (not required for most contributors), run [`scripts/create_test_data.py`](scripts/create_test_data.py) to rebuild truncated UCLA miniscope + Neuralynx ephys fixtures from those sources.
 
 ### Running tests
 
 ```bash
-pip install -e ".[dev]"
+micromamba create -n aceneurotools -f conda-lock.yml  # Linux or Windows
+micromamba activate aceneurotools
+pip install --no-deps -e .
 # Default: fast tests (excludes slow CNMF-E full pipeline)
 pytest tests/ -m "not slow"
 # Full suite including Miniscope CNMF-E e2e on sample data
 pytest tests/
 ```
 
-You can configure CI (e.g. GitHub Actions) to run `pytest tests/ -m "not slow"` on every push or PR; add a separate job or manual workflow if you want the full **slow** Miniscope CNMF-E suite on release branches.
+CI runs `pytest tests/ -m "not slow"`, lint/format checks, and distribution validation on every push or pull request. Run the full suite locally before a scientific release.
+
+### Reproducible environments
+
+`environment.yml` is the single human-maintained environment specification. The committed `conda-lock.yml` currently covers Linux and Windows; macOS has not been locked or QA-tested. Generate additional platform resolutions before claiming macOS release support:
+
+```bash
+conda-lock lock --micromamba -f environment.yml \
+  -p linux-64 -p win-64 -p osx-64 -p osx-arm64
+```
+
+Commit the generated `conda-lock.yml`. Archive it with the ACE-NeuroTools Git tag, analysis configuration, and input-data checksums for each paper release.
 
 ## License
 
 ACE-NeuroTools is licensed under the **GNU General Public License version 3 (or later)** (`GPL-3.0-or-later`). See [`LICENSE`](LICENSE).
+
+Maintainers should follow the [release checklist](docs/releasing.md) to publish a validated package and archive a paper-ready software release.
 
 This project depends on [CaImAn](https://github.com/flatironinstitute/CaImAn) at runtime. CaImAn’s upstream license notice permits use under **GPLv2 or any later version**; ACE-NeuroTools exercises that option and distributes under GPL-3.0-or-later for improved ecosystem license compatibility.
