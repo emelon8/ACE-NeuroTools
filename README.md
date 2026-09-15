@@ -100,6 +100,10 @@ classDiagram
    micromamba activate aceneurotools
    pip install --no-deps -e .
    ```
+   For a published release, replace the editable checkout step with
+   `pip install --no-deps aceneurotools==<version>` inside that locked
+   environment. The PyPI wheel does not contain CaImAn; a pip-only install
+   cannot run the full miniscope pipeline.
 3. **Configure Paths**: Use `--project-path` CLI arguments or pass paths to `Pipeline.run()` (see below).
 
 ### Project Setup

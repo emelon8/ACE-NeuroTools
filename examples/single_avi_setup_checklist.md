@@ -13,19 +13,17 @@ in this same folder.
 
 ---
 
-## 1. Install miniforge / mambaforge (if you don't have conda already)
+## 1. Install micromamba
 
-- macOS / Linux: <https://github.com/conda-forge/miniforge#install>
-- Windows: install **Miniforge3** from the same page; pick the option that
-  installs "Miniforge Prompt" into the Start menu.
+Follow the [micromamba installation instructions](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html)
+for your operating system. Initialize your shell as instructed there before
+running `micromamba activate`.
 
 Verify:
 
 ```bash
-conda --version
+micromamba --version
 ```
-
-Anything `conda 23+` is fine.
 
 ---
 
@@ -46,14 +44,19 @@ From here, all paths in this doc are **relative to** that
 
 ## 3. Create the conda environment
 
-Use the file that matches your OS:
+The committed lock covers Linux and Windows only:
 
 ```bash
-# Linux / macOS
+# Linux or Windows
 micromamba create -n aceneurotools -f conda-lock.yml
+```
 
-# Windows
-micromamba create -n aceneurotools -f conda-lock.yml
+macOS is not locked or smoke-tested yet. For development there, resolve the
+human-maintained specification locally; do not treat this as a reproducible
+release setup:
+
+```bash
+micromamba create -n aceneurotools -f environment.yml
 ```
 
 This pulls in CaImAn and everything else and takes ~10–20 minutes. Then:
@@ -73,7 +76,7 @@ python -c "import caiman, aceneurotools; print('caiman + aceneurotools OK')"
 ```
 
 If that prints `caiman + aceneurotools OK`, the environment is good. If it fails
-on a CaImAn import, recreate the env (`conda env remove -n caiman`, then
+on a CaImAn import, recreate the env (`micromamba env remove -n aceneurotools`, then
 re-run step 3).
 
 ---
