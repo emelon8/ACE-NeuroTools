@@ -1,5 +1,5 @@
 site_name: ACE-NeuroTools
-site_description: Analysis of Calcium Imaging and Electrophysical Data — integrated pipelines for calcium imaging, ephys, and multimodal alignment.
+site_description: Analysis of Calcium Imaging and Electrophysiology — integrated pipelines for calcium imaging, ephys, and multimodal alignment.
 site_url: https://aceneurotools.readthedocs.io/en/latest/  # TODO(humans): confirm RTD subdomain after rename
 site_author: "Reed Pennock, Luke Richards, Eric Melonakos"
 
@@ -72,6 +72,7 @@ plugins:
 nav:
   - Home: index.md
   - Getting Started: getting_started.md
+  - Plain-language terms: glossary.md
   - Examples: examples.md
   - Tutorials:
       - Miniscope Processing: notebooks/miniscope_pipeline_tutorial.ipynb
@@ -83,12 +84,12 @@ nav:
       - Ephys Analysis: guides/ephys.md
       - Multimodal Integration: guides/multimodal.md
       - Data Management: guides/data_management.md
-  - API Reference:
+  - For Developers:
       - Overview: api/index.md
       - Pipelines: api/pipelines.md
       - Miniscope Components: api/miniscope.md
       - Ephys Components: api/ephys.md
       - Multimodal: api/multimodal.md
       - Shared Utils: api/shared.md
-  - Deploying the docs: deployment.md
-  - Releasing: releasing.md
+      - Preview and deploy docs: deployment.md
+      - Release checklist: releasing.md

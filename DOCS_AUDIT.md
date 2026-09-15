@@ -6,7 +6,7 @@ Audited on 2026-09-15 on branch `docs-accessibility-audit`. This review covers t
 
 The documentation has a useful structure and names the main workflows, but it is not yet a reliable guide for a reader who does not program. The primary path from installation to a first successful analysis relies on Git, a terminal, CSV editing, and Python concepts without explaining them. Several examples suggest a full analysis while the shown arguments only load or preprocess data. Accuracy problems in the setup and modality guides can lead to failed runs or wrong expectations about results.
 
-Follow-up on 2026-09-15: the high-priority findings below were addressed in the README, modality guides, Box guide, single-AVI checklist, and Box credentials template. The table records the original audit evidence; the remaining medium and low-priority findings and broader readability gaps still need work. The revised commands have not been exercised on a real recording.
+First follow-up on 2026-09-15: the high-priority findings below were addressed in the README, modality guides, Box guide, single-AVI checklist, and Box credentials template. A second follow-up addressed the remaining medium and low-priority claims, added a recording-to-result walkthrough, output map, and plain-language terms page, and added a local Markdown link check to CI. The table and readability bullets preserve the original audit evidence. No real recording or live hosted site has been used to verify the revised instructions.
 
 ## Findings, in repair order
 
@@ -37,4 +37,4 @@ Follow-up on 2026-09-15: the high-priority findings below were addressed in the 
 
 ## Verification and limits
 
-Static checks found one missing local heading anchor and no missing local Markdown link targets. The README fixture claim was checked against the repository tree. Pipeline and CSV behavior was checked against function signatures and relevant loaders. `mkdocs` is not on the current shell PATH, so this audit did not render the site. The live hosted URL and Box authentication procedure should be validated in a real environment before promising them to readers.
+The original audit's static check found one missing local heading anchor and no missing local Markdown link targets. The README fixture claim was checked against the repository tree. Pipeline and CSV behavior was checked against function signatures and relevant loaders. During the second follow-up, the notebooks were synced, the new local-link check passed, and `mkdocs build --strict` passed using an existing analysis environment. Notebook HTML and missing-cell-ID notices appeared in the build output but did not fail it. The live hosted URL, a real-recording workflow, and Box authentication remain unverified.

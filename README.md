@@ -1,8 +1,10 @@
 # ACE-NeuroTools: Analysis of Calcium Imaging and Electrophysiology
 
-**A comprehensive, open-source data analysis pipeline for systems neuroscience.**
+**Tools for turning miniscope videos and brain-signal recordings into analysis results.**
 
-This software facilitates the processing, analysis, and visualization of simultaneous calcium imaging (Miniscope) and electrophysiology (EEG/LFP) data. Until the companion paper is available, cite the archived software release as described in [`CITATION.cff`](CITATION.cff).
+A miniscope records video of activity in groups of cells. Electrophysiology records electrical signals from named channels. ACE-NeuroTools reads these recordings, processes each type, and can align their times when they were recorded together. It needs an experiment list (`experiments.csv`) and the raw files from your lab. Start with the [Getting Started guide](docs/getting_started.md) for a recording-to-result walkthrough. Until the companion paper is available, cite the archived software release as described in [`CITATION.cff`](CITATION.cff).
+
+The [plain-language terms](docs/glossary.md) page defines the recording and processing terms used throughout the guides.
 
 ## Key Features
 
@@ -14,80 +16,7 @@ This software facilitates the processing, analysis, and visualization of simulta
 *   **Electrophysiology Analysis:** Tools for importing and cleaning Neuralynx data, including artifact removal, filtering, phase computation, and spectral analysis.
 *   **Multimodal Integration:** Seamless alignment of independent Miniscope and Ephys timestamps, enabling cross-modal analysis such as phase-locking of calcium events to channel-specific oscillations.
 *   **Data Management:** Integrated utilities for managing large experiment cohorts with explicit path management and automated cloud storage (Box) interaction.
-*   **Modern Infrastructure:** 100% type-hinted codebase, automated documentation site, and CI/CD testing framework.
-
-## System Architecture
-
-The project is built on a robust object-oriented framework designed for scalability and reproducibility:
-
-```mermaid
-classDiagram
-    class ExperimentDataManager {
-        +int line_num
-        +Path project_path
-        +Path data_path
-        +dict metadata
-        +dict analysis_params
-        +import_metadata()
-        +import_analysis_parameters()
-    }
-
-    class MiniscopeDataManager {
-        +list time_stamps
-        +list frame_numbers
-        +movie movie
-        +dict miniscope_events
-        +MiniscopeProcessor processor
-        +load_attributes()
-    }
-
-    class EphysDataManager {
-        +dict channels
-        +Block ephys_block
-        +import_ephys_block()
-        +process_ephys_block_to_channels()
-        +filter_ephys()
-    }
-
-    class Channel {
-        +str name
-        +np.array signal
-        +float sampling_rate
-        +np.array time_vector
-        +dict events
-        +np.array signal_filtered
-        +np.array phases
-    }
-
-    class MiniscopeProcessor {
-        +MiniscopeDataManager data_manager
-        +process_calcium_movie()
-        +motion_correction_manager()
-        +CNMFE_parameter_handler()
-    }
-
-    class BlockProcessor {
-        +Block ephys_block
-        +process_raw_ephys()
-        +remove_artifacts()
-    }
-
-    ExperimentDataManager <|-- MiniscopeDataManager : Inherits
-    ExperimentDataManager <|-- EphysDataManager : Inherits
-    EphysDataManager --> BlockProcessor : Uses
-    BlockProcessor ..> Channel : Creates
-    EphysDataManager *-- Channel : Contains
-    MiniscopeProcessor --> MiniscopeDataManager : Processes
-```
-
-### Core Data Classes
-*   **`ExperimentDataManager`**: Base class for managing experiment metadata and analysis parameters.
-*   **`MiniscopeDataManager`**: Specialized handler for calcium imaging data, managing video streams, timestamps, and CNMF-E results.
-*   **`EphysDataManager`**: Specialized handler for electrophysiology data, managing raw Block imports and channel signal processing.
-
-### Processing Classes
-*   **`MiniscopeProcessor`**: Orchestrates the calcium imaging workflow, wrapping `CaImAn` functionality with optimized defaults and parallel processing management.
-*   **`BlockProcessor`**: Handles signal conditioning and artifact removal for electrophysiological data.
+*   **Project Infrastructure:** A documentation site, type annotations across much of the public API, and automated testing.
 
 ## Installation
 
@@ -162,11 +91,7 @@ For detailed documentation, see the user guides: [Miniscope](docs/guides/minisco
 A comprehensive documentation site, including full API references and guides, is available at:
 **[https://aceneurotools.readthedocs.io/en/latest/](https://aceneurotools.readthedocs.io/en/latest/)**
 
-To view the documentation locally:
-```bash
-pip install mkdocs-material mkdocstrings-python
-mkdocs serve
-```
+To preview the documentation locally, follow the complete [documentation preview instructions](docs/deployment.md). They install the documentation dependencies and copy tutorial notebooks into the docs tree before starting MkDocs.
 
 ## Examples
 
@@ -177,8 +102,8 @@ Check the `examples/` directory for demonstration scripts:
 
 ### Test fixtures
 
-- **`tests/data/sample_recording/`** — Optional small recordings for data-dependent smoke tests. This directory is not included in the current clone; most tests generate synthetic inputs instead.
-- **Regenerating fixtures** — If you have the full raw `sample data/` folders at the project root (not required for most contributors), run [`scripts/create_test_data.py`](scripts/create_test_data.py) to rebuild truncated UCLA miniscope + Neuralynx ephys fixtures from those sources.
+- **`tests/data/sample_recording/`** — No such recording tree is committed in the current clone. Most tests generate synthetic inputs.
+- **Fixture generation** — [`scripts/create_test_data.py`](scripts/create_test_data.py) is a placeholder that raises `NotImplementedError`; it cannot currently rebuild recording fixtures.
 
 ### Running tests
 
@@ -186,13 +111,11 @@ Check the `examples/` directory for demonstration scripts:
 micromamba create -n aceneurotools -f conda-lock.yml  # Linux or Windows
 micromamba activate aceneurotools
 pip install --no-deps -e .
-# Default: fast tests (excludes slow CNMF-E full pipeline)
+# Run the committed test suite
 pytest tests/ -m "not slow"
-# Full suite including Miniscope CNMF-E e2e on sample data
-pytest tests/
 ```
 
-CI runs `pytest tests/ -m "not slow"`, lint/format checks, and distribution validation on every push or pull request. Run the full suite locally before a scientific release.
+CI runs this test selection, lint/format checks, a strict documentation build, and distribution validation on every push or pull request. A real-recording CNMF-E end-to-end test is not currently included; validate a representative recording locally before a scientific release.
 
 ### Reproducible environments
 
@@ -204,6 +127,79 @@ conda-lock lock --micromamba -f environment.yml \
 ```
 
 Commit the generated `conda-lock.yml`. Archive it with the ACE-NeuroTools Git tag, analysis configuration, and input-data checksums for each paper release.
+
+## System Architecture
+
+This section is for developers extending the Python code. It shows how experiment managers and processing classes relate:
+
+```mermaid
+classDiagram
+    class ExperimentDataManager {
+        +int line_num
+        +Path project_path
+        +Path data_path
+        +dict metadata
+        +dict analysis_params
+        +import_metadata()
+        +import_analysis_parameters()
+    }
+
+    class MiniscopeDataManager {
+        +list time_stamps
+        +list frame_numbers
+        +movie movie
+        +dict miniscope_events
+        +MiniscopeProcessor processor
+        +load_attributes()
+    }
+
+    class EphysDataManager {
+        +dict channels
+        +Block ephys_block
+        +import_ephys_block()
+        +process_ephys_block_to_channels()
+        +filter_ephys()
+    }
+
+    class Channel {
+        +str name
+        +np.array signal
+        +float sampling_rate
+        +np.array time_vector
+        +dict events
+        +np.array signal_filtered
+        +np.array phases
+    }
+
+    class MiniscopeProcessor {
+        +MiniscopeDataManager data_manager
+        +process_calcium_movie()
+        +motion_correction_manager()
+        +CNMFE_parameter_handler()
+    }
+
+    class BlockProcessor {
+        +Block ephys_block
+        +process_raw_ephys()
+        +remove_artifacts()
+    }
+
+    ExperimentDataManager <|-- MiniscopeDataManager : Inherits
+    ExperimentDataManager <|-- EphysDataManager : Inherits
+    EphysDataManager --> BlockProcessor : Uses
+    BlockProcessor ..> Channel : Creates
+    EphysDataManager *-- Channel : Contains
+    MiniscopeProcessor --> MiniscopeDataManager : Processes
+```
+
+### Core Data Classes
+*   **`ExperimentDataManager`**: Base class for managing experiment metadata and analysis parameters.
+*   **`MiniscopeDataManager`**: Specialized handler for calcium imaging data, managing video streams, timestamps, and CNMF-E results.
+*   **`EphysDataManager`**: Specialized handler for electrophysiology data, managing raw Block imports and channel signal processing.
+
+### Processing Classes
+*   **`MiniscopeProcessor`**: Orchestrates the calcium imaging workflow, wrapping `CaImAn` functionality with optimized defaults and parallel processing management.
+*   **`BlockProcessor`**: Handles signal conditioning and artifact removal for electrophysiological data.
 
 ## License
 

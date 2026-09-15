@@ -1,8 +1,12 @@
 # ACE-NeuroTools: Analysis of Calcium Imaging and Electrophysiology
 
-ACE-NeuroTools is an object-oriented Python library for systems neuroscience. It provides pipelines for 1-photon calcium imaging, multichannel electrophysiology, and multimodal analysis.
+ACE-NeuroTools helps a lab analyze two kinds of brain recordings. A **miniscope** is a small camera that records activity in cells; **electrophysiology** records electrical signals from named channels. When both were collected in one session, the tool can align their time stamps so the results can be compared.
 
-See the [system architecture diagram in the GitHub README](https://github.com/emelon8/experiment_analysis/blob/main/README.md#system-architecture) for an overview of the core managers and processors.
+Start with your raw recording files and an `experiments.csv` spreadsheet that says where each recording lives. A miniscope run can save processed movies and, when cell extraction is enabled, an `estimates.hdf5` result. An ephys run can filter signals or display plots. [Getting started](getting_started.md) walks through the first run and how to check its output.
+
+See the [plain-language terms](glossary.md) page when a recording or processing term is unfamiliar.
+
+The [system architecture diagram in the GitHub README](https://github.com/emelon8/experiment_analysis/blob/main/README.md#system-architecture) is for readers extending the Python code.
 
 ---
 
@@ -10,19 +14,19 @@ See the [system architecture diagram in the GitHub README](https://github.com/em
 
 -   __Miniscope processing__
 
-    Use configurable [CaImAn](https://github.com/flatironinstitute/CaImAn) wrappers for motion correction and CNMF-E source extraction from microendoscopic calcium imaging data.
+    Clean miniscope video, correct movement when requested, and use CNMF-E to identify cell signals. CNMF-E is the cell-extraction method provided by [CaImAn](https://github.com/flatironinstitute/CaImAn).
 
 -   __Electrophysiology processing__
 
-    Import Neuralynx and RHS2116/ONIX recordings, remove Neuralynx artifacts, filter signals, compute phase, and run spectral analyses.
+    Read Neuralynx and RHS2116/ONIX electrical recordings. You can remove artifacts, filter signals, or plot their frequency content.
 
 -   __Multimodal alignment__
 
-    Align miniscope and ephys timestamps with Neuralynx TTL pulses or the shared ONIX hardware clock.
+    Compare recordings on one time line using recorded sync pulses (TTL pulses) or the shared ONIX hardware clock.
 
 -   __Batch-friendly execution__
 
-    Run pipelines without interactive GUIs in unattended batch or HPC jobs. Scheduler submission scripts, including Slurm scripts, remain under your control.
+    Use `--headless` to run without pop-up windows on a shared computer or in a batch job.
 
 </div>
 
@@ -54,7 +58,7 @@ The tutorials distinguish `project_path`, which contains `experiments.csv` and o
 
 ---
 
-## API overview
+## For developers: Python API
 
 The miniscope, ephys, and multimodal pipelines expose a `run(...)` method for programmatic use:
 

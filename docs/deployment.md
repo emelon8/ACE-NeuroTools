@@ -1,4 +1,4 @@
-# Building and deploying documentation
+# Previewing and publishing documentation (maintainers)
 
 ## What gets committed
 
@@ -12,8 +12,12 @@ micromamba create -n aceneurotools -f conda-lock.yml  # Linux or Windows
 micromamba activate aceneurotools
 pip install --no-deps -e .
 bash scripts/sync_notebooks_for_docs.sh
+python scripts/check_docs_links.py
 mkdocs serve
 ```
+
+The committed lock covers Linux and Windows. On macOS, create the environment
+from `environment.yml` instead; that platform is not covered by the lock.
 
 Open the URL MkDocs prints (usually `http://127.0.0.1:8000`).
 

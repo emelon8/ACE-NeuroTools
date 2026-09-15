@@ -19,7 +19,7 @@ Many differences between labs are handled without changing Python code:
 | What varies | Where to set it |
 |-------------|-----------------|
 | Raw data layout under a shared root | `data_path` + columns in `experiments.csv` (e.g. **ephys directory**, **calcium imaging directory**) |
-| Per-session analysis choices | `analysis_parameters.csv` and kwargs to `run()` (see [Getting started](../getting_started.md) §3a) |
+| Per-session analysis choices | `analysis_parameters.csv` and Python arguments to `run()` (see [Pass pipeline parameters](../getting_started.md#5-pass-pipeline-parameters)) |
 | Imaging frame rate and file layout | Miniscope **metadata** (e.g. `frameRate`, paths to movies). TTL gap logic scales with `frameRate` when present (see [Multimodal integration](multimodal.md#pipeline-steps)) |
 | Headless / cluster runs | `headless=True` and the same kwargs you would use locally |
 

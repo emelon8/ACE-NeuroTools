@@ -36,6 +36,7 @@ jobs:
       - name: Build documentation
         run: |
           bash scripts/sync_notebooks_for_docs.sh
+          python scripts/check_docs_links.py
           mkdocs build --strict
 
   lint:
