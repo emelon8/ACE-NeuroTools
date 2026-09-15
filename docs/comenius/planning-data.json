@@ -1,0 +1,718 @@
+{
+  "decisions": [
+    {
+      "id": "D01",
+      "title": "First milestone and audience",
+      "area": "Product / delivery",
+      "question": "What must a researcher actually demonstrate at the first milestone, and what does October 7 mean?",
+      "options": "One complete miniscope path; full paired multimodal path; poster checkpoint with a separate implementation release.",
+      "recommendation": "Start with one complete miniscope path and a representative real recording, then add paired modalities. Confirm October 7, 2026 explicitly before using it as a date commitment.",
+      "tradeoff": "A full multimodal milestone broadens dataset, synchronization, UI, and validation work before staffing is known.",
+      "affected": "F01\u2013F17",
+      "owner": "Product lead + participating researchers",
+      "when": "First"
+    },
+    {
+      "id": "D02",
+      "title": "Experiment, subject, session, and run",
+      "area": "Domain",
+      "question": "If one animal is recorded on three days and the team tries two parameter sets, how many experiments should appear?",
+      "options": "One experiment per session; one experiment per scientific protocol with multiple sessions; user-defined collections with explicit session/subject identity.",
+      "recommendation": "Use project \u2192 experiment \u2192 recording sessions, with subjects referenced independently and analysis runs recorded separately; first validate this model against two real lab examples.",
+      "tradeoff": "Do not migrate every CSV line into a subject or an experiment until this is resolved. A rerun should not ambiguously create a new scientific experiment.",
+      "affected": "F01\u2013F07, F11\u2013F13",
+      "owner": "Researchers + application maintainer",
+      "when": "First"
+    },
+    {
+      "id": "D03",
+      "title": "GUI platform and application boundary",
+      "area": "Experience / architecture",
+      "question": "Where does the GUI run, and which application operations do both interfaces call?",
+      "options": "Native Python desktop; browser UI with a local Python service; hosted browser service.",
+      "recommendation": "Evaluate native desktop and a local browser UI on file picking, long-running jobs, existing curation windows, accessibility, packaging, and maintenance. Keep shared Python application operations in either case.",
+      "tradeoff": "The Docker-app reference specifies usability, not a toolkit. A hosted service introduces separate data movement, identity, and operations decisions.",
+      "affected": "F01\u2013F17",
+      "owner": "UX owner + application maintainer",
+      "when": "First"
+    },
+    {
+      "id": "D04",
+      "title": "Supported computers and installation",
+      "area": "Delivery",
+      "question": "Which operating systems and installation experience must work for the first real users?",
+      "options": "Support the lab\u2019s current platforms first; cross-platform installer from day one; managed environment/launcher first.",
+      "recommendation": "Inventory the actual lab machines, then nominate a tested platform matrix and one install path. Onboarding should diagnose missing dependencies and offer an explicit repair path.",
+      "tradeoff": "CaImAn and GUI dependencies must be validated on the selected machines. Do not infer tested support from package metadata or a Docker analogy.",
+      "affected": "F01, F09, F12, F14, F16\u2013F17",
+      "owner": "Release maintainer + lab users",
+      "when": "First"
+    },
+    {
+      "id": "D05",
+      "title": "Configuration authority and CSV migration",
+      "area": "Persistence",
+      "question": "What is the authoritative saved experiment configuration, and what happens to existing CSV/JSON workflows?",
+      "options": "CSV remains authoritative; versioned manifest with CSV import/export; database with explicit export/migration.",
+      "recommendation": "Define a versioned, inspectable configuration contract, with explicit defaults/override precedence and non-destructive CSV/JSON import. Decide export coverage rather than promising lossless round-trip of unknown fields.",
+      "tradeoff": "Reject conflicting identifiers and report unsupported fields. GUI and CLI must resolve the same effective settings. Migration should preserve the originals and a mapping to prior IDs.",
+      "affected": "F01, F03\u2013F08, F11\u2013F16",
+      "owner": "Application maintainer + existing CLI users",
+      "when": "First"
+    },
+    {
+      "id": "D06",
+      "title": "Data layout and ownership",
+      "area": "Persistence",
+      "question": "Does \u201call in one place\u201d mean copying recordings, linking them, or offering both?",
+      "options": "Copy into a managed project; reference external/NAS data; explicit copy-or-reference choice.",
+      "recommendation": "Organize manifests and per-run results under the experiment; allow explicit references to large raw recordings, with optional import by copy. Make missing/moved-data repair visible.",
+      "tradeoff": "Raw data can be very large. Define duplicate detection, rename/relocation behavior, writable output roots, and whether two projects may refer to one input. The physical layout follows D02.",
+      "affected": "F01\u2013F07, F10\u2013F13, F16",
+      "owner": "Data steward + application maintainer",
+      "when": "First"
+    },
+    {
+      "id": "D07",
+      "title": "History and recovery semantics",
+      "area": "Auditability",
+      "question": "What does version control mean in the first release?",
+      "options": "Saved snapshots with compare/restore; named variants/branches; full branching, merging, and shared editing.",
+      "recommendation": "Start with visible saved revisions and immutable run snapshots; restoring old settings creates a new revision. Keep past runs and curation decisions associated with their original inputs.",
+      "tradeoff": "Decide autosave versus named checkpoints, author attribution, notes, retention, deletion, and what constitutes a new revision. Full merging is a separate promise.",
+      "affected": "F03, F06\u2013F07, F10",
+      "owner": "Researchers + data steward",
+      "when": "Before auditability work"
+    },
+    {
+      "id": "D08",
+      "title": "Reproducibility contract",
+      "area": "Auditability",
+      "question": "What evidence must travel with a result, and what level of repeatability can we claim?",
+      "options": "Configuration only; inputs/configuration/software/environment plus review history; byte-identical outputs across machines.",
+      "recommendation": "Record effective settings, input identities/checksums, software and module versions, relevant environment/hardware, seeds when applicable, human choices, status, logs, and output identities. Distinguish a traceable rerun from byte-identical reproduction.",
+      "tradeoff": "Choose hashing depth/cost for large datasets, external dependency capture, and numerical comparison tolerances. A settings file alone cannot establish full reproducibility.",
+      "affected": "F04\u2013F07, F10\u2013F14, F16",
+      "owner": "Scientific reviewer + application maintainer",
+      "when": "Before run contract"
+    },
+    {
+      "id": "D09",
+      "title": "Human approval and automation",
+      "area": "Human control",
+      "question": "Which actions require review, and how is deliberate headless use represented?",
+      "options": "Approve only run launch; approval at scientific checkpoints; fully manual setup with optional explicit automation policies.",
+      "recommendation": "Always review the final run plan; require explicit scientific review where choices affect interpretation. Headless execution consumes a frozen approved plan or a clearly recorded non-interactive policy.",
+      "tradeoff": "If inputs/settings change after preflight, invalidate that approval. Decide which warnings can be acknowledged, what automation may choose, and how CLI users provide equivalent consent.",
+      "affected": "F02\u2013F05, F08\u2013F10, F12\u2013F16",
+      "owner": "Researchers + application maintainer",
+      "when": "Before run contract"
+    },
+    {
+      "id": "D10",
+      "title": "Detection scope and unsupported data",
+      "area": "Import",
+      "question": "Which file formats are supported first, and how should the user resolve ambiguous detection?",
+      "options": "Only existing known formats; a prioritized additional-format list; general extension-driven probing.",
+      "recommendation": "Begin with nominated existing UCLA/ONIX miniscope and Neuralynx/RHS2116 paths as applicable to real datasets; show evidence, missing companion files, and a manual override. Treat these as candidates until tested.",
+      "tradeoff": "Format detection, metadata inference, and experiment association are separate. Never treat a generic video extension or the first matching plugin as sufficient evidence for a scientific interpretation.",
+      "affected": "F02, F08\u2013F09, F11\u2013F12, F14",
+      "owner": "Data owners + reader maintainers",
+      "when": "Before import"
+    },
+    {
+      "id": "D11",
+      "title": "Pipeline selection and suggestions",
+      "area": "Workflow",
+      "question": "How much freedom should users have when composing processing and analysis?",
+      "options": "Curated templates with editable settings; a module list with compatibility checks; arbitrary node/graph editor.",
+      "recommendation": "Start with named templates and a compatible module list. Suggestions explain their evidence and remain editable; record accepted suggestions in the configuration.",
+      "tradeoff": "Decide whether recommendations are deterministic rules or a later assisted service. A graph editor needs validation of ordering, branching, and intermediate data contracts.",
+      "affected": "F03, F08, F13\u2013F14",
+      "owner": "Researchers + UX owner",
+      "when": "Before workflow selection"
+    },
+    {
+      "id": "D12",
+      "title": "Execution, resources, and interruption",
+      "area": "Runtime",
+      "question": "Where do expensive runs execute, and what does stopping or recovering one mean?",
+      "options": "One local job; a local queue; remote/HPC/Slurm workers or a hosted service.",
+      "recommendation": "Start with one local worker process, responsive UI, stage progress, cancellation, and retained failure records. Record an interrupted run on restart; make retry a new linked run.",
+      "tradeoff": "Automatic resumption requires reliable checkpoints and compatible intermediate artifacts; do not promise it by calling a retry \u201cresume.\u201d Set CPU/memory/disk policies and concurrency behavior.",
+      "affected": "F04\u2013F06, F09\u2013F13, F16",
+      "owner": "Compute maintainer + lab users",
+      "when": "Before execution"
+    },
+    {
+      "id": "D13",
+      "title": "Scientific quality review and curation",
+      "area": "Human control",
+      "question": "Which outputs must a researcher inspect before downstream analysis?",
+      "options": "Optional review; prescribed crop/motion/component review; configurable review policies per pipeline.",
+      "recommendation": "Reuse existing crop/component tools, record decisions and reasons, and preserve original estimates. Define quality gates with researchers, including headless behavior.",
+      "tradeoff": "PR #68 already implements component selection and describes overwriting estimates. Comenius must adapt result ownership and lineage without duplicating the selector.",
+      "affected": "F05\u2013F06, F10, F12\u2013F13",
+      "owner": "Scientific reviewer + PR #68 collaborator",
+      "when": "Before curation integration"
+    },
+    {
+      "id": "D14",
+      "title": "Multimodal alignment and scope",
+      "area": "Science",
+      "question": "What modalities are paired first, and what evidence makes their alignment acceptable?",
+      "options": "Existing calcium/ephys pair; arbitrary modalities; manual alignment only.",
+      "recommendation": "First support one nominated calcium/ephys pair with visible synchronization markers, drift/gap diagnostics, excluded/uncertain periods, and a recorded approval/correction.",
+      "tradeoff": "Define ground-truth fixtures, acceptable timing errors, units/time bases, missing pulses, non-overlap, and uncertainty propagation into analyses. Do not invent scientific thresholds in software.",
+      "affected": "F11\u2013F13",
+      "owner": "Modality specialists + scientific reviewer",
+      "when": "Before multimodal work"
+    },
+    {
+      "id": "D15",
+      "title": "Analysis, comparison, and export",
+      "area": "Science / results",
+      "question": "Which questions and deliverables should post-processing analysis support first?",
+      "options": "Browse files only; curated existing analyses with reviewable parameters; a general analysis marketplace.",
+      "recommendation": "Expose a small agreed set of existing analyses and their input requirements, units, exclusions, and provenance; export figures/tables with a run manifest. Keep processing and analysis selections separate.",
+      "tradeoff": "Decide population versus single-session scope, condition/time-window handling, figure formats, statistical review, and whether comparing two run outputs is required in the first milestone.",
+      "affected": "F06, F08, F13\u2013F14, F17",
+      "owner": "Researchers + analysis maintainers",
+      "when": "Before analysis workspace"
+    },
+    {
+      "id": "D16",
+      "title": "Module contracts and trust",
+      "area": "Community / architecture",
+      "question": "What can a community extension contribute, and how is it enabled?",
+      "options": "In-repository modules; installed Python package extensions; remotely discovered marketplace.",
+      "recommendation": "Start with a documented versioned contract for one reader or analysis extension, explicit installation/enablement, compatibility checks, and a reference implementation. Keep core and extension behavior visible in the run record.",
+      "tradeoff": "Define inputs/outputs, parameter schemas, preflight hooks, errors/progress, and provenance. Python extensions execute code; do not claim a sandbox without implementing one. Decide review/trust policy before third-party distribution.",
+      "affected": "F08, F13\u2013F16",
+      "owner": "Extension maintainer + community reviewers",
+      "when": "Before extension API"
+    },
+    {
+      "id": "D17",
+      "title": "Contribution ownership and governance",
+      "area": "Community",
+      "question": "Who can approve scientific changes, interface changes, and releases?",
+      "options": "Maintainer review; rotating modality owners; open submissions with documented approval roles.",
+      "recommendation": "Publish contribution roles and claiming rules; one accountable issue owner, named scientific reviewers, and explicit acceptance evidence. Record owners before implementation rather than assigning people from the transcript.",
+      "tradeoff": "Define how proposals become accepted, how disagreements are resolved, and when a contributor may evolve a stable module contract. Confirm extension licensing and citation expectations with maintainers.",
+      "affected": "F14\u2013F15, all issue handoffs",
+      "owner": "Project maintainers + community representatives",
+      "when": "Early"
+    },
+    {
+      "id": "D18",
+      "title": "Experiment sharing and concurrent edits",
+      "area": "Collaboration",
+      "question": "How do two researchers exchange or edit an experiment without losing each other\u2019s work?",
+      "options": "Export/import a portable bundle; shared-folder editing with conflict detection; synchronized multi-user service.",
+      "recommendation": "For an initial local workflow, support reviewed export/import and reject stale conflicting writes. Decide whether metadata and results or also recordings are shared.",
+      "tradeoff": "GitHub issue collaboration is separate from collaboration inside the product. Live synchronization, access control, authorship identity, and merge policy need an explicit future scope decision.",
+      "affected": "F01, F03, F06\u2013F07, F16",
+      "owner": "Researchers + data steward",
+      "when": "Before sharing/history contract"
+    },
+    {
+      "id": "D19",
+      "title": "Integrations and external data movement",
+      "area": "Integrations",
+      "question": "Which optional services should onboarding offer, and what may they read or transfer?",
+      "options": "Local-only first; opt-in existing Box connector; additional storage/compute services.",
+      "recommendation": "Keep local operation usable; make existing Box setup opt-in with a connection check and an explicit preview of selected transfers. Record source/version details without storing credentials in experiment history.",
+      "tradeoff": "Decide credential storage, offline behavior, failed transfers, provider version IDs, and whether usage/error telemetry exists. An integration suggestion is not consent to upload data.",
+      "affected": "F02, F06, F09, F14, F16",
+      "owner": "Data steward + integration maintainer",
+      "when": "Before integrations"
+    },
+    {
+      "id": "D20",
+      "title": "Human usability and accessibility",
+      "area": "Experience",
+      "question": "Who should be able to finish the workflow without developer help, and how will we know it works?",
+      "options": "Lab power users; first-time researchers; both with progressive disclosure.",
+      "recommendation": "Test the same representative task with a first-time researcher and an experienced user; support keyboard operation, clear units, readable contrast, actionable errors, and advanced options on demand.",
+      "tradeoff": "Agree completion criteria and observe where users hesitate. Establish time/error-rate targets after a baseline rather than inventing performance claims.",
+      "affected": "F01\u2013F17",
+      "owner": "UX owner + participating researchers",
+      "when": "First"
+    },
+    {
+      "id": "D21",
+      "title": "Branch strategy and compatibility promises",
+      "area": "Delivery / architecture",
+      "question": "How does Comenius absorb existing work and reach the main project without diverging CLI behavior?",
+      "options": "Long-lived rewrite; incremental feature branches into proj-comenius; independently packaged GUI using a shared engine.",
+      "recommendation": "Use small owned PRs into proj-comenius and agree a route back to main. Preserve current public CLI/API workflows through adapters while introducing shared operations; document any deliberate deprecations.",
+      "tradeoff": "Choose when to integrate PR #68 and pending packaging/docs work. Define a compatibility matrix and a release policy before changes to schema/CLI become depended upon.",
+      "affected": "F01\u2013F17",
+      "owner": "Project maintainers + existing contributors",
+      "when": "First"
+    },
+    {
+      "id": "D22",
+      "title": "Poster, documentation, and release evidence",
+      "area": "Communication",
+      "question": "What can the team honestly show or claim at the poster checkpoint?",
+      "options": "Concept/storyboard; working first workflow; validated multimodal release.",
+      "recommendation": "Agree a dated demonstration script and state which steps are implemented. Provide a workflow diagram, screenshots tied to a tested version, terminology, and reproducibility example; schedule videos later.",
+      "tradeoff": "Confirm October 7\u2019s year and the practice deadline, dataset-sharing permission, demo hardware, and who signs off on scientific claims. A polished mockup is not evidence of a working pipeline.",
+      "affected": "F09, F17",
+      "owner": "Poster authors + scientific reviewer",
+      "when": "Early"
+    }
+  ],
+  "features": [
+    {
+      "key": "F01",
+      "title": "Create and reopen projects and experiments through GUI and CLI",
+      "origin": "Meeting: project hierarchy, explicit new/existing experiment choice, GUI-led workflow, CLI parity.",
+      "what": "Deliver the first small application path: a researcher creates a project and experiment in the GUI, closes the application, reopens the same workspace, and inspects the same saved identity through the CLI. Define the shared application contract through this working slice.",
+      "criteria": [
+        "The GUI offers open/create project and existing/new experiment with explicit destination confirmation.",
+        "Stable identities survive renames and reopening; names, location, and experiment ownership remain understandable.",
+        "A minimal saved experiment can be created/read through shared application operations from both interfaces, with equivalent validation.",
+        "Cancelled creation does not leave a misleading complete experiment; duplicate names/IDs, missing locations, and stale conflicting writes follow the agreed policy.",
+        "A researcher demonstrates create \u2192 close \u2192 reopen; a compatibility check preserves the existing CLI entry points."
+      ],
+      "depends": [],
+      "gates": [
+        "D01",
+        "D02",
+        "D03",
+        "D04",
+        "D05",
+        "D06",
+        "D18",
+        "D20",
+        "D21"
+      ],
+      "owner": "Application + UX owner",
+      "boundary": "Owns project/experiment identity and the initial persistence/application boundary. Parameter editing belongs to F03; execution belongs to F05. Do not build a second pipeline engine.",
+      "phase": "First path"
+    },
+    {
+      "key": "F02",
+      "title": "Import recordings with explainable format detection and human confirmation",
+      "origin": "Meeting: recognize and parse supplied data, associate it with the selected experiment.",
+      "what": "Attach one supported recording to an existing experiment. Present detected modality/format, relevant metadata, and evidence, then let the researcher confirm or correct the choice before the input is recorded.",
+      "criteria": [
+        "A nominated real recording and a synthetic fixture can be selected from the GUI and inspected through the CLI.",
+        "Detection reports supported format, matching evidence, companion files, missing metadata, and any competing matches.",
+        "Unknown, incomplete, or ambiguous inputs have a clear recovery path; manual override is explicit and recorded.",
+        "The chosen copy/reference policy is visible, raw content is preserved, and duplicate or moved input handling is tested.",
+        "Accepted import records input identity and the human\u2019s experiment association without silently creating an experiment."
+      ],
+      "depends": [
+        "F01"
+      ],
+      "gates": [
+        "D06",
+        "D08",
+        "D09",
+        "D10"
+      ],
+      "owner": "Data reader + UX owner",
+      "boundary": "Reuse existing reader registries and probes. This issue owns import/detection UX; F14 owns a public extension contract. Start with one nominated format and explicitly list deferred formats.",
+      "phase": "First path"
+    },
+    {
+      "key": "F03",
+      "title": "Edit experiment and pipeline settings in the GUI with a migration path",
+      "origin": "Meeting: replace mandatory CSV editing with GUI configuration while retaining reproducibility and CLI access.",
+      "what": "Load an existing supported CSV/JSON configuration or a new experiment, edit meaningful processing parameters in a form, save a named revision, and use the same effective settings from the CLI.",
+      "criteria": [
+        "Relevant fields show labels, units, defaults, valid ranges/relationships, and the source of inherited or overridden values.",
+        "A supported legacy example imports without changing source files; duplicate IDs, conflicting values, and unsupported fields are reported.",
+        "Save/reopen preserves explicit values and defaults according to a versioned precedence contract; any export limitations are documented.",
+        "GUI and CLI produce the same normalized effective configuration for a nominated fixture.",
+        "The researcher can review edits before saving, discard a draft, and avoid silently overwriting a newer revision."
+      ],
+      "depends": [
+        "F01",
+        "F02"
+      ],
+      "gates": [
+        "D02",
+        "D05",
+        "D07",
+        "D11",
+        "D18"
+      ],
+      "owner": "Configuration + UX owner",
+      "boundary": "Owns configuration schemas, precedence, and legacy translation. F07 adds the history browser and restore experience. F08 adds module selection/suggestions.",
+      "phase": "First path"
+    },
+    {
+      "key": "F04",
+      "title": "Preflight a run and approve its exact inputs and settings",
+      "origin": "Meeting: catch problems before expensive processing and show a confirmation summary.",
+      "what": "Prepare an inspectable run plan from a saved configuration, perform bounded checks, and require human approval of that plan before dispatch. Offer equivalent structured preflight results and explicit approval behavior for CLI use.",
+      "criteria": [
+        "Summary includes experiment, inputs, selected steps, effective settings, output destination, available environment details, and any planned human checkpoints.",
+        "Checks catch missing/unreadable inputs, required metadata, invalid parameters, missing dependencies, output conflicts, and relevant disk/resource concerns before expensive processing.",
+        "Checks distinguish blocking errors, acknowledgeable warnings, and unknown estimates; they do not claim to guarantee scientific correctness or run success.",
+        "Inputs/configuration changes invalidate stale preflight and approval; dispatch verifies that it consumes the approved plan.",
+        "A bounded optional sample/dry-run check is labelled with cost and limitations; CLI non-interactive approval follows the agreed recorded policy."
+      ],
+      "depends": [
+        "F02",
+        "F03"
+      ],
+      "gates": [
+        "D08",
+        "D09",
+        "D12"
+      ],
+      "owner": "Execution + scientific workflow owner",
+      "boundary": "Owns the run-plan/preflight/approval contract. F05 consumes it. Reuse existing validation and path-confirmation logic where appropriate.",
+      "phase": "First path"
+    },
+    {
+      "key": "F05",
+      "title": "Run miniscope processing with progress, cancellation, and durable outcomes",
+      "origin": "Meeting: configure and execute pipelines through the GUI. Progress, cancellation, and failure recovery are planning recommendations.",
+      "what": "Execute one approved miniscope run using the existing processing pipeline while keeping the interface responsive. Show progress and actionable failures, retain the run record, and let a researcher deliberately cancel or retry.",
+      "criteria": [
+        "One nominated recording completes the agreed processing steps from GUI and CLI using the same saved plan.",
+        "Long processing runs outside the UI event loop and reports stage/log updates without invented percentage or time estimates.",
+        "Success, failure, cancellation, and interruption are distinguishable and retained, including partial-artifact status.",
+        "Cancellation releases worker resources and never advertises incomplete results as complete; retry creates a linked attempt.",
+        "Reopening after interruption shows the actual durable outcome; a prior run\u2019s artifacts are not silently overwritten."
+      ],
+      "depends": [
+        "F04"
+      ],
+      "gates": [
+        "D04",
+        "D08",
+        "D09",
+        "D12",
+        "D13"
+      ],
+      "owner": "Execution owner",
+      "boundary": "Owns run dispatch/lifecycle and the minimal per-run artifact boundary. F06 owns result browsing and export. F10 integrates richer curation; use an explicitly agreed existing headless/manual policy until then.",
+      "phase": "First path"
+    },
+    {
+      "key": "F06",
+      "title": "Browse experiment results with provenance and a shareable export",
+      "origin": "Meeting: organized experiment-owned results and reproducibility. Portable provenance/export details are planning recommendations.",
+      "what": "After a run, browse outputs from its experiment, open an artifact, inspect what produced it, and export an explicitly selected result bundle for a collaborator.",
+      "criteria": [
+        "Experiment navigation shows separate runs, their state, timestamps, configuration revisions, and available results.",
+        "An artifact links to input identity, effective configuration, pipeline/module/software versions, relevant environment, human choices, and logs under the agreed provenance contract.",
+        "A second run preserves the first run\u2019s outputs; failed and partial outputs are visibly distinguished.",
+        "Export previews included metadata/results/recordings and omits credentials; a recipient can inspect the manifest and identify missing external data.",
+        "A GUI export and CLI export obey the same selection rules; a reviewer traces one figure/table back to its generating run."
+      ],
+      "depends": [
+        "F05"
+      ],
+      "gates": [
+        "D06",
+        "D08",
+        "D15",
+        "D18",
+        "D19"
+      ],
+      "owner": "Results + provenance owner",
+      "boundary": "Owns result indexing, browsing, and export over F05\u2019s run record. It does not introduce an unrelated output directory convention or promise exact cross-machine numerical identity.",
+      "phase": "First path"
+    },
+    {
+      "key": "F07",
+      "title": "Compare experiment revisions and restore settings without losing history",
+      "origin": "Meeting: continuous record of experiment edits, inspect change over time, recover lost settings.",
+      "what": "Let a researcher see saved revisions, compare meaningful settings, and restore an older configuration into a new revision while keeping existing runs traceable.",
+      "criteria": [
+        "History shows the agreed author/time/reason metadata and human-readable changes, including imported values and effective defaults.",
+        "A reviewer compares two revisions without decoding raw serialized files.",
+        "Restoring an earlier revision creates a new revision and preserves the prior revision and its run/result links.",
+        "Changed/missing input references or unavailable module versions are surfaced before rerunning a restored revision.",
+        "CLI users can inspect/restore equivalent revisions; stale concurrent writes and the agreed retention/deletion policy have explicit behavior."
+      ],
+      "depends": [
+        "F03",
+        "F06"
+      ],
+      "gates": [
+        "D07",
+        "D08",
+        "D18"
+      ],
+      "owner": "History + provenance owner",
+      "boundary": "Build on F03\u2019s revision contract and F05/F06 run references. Named experiment branches, merging, and live synchronization require a separate scope decision.",
+      "phase": "Trust and usability"
+    },
+    {
+      "key": "F08",
+      "title": "Choose processing modules and review contextual workflow suggestions",
+      "origin": "Meeting: users choose themselves or receive dynamic suggestions; computation and analysis are distinct steps.",
+      "what": "Present compatible processing/analysis choices for confirmed recordings, explain why a template or module is suggested, and save the researcher\u2019s chosen workflow.",
+      "criteria": [
+        "A user can choose a named workflow and relevant modules without needing a suggestion.",
+        "Suggestions state input evidence and compatibility requirements and can be rejected or edited.",
+        "Incompatible combinations explain their missing prerequisites rather than silently dropping steps.",
+        "Accepted module versions/options become part of the effective configuration used by preflight and CLI execution.",
+        "Selecting a suggestion does not itself launch processing, install an extension, or send data to an external service."
+      ],
+      "depends": [
+        "F02",
+        "F03"
+      ],
+      "gates": [
+        "D09",
+        "D11",
+        "D15",
+        "D16"
+      ],
+      "owner": "Workflow + UX owner",
+      "boundary": "Owns workflow selection UX and compatibility presentation. It uses F03\u2019s configuration and F14\u2019s extension contract when available. An LLM and arbitrary graph editor are not implied.",
+      "phase": "Trust and usability"
+    },
+    {
+      "key": "F09",
+      "title": "Guide first-time users through setup and a representative example",
+      "origin": "Meeting: first-use setup flow, checks, examples, and optional integrations without overwhelming users.",
+      "what": "Guide a new researcher from installation/launch to a configured example project, with dependency checks, clear explanations, and a path to use their own recording.",
+      "criteria": [
+        "A first-time user can run the agreed setup checklist, select a project location, and launch the documented example path.",
+        "Missing dependencies and unsupported environments show actionable remedies; any installation or external transfer requires the agreed explicit action.",
+        "Tutorial/example data is clearly identified, has documented availability/permissions, and cannot silently become the user\u2019s real experiment metadata.",
+        "Users can skip/revisit help and optional integrations; keyboard operation and readable labels/units are reviewed with target users.",
+        "The walkthrough reuses the shared project/import/configuration operations and has an equivalent CLI route."
+      ],
+      "depends": [
+        "F01",
+        "F02",
+        "F03"
+      ],
+      "gates": [
+        "D01",
+        "D04",
+        "D10",
+        "D19",
+        "D20"
+      ],
+      "owner": "Onboarding + documentation owner",
+      "boundary": "Reuse the existing terminal setup wizard\u2019s knowledge. F16 owns optional connection/transfer implementation; F17 owns poster/release documentation.",
+      "phase": "First path"
+    },
+    {
+      "key": "F10",
+      "title": "Integrate existing scientific curation with recorded decisions and preserved estimates",
+      "origin": "Project goal: human-in-the-loop and auditability; existing PR #68 provides the selector to integrate.",
+      "what": "Connect existing crop/component-review tools to the Comenius run/result workflow. Preserve the original estimates and make each researcher\u2019s accepted curation traceable to a specific artifact.",
+      "criteria": [
+        "Coordinate explicitly with PR #68 before implementation; demonstrate reuse of the component selector rather than reimplementing it.",
+        "Crop coordinates, component accept/reject choices, configured quality checkpoints, and applicable reasons are recorded against the originating run/artifact.",
+        "Submitting curation produces a new version or derived artifact under the agreed policy and retains the source estimates.",
+        "Cancel/reopen leaves a clear draft or unchanged state; downstream analysis consumes the explicitly selected reviewed artifact.",
+        "Headless runs use a recorded prior selection or agreed policy and never silently claim that human review occurred."
+      ],
+      "depends": [
+        "F05",
+        "F06"
+      ],
+      "gates": [
+        "D07",
+        "D09",
+        "D13",
+        "D21"
+      ],
+      "owner": "Curation integration owner, coordinated with PR #68",
+      "boundary": "Existing work: https://github.com/emelon8/experiment_analysis/pull/68. This is an integration/provenance issue, not another selector implementation. Completion also requires PR #68 or an explicitly agreed integration route.",
+      "phase": "Trust and usability"
+    },
+    {
+      "key": "F11",
+      "title": "Configure and run an ephys experiment through the shared workflow",
+      "origin": "Project brief: multimodal analysis; existing ephys support should join the GUI workflow.",
+      "what": "Use the common import, settings, preflight, execution, and results flow for one nominated electrophysiology recording and channel.",
+      "criteria": [
+        "A supported real ephys dataset is detected with visible channel names, sampling information, and required metadata.",
+        "The researcher selects channels and processing options with units and validation before approving a run.",
+        "Existing ephys processing produces inspectable signals/results and provenance through the shared run lifecycle.",
+        "Missing channels, invalid ranges, import failures, and cancellation produce understandable outcomes.",
+        "The same saved configuration works from CLI; a nominated scientific reviewer checks the output against an agreed reference."
+      ],
+      "depends": [
+        "F02",
+        "F03",
+        "F04",
+        "F05",
+        "F06"
+      ],
+      "gates": [
+        "D10",
+        "D12",
+        "D13",
+        "D14"
+      ],
+      "owner": "Ephys workflow owner",
+      "boundary": "Reuse ephys pipelines/readers. F12 owns cross-modality synchronization; do not create a parallel execution or result system.",
+      "phase": "Multimodal"
+    },
+    {
+      "key": "F12",
+      "title": "Align paired calcium and ephys recordings with visible synchronization review",
+      "origin": "Project brief: multimodal analysis. Inspectable synchronization and quality review make this goal concrete.",
+      "what": "Pair two recordings in an experiment, align them using the existing synchronization capabilities, show quality and uncertain periods, and save the reviewed mapping for downstream analysis.",
+      "criteria": [
+        "A researcher explicitly confirms which recordings belong together and their timing sources/units.",
+        "Alignment displays synchronization evidence, gaps/drift, non-overlap, and uncertain or excluded intervals.",
+        "Manual corrections and exclusions are recorded with their source inputs; changed pairings invalidate stale alignment.",
+        "A synthetic case with known timing plus a nominated real pair meet researcher-approved tolerances, including missing-pulse and mismatch cases.",
+        "GUI and CLI emit equivalent mapping/provenance; failed quality gates prevent falsely presenting aligned results as accepted."
+      ],
+      "depends": [
+        "F10",
+        "F11"
+      ],
+      "gates": [
+        "D02",
+        "D08",
+        "D09",
+        "D13",
+        "D14"
+      ],
+      "owner": "Synchronization + scientific review owner",
+      "boundary": "Reuse existing alignment and low-confidence-period handling. General arbitrary-modality synchronization is outside this first paired slice.",
+      "phase": "Multimodal"
+    },
+    {
+      "key": "F13",
+      "title": "Run opt-in post-processing analyses and inspect traceable figures and tables",
+      "origin": "Meeting: analysis after computation; project brief: modular multimodal analysis.",
+      "what": "After reviewed processing/alignment, let a researcher select a small agreed set of existing analyses, review inputs/settings, execute them, and inspect/export linked results.",
+      "criteria": [
+        "Analysis selection explains required signals, time windows, conditions, units, and supported scope.",
+        "Only explicitly selected analyses run; users can analyze compatible saved results without repeating raw-data processing.",
+        "Each analysis records exact source artifacts, alignment/curation versions, parameters, module version, and exclusions.",
+        "Figures/tables and skipped/failed outcomes appear in the common results view and export.",
+        "GUI/CLI parity and a nominated reference calculation are demonstrated; scientific interpretation/thresholds are reviewed by a human."
+      ],
+      "depends": [
+        "F06",
+        "F08",
+        "F12"
+      ],
+      "gates": [
+        "D08",
+        "D14",
+        "D15"
+      ],
+      "owner": "Analysis workflow owner",
+      "boundary": "Reuse existing opt-in statistics/coherence/scatter capabilities where selected. F14 handles publishing the general extension contract.",
+      "phase": "Multimodal"
+    },
+    {
+      "key": "F14",
+      "title": "Add a community reader or analysis module through a documented extension contract",
+      "origin": "Project brief: modular, community-first development; the meeting supports community participation.",
+      "what": "Prove extensibility with one reference module that declares its inputs, settings, checks, execution, and outputs and becomes usable in both GUI and CLI without modifying either interface.",
+      "criteria": [
+        "Document a versioned contract covering identity/version, compatible inputs/outputs, parameter descriptions/units, preflight, progress/errors, and provenance.",
+        "A contributor installs/enables one example module through the agreed mechanism and uses it end to end from GUI and CLI.",
+        "Compatibility errors and module failures are visible without being misreported as successful scientific work.",
+        "Runs pin and report module versions; disabling/upgrading a module does not silently rewrite past runs.",
+        "Tests verify the public contract with fixtures; the trust/distribution policy is explicit and does not claim unimplemented isolation."
+      ],
+      "depends": [
+        "F08",
+        "F13"
+      ],
+      "gates": [
+        "D04",
+        "D08",
+        "D11",
+        "D16",
+        "D17"
+      ],
+      "owner": "Extension API owner",
+      "boundary": "Start from existing reader registries and analysis selection patterns. Defer remote marketplaces, automatic installation, and arbitrary executable plugins until explicitly scoped.",
+      "phase": "Community"
+    },
+    {
+      "key": "F15",
+      "title": "Document contribution, issue ownership, and human review workflows",
+      "origin": "User request: distribute work without duplication; project brief: community-first development.",
+      "what": "Publish a contributor path that makes issue claiming, design decisions, module proposals, scientific review, and acceptance demonstrations understandable to a newcomer.",
+      "criteria": [
+        "A contributor guide explains claim \u2192 named owner \u2192 agreed contract \u2192 linked PR \u2192 human demonstration \u2192 closure.",
+        "Issue/PR templates capture scope, affected decisions/dependencies, tests or validation evidence, and scientific review needs.",
+        "Maintainers agree reviewers for scientific changes, shared interfaces, and releases; names are filled only with their agreement.",
+        "A reference contribution walkthrough points to the module contract when available and explains fixtures, docs, attribution, and licensing expectations.",
+        "A newcomer dry-runs finding and claiming a bounded task; unresolved decisions remain visible and do not get an agent-ready label."
+      ],
+      "depends": [],
+      "gates": [
+        "D16",
+        "D17",
+        "D21"
+      ],
+      "owner": "Community documentation owner",
+      "boundary": "Can begin alongside architecture decisions using the existing repository contribution path. Final module-specific instructions follow F14\u2019s accepted contract; this issue does not own that API.",
+      "phase": "Early / parallel"
+    },
+    {
+      "key": "F16",
+      "title": "Configure optional storage integrations with explicit transfer review",
+      "origin": "Meeting: optional integrations in setup; current project includes Box support.",
+      "what": "Allow a researcher to configure one approved existing storage integration, test its connection, choose files, inspect the planned transfer, and attach fetched inputs to the common import workflow.",
+      "criteria": [
+        "Local workflows remain usable without an integration; available optional integrations and their requirements are understandable.",
+        "Connection setup/test and selected transfers require explicit user actions under the agreed consent model.",
+        "Credentials are excluded from experiment revisions, logs, and shared bundles.",
+        "Offline, missing, changed, partial, and failed downloads have visible recovery paths; successful imports record source identity/version and checksums as agreed.",
+        "GUI and CLI use the same adapter behavior; uploads or additional providers are included only if explicitly selected in D19."
+      ],
+      "depends": [
+        "F02",
+        "F06",
+        "F09"
+      ],
+      "gates": [
+        "D06",
+        "D08",
+        "D09",
+        "D19"
+      ],
+      "owner": "Integration owner",
+      "boundary": "Begin with a human decision on whether existing Box is the first supported integration. New cloud providers or remote execution are not implied by this issue.",
+      "phase": "Community / optional"
+    },
+    {
+      "key": "F17",
+      "title": "Publish a tested workflow guide and poster-ready demonstration package",
+      "origin": "Meeting: a clear main workflow and documentation for poster preparation, around October 7; videos lower priority.",
+      "what": "Create a shareable guide and demonstration package that shows the actual implemented Comenius journey, its human decision points, and one traceable result.",
+      "criteria": [
+        "Confirm the checkpoint date/year, audience, demonstration scope, dataset availability, hardware, and reviewers before committing a schedule.",
+        "Provide a plain-language workflow diagram, screenshots tied to a tested revision, setup/run steps, and an example provenance/history walkthrough.",
+        "A researcher unfamiliar with the implementation follows the guide and records usability problems and the demonstrated outcome.",
+        "Clearly label planned features, implemented features, and remaining scientific-validation limits; document CLI equivalents and migration expectations.",
+        "Poster authors can access the package and its issue links; videos remain a separately scheduled lower-priority deliverable unless the team changes that priority."
+      ],
+      "depends": [
+        "F05",
+        "F06",
+        "F07",
+        "F09"
+      ],
+      "gates": [
+        "D01",
+        "D04",
+        "D20",
+        "D22"
+      ],
+      "owner": "Documentation + poster coordination owner",
+      "boundary": "Draft diagrams/storyboards early; completion depends on the demonstrated scope and actual implementation. Reuse incoming documentation/packaging improvements rather than duplicating them.",
+      "phase": "Checkpoint"
+    }
+  ]
+}

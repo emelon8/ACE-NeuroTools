@@ -90,3 +90,8 @@ nav:
       - Multimodal: api/multimodal.md
       - Shared Utils: api/shared.md
   - Deploying the docs: deployment.md
+  - Comenius planning:
+      - Overview: comenius/README.md
+      - Open decisions: comenius/decisions.md
+      - Feature backlog: comenius/backlog.md
+      - Meeting synthesis: comenius/meeting-synthesis.md

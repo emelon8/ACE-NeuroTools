@@ -1,0 +1,99 @@
+# Project Comenius
+
+**A human-first workspace for configuring, running, reviewing, and sharing neuroscience experiments.**
+
+Status: planning draft, 15 September 2026. Product directions below come from the supplied meeting transcript and project brief. Recommendations remain proposals until a human records a decision. The October 7 checkpoint has not yet been confirmed as an implementation deadline.
+
+## Start here
+
+- [Decision register](decisions.md): every identified choice, alternatives, recommendations, and affected work.
+- [Feature backlog](backlog.md): independently claimable deliverables, dependencies, and GitHub links.
+- [Meeting synthesis](meeting-synthesis.md): agreed direction, uncertainties, and current-code evidence.
+- [Domain vocabulary](https://github.com/emelon8/experiment_analysis/blob/proj-comenius/CONTEXT.md): shared terms; the exact experiment/session boundary remains open.
+
+GitHub is the shared discussion and ownership record. Links to the published roadmap and feature issues appear in the backlog. This directory is the versioned planning snapshot on `proj-comenius`.
+
+**Share with collaborators:** [Roadmap and discussion #69](https://github.com/emelon8/experiment_analysis/issues/69). The 17 feature issues are #70–#86; the 22 decision issues are #87–#108. Update this planning snapshot through a branch change when the team accepts or revises a decision.
+
+## What success looks like
+
+A researcher can open a project, choose or create an experiment, attach recordings, understand the detected formats, configure a pipeline, review its inputs and settings, approve a run, inspect progress, and find understandable results. Later, another researcher can identify what produced a result and repeat or revise the analysis without losing its history.
+
+Three goals guide the work:
+
+1. **Ease of use:** a coherent path from recording to result, clear language, useful defaults, and help at the point of confusion.
+2. **Auditability:** visible changes, recoverable settings, explicit human choices, and traceable inputs, software, processing, and outputs.
+3. **Multimodal, community-led development:** reusable processing and analysis modules, with the GUI and CLI exposing the same underlying capabilities.
+
+## Proposed user journey
+
+```mermaid
+flowchart TD
+    A[First-use setup and example] --> B[Open or create project]
+    B --> C[Choose existing or new experiment]
+    C --> D[Attach recordings and confirm detected formats]
+    D --> E[Choose processing and analysis modules]
+    E --> F[Edit settings and inspect changes]
+    F --> G[Preflight checks and run summary]
+    G --> H{Human approves run}
+    H -->|Revise| F
+    H -->|Approve| I[Process with visible progress]
+    I --> J[Human quality review where applicable]
+    J --> K[Inspect results and provenance]
+    K --> L[Compare, export, or prepare another run]
+    L --> F
+```
+
+This is a proposed flow. Exact quality-review checkpoints, headless approvals, and the first supported modality require decisions D01, D09, and D13.
+
+## Direction already expressed
+
+| Direction | Basis | Consequence for the plan |
+| --- | --- | --- |
+| GUI-led configuration and execution | Explicit meeting agreement and project brief | Editing CSV files should cease to be a prerequisite for the primary workflow. |
+| Projects contain experiments; results belong with their experiment | Explicit meeting agreement | Design a coherent navigable hierarchy and result ownership. |
+| User chooses new versus existing experiment | Explicit meeting preference | Detection assists selection; it does not silently invent an experiment. |
+| Guided first-use experience | Explicit meeting agreement | Include setup checks, an example, and optional integrations without overwhelming the user. |
+| Preflight plus a confirmation step | Explicit meeting agreement | Show what will run and catch predictable problems before expensive work. |
+| Recoverable experiment history | Explicit meeting agreement | Make past settings and changes visible and recoverable. |
+| Preserve CLI capability and aim for parity | Explicit meeting agreement | Use shared application operations behind GUI and CLI; transport and framework remain open. |
+| Modular, community-first multimodal analysis | Project brief; community direction also in meeting | Specify extension and contribution paths, with concrete details awaiting discussion. |
+
+The Docker application was a usability reference. It does not establish a Docker deployment requirement. “Version control” establishes the desired experience; it does not select Git as the experiment storage engine. Dynamic suggestions do not establish a requirement for an LLM or external service.
+
+## Delivery proposal
+
+These stages express order and exit criteria, not staffing or date commitments.
+
+| Stage | Demonstrable outcome | Work |
+| --- | --- | --- |
+| Decide the foundation | Agree first user, milestone, experiment boundaries, platform, and persistence/compatibility contracts. | D01–D08, D20–D21; review backlog together. |
+| First complete path | One real supported miniscope recording goes from GUI setup through approved processing to traceable results; the same saved configuration is runnable from CLI. | F01–F06, minimal F07, F10; first-run portion of F09. |
+| Trust and usability | A novice completes the walkthrough; a reviewer explains a result; settings can be compared and restored; human curation is recorded. | Finish F07–F10, F17. |
+| Multimodal work | Ephys and calcium recordings are aligned, reviewed, and analyzed with explicit provenance. | F11–F13. |
+| Community extension | A contributor adds and documents one module used from GUI and CLI without editing either interface. | F14–F16. |
+
+**First-path acceptance proposal:** one nominated researcher completes a representative recording-to-result task; an independent researcher can trace the result to its inputs and effective settings; editing a setting and rerunning preserves the first result; cancellation or failure leaves an understandable record; a headless replay uses the same approved configuration. Set timing and success thresholds with the team under D20.
+
+October 7 is mentioned in the meeting in connection with poster preparation and practice. The year, promised functionality, representative dataset, and people available to deliver it are open. Videos were explicitly described as lower priority. The poster must distinguish implemented behavior from planned behavior.
+
+## How we collaborate without duplicating work
+
+1. Discuss a choice using its decision ID, for example `D02 — experiment boundary`, in its dedicated decision issue. Include the choice, reason, affected issues, and any objection.
+2. A named human decision owner records the outcome. Accepted decisions update the register; consequential architecture choices receive a short ADR. Existing recommendations do not become accepted merely because nobody replies.
+3. Claim a feature in its GitHub issue before implementation. A maintainer assigns one accountable owner and records collaborators and a linked PR. All issues start unassigned.
+4. Resolve that feature’s decision gates and open blockers before treating it as implementation-ready. A feature issue is a coordination envelope, not authorization for an unattended agent to decide its product behavior.
+5. Put shared interface or schema changes in the issue that owns them. Dependent work uses the agreed contract and links its dependency instead of building a competing version.
+6. Demo the acceptance criteria to a human reviewer; record results and remaining limits before closing the issue.
+
+Use existing repository labels: `enhancement` for features, `documentation` for guides, and `question` for unresolved choices. No new automated triage workflow is imposed. Proposed decision owners are roles until people volunteer; no deadlines or assignees have been invented.
+
+## Existing work to coordinate
+
+- [PR #68 — Add component-selection GUI to the miniscope pipeline](https://github.com/emelon8/experiment_analysis/pull/68) already owns component-selector implementation. F10 covers its integration into Comenius and traceable curation; it must not recreate the selector.
+- The local `docs-accessibility-audit` checkout and `packaging-release-readiness` worktree contain separate work. Their changes are not part of this plan. Reconcile their eventual merged documentation and packaging behavior when implementing F09/F17.
+- `proj-comenius` already existed at `02ffaad1f1316f121711d4a0aada5f2836b4dc32`, matching `main` when planning began. The planning checkout follows that branch.
+
+## Scope discipline
+
+Feature issues capture all concrete behaviors discussed and the essential extensions needed for the stated multimodal/community goals. They explicitly separate meeting requests from planning recommendations. Cloud execution, live multi-user editing, arbitrary workflow graphs, an extension marketplace, automatic AI decision-making, and bit-for-bit scientific reproducibility are choices to assess, not promised features.
