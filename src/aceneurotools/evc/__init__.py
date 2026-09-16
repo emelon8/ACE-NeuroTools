@@ -24,6 +24,7 @@ from aceneurotools.evc.errors import (
     CorruptObjectError,
     EVCError,
     InvalidObjectError,
+    ManifestError,
     NothingToRecordError,
     ObjectNotFoundError,
     PushRejectedError,
@@ -33,6 +34,13 @@ from aceneurotools.evc.errors import (
     UnknownRevisionError,
 )
 from aceneurotools.evc.objects import Blob, Commit, Tree, TreeEntry, object_id
+from aceneurotools.evc.pointers import (
+    ArtifactPointer,
+    ManifestVerification,
+    read_manifest,
+    verify_manifest,
+    write_manifest,
+)
 from aceneurotools.evc.porcelain import (
     ExperimentVersionControl,
     RestoreResult,
@@ -59,6 +67,12 @@ __all__ = [
     # workspace contract
     "ExperimentWorkspace",
     "DEFAULT_IGNORE_PATTERNS",
+    # pointer manifests
+    "ArtifactPointer",
+    "ManifestVerification",
+    "write_manifest",
+    "read_manifest",
+    "verify_manifest",
     # remotes
     "Remote",
     "LocalDirectoryRemote",
@@ -78,4 +92,5 @@ __all__ = [
     "UnknownRevisionError",
     "NothingToRecordError",
     "PushRejectedError",
+    "ManifestError",
 ]

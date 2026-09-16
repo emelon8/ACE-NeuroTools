@@ -12,8 +12,10 @@ import time
 from pathlib import Path
 
 from aceneurotools.evc.errors import EVCError
+from aceneurotools.evc.pointers import verify_manifest
 from aceneurotools.evc.porcelain import ExperimentVersionControl
 from aceneurotools.evc.remote import LocalDirectoryRemote
+from aceneurotools.evc.workspace import ExperimentWorkspace
 
 
 def _fmt_time(ts: int) -> str:
@@ -55,6 +57,10 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("recover", help="list journaled states, incl. safety snapshots")
     p_push = sub.add_parser("push", help="publish history to a shared directory remote")
     p_push.add_argument("remote_path", help="path to the shared (bare) store")
+    p_verify = sub.add_parser(
+        "verify", help="re-hash a run's artifacts against its recorded manifest"
+    )
+    p_verify.add_argument("run_id", help="run id under results/ in this experiment")
 
     args = parser.parse_args(argv)
     directory = Path(args.dir)
@@ -112,6 +118,19 @@ def main(argv: list[str] | None = None) -> int:
             for result in evc.push(remote):
                 state = "up to date" if result.up_to_date else f"{result.objects_sent} object(s)"
                 print(f"{result.ref}: {state} -> {result.new_oid[:12]}")
+        elif args.command == "verify":
+            report = verify_manifest(ExperimentWorkspace(directory).run_dir(args.run_id))
+            for rel in report.missing:
+                print(f"missing   {rel}")
+            for rel in report.modified:
+                print(f"modified  {rel}")
+            if not report.clean:
+                print(
+                    f"verification FAILED: {len(report.missing)} missing, "
+                    f"{len(report.modified)} modified, {len(report.verified)} ok"
+                )
+                return 1
+            print(f"ok: {len(report.verified)} artifact(s) verified")
     except EVCError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

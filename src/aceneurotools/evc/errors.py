@@ -45,3 +45,7 @@ class NothingToRecordError(EVCError):
 
 class PushRejectedError(EVCError):
     """A push was refused (non-fast-forward or unverifiable remote state)."""
+
+
+class ManifestError(EVCError):
+    """A run's artifact manifest is missing, malformed, or unsupported."""
