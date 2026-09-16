@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/emelon8/experiment_analysis/schemas/aceneuro-experiment-v1.json",
+  "title": "Experiment identity and recording metadata",
+  "description": "One experiment's identity, recording locations, and study metadata — the canonical JSON document decided by D05 (docs/adr/0002-json-parameter-documents.md). Maps 1:1 to this experiment's experiments.csv row; the _csv section preserves every raw cell verbatim so lab-specific columns survive the round trip. Directory fields hold the RAW csv values (relative to the lab's data_path), never pre-joined absolute paths.",
+  "type": "object",
+  "required": ["schema", "line_number", "id", "_csv"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": "aceneuro-experiment-v1" },
+    "line_number": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Unique experiment identifier; matches lab_config time_windows keys."
+    },
+    "id": { "type": "string", "description": "Animal/subject identifier." },
+    "date": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9]{6}$",
+      "description": "Recording date, YYMMDD."
+    },
+    "box_calcium_folder_id": {
+      "type": ["string", "number", "null"],
+      "description": "Optional Box folder ID for automatic miniscope-data download."
+    },
+    "calcium_imaging_directory": {
+      "type": ["string", "null"],
+      "description": "Miniscope recording folder, relative to the lab's data_path."
+    },
+    "box_ephys_folder_id": {
+      "type": ["string", "number", "null"],
+      "description": "Optional Box folder ID for automatic ephys-data download."
+    },
+    "ephys_directory": {
+      "type": ["string", "null"],
+      "description": "Neuralynx recording folder, relative to the lab's data_path."
+    },
+    "rat_weight_kg": { "type": ["number", "string", "null"] },
+    "systemic_drug": { "type": ["string", "null"] },
+    "systemic_dose": { "type": ["string", "number", "null"] },
+    "systemic_drug_concentration_mg_per_ml": { "type": ["string", "number", "null"] },
+    "total_systemic_time_min": { "type": ["string", "number", "null"] },
+    "emg_channel": { "type": ["string", "null"] },
+    "events_filename": { "type": ["string", "null"] },
+    "channels": {
+      "type": ["array", "null"],
+      "items": { "type": "string" },
+      "description": "Available channel names (the .ncs filenames without extension)."
+    },
+    "comments": { "type": ["string", "null"] },
+    "_csv": {
+      "type": "object",
+      "required": ["columns", "raw"],
+      "additionalProperties": false,
+      "description": "Verbatim CSV passthrough: column order and raw cell strings from the source row, preserved so writeback is non-destructive for unknown lab-specific columns (D05 export-coverage rule).",
+      "properties": {
+        "columns": { "type": "array", "items": { "type": "string" } },
+        "raw": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    }
+  }
+}

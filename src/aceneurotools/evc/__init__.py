@@ -18,10 +18,19 @@ Quick start::
     evc.restore("HEAD")            # never destroys — see porcelain docstring
 """
 
+from aceneurotools.evc.csv_bridge import (
+    ImportResult,
+    extract,
+    import_experiment,
+    load_schema,
+    validate_document,
+    writeback,
+)
 from aceneurotools.evc.diff import FileDiff, ParamChange
 from aceneurotools.evc.errors import (
     AmbiguousIdError,
     CorruptObjectError,
+    CSVBridgeError,
     EVCError,
     InvalidObjectError,
     ManifestError,
@@ -76,6 +85,13 @@ __all__ = [
     "verify_manifest",
     # pipeline hooks
     "RunRecorder",
+    # csv bridge (Phase 4)
+    "extract",
+    "writeback",
+    "import_experiment",
+    "ImportResult",
+    "load_schema",
+    "validate_document",
     # remotes
     "Remote",
     "LocalDirectoryRemote",
@@ -96,4 +112,5 @@ __all__ = [
     "NothingToRecordError",
     "PushRejectedError",
     "ManifestError",
+    "CSVBridgeError",
 ]

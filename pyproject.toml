@@ -98,7 +98,7 @@ Repository = "https://github.com/emelon8/experiment_analysis"
 where = ["src"]
 
 [tool.setuptools.package-data]
-aceneurotools = ["py.typed", "shared/metadata_templates/*.csv"]
+aceneurotools = ["py.typed", "shared/metadata_templates/*.csv", "evc/schemas/*.json"]
 
 
 # Pytest

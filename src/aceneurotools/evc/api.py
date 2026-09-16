@@ -22,10 +22,19 @@ Everything here is importable without caiman or any third-party package —
 the EVC subpackage is pure standard library.
 """
 
+from aceneurotools.evc.csv_bridge import (
+    ImportResult,
+    extract,
+    import_experiment,
+    load_schema,
+    validate_document,
+    writeback,
+)
 from aceneurotools.evc.diff import FileDiff, ParamChange
 from aceneurotools.evc.errors import (
     AmbiguousIdError,
     CorruptObjectError,
+    CSVBridgeError,
     EVCError,
     InvalidObjectError,
     ManifestError,
@@ -77,6 +86,13 @@ __all__ = [
     "verify_manifest",
     # pipeline hooks
     "RunRecorder",
+    # csv bridge (D05 migration: import, edit-as-JSON, write back)
+    "extract",
+    "writeback",
+    "import_experiment",
+    "ImportResult",
+    "load_schema",
+    "validate_document",
     # remotes
     "Remote",
     "LocalDirectoryRemote",
@@ -93,4 +109,5 @@ __all__ = [
     "NothingToRecordError",
     "PushRejectedError",
     "ManifestError",
+    "CSVBridgeError",
 ]

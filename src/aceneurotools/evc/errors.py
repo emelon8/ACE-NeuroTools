@@ -49,3 +49,8 @@ class PushRejectedError(EVCError):
 
 class ManifestError(EVCError):
     """A run's artifact manifest is missing, malformed, or unsupported."""
+
+
+class CSVBridgeError(EVCError):
+    """CSV ⇄ parameter-document bridging failed (missing row/column, schema
+    violation, or a CSV changed shape since extraction)."""
