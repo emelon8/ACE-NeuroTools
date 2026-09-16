@@ -79,6 +79,24 @@ ace-neuro history --experiment 97 --project-path /my/project log
 
 (Place `--dir`/`--experiment` *before* the command name.)
 
+### Machine-readable output for scripts and AI agents
+
+Every command accepts `--json` and then prints a single JSON object on
+stdout — the "invisible CLI" for automation: AI agents and scripts get typed
+access to exactly what the GUI sees, because the payloads are the frozen
+[EVC API](../api/evc.md) dataclasses rendered as JSON.
+
+```bash
+ace-neuro history log --json          # {"revisions": [{"oid": ..., "message": ...}, ...]}
+ace-neuro history status --json       # {"branch": "main", "head": ..., "clean": true, ...}
+ace-neuro history diff <a> <b> --json # per-parameter old -> new changes
+ace-neuro history verify <run> --json # integrity report (exit 1 if not clean)
+```
+
+Errors still go to stderr with a non-zero exit, so `stdout` is always either
+empty or valid JSON. `verify` is the one command whose *report* prints even
+on failure — a failed verification is data, not an error.
+
 ### Restore never destroys
 
 If your working state is dirty when you `restore`, the dirty state is first
