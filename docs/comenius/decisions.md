@@ -108,7 +108,7 @@ Each decision now has its own GitHub issue for comments, ownership, and the fina
 
 **Trade-offs and follow-up:** Reject conflicting identifiers and report unsupported fields. GUI and CLI must resolve the same effective settings. Migration should preserve the originals and a mapping to prior IDs.
 
-**Affected work:** F01, F03–F08, F11–F16. **Suggested participants:** Application maintainer + existing CLI users. **Status:** open.
+**Affected work:** F01, F03–F08, F11–F16. **Suggested participants:** Application maintainer + existing CLI users. **Status:** decided 2026-09-16 (owner: Elijah Keldsen) — Option 2, canonical JSON parameter documents + JSON Schema with non-destructive CSV import/writeback; see [decisions/d05.md](decisions/d05.md) and [#91](https://github.com/emelon8/experiment_analysis/issues/91).
 
 <a id="d06"></a>
 ## D06 — Data layout and ownership
