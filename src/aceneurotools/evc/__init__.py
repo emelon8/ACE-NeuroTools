@@ -41,6 +41,7 @@ from aceneurotools.evc.porcelain import (
 )
 from aceneurotools.evc.remote import LocalDirectoryRemote, PushResult, Remote
 from aceneurotools.evc.repository import ExperimentRepository
+from aceneurotools.evc.workspace import DEFAULT_IGNORE_PATTERNS, ExperimentWorkspace
 
 __all__ = [
     # porcelain
@@ -55,6 +56,9 @@ __all__ = [
     "TreeEntry",
     "Commit",
     "object_id",
+    # workspace contract
+    "ExperimentWorkspace",
+    "DEFAULT_IGNORE_PATTERNS",
     # remotes
     "Remote",
     "LocalDirectoryRemote",

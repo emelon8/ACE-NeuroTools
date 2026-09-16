@@ -28,7 +28,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dir", default=".", help="experiment directory (default: cwd)")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("init", help="start tracking this experiment directory")
+    p_init = sub.add_parser("init", help="start tracking this experiment directory")
+    p_init.add_argument(
+        "--workspace",
+        action="store_true",
+        help="also scaffold the standard experiment layout (parameters/, results/, artifacts/)",
+    )
     p_record = sub.add_parser("record", help="record the current state as a revision")
     p_record.add_argument("-m", "--message", required=True)
     p_record.add_argument("--author", default=None, help="'Name <email>'")
@@ -55,7 +60,7 @@ def main(argv: list[str] | None = None) -> int:
     directory = Path(args.dir)
     try:
         if args.command == "init":
-            ExperimentVersionControl.init(directory)
+            ExperimentVersionControl.init(directory, workspace=args.workspace)
             print(f"initialised empty experiment repository in {directory / '.evc'}")
             return 0
         evc = ExperimentVersionControl.open(directory)

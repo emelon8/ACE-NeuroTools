@@ -40,6 +40,7 @@ from aceneurotools.evc.objects import MODE_FILE, Commit, Tree, TreeEntry
 from aceneurotools.evc.refs import DEFAULT_BRANCH, JournalEntry
 from aceneurotools.evc.remote import PushResult, Remote, push_ref
 from aceneurotools.evc.repository import NOTES_REF, ExperimentRepository
+from aceneurotools.evc.workspace import ExperimentWorkspace, write_default_ignore
 from aceneurotools.evc.worktree import WorkingTree
 
 
@@ -84,9 +85,21 @@ class ExperimentVersionControl:
     # -- lifecycle ----------------------------------------------------------
 
     @classmethod
-    def init(cls, experiment_dir: str | Path,
-             branch: str = DEFAULT_BRANCH) -> ExperimentVersionControl:
-        return cls(ExperimentRepository.init(Path(experiment_dir), branch=branch))
+    def init(cls, experiment_dir: str | Path, branch: str = DEFAULT_BRANCH,
+             workspace: bool = False) -> ExperimentVersionControl:
+        """Start tracking an experiment directory.
+
+        Always writes the declarative ``.evc/ignore`` policy file with safe
+        defaults so bulk recordings never enter the object store (plan
+        §Phase 1). With ``workspace=True`` the standard experiment layout
+        (``parameters/``, ``results/``, ``artifacts/``) is scaffolded too —
+        see :class:`~aceneurotools.evc.workspace.ExperimentWorkspace`.
+        """
+        repo = ExperimentRepository.init(Path(experiment_dir), branch=branch)
+        write_default_ignore(repo.evc_dir)
+        if workspace:
+            ExperimentWorkspace.scaffold(repo.worktree_dir)
+        return cls(repo)
 
     @classmethod
     def open(cls, experiment_dir: str | Path) -> ExperimentVersionControl:
