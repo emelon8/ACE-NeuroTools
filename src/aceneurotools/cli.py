@@ -384,6 +384,79 @@ def _setup_wizard() -> int:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# `ace-neuro history` — experiment version control surface
+# ─────────────────────────────────────────────────────────────────────────────
+
+_HISTORY_USAGE = (
+    "usage: ace-neuro history [--dir PATH | --experiment N "
+    "[--project-path P] [--data-path D]]\n"
+    "                         <command> [command options]\n"
+    "commands: init record status log show diff restore comment comments "
+    "recover push verify\n"
+    "(run `ace-neuro history <command> --help` for a command's options)"
+)
+
+
+def _resolve_experiment_dir(
+    line_num: int,
+    project_path: str | None,
+    data_path: str | None,
+) -> Path | None:
+    """Resolve an experiment's directory from its experiments.csv row.
+
+    Provisional until Comenius decision D06 (data layout): the experiment's
+    calcium-imaging directory is treated as its home. Prints an actionable
+    error and returns None when the row or column is missing.
+    """
+    from aceneurotools.shared.experiment_data_manager import ExperimentDataManager
+
+    manager = ExperimentDataManager(
+        line_num,
+        project_path=project_path or Path.cwd(),
+        data_path=data_path,
+        auto_import_analysis_params=False,
+    )
+    if manager.metadata is None:
+        print(f"error: no experiments.csv row for line {line_num}", file=sys.stderr)
+        return None
+    directory = manager.get_miniscope_directory()
+    if directory is None:
+        print(
+            f"error: line {line_num} has no 'calcium imaging directory' in "
+            "experiments.csv; pass --dir instead",
+            file=sys.stderr,
+        )
+        return None
+    return Path(directory)
+
+
+def _run_history(args: argparse.Namespace) -> int:
+    """Delegate `ace-neuro history ...` verbatim to the EVC CLI.
+
+    No logic lives in this layer (plan §Phase 5): the EVC CLI is itself a
+    thin shell over ``ExperimentVersionControl`` — the same porcelain the
+    GUI will call (ADR 0001).
+    """
+    from aceneurotools.evc.__main__ import main as evc_main
+
+    rest = list(args.rest)
+    if rest and rest[0] == "--":
+        rest = rest[1:]
+    if not rest:
+        print(_HISTORY_USAGE, file=sys.stderr)
+        return 2
+    if args.experiment is not None:
+        directory = _resolve_experiment_dir(
+            args.experiment, args.project_path, args.data_path
+        )
+        if directory is None:
+            return 1
+    else:
+        directory = Path(args.dir) if args.dir else Path.cwd()
+    return evc_main(["--dir", str(directory), *rest])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Experiment version control (opt-in)
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -492,6 +565,60 @@ First-time setup:
             "the fields you need to fill in before running the pipeline."
         ),
     )
+
+    # Subcommands (optional; plain `ace-neuro` keeps running the pipelines).
+    sub = parser.add_subparsers(dest="subcommand", metavar="")
+    history = sub.add_parser(
+        "history",
+        help=(
+            "Experiment version control: record/inspect/restore experiment "
+            "revisions (status, log, show, diff, restore, comment, recover, "
+            "push, verify)."
+        ),
+        description=(
+            "Thin gateway to experiment version control — every command is "
+            "delegated verbatim to `python -m aceneurotools.evc` and the "
+            "shared porcelain backend. Place --dir/--experiment BEFORE the "
+            "history command."
+        ),
+    )
+    history.add_argument(
+        "--dir",
+        default=None,
+        metavar="PATH",
+        help="Experiment directory to operate on (default: current directory).",
+    )
+    history.add_argument(
+        "--experiment",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "Resolve the experiment directory from experiments.csv line N "
+            "(its calcium-imaging directory; provisional until D06)."
+        ),
+    )
+    history.add_argument(
+        "--project-path",
+        default=None,
+        metavar="PATH",
+        help="Directory containing experiments.csv (with --experiment; default: cwd).",
+    )
+    history.add_argument(
+        "--data-path",
+        default=None,
+        metavar="PATH",
+        help="Base directory for raw data (with --experiment).",
+    )
+    history.add_argument(
+        "rest",
+        nargs=argparse.REMAINDER,
+        metavar="command",
+        help=(
+            "History command and its options: init, record, status, log, "
+            "show, diff, restore, comment, comments, recover, push, verify."
+        ),
+    )
     return parser
 
 
@@ -503,6 +630,10 @@ def main(argv: list[str] | None = None) -> int:
     """Entry point for the ``ace-neuro`` command."""
     parser = _build_parser()
     args = parser.parse_args(argv)
+
+    # ── Subcommands (headless-safe: no banner, no config loading) ────────────
+    if getattr(args, "subcommand", None) == "history":
+        return _run_history(args)
 
     # ── Print banner ──────────────────────────────────────────────────────────
     from aceneurotools.shared.banner import welcome

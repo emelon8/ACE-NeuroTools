@@ -560,6 +560,36 @@ print("Cn:", getattr(dm2, "Cn", None) is not None)
 - **Memory:** CNMF-E is heavy; reduce `n_processes`, crop harder, or shorten movies for learning runs.
 """,
         ),
+        (
+            "md",
+            """## Optional: experiment history (version control)
+
+ACE-NeuroTools can keep a git-like history of an experiment's parameters and
+result manifests, so any figure traces back to the exact settings that
+produced it and lost edits are always recoverable. It is opt-in and never
+stores bulk data (movies, `.hdf5`) — see the
+[Experiment History guide](../guides/experiment_history.md) for the axioms.
+""",
+        ),
+        (
+            "code",
+            """from aceneurotools.evc import ExperimentVersionControl
+
+# One-time setup inside an experiment directory (also scaffolds
+# parameters/ results/ artifacts/ and a safe-default .evc/ignore):
+evc = ExperimentVersionControl.init(project_path, workspace=True)
+
+# Record the current parameters as a revision, then inspect history.
+evc.record("initial parameters")
+for rev in evc.history():
+    print(rev.oid[:12], rev.message)
+
+# Same operations from the shell:
+#   ace-neuro history record -m "initial parameters"
+#   ace-neuro history log
+#   ace-neuro history diff <rev-a> <rev-b>   # per-parameter changes
+#   ace-neuro history restore <rev>          # never destroys""",
+        ),
     ]
 
 

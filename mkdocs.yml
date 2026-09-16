@@ -82,6 +82,7 @@ nav:
       - Ephys Analysis: guides/ephys.md
       - Multimodal Integration: guides/multimodal.md
       - Data Management: guides/data_management.md
+      - Experiment History: guides/experiment_history.md
   - API Reference:
       - Overview: api/index.md
       - Pipelines: api/pipelines.md
