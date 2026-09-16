@@ -52,3 +52,6 @@ CLAUDE.local.md
 .anthropic/
 memory/
 MEMORY.md
+
+# Local agent workspace: collective memory + vision transcript (never committed)
+.comenius/
