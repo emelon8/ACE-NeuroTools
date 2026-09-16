@@ -431,7 +431,7 @@ Crop coordinates come from **`analysis_parameters.csv`** / GUI when `crop_coords
         (
             "code",
             """from aceneurotools.miniscope.miniscope_preprocessor import MiniscopePreprocessor
-from aceneurotools.shared.misc_functions import get_coords_dict_from_analysis_params
+from aceneurotools.config.config_utils import get_coords_dict_from_analysis_params
 
 coords_dict, crop_job_name = get_coords_dict_from_analysis_params(dm)
 pre = MiniscopePreprocessor(dm)

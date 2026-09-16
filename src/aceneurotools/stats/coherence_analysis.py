@@ -11,12 +11,12 @@ import numpy as np
 import pandas as pd
 from scipy.stats import wilcoxon
 
-from aceneurotools.multimodal.signal_utils import (
+from aceneurotools.config.stats_config import StatsConfig
+from aceneurotools.stats.signal_utils import (
     compute_signal_stats,
     filter_signals,
     slice_signal,
 )
-from aceneurotools.multimodal.stats_config import StatsConfig
 
 # Optional coherogram dependency
 try:

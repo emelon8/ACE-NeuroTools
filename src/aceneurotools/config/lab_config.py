@@ -173,7 +173,7 @@ class LabConfig:
 
     def to_study_metadata(self) -> StudyMetadata:  # type: ignore[name-defined]
         """Convert to StudyMetadata for use with the analysis engines."""
-        from aceneurotools.multimodal.stats_config import StudyMetadata  # local to avoid circular import
+        from aceneurotools.config.stats_config import StudyMetadata  # local to avoid circular import
 
         drug_groups: dict[str, list[int]] = {
             name: list(spec.subjects) for name, spec in self.conditions.items()

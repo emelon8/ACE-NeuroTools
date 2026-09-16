@@ -155,7 +155,7 @@ class ExperimentDataManager:
         Returns:
             Dict of kwargs to pass to pipeline.run()
         """
-        from aceneurotools.shared.config_utils import parse_analysis_params
+        from aceneurotools.config.config_utils import parse_analysis_params
         return parse_analysis_params(self.analysis_params or {})
 
     def get_ephys_directory(self) -> Path | None:

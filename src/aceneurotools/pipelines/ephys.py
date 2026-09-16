@@ -324,7 +324,7 @@ Examples:
         'logging_level': "DEBUG"
     }
 
-    from aceneurotools.shared.config_utils import load_analysis_params
+    from aceneurotools.config.config_utils import load_analysis_params
     run_params = build_run_params(
         defaults=defaults,
         allowed_keys=run_allowed_keys(EphysPipeline.run),

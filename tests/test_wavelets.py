@@ -1,13 +1,12 @@
-"""Tests for aceneurotools.multimodal.wavelets."""
+"""Tests for aceneurotools.stats.wavelets."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
-
 from scipy.signal import fftconvolve
 
-from aceneurotools.multimodal.wavelets import (
+from aceneurotools.stats.wavelets import (
     _morlet,
     compute_wavelet_transform,
     generate_morlet_filterbank,

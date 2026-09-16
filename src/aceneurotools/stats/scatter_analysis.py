@@ -16,8 +16,8 @@ Key components
 
 Typical use::
 
-    from aceneurotools.multimodal.scatter_analysis import ScatterAnalysis, PopulationCorrelationCollector
-    from aceneurotools.multimodal.stats_config import StatsConfig, StudyMetadata
+    from aceneurotools.stats.scatter_analysis import ScatterAnalysis, PopulationCorrelationCollector
+    from aceneurotools.config.stats_config import StatsConfig, StudyMetadata
 
     config   = StatsConfig()
     metadata = StudyMetadata.default()
@@ -27,7 +27,7 @@ Typical use::
 
     engine = ScatterAnalysis(config)
     for line_num in metadata.drug_groups["dexmedetomidine: 0.00045"]:
-        # (load signals first via stats_loader)
+        # (load signals first via stats.loader)
         engine.run_subject(
             eeg_signal=eeg, calcium_signal=ca,
             fr=fr, line_num=line_num,
@@ -53,13 +53,13 @@ from scipy import stats as scipy_stats
 from scipy.stats import pearsonr
 from scipy.stats import t as t_dist
 
-from aceneurotools.multimodal.signal_utils import (
+from aceneurotools.config.stats_config import StatsConfig
+from aceneurotools.stats.signal_utils import (
     handle_nans,
     normalize_signals_global,
     slice_signal,
     trim_filter_edges,
 )
-from aceneurotools.multimodal.stats_config import StatsConfig
 
 # Optional: statsmodels for ACF-based effective-N estimation
 try:
@@ -823,7 +823,7 @@ class ScatterAnalysis:
     """High-level orchestrator for per-subject EEG–calcium scatter analyses.
 
     Args:
-        config: :class:`~aceneurotools.multimodal.stats_config.StatsConfig`
+        config: :class:`~aceneurotools.config.stats_config.StatsConfig`
             controlling filter, normalization, and output settings.
     """
 
@@ -881,7 +881,7 @@ class ScatterAnalysis:
             tw_treat = selections[line_num][1]
 
             # Filter + trim
-            from aceneurotools.multimodal.signal_utils import filter_signals
+            from aceneurotools.stats.signal_utils import filter_signals
             fe_ctrl,  fc_ctrl  = filter_signals(ctrl_eeg,  ctrl_ca,  fr, [cfg.lowcut, cfg.highcut], cfg.filter_order)
             fe_treat, fc_treat = filter_signals(treat_eeg, treat_ca, fr, [cfg.lowcut, cfg.highcut], cfg.filter_order)
             fe_ctrl  = trim_filter_edges(fe_ctrl,  fr, cfg.edge_trim_seconds)

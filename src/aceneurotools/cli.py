@@ -38,7 +38,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from aceneurotools.multimodal.lab_config import LabConfig
+    from aceneurotools.config.lab_config import LabConfig
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Terminal layout constants
@@ -494,7 +494,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     # ── Load lab config ───────────────────────────────────────────────────────
-    from aceneurotools.multimodal.lab_config import LabConfig
+    from aceneurotools.config.lab_config import LabConfig
     from aceneurotools.shared.exceptions import ConfigurationError
 
     try:
@@ -504,7 +504,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     # ── Auto-load stats_config.json if present ────────────────────────────────
-    from aceneurotools.multimodal.stats_config import StatsConfig
+    from aceneurotools.config.stats_config import StatsConfig
 
     stats_config: StatsConfig | None = None
     stats_config_path = config_path.parent / "stats_config.json"

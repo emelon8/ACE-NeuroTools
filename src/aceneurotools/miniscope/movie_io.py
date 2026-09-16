@@ -1,6 +1,8 @@
 import os
 
 import caiman as cm
+import cv2
+import numpy as np
 
 
 class MovieIO:
@@ -56,3 +58,45 @@ class MovieIO:
         # Load the movie from the specified file path
         path = os.path.join(miniscope_dir_path, 'saved_movies', movie_file_name)
         return cm.load(path)
+
+
+def import_video_as_numpy_array(
+    filename: str,
+    frames: int | str = 'all',
+    displayFrame: bool = False,
+    frameToDisplay: int = 10
+) -> np.ndarray:
+    """Import a video file directly into a NumPy array.
+    
+    This function leverages OpenCV to read video frames sequentially and load them
+    into a preallocated 4D NumPy array `(frames, height, width, channels)`.
+    
+    *Credit: Adapted from https://stackoverflow.com/questions/42163058/how-to-turn-a-video-into-numpy-array*
+
+    Args:
+        filename (str): The absolute or relative path to the video file.
+        frames (int or 'all', optional): Number of frames to read. Defaults to 'all'.
+        displayFrame (bool, optional): If True, displays a specific frame after loading. Defaults to False.
+        frameToDisplay (int, optional): The 1-indexed frame number to display if `displayFrame` is True. Defaults to 10.
+
+    Returns:
+        np.ndarray: A 4D uint8 array containing the video data `(frames, height, width, 3)`.
+    """
+    cap = cv2.VideoCapture(filename)
+    frameCount = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    frameWidth = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frameHeight = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    if frames != 'all':
+        frameCount = int(frames)
+    buf = np.empty((int(frameCount), int(frameHeight), int(frameWidth), 3), np.dtype('uint8'))
+    fc = 0
+    ret = True
+    while (fc < frameCount and ret):
+        ret, buf[fc] = cap.read()
+        fc += 1
+    cap.release()
+    if displayFrame:
+        cv2.namedWindow('frame ' + str(frameToDisplay))
+        cv2.imshow('frame ' + str(frameToDisplay), buf[frameToDisplay - 1])
+    return buf
+

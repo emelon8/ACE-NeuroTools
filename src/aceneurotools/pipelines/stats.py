@@ -11,17 +11,17 @@ import warnings
 from datetime import datetime
 from pathlib import Path
 
-from aceneurotools.multimodal.coherence_analysis import CoherenceAnalysis, SubjectCoherenceResult
-from aceneurotools.multimodal.lab_config import LabConfig
-from aceneurotools.multimodal.scatter_analysis import PopulationCorrelationCollector, ScatterAnalysis
-from aceneurotools.multimodal.signal_utils import slice_signal  # noqa: F401 — re-exported for convenience
-from aceneurotools.multimodal.stats_config import StatsConfig, StudyMetadata
-from aceneurotools.multimodal.stats_loader import (
+from aceneurotools.config.lab_config import LabConfig
+from aceneurotools.config.stats_config import StatsConfig, StudyMetadata
+from aceneurotools.shared.exceptions import AceNeuroError, PipelineExecutionError, print_cli_error
+from aceneurotools.stats.coherence_analysis import CoherenceAnalysis, SubjectCoherenceResult
+from aceneurotools.stats.loader import (
     load_calcium_signal,
     load_for_stats,
     load_for_stats_two_channels,
 )
-from aceneurotools.shared.exceptions import AceNeuroError, PipelineExecutionError, print_cli_error
+from aceneurotools.stats.scatter_analysis import PopulationCorrelationCollector, ScatterAnalysis
+from aceneurotools.stats.signal_utils import slice_signal  # noqa: F401 — re-exported for convenience
 
 VALID_ANALYSES: dict[str, str] = {
     "coherence_ephys_calcium": (
@@ -541,7 +541,7 @@ class StatsPipeline:
             drug: col for drug, col in collectors.items() if col.has_data()
         }
         if self.scatter_collectors:
-            from aceneurotools.multimodal.scatter_analysis import (
+            from aceneurotools.stats.scatter_analysis import (
                 create_all_drugs_summary_plot,
                 create_population_violin_plot,
             )

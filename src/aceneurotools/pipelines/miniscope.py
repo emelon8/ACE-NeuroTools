@@ -4,6 +4,7 @@ import sys
 import tkinter
 from pathlib import Path
 
+from aceneurotools.config.config_utils import get_coords_dict_from_analysis_params
 from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
 from aceneurotools.miniscope.miniscope_postprocessor import MiniscopePostprocessor
 from aceneurotools.miniscope.miniscope_preprocessor import MiniscopePreprocessor
@@ -22,13 +23,13 @@ from aceneurotools.shared.cli_utils import (
     run_allowed_keys,
     validate_run_params,
 )
+from aceneurotools.shared.csv_worker import update_csv_cell
 from aceneurotools.shared.exceptions import (
     AceNeuroError,
     DataNotFoundError,
     PipelineExecutionError,
     print_cli_error,
 )
-from aceneurotools.shared.misc_functions import get_coords_dict_from_analysis_params, update_csv_cell
 
 
 class MiniscopePipeline:
@@ -445,7 +446,7 @@ Examples:
         'time_bandwidth': 2
     }
 
-    from aceneurotools.shared.config_utils import load_analysis_params
+    from aceneurotools.config.config_utils import load_analysis_params
     run_params = build_run_params(
         defaults=defaults,
         allowed_keys=run_allowed_keys(MiniscopePipeline.run),

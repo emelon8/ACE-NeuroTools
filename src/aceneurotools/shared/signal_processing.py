@@ -1,9 +1,12 @@
 """Canonical signal filtering for ACE-NeuroTools.
 
 This module is the single authoritative implementation of FIR and Butterworth
-filtering used across the package.  Both ``shared/misc_functions.py:filter_data``
+filtering used across the package.  ``filter_data`` (backward-compatible alias)
 and ``ephys/ephys_data_manager.py:EphysDataManager._filter_data`` delegate to
 :func:`filter_signal` so that any fix or improvement is applied everywhere at once.
+
+Also home to small generic signal utilities: :func:`z_score` (windowed z-scoring)
+and :func:`thresh_func` (threshold-crossing detection).
 
 Usage example::
 
@@ -14,8 +17,10 @@ Usage example::
 from __future__ import annotations
 
 import logging
+import math
 
 import numpy as np
+from scipy import stats
 from scipy.signal import bode as scipy_bode
 from scipy.signal import butter, filtfilt, firwin, freqz  # type: ignore
 
@@ -33,9 +38,8 @@ def filter_signal(
 ) -> np.ndarray:
     """Apply a zero-phase FIR or Butterworth filter to *data*.
 
-    This is the single canonical implementation shared by
-    ``shared/misc_functions.py:filter_data`` and
-    ``ephys/ephys_data_manager.py:EphysDataManager._filter_data``.
+    This is the single canonical implementation shared by the ``filter_data``
+    alias and ``ephys/ephys_data_manager.py:EphysDataManager._filter_data``.
 
     Args:
         data: 1-D NumPy array of signal values.
@@ -125,8 +129,57 @@ def filter_data(
     """Backward-compatible alias for :func:`filter_signal`.
 
     Kept so existing callers (``from aceneurotools.shared import filter_data``)
-    keep working. Lives here rather than in ``shared/misc_functions`` so that
-    importing :mod:`aceneurotools.shared` does not pull in that module's heavy
-    (cv2 / matplotlib) import surface. All logic is in :func:`filter_signal`.
+    keep working. All logic is in :func:`filter_signal`.
     """
     return filter_signal(data, n=n, cut=cut, ftype=ftype, btype=btype, fs=fs, bode_plot=bodePlot)
+
+
+def thresh_func(dataArray: np.ndarray, threshVal: float) -> np.ndarray:
+    """Find indices where data crosses above a threshold.
+    
+    Args:
+        dataArray: Input data array.
+        threshVal: Threshold value.
+        
+    Returns:
+        Array of indices where threshold crossings occur.
+    """
+    binary_array = np.where(dataArray >= threshVal, 1, 0)
+    indices = np.argwhere(np.diff(binary_array) == 1)
+    addArr = np.zeros(np.shape(indices))
+    if indices.size > 0:
+        addArr[..., -1] = 1
+    return indices + addArr
+
+
+def z_score(dataArray: np.ndarray, frameWindow: int = 1000) -> np.ndarray:
+    """
+    Compute the z-score of the data array values every designated frame window
+    length based on the values within that frame window
+    
+    Args:
+        dataArray: A numpy array of values where the row represents the component
+                   and the column represents the frame number
+        frameWindow: An integer value that determines the length of the window
+                     which the function z-scores across. Defaults to 1000 frames
+    
+    Returns:
+        zScoreArray: A numpy array of the same shape as dataArray containing the 
+                     z-score values of each frame
+    """
+
+    zScoreArray = np.zeros_like(dataArray, dtype=float)
+    num_components, num_frames = dataArray.shape if dataArray.ndim > 1 else (1, dataArray.size)
+
+    for i in range(0, math.ceil(num_frames / frameWindow)):
+        start = i * frameWindow
+        end = min((i + 1) * frameWindow, num_frames)
+        if start >= num_frames:
+            break
+
+        if dataArray.ndim == 1:
+            zScoreArray[start:end] = stats.zscore(dataArray[start:end])
+        else:
+            zScoreArray[:, start:end] = stats.zscore(dataArray[:, start:end], axis=1)
+
+    return np.nan_to_num(zScoreArray)

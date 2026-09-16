@@ -6,11 +6,10 @@ import numpy as np
 import pytest
 from scipy.signal import butter, freqz
 
-from aceneurotools.multimodal.signal_utils import (
+from aceneurotools.stats.signal_utils import (
     compute_hilbert_envelope,
     get_filter_frequency_response,
 )
-
 
 # ---------------------------------------------------------------------------
 # compute_hilbert_envelope
@@ -108,8 +107,8 @@ def test_freq_response_returns_ndarrays():
 def test_filter_signals_matches_canonical_and_manual():
     from scipy.signal import filtfilt
 
-    from aceneurotools.multimodal.signal_utils import filter_signals
     from aceneurotools.shared.signal_processing import filter_signal
+    from aceneurotools.stats.signal_utils import filter_signals
 
     rng = np.random.default_rng(0)
     s1 = rng.standard_normal(4000)

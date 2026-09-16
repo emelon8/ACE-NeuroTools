@@ -2,7 +2,7 @@
 Ephys quick-look demo script.
 
 Usage:
-    python -m aceneurotools.ephys.script --project-path /path/to/project --line-num 97
+    python scripts/ephys_quicklook.py --project-path /path/to/project --line-num 97
 
 All parameters can be overridden via CLI flags.
 """

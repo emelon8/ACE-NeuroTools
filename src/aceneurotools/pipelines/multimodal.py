@@ -5,7 +5,8 @@ from typing import Any
 
 import numpy as np
 
-from aceneurotools.multimodal.miniscope_ephys_alignment_utils import (
+from aceneurotools.config.config_utils import load_analysis_params
+from aceneurotools.multimodal.alignment import (
     find_ca_movie_frame_num_of_ephys_idx,
     find_ephys_idx_of_TTL_events,
     sync_neuralynx_miniscope_timestamps,
@@ -23,7 +24,6 @@ from aceneurotools.shared.cli_utils import (
     run_allowed_keys,
     validate_run_params,
 )
-from aceneurotools.shared.config_utils import load_analysis_params
 from aceneurotools.shared.exceptions import AceNeuroError, PipelineExecutionError, print_cli_error
 
 

@@ -76,6 +76,12 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
             data_path: Optional explicit data storage path.
             **kwargs: Additional arguments for subclass initialization.
         """
+        # Register the built-in subclasses. Local import: subclasses import this
+        # module, and aceneurotools.miniscope.__init__ deliberately does not
+        # import them (caiman is heavy), so without this the registry would only
+        # be populated if some other module happened to import them first.
+        from aceneurotools.miniscope import onix_miniscope_data_manager, ucla_data_manager  # noqa: F401
+
         temp_edm = ExperimentDataManager(
             line_num,
             project_path=project_path,

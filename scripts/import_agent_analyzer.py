@@ -2,7 +2,6 @@
 ONIX analog-input visualizer.
 
 Run as a script (not imported as a module):
-    python -m aceneurotools.ephys.import_agent_analyzer
     python scripts/import_agent_analyzer.py
 
 All file I/O and plotting happens only when executed directly.

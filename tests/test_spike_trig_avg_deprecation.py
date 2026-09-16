@@ -6,7 +6,7 @@ import warnings
 
 import numpy as np
 
-from aceneurotools.shared.misc_functions import spike_trig_avg
+from aceneurotools.stats.perievent import spike_trig_avg
 
 
 def test_spike_trig_avg_emits_deprecation_warning():

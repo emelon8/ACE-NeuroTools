@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 
 from aceneurotools.ephys.channel import Channel
-from aceneurotools.multimodal.miniscope_ephys_alignment_utils import (
+from aceneurotools.multimodal.alignment import (
     _nearest_sorted_index,
     find_ephys_idx_of_TTL_events,
 )

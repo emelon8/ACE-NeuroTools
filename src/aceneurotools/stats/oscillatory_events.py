@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from aceneurotools.multimodal.signal_utils import (
+from aceneurotools.stats.signal_utils import (
     compute_hilbert_envelope,
     filter_signals,
 )

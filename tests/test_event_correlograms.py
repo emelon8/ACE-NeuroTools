@@ -1,4 +1,4 @@
-"""Tests for aceneurotools.multimodal.event_correlograms."""
+"""Tests for aceneurotools.stats.event_correlograms."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from aceneurotools.multimodal.event_correlograms import (
+from aceneurotools.stats.event_correlograms import (
     _cross_correlogram,
     compute_autocorrelogram,
     compute_crosscorrelogram,

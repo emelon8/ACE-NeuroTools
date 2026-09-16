@@ -1,20 +1,19 @@
-"""Tests for aceneurotools.multimodal.surrogate."""
+"""Tests for aceneurotools.stats.surrogate."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-from aceneurotools.multimodal.surrogate import (  # noqa: F401
+from aceneurotools.stats.surrogate import (  # noqa: F401
     PermutationTestResult,
-    permutation_test,
     apply_to_group,
     jitter_event_times,
+    permutation_test,
     resample_event_times,
     shift_event_times,
     shuffle_event_intervals,
 )
-
 
 # ---------------------------------------------------------------------------
 # jitter_event_times

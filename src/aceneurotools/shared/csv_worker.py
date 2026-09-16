@@ -1,5 +1,7 @@
 import ast
+import csv
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -243,3 +245,45 @@ class CSVWorker:
             return datetime.strptime(date_str, '%y%m%d')
         except ValueError:
             return date_str
+
+
+def update_csv_cell(data: Any, columnTitle: str, lineNum: int, csvFile: str | Path) -> None:
+    """Update a single cell in a CSV file.
+    
+    Args:
+        data: New value to write.
+        columnTitle: Column header name.
+        lineNum: Line number to update.
+        csvFile: Path to CSV file.
+    """
+    csvData: list[dict[str, str]] = []
+    fieldnames: list[str] | None = None
+
+    with open(csvFile) as file:
+        reader = csv.DictReader(file)
+        if reader.fieldnames is not None:
+            fieldnames = list(reader.fieldnames)
+        for row in reader:
+            if row.get('line number') == str(lineNum):
+                row[columnTitle] = str(data)
+            csvData.append(row)
+
+    if fieldnames:
+        with open(csvFile, 'w', newline='') as writeFile:
+            writer = csv.DictWriter(writeFile, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(csvData)
+
+
+def append_row_csv(data: dict[str, Any], filename: str | Path) -> None:
+    """Appends a new row to a CSV file.
+    Args:
+        data: Dictionary of data to be added to the csv file
+        filename: Name of the CSV file to write to.
+    """
+    file_exists = os.path.exists(filename)
+    with open(filename, 'a', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=list(data.keys()))
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(data)

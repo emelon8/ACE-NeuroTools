@@ -1,18 +1,17 @@
-"""Tests for aceneurotools.multimodal.oscillatory_events."""
+"""Tests for aceneurotools.stats.oscillatory_events."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-from aceneurotools.multimodal.oscillatory_events import (
+from aceneurotools.stats.oscillatory_events import (
     _drop_long,
     _drop_short,
     _merge_close,
     _threshold_intervals,
     detect_oscillatory_events,
 )
-
 
 # ---------------------------------------------------------------------------
 # helper functions

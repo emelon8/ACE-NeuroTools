@@ -1,17 +1,16 @@
-"""Tests for aceneurotools.multimodal.perievent."""
+"""Tests for aceneurotools.stats.perievent."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-from aceneurotools.multimodal.perievent import (
+from aceneurotools.stats.perievent import (
     _normalize_window,
     compute_event_triggered_average,
     compute_perievent,
     compute_spike_triggered_average,
 )
-
 
 # ---------------------------------------------------------------------------
 # window normalization

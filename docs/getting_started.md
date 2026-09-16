@@ -55,7 +55,7 @@ Every pipeline is driven by **keyword arguments** to `run()`. There are three wa
 | Source | What it sets | When to use |
 |--------|----------------|-------------|
 | **1. Defaults in code** | Built-in defaults inside `EphysPipeline.run`, `MiniscopePipeline.run`, `MultimodalPipeline.run` | Starting point; see [API — Pipelines](api/pipelines.md) or `help(EphysPipeline.run)` in Python. |
-| **`analysis_parameters.csv`** | Per–line-number overrides for the same kwarg names (via `load_analysis_params`) | Reproducible, shareable settings per experiment row. Column names match kwargs where possible (see `aceneurotools.shared.config_utils.parse_analysis_params`). |
+| **`analysis_parameters.csv`** | Per–line-number overrides for the same kwarg names (via `load_analysis_params`) | Reproducible, shareable settings per experiment row. Column names match kwargs where possible (see `aceneurotools.config.config_utils.parse_analysis_params`). |
 | **Your call** | Explicit arguments to `run(...)` or a dict you merge yourself | Final say: pass any kwarg the pipeline accepts. |
 
 **Always required (for real data):**
@@ -84,7 +84,7 @@ api.run(
 **Python — merge CSV row, then override**
 
 ```python
-from aceneurotools.shared.config_utils import load_analysis_params
+from aceneurotools.config.config_utils import load_analysis_params
 from aceneurotools.pipelines.ephys import EphysPipeline
 
 project = Path("/path/to/project")

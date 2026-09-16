@@ -1,8 +1,8 @@
 """Guards the lightweight import surface of aceneurotools.shared.
 
-`import aceneurotools.shared` must not drag in the heavy cv2 / misc_functions
-import surface, and must not mutate global matplotlib state. filter_data was
-moved to shared.signal_processing to make this true; these tests pin it.
+`import aceneurotools.shared` must not drag in cv2, and must not trigger
+pyplot initialisation (set_backend must run before any pyplot import — see
+shared/plotting.py). These tests pin that contract.
 """
 
 from __future__ import annotations
@@ -23,13 +23,13 @@ def test_filter_data_matches_filter_signal():
     np.testing.assert_array_equal(a, b)
 
 
-def test_importing_shared_does_not_load_cv2_or_misc_functions():
+def test_importing_shared_does_not_load_cv2_or_pyplot():
     """Run in a clean subprocess so module state is pristine."""
     code = (
         "import sys; import aceneurotools.shared; "
         "assert 'cv2' not in sys.modules, 'cv2 was imported'; "
-        "assert 'aceneurotools.shared.misc_functions' not in sys.modules, "
-        "'misc_functions was imported'; "
+        "assert 'matplotlib.pyplot' not in sys.modules, "
+        "'pyplot was imported (breaks the set_backend contract)'; "
         "print('ok')"
     )
     result = subprocess.run(

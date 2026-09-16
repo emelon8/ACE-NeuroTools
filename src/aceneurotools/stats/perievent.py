@@ -212,3 +212,69 @@ def compute_spike_triggered_average(
         t_start=t_start,
         drop_boundary_events=drop_boundary_events,
     )
+
+
+# ---------------------------------------------------------------------------
+# Legacy API
+# ---------------------------------------------------------------------------
+
+def spike_trig_avg(eventArray: np.ndarray, dataArray: np.ndarray, framesb: int, framesa: int) -> dict[int, np.ndarray]:
+    """
+    Compute the average spike values starting 'framesb' before the event
+    and ending 'framesa' after the event.
+
+    .. deprecated::
+       Use :func:`aceneurotools.stats.perievent.compute_event_triggered_average`
+       which operates on signals + event times in seconds and returns the
+       mean alongside per-event SEM/std/matrix.
+
+    Args:
+        eventArray: A numpy array of when and/or where events occur. Can either
+                    be in the format of [[component, frame],...] or
+                    [[frame],...]
+        dataArray: A numpy array of the signal values at each frame.
+        framesb: Number of frames before the event to include.
+        framesa: Number of frames after the event to include.
+    Returns:
+        avgEventDict: a dictionary dictionary where the keys represent the
+                      component number from the dataArray and the value is
+                      a numpy array of the average values at each frame
+                      of the designated window around the event
+    """
+    warnings.warn(
+        "spike_trig_avg is deprecated; use "
+        "aceneurotools.stats.perievent.compute_event_triggered_average "
+        "for a sample-rate-aware peri-event average.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    avgEventDict: dict[int, np.ndarray] = {}
+    if dataArray.ndim == 1:
+        valid_events = 0
+        for event in eventArray:
+            idx = int(event[0])
+            if idx >= framesb and idx <= dataArray.size - framesa - 1:
+                chunk = dataArray[idx - framesb:idx + framesa + 1]
+                if 0 in avgEventDict:
+                    avgEventDict[0] = avgEventDict[0] + chunk
+                else:
+                    avgEventDict[0] = chunk.astype(float)
+                valid_events += 1
+        if 0 in avgEventDict and valid_events > 0:
+            avgEventDict[0] /= valid_events
+    else:
+        for event in eventArray:
+            comp = int(event[0])
+            idx = int(event[1])
+            if idx >= framesb and idx <= dataArray[comp].size - framesa - 1:
+                chunk = dataArray[comp][idx - framesb:idx + framesa + 1]
+                if comp in avgEventDict:
+                    avgEventDict[comp] = avgEventDict[comp] + chunk
+                else:
+                    avgEventDict[comp] = chunk.astype(float)
+
+        for component in avgEventDict:
+            num_events = len(np.argwhere(eventArray[:, 0] == component))
+            if num_events > 0:
+                avgEventDict[component] /= num_events
+    return avgEventDict

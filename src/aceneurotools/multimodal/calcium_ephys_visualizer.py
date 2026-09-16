@@ -6,9 +6,9 @@ import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
 
+from aceneurotools.config.config_utils import get_coords_dict_from_analysis_params
 from aceneurotools.miniscope.miniscope_preprocessor import MiniscopePreprocessor
-from aceneurotools.multimodal.miniscope_ephys_alignment_utils import find_ca_movie_filenums
-from aceneurotools.shared.misc_functions import get_coords_dict_from_analysis_params
+from aceneurotools.multimodal.alignment import find_ca_movie_filenums
 from aceneurotools.shared.path_finder import PathFinder
 
 if TYPE_CHECKING:

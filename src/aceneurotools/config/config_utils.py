@@ -109,3 +109,35 @@ def parse_analysis_params(params: dict[str, Any]) -> dict[str, Any]:
             args[kwarg_key] = params[csv_key]
 
     return args
+
+
+def get_coords_dict_from_analysis_params(miniscope_data_manager: Any) -> tuple[dict[str, int] | None, str]:
+    """Extract crop coordinates from analysis parameters.
+    
+    Reads the 'crop_coords' column from analysis_params and returns
+    a dict with x0, y0, x1, y1 keys suitable for cropping.
+    
+    Args:
+        miniscope_data_manager: Data manager with analysis_params.
+        
+    Returns:
+        Tuple of (coords_dict, crop_job_name). coords_dict is None
+        if no crop coordinates are found.
+    """
+    coords_dict: dict[str, int] | None = None
+    crop_job_name: str = ''
+    try:
+        if miniscope_data_manager.analysis_params:
+            previous_coords = miniscope_data_manager.analysis_params.get('crop_coords')
+            if previous_coords and len(previous_coords) >= 4:
+                coords_dict = {
+                    'x0': int(previous_coords[0]),
+                    'y0': int(previous_coords[1]),
+                    'x1': int(previous_coords[2]),
+                    'y1': int(previous_coords[3])
+                }
+                crop_job_name = '_crop'
+    except (KeyError, TypeError, IndexError):
+        print("Did not find valid crop coordinates in analysis_params['crop_coords']")
+
+    return coords_dict, crop_job_name

@@ -88,6 +88,8 @@ nav:
       - Miniscope Components: api/miniscope.md
       - Ephys Components: api/ephys.md
       - Multimodal: api/multimodal.md
+      - Stats: api/stats.md
+      - Config: api/config.md
       - Shared Utils: api/shared.md
   - Deploying the docs: deployment.md
   - Comenius planning:

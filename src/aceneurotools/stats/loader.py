@@ -12,9 +12,9 @@ time-aligned signals at the miniscope frame rate:
 2. Run :class:`~aceneurotools.pipelines.ephys.EphysPipeline` in silent mode to
    load and filter one (or two) ephys channels.
 3. Synchronise timestamps via
-   :func:`~aceneurotools.multimodal.miniscope_ephys_alignment_utils.sync_neuralynx_miniscope_timestamps`.
+   :func:`~aceneurotools.multimodal.alignment.sync_neuralynx_miniscope_timestamps`.
 4. Downsample the ephys signal(s) to the miniscope frame rate via
-   :func:`~aceneurotools.multimodal.miniscope_ephys_alignment_utils.find_ephys_idx_of_TTL_events`.
+   :func:`~aceneurotools.multimodal.alignment.find_ephys_idx_of_TTL_events`.
 5. Optionally load mean-fluorescence ``.npz`` files produced by the
    :class:`~aceneurotools.pipelines.compute.ComputePipeline`.
 
@@ -22,7 +22,7 @@ The returned objects are ready for the coherence and scatter analysis engines.
 
 Typical use::
 
-    from aceneurotools.multimodal.stats_loader import load_for_stats, load_calcium_signal
+    from aceneurotools.stats.loader import load_for_stats, load_calcium_signal
 
     channel_obj, miniscope_dm, fr = load_for_stats(
         line_num=97,
@@ -41,12 +41,10 @@ from pathlib import Path
 
 import numpy as np
 
-import aceneurotools.miniscope.onix_miniscope_data_manager  # noqa: F401 — registers OnixMiniscopeDataManager
-import aceneurotools.miniscope.ucla_data_manager  # noqa: F401 — registers UCLADataManager
 from aceneurotools.ephys.channel import Channel
 from aceneurotools.ephys.ephys_loader import load_ephys_for_analysis
 from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
-from aceneurotools.multimodal.miniscope_ephys_alignment_utils import (
+from aceneurotools.multimodal.alignment import (
     find_ephys_idx_of_TTL_events,
     sync_neuralynx_miniscope_timestamps,
 )

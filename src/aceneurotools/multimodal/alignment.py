@@ -5,7 +5,6 @@ import numpy as np
 from aceneurotools.ephys.channel import Channel
 from aceneurotools.ephys.ephys_data_manager import EphysDataManager
 from aceneurotools.ephys.neuralynx_data_manager import NeuralynxDataManager
-from aceneurotools.shared.exceptions import DataFormatError
 from aceneurotools.shared.path_finder import PathFinder
 
 if TYPE_CHECKING:
@@ -48,9 +47,6 @@ def sync_neuralynx_miniscope_timestamps(
 
     # Make an array of the Neuralynx events with the TTL events removed
     if only_experiment_events and isinstance(ephys_dm, NeuralynxDataManager):
-        ttl_label_pattern = 'TTL Input on AcqSystem1_0 board 0 port 1 value (0x0001)'
-        ttl_label_pattern_off = 'TTL Input on AcqSystem1_0 board 0 port 0 value (0x0000)'
-
         # Remove BOTH on and off pulses if they exist, assuming port 0 and 1 are used
         frame_acq_idx = np.char.startswith(channel.events['labels'].astype(str), 'TTL Input')
         experiment_event_idx = np.invert(frame_acq_idx)
@@ -58,57 +54,6 @@ def sync_neuralynx_miniscope_timestamps(
         channel.events['timestamps'] = channel.events['timestamps'][experiment_event_idx]
 
     return tCaIm, low_confidence_periods, channel, miniscope_dm
-
-
-def _correct_tCaIm(
-    event_labels: np.ndarray,
-    tCaIm: np.ndarray,
-    low_confidence_periods: np.ndarray,
-    miniscope_dm: 'MiniscopeDataManager',
-    threshold: float = 0.065,
-    fix_TTL_gaps: bool = False
-) -> tuple[np.ndarray, np.ndarray, 'MiniscopeDataManager']:
-    """This method first confirms that the TTL events alternate and then checks for missing TTL events. If there are any, the method guesses their timing and inserts them into the calcium imaging time vector.
-    event_labels is the array of imported Neuralynx event labels.
-    THRESHOLD is the time threshold, in seconds, for detecting gaps in the TTL events."""
-    print('Checking that TTL events alternate...')
-    # Print a message if the TTL event labels do not alternate between HIGH and LOW
-    alternating = []
-    for q in range(0,len(event_labels)-2):
-        alternating.append(np.char.equal(event_labels[q+2], event_labels[q]))
-    alternating.append(np.char.not_equal(event_labels[-1], event_labels[-2]))
-    if sum(alternating) != (len(event_labels) - 1):
-        print('TTL does not alternate!')
-        raise DataFormatError(
-            "TTL events do not alternate between HIGH and LOW as expected.",
-            stage="_correct_tCaIm",
-            hint="Inspect the raw TTL event labels for unexpected sequences.",
-        )
-
-    print('Finding any gaps in the TTL events...')
-    dtCaIm = np.diff(tCaIm)
-    idx_TTL_gap = np.where(dtCaIm > threshold)[0] # indices of gaps in the TTL events
-    if len(idx_TTL_gap) == 0:
-        print('No gaps were found with a threshold of ' + str(threshold*1000) + ' ms.')
-    elif fix_TTL_gaps:
-        print('Fixing any gaps in the TTL events...')
-        flippedidx_TTL_gap = np.flip(idx_TTL_gap) # Reverse the order of idx_TTL_gap so that inserting TTLs in the loop doesn't affect the indices of the next iteration of the loop.
-        gap_length = [] # number dropped frames per index
-        for k, gap_idx in enumerate(flippedidx_TTL_gap):
-            frame_rate = float(miniscope_dm.metadata.get('frameRate', 30.0)) if miniscope_dm.metadata else 30.0
-            gap_length.append(int(np.round(dtCaIm[gap_idx]/(1/frame_rate)))) # Guesses how many timesteps occur in the gap. E.g., a 30 Hz video with a gap of 67 ms will have 2 timesteps in the gap.
-            print(str(gap_length[k]-1) + ' TTL event(s) is/are missing between index numbers ' + str(gap_idx) + ' and ' + str(gap_idx + 1) + '.')
-            estimated_event_times = np.linspace(tCaIm[gap_idx], tCaIm[gap_idx+1], gap_length[k]+1) # Estimates the timing of the TTLs, beginning at the one before the gap and ending at the one after the gap.
-            tCaIm = np.insert(tCaIm, gap_idx+1, estimated_event_times[1:-1])
-            low_confidence_periods = np.append(low_confidence_periods, [[gap_idx, gap_idx+gap_length[k]]], axis=0)
-    else:
-        raise DataFormatError(
-            "Gaps were found in TTL events. Review tCaIm before proceeding.",
-            stage="_correct_tCaIm",
-            hint="Pass fix_TTL_gaps=True to interpolate missing TTL pulses automatically.",
-        )
-
-    return tCaIm, low_confidence_periods, miniscope_dm
 
 
 def _nearest_sorted_index(sorted_values: np.ndarray, queries: np.ndarray) -> np.ndarray:

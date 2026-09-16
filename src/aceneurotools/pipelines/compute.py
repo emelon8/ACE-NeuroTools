@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
-    from aceneurotools.multimodal.lab_config import LabConfig
+    from aceneurotools.config.lab_config import LabConfig
 
 
 class ComputePipeline:
@@ -83,10 +83,10 @@ class ComputePipeline:
 
         import caiman as cm
 
+        from aceneurotools.config.config_utils import get_coords_dict_from_analysis_params
         from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
         from aceneurotools.miniscope.miniscope_preprocessor import MiniscopePreprocessor
         from aceneurotools.shared.experiment_data_manager import ExperimentDataManager
-        from aceneurotools.shared.misc_functions import get_coords_dict_from_analysis_params
         from aceneurotools.shared.path_finder import PathFinder
 
         meta_dm = ExperimentDataManager(
@@ -250,7 +250,7 @@ if __name__ == "__main__":
 
     _args = parser.parse_args()
 
-    from aceneurotools.multimodal.lab_config import LabConfig
+    from aceneurotools.config.lab_config import LabConfig
     from aceneurotools.shared.exceptions import ConfigurationError, print_cli_error
 
     try:

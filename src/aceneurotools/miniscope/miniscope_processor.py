@@ -7,10 +7,10 @@ import caiman as cm
 import matplotlib.pyplot as plt
 import numpy as np
 
-import aceneurotools.shared.misc_functions as misc_functions
 from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
 from aceneurotools.miniscope.pipeline_results import ProcessingResult
 from aceneurotools.shared.exceptions import ProcessingError
+from aceneurotools.shared.plotting import prep_axes
 
 if TYPE_CHECKING:
     from caiman.source_extraction.cnmf.params import CNMFParams
@@ -277,7 +277,7 @@ class MiniscopeProcessor:
         """
         print('Inspecting motion correction...')
         if plot_rigid_motion_correction:
-            h, ax_any = misc_functions._prep_axes(xLabel=['', 'Frames'], yLabel=['', 'Pixels'], subPlots=[1, 2])
+            h, ax_any = prep_axes(xLabel=['', 'Frames'], yLabel=['', 'Pixels'], subPlots=[1, 2])
             ax = cast(list[Any], ax_any)
             ax[0].imshow(mc.total_template_rig)  # % plot template
             ax[1].plot(mc.shifts_rig)  # % plot rigid shifts
@@ -285,7 +285,7 @@ class MiniscopeProcessor:
 
         if plot_shifts:
             if opts_caiman.get('motion', 'pw_rigid'):
-                h, ax_single = misc_functions._prep_axes(xLabel='Frames', yLabel='Pixels')
+                h, ax_single = prep_axes(xLabel='Frames', yLabel='Pixels')
                 if isinstance(ax_single, (list, np.ndarray)):
                     ax_plot = ax_single[0]
                 else:
@@ -293,7 +293,7 @@ class MiniscopeProcessor:
                 ax_plot.plot(mc.shifts_rig)
                 ax_plot.legend(['X Shifts', 'Y Shifts'])
             else:
-                h, ax_any = misc_functions._prep_axes(xLabel=['', 'Frames'],
+                h, ax_any = prep_axes(xLabel=['', 'Frames'],
                                                  yLabel=['X Shifts (Pixels)', 'Y Shifts (Pixels)'], subPlots=[2, 1])
                 ax = cast(list[Any], ax_any)
                 ax[0].plot(mc.x_shifts_els)
@@ -343,7 +343,7 @@ class MiniscopeProcessor:
                     cm.concatenate([self.preprocessed_movie, mc_movie.resize(1, 1, down_sample_ratio)]).play(q_max=99.5, fr=frame_rate, magnification=2)
 
             if plot_correlation:
-                h, ax_any = misc_functions._prep_axes(xLabel=['Original Movie', 'Motion Corrected Movie'], subPlots=[1, 2])
+                h, ax_any = prep_axes(xLabel=['Original Movie', 'Motion Corrected Movie'], subPlots=[1, 2])
                 ax = cast(list[Any], ax_any)
                 ax[0].imshow(original_movie.local_correlations(eight_neighbours=True, swap_dim=False))
                 ax[1].imshow(mc_movie.local_correlations(eight_neighbours=True, swap_dim=False))
@@ -385,7 +385,7 @@ class MiniscopeProcessor:
             fls = [os.path.splitext(mc.fname[0])[0] + '_metrics.npz', os.path.splitext(mc.mmap_file[0])[0] + '_metrics.npz']
             fls = [os.path.splitext(mc.fname[0])[0] + '_metrics.npz', os.path.splitext(mc.mmap_file[0])[0] + '_metrics.npz']
 
-            h, ax_any = misc_functions._prep_axes(title=['Mean', 'Corr Image', 'Mean Optical Flow', '', '', ''],
+            h, ax_any = prep_axes(title=['Mean', 'Corr Image', 'Mean Optical Flow', '', '', ''],
                                              xLabel=['Original', '', '', 'Motion Corrected', '', ''], yLabel=['', '', '', '', '', ''],
                                              subPlots=[2, 3])
             ax = cast(list[Any], ax_any)
