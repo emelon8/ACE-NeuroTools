@@ -91,6 +91,7 @@ nav:
       - Multimodal: api/multimodal.md
       - Stats: api/stats.md
       - Config: api/config.md
+      - Experiment Version Control: api/evc.md
       - Shared Utils: api/shared.md
   - Deploying the docs: deployment.md
   - Comenius planning:
