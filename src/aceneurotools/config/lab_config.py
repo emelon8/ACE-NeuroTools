@@ -39,6 +39,7 @@ class RunConfig:
     line_nums: list[int] | None = None
     headless: bool = False
     verbose: bool = False
+    history: bool = False
 
 
 @dataclass
@@ -86,6 +87,7 @@ class LabConfig:
                 "line_nums": self.run.line_nums,
                 "headless": self.run.headless,
                 "verbose": self.run.verbose,
+                "history": self.run.history,
             }
         with open(path, "w") as fh:
             json.dump(payload, fh, indent=2)
@@ -494,10 +496,22 @@ def _parse_run(data: dict[str, Any], errors: list[str]) -> RunConfig | None:
     else:
         verbose = verbose_raw
 
+    # history (experiment version control opt-in; off by default until D07/D08)
+    history_raw = raw.get("history", False)
+    if not isinstance(history_raw, bool):
+        errors.append(
+            f"[run.history] Must be true or false (JSON boolean).  "
+            f"Got: {history_raw!r}"
+        )
+        history = False
+    else:
+        history = history_raw
+
     return RunConfig(
         mode=mode,
         analyses=analyses,
         line_nums=line_nums,
         headless=headless,
         verbose=verbose,
+        history=history,
     )

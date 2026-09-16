@@ -1,8 +1,13 @@
+from __future__ import annotations
 
 import argparse
 import sys
 import tkinter
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from aceneurotools.evc.hooks import RunRecorder
 
 from aceneurotools.config.config_utils import get_coords_dict_from_analysis_params
 from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
@@ -105,7 +110,8 @@ class MiniscopePipeline:
         window_step: float = 3,
         freq_lims: list[float] = [0, 15],
         time_bandwidth: float = 2,
-        headless: bool = False
+        headless: bool = False,
+        recorder: RunRecorder | None = None,
     ) -> None:
         """Run the complete miniscope analysis pipeline.
 
@@ -172,140 +178,164 @@ class MiniscopePipeline:
             inline = False
             print("Running in HEADLESS mode. GUI steps disabled.", flush=True)
 
-        try:
-            self.miniscope_data_manager = MiniscopeDataManager.create(
-                line_num=line_num,
-                project_path=project_path,
-                data_path=data_path,
-                filenames=filenames,
-                auto_import_data=True,
-            )
-        except FileNotFoundError as e:
-            raise DataNotFoundError(
-                "Required miniscope input files were not found.",
-                stage="create_data_manager",
-                line_num=line_num,
-                project_path=project_path,
-                data_path=data_path,
-                hint="Verify experiments.csv paths and ensure miniscope recordings exist under data_path.",
-            ) from e
-        except Exception as e:
-            raise PipelineExecutionError(
-                "Failed to initialize MiniscopeDataManager.",
-                stage="create_data_manager",
-                line_num=line_num,
-                project_path=project_path,
-                data_path=data_path,
-                hint="Check metadata row values and input filenames.",
-            ) from e
-
-
-
-        #get cropping coordinates from crop_coords argument or from analysis_params
-        if crop_coords is not None:
-            coords_dict = {
-                'x0': crop_coords[0], 'y0': crop_coords[1],
-                'x1': crop_coords[2], 'y1': crop_coords[3]
-            }
-            crop_job_name = '_crop'
-        else:
-            coords_dict, crop_job_name = get_coords_dict_from_analysis_params(self.miniscope_data_manager)
+        if recorder is not None:
+            run_args = locals()
+            recorder.on_run_approved({
+                "pipeline": "miniscope",
+                **{k: v for k, v in run_args.items()
+                   if k not in ("self", "recorder", "run_args")},
+            })
 
         try:
-            self.preprocessor = MiniscopePreprocessor(self.miniscope_data_manager)
-            self.miniscope_data_manager = self.preprocessor.preprocess_calcium_movie(
-                coords_dict,
-                crop=crop,
-                detrend_method=detrend_method,
-                df_over_f=df_over_f,
-                crop_job_name_for_file=crop_job_name,
-                secs_window=secs_window,
-                quantile_min=quantile_min,
-                df_over_f_method=df_over_f_method,
-                headless=headless,
-            )
-            self.preprocessing_result = self.preprocessor.result
-        except Exception as e:
-            raise PipelineExecutionError(
-                "Miniscope preprocessing failed.",
-                stage="preprocess_calcium_movie",
-                line_num=line_num,
-                project_path=project_path,
-                data_path=data_path,
-                hint="Inspect crop/detrend/df_over_f parameters for this experiment row.",
-            ) from e
-
-        if self.miniscope_data_manager.coords is not None:
-            analysis_params_csv = self.miniscope_data_manager.project_path / "analysis_parameters.csv"
-            print(f"updating {analysis_params_csv} with your cropping coordinates", flush=True)
-            update_csv_cell(self.miniscope_data_manager.coords, 'crop_coords', line_num, analysis_params_csv)
-
-
-        #Ensure self.miniscope.data_manager has 'movie' and 'preprocessed_movie_filepath' filled in with the movie that you want to process before you process
-
-        try:
-            self.processor = MiniscopeProcessor(self.miniscope_data_manager)
-            self.miniscope_data_manager = self.processor.process_calcium_movie(
-                parallel,
-                n_processes,
-                apply_motion_correction,
-                inspect_motion_correction,
-                plot_params,
-                run_CNMFE,
-                save_estimates,
-                save_CNMFE_estimates_filename,
-                save_CNMFE_params,
-            )
-            self.processing_result = self.processor.result
-        except Exception as e:
-            raise PipelineExecutionError(
-                "Miniscope processing stage failed.",
-                stage="process_calcium_movie",
-                line_num=line_num,
-                project_path=project_path,
-                data_path=data_path,
-                hint="Check CNMF-E and motion-correction parameters and data integrity.",
-            ) from e
-
-
-
-        if self.miniscope_data_manager.CNMFE_obj is not None:
-            from aceneurotools.shared.plotting import set_backend
-            set_backend(headless=headless)
-            if not headless:
-                if hasattr(tkinter, '_default_root') and tkinter._default_root:
-                    tkinter._default_root.destroy()
-
             try:
-                self.postprocessor = MiniscopePostprocessor(self.miniscope_data_manager)
-                self.miniscope_data_manager = self.postprocessor.postprocess_calcium_movie(
-                    remove_components_with_gui,
-                    find_calcium_events,
-                    derivative_for_estimates,
-                    event_height,
-                    compute_miniscope_phase,
-                    filter_miniscope_data,
-                    n,
-                    cut,
-                    ftype,
-                    btype,
-                    inline,
-                    compute_miniscope_spectrogram,
-                    window_length,
-                    window_step,
-                    freq_lims,
-                    time_bandwidth,
-                )
-                self.postprocessing_result = self.postprocessor.result
-            except Exception as e:
-                raise PipelineExecutionError(
-                    "Miniscope postprocessing failed.",
-                    stage="postprocess_calcium_movie",
+                self.miniscope_data_manager = MiniscopeDataManager.create(
                     line_num=line_num,
                     project_path=project_path,
                     data_path=data_path,
-                    hint="Check event detection/filter/spectrogram parameters and CNMF-E outputs.",
+                    filenames=filenames,
+                    auto_import_data=True,
+                )
+            except FileNotFoundError as e:
+                raise DataNotFoundError(
+                    "Required miniscope input files were not found.",
+                    stage="create_data_manager",
+                    line_num=line_num,
+                    project_path=project_path,
+                    data_path=data_path,
+                    hint="Verify experiments.csv paths and ensure miniscope recordings exist under data_path.",
                 ) from e
+            except Exception as e:
+                raise PipelineExecutionError(
+                    "Failed to initialize MiniscopeDataManager.",
+                    stage="create_data_manager",
+                    line_num=line_num,
+                    project_path=project_path,
+                    data_path=data_path,
+                    hint="Check metadata row values and input filenames.",
+                ) from e
+
+
+
+            #get cropping coordinates from crop_coords argument or from analysis_params
+            if crop_coords is not None:
+                coords_dict = {
+                    'x0': crop_coords[0], 'y0': crop_coords[1],
+                    'x1': crop_coords[2], 'y1': crop_coords[3]
+                }
+                crop_job_name = '_crop'
+            else:
+                coords_dict, crop_job_name = get_coords_dict_from_analysis_params(self.miniscope_data_manager)
+
+            try:
+                self.preprocessor = MiniscopePreprocessor(self.miniscope_data_manager)
+                self.miniscope_data_manager = self.preprocessor.preprocess_calcium_movie(
+                    coords_dict,
+                    crop=crop,
+                    detrend_method=detrend_method,
+                    df_over_f=df_over_f,
+                    crop_job_name_for_file=crop_job_name,
+                    secs_window=secs_window,
+                    quantile_min=quantile_min,
+                    df_over_f_method=df_over_f_method,
+                    headless=headless,
+                )
+                self.preprocessing_result = self.preprocessor.result
+            except Exception as e:
+                raise PipelineExecutionError(
+                    "Miniscope preprocessing failed.",
+                    stage="preprocess_calcium_movie",
+                    line_num=line_num,
+                    project_path=project_path,
+                    data_path=data_path,
+                    hint="Inspect crop/detrend/df_over_f parameters for this experiment row.",
+                ) from e
+
+            if self.miniscope_data_manager.coords is not None:
+                analysis_params_csv = self.miniscope_data_manager.project_path / "analysis_parameters.csv"
+                print(f"updating {analysis_params_csv} with your cropping coordinates", flush=True)
+                update_csv_cell(self.miniscope_data_manager.coords, 'crop_coords', line_num, analysis_params_csv)
+
+
+            #Ensure self.miniscope.data_manager has 'movie' and 'preprocessed_movie_filepath' filled in with the movie that you want to process before you process
+
+            try:
+                self.processor = MiniscopeProcessor(self.miniscope_data_manager)
+                self.miniscope_data_manager = self.processor.process_calcium_movie(
+                    parallel,
+                    n_processes,
+                    apply_motion_correction,
+                    inspect_motion_correction,
+                    plot_params,
+                    run_CNMFE,
+                    save_estimates,
+                    save_CNMFE_estimates_filename,
+                    save_CNMFE_params,
+                )
+                self.processing_result = self.processor.result
+            except Exception as e:
+                raise PipelineExecutionError(
+                    "Miniscope processing stage failed.",
+                    stage="process_calcium_movie",
+                    line_num=line_num,
+                    project_path=project_path,
+                    data_path=data_path,
+                    hint="Check CNMF-E and motion-correction parameters and data integrity.",
+                ) from e
+
+
+
+            if self.miniscope_data_manager.CNMFE_obj is not None:
+                from aceneurotools.shared.plotting import set_backend
+                set_backend(headless=headless)
+                if not headless:
+                    if hasattr(tkinter, '_default_root') and tkinter._default_root:
+                        tkinter._default_root.destroy()
+
+                try:
+                    self.postprocessor = MiniscopePostprocessor(self.miniscope_data_manager)
+                    self.miniscope_data_manager = self.postprocessor.postprocess_calcium_movie(
+                        remove_components_with_gui,
+                        find_calcium_events,
+                        derivative_for_estimates,
+                        event_height,
+                        compute_miniscope_phase,
+                        filter_miniscope_data,
+                        n,
+                        cut,
+                        ftype,
+                        btype,
+                        inline,
+                        compute_miniscope_spectrogram,
+                        window_length,
+                        window_step,
+                        freq_lims,
+                        time_bandwidth,
+                    )
+                    self.postprocessing_result = self.postprocessor.result
+                except Exception as e:
+                    raise PipelineExecutionError(
+                        "Miniscope postprocessing failed.",
+                        stage="postprocess_calcium_movie",
+                        line_num=line_num,
+                        project_path=project_path,
+                        data_path=data_path,
+                        hint="Check event detection/filter/spectrogram parameters and CNMF-E outputs.",
+                    ) from e
+        except Exception as exc:
+            if recorder is not None:
+                recorder.on_run_failed(exc)
+            raise
+
+        if recorder is not None:
+            miniscope_dir = self.miniscope_data_manager.get_miniscope_directory()
+            if miniscope_dir is not None:  # results land in <calcium dir>/saved_movies
+                run_dir = Path(miniscope_dir) / "saved_movies"
+                run_dir.mkdir(parents=True, exist_ok=True)
+                recorder.on_run_completed(
+                    run_dir=run_dir,
+                    run_log=None,
+                    run_id=f"miniscope-line-{line_num}",
+                )
 
 
     def run_with_configs(

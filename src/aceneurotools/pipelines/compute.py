@@ -12,6 +12,7 @@ import numpy as np
 
 if TYPE_CHECKING:
     from aceneurotools.config.lab_config import LabConfig
+    from aceneurotools.evc.hooks import RunRecorder
 
 
 class ComputePipeline:
@@ -30,8 +31,13 @@ class ComputePipeline:
         line_nums: list[int] | None = None,
         headless: bool = False,
         verbose: bool = False,
+        recorder: RunRecorder | None = None,
     ) -> dict[int, Path]:
-        """Process a set of subjects and return {line_num: npz_path} for successful ones."""
+        """Process a set of subjects and return {line_num: npz_path} for successful ones.
+
+        ``recorder`` (optional) hooks the run into experiment version control;
+        with the default ``None`` the pipeline behaves exactly as without EVC.
+        """
         project_path = Path(project_path)
         output_dir = Path(calcium_signal_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -39,31 +45,48 @@ class ComputePipeline:
         subjects = line_nums if line_nums else lab_config.all_line_nums()
         completed: dict[int, Path] = {}
 
+        if recorder is not None:
+            recorder.on_run_approved({
+                "pipeline": "compute",
+                "subjects": subjects,
+                "project_path": str(project_path),
+                "data_path": str(data_path) if data_path is not None else None,
+                "calcium_signal_dir": str(output_dir),
+                "headless": headless,
+            })
+
         print(f"  Subjects to process ({len(subjects)}): {subjects}")
         print(f"  Output directory: {output_dir}\n")
 
-        for line_num in subjects:
-            print(f"  [compute] line {line_num}")
-            try:
-                result = self._process_subject(
-                    line_num=line_num,
-                    project_path=project_path,
-                    data_path=Path(data_path) if data_path is not None else None,
-                    output_dir=output_dir,
-                    headless=headless,
-                    verbose=verbose,
-                )
-                if result is not None:
-                    completed[line_num] = result
-                    print(f"  [compute] line {line_num} — saved to: {result.name}")
-            except Exception as exc:
-                print(f"  [compute] line {line_num} SKIPPED — {type(exc).__name__}: {exc}")
-                if verbose:
-                    traceback.print_exc()
+        try:
+            for line_num in subjects:
+                print(f"  [compute] line {line_num}")
+                try:
+                    result = self._process_subject(
+                        line_num=line_num,
+                        project_path=project_path,
+                        data_path=Path(data_path) if data_path is not None else None,
+                        output_dir=output_dir,
+                        headless=headless,
+                        verbose=verbose,
+                    )
+                    if result is not None:
+                        completed[line_num] = result
+                        print(f"  [compute] line {line_num} — saved to: {result.name}")
+                except Exception as exc:
+                    print(f"  [compute] line {line_num} SKIPPED — {type(exc).__name__}: {exc}")
+                    if verbose:
+                        traceback.print_exc()
+        except Exception as exc:
+            if recorder is not None:
+                recorder.on_run_failed(exc)
+            raise
 
         n_ok = len(completed)
         n_skip = len(subjects) - n_ok
         print(f"\n  Compute complete: {n_ok} subject(s) saved, {n_skip} skipped.")
+        if recorder is not None:
+            recorder.on_run_completed(run_dir=output_dir, run_log=None)
         return completed
 
     def _process_subject(

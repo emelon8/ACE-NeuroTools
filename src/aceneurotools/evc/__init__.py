@@ -33,6 +33,7 @@ from aceneurotools.evc.errors import (
     RepositoryNotFoundError,
     UnknownRevisionError,
 )
+from aceneurotools.evc.hooks import RunRecorder
 from aceneurotools.evc.objects import Blob, Commit, Tree, TreeEntry, object_id
 from aceneurotools.evc.pointers import (
     ArtifactPointer,
@@ -73,6 +74,8 @@ __all__ = [
     "write_manifest",
     "read_manifest",
     "verify_manifest",
+    # pipeline hooks
+    "RunRecorder",
     # remotes
     "Remote",
     "LocalDirectoryRemote",

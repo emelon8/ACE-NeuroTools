@@ -384,6 +384,37 @@ def _setup_wizard() -> int:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Experiment version control (opt-in)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _history_recorder(
+    lab_config: LabConfig,
+    project_path: Path,
+    pipeline: str,
+    line_nums: list[int] | None,
+):
+    """Build a RunRecorder for one pipeline run, or None (the off switch).
+
+    History participation is opt-in per experiment until D07/D08 are accepted
+    (docs/design/evc-implementation-plan.md §Phase 3): a recorder is built only
+    when ``run.history`` is enabled in lab_config.json AND the project
+    directory is EVC-tracked (has ``.evc/``). With None, every pipeline is
+    byte-identical to a build without EVC.
+    """
+    if not (lab_config.run and lab_config.run.history):
+        return None
+    if not (project_path / ".evc").is_dir():
+        return None
+    from aceneurotools.evc.hooks import RunRecorder
+
+    return RunRecorder(
+        project_path,
+        pipeline=pipeline,
+        line=line_nums if line_nums else lab_config.all_line_nums(),
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Argument parser
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -599,6 +630,9 @@ def main(argv: list[str] | None = None) -> int:
             line_nums=effective_line_nums,
             headless=effective_headless,
             verbose=effective_verbose,
+            recorder=_history_recorder(
+                lab_config, project_path, "compute", effective_line_nums
+            ),
         )
 
     # ── Optional post-compute stats opt-in ───────────────────────────────────
@@ -648,6 +682,9 @@ def main(argv: list[str] | None = None) -> int:
                 stats_config=stats_config,
                 headless=effective_headless,
                 verbose=effective_verbose,
+                recorder=_history_recorder(
+                    lab_config, project_path, "stats", effective_line_nums
+                ),
             )
         except KeyboardInterrupt:
             print("\n  Interrupted.")

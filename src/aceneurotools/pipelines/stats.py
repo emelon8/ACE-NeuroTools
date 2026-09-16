@@ -10,6 +10,10 @@ import traceback
 import warnings
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from aceneurotools.evc.hooks import RunRecorder
 
 from aceneurotools.config.lab_config import LabConfig
 from aceneurotools.config.stats_config import StatsConfig, StudyMetadata
@@ -137,8 +141,14 @@ class StatsPipeline:
         run_log_path: str | Path | None = None,
         lab_config_path: str | Path | None = None,
         stats_config_path: str | Path | None = None,
+        recorder: RunRecorder | None = None,
     ) -> None:
-        """Run the statistical analysis pipeline."""
+        """Run the statistical analysis pipeline.
+
+        ``recorder`` (optional) hooks the run into experiment version control
+        (pre/post-run revisions linked from run_log.json); with the default
+        ``None`` the pipeline behaves exactly as without EVC.
+        """
         from aceneurotools.shared.plotting import set_backend
         set_backend(headless=headless)
         config = stats_config or StatsConfig()
@@ -234,51 +244,72 @@ class StatsPipeline:
             params=params,
         )
 
-        if "coherence_ephys_calcium" in selected:
-            self._run_coherence_ephys_calcium(
-                subjects=subjects,
-                meta=meta,
-                config=config,
-                project_path=project_path,
-                data_path=data_path,
-                output_dir=output_dir / "coherence_ephys_calcium",
-                calcium_signal_dir=calcium_signal_dir,
-                channel=effective_channel,
-                freq_range=effective_freq_range,
-                verbose=verbose,
+        if recorder is not None:
+            recorder.on_run_approved(
+                params,
+                config_paths=[
+                    str(p) for p in (lab_config_path, stats_config_path) if p
+                ],
             )
 
-        if "coherence_ephys_ephys" in selected:
-            self._run_coherence_ephys_ephys(
-                subjects=subjects,
-                meta=meta,
-                config=config,
-                project_path=project_path,
-                data_path=data_path,
-                output_dir=output_dir / "coherence_ephys_ephys",
-                channel=effective_channel,
-                channel_2=effective_channel_2,
-                freq_range=effective_freq_range,
-                verbose=verbose,
-            )
+        try:
+            if "coherence_ephys_calcium" in selected:
+                self._run_coherence_ephys_calcium(
+                    subjects=subjects,
+                    meta=meta,
+                    config=config,
+                    project_path=project_path,
+                    data_path=data_path,
+                    output_dir=output_dir / "coherence_ephys_calcium",
+                    calcium_signal_dir=calcium_signal_dir,
+                    channel=effective_channel,
+                    freq_range=effective_freq_range,
+                    verbose=verbose,
+                )
 
-        if "scatter_correlation" in selected:
-            self._run_scatter_correlation(
-                subjects=subjects,
-                meta=meta,
-                config=config,
-                project_path=project_path,
-                data_path=data_path,
-                output_dir=output_dir / "scatter_correlation",
-                calcium_signal_dir=calcium_signal_dir,
-                channel=effective_channel,
-                freq_range=effective_freq_range,
-                verbose=verbose,
-            )
+            if "coherence_ephys_ephys" in selected:
+                self._run_coherence_ephys_ephys(
+                    subjects=subjects,
+                    meta=meta,
+                    config=config,
+                    project_path=project_path,
+                    data_path=data_path,
+                    output_dir=output_dir / "coherence_ephys_ephys",
+                    channel=effective_channel,
+                    channel_2=effective_channel_2,
+                    freq_range=effective_freq_range,
+                    verbose=verbose,
+                )
 
-        self.run_log = self._run_log
-        self._run_log.write(effective_run_log_path)
-        self._run_log.print_summary(effective_run_log_path)
+            if "scatter_correlation" in selected:
+                self._run_scatter_correlation(
+                    subjects=subjects,
+                    meta=meta,
+                    config=config,
+                    project_path=project_path,
+                    data_path=data_path,
+                    output_dir=output_dir / "scatter_correlation",
+                    calcium_signal_dir=calcium_signal_dir,
+                    channel=effective_channel,
+                    freq_range=effective_freq_range,
+                    verbose=verbose,
+                )
+
+            self.run_log = self._run_log
+            self._run_log.write(effective_run_log_path)
+            self._run_log.print_summary(effective_run_log_path)
+        except Exception as exc:
+            if recorder is not None:
+                recorder.on_run_failed(exc)
+            raise
+
+        if recorder is not None:
+            run_stamp = self._run_log.run_timestamp.replace(":", "").replace("-", "")
+            recorder.on_run_completed(
+                run_dir=output_dir,
+                run_log=effective_run_log_path,
+                run_id=f"stats-{run_stamp}",
+            )
 
     # coherence_ephys_calcium
 
@@ -517,7 +548,7 @@ class StatsPipeline:
             collector = collectors.get(drug)
 
             try:
-                engine.run_subject(
+                success, _, _ = engine.run_subject(
                     eeg_signal=ch.signal,
                     calcium_signal=calcium,
                     fr=fr,
@@ -535,6 +566,20 @@ class StatsPipeline:
                 continue
 
             assert self._run_log is not None
+            if not success:
+                # ScatterAnalysis.run_subject reports failure via its success
+                # flag (it prints the traceback itself); a failed subject must
+                # never be logged as completed (2026-09-15 audit, bug 3).
+                self._run_log.record_skip(
+                    line_num,
+                    analysis_name,
+                    PipelineExecutionError(
+                        "scatter analysis failed — see traceback above",
+                        stage="run_subject",
+                        line_num=line_num,
+                    ),
+                )
+                continue
             self._run_log.record_complete(line_num, analysis_name)
 
         self.scatter_collectors = {

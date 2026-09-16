@@ -18,6 +18,7 @@ import hashlib
 import json
 import os
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -90,11 +91,15 @@ class ManifestVerification:
         return not (self.missing or self.modified)
 
 
-def _iter_artifact_relpaths(run_dir: Path, skip_manifest: bool) -> list[str]:
+def _iter_artifact_relpaths(
+    run_dir: Path, skip_manifest: bool, exclude: frozenset[Path]
+) -> list[str]:
     """Sorted artifact paths relative to ``run_dir`` (posix separators)."""
     found: list[str] = []
     for path in sorted(run_dir.rglob("*")):
         if not path.is_file() or path.is_symlink() or path.name in _SKIP_NAMES:
+            continue
+        if path.resolve() in exclude:
             continue
         rel = path.relative_to(run_dir).as_posix()
         if skip_manifest and rel == MANIFEST_NAME:
@@ -108,6 +113,7 @@ def write_manifest(
     pipeline: str | None = None,
     revision: str | None = None,
     manifest_dir: str | Path | None = None,
+    exclude: Sequence[str | Path] = (),
 ) -> Path:
     """Hash every artifact in a run's output directory into one manifest.
 
@@ -115,7 +121,10 @@ def write_manifest(
     ``manifest_dir`` to write it elsewhere (Phase 3 mirrors manifests into the
     workspace's versioned ``results/<run-id>/``); the manifest then records the
     run directory as ``base_dir`` relative to its own location so ``verify``
-    still finds the artifacts. Returns the manifest path.
+    still finds the artifacts. ``exclude`` lists files inside ``run_dir`` that
+    are run *metadata* rather than results (e.g. ``run_log.json``, which the
+    Phase 3 recorder mutates when linking revision ids — hashing it would
+    leave the manifest permanently stale). Returns the manifest path.
     """
     run_dir = Path(run_dir)
     if not run_dir.is_dir():
@@ -137,6 +146,7 @@ def write_manifest(
         if pipeline is not None or revision is not None
         else None
     )
+    excluded = frozenset(Path(p).resolve() for p in exclude)
     pointers = [
         ArtifactPointer(
             sha256=hash_artifact(run_dir / rel),
@@ -145,7 +155,9 @@ def write_manifest(
             created=created,
             producer=producer,
         )
-        for rel in _iter_artifact_relpaths(run_dir, skip_manifest=base_dir == ".")
+        for rel in _iter_artifact_relpaths(
+            run_dir, skip_manifest=base_dir == ".", exclude=excluded
+        )
     ]
 
     payload = {
