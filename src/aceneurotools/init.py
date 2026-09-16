@@ -271,10 +271,24 @@ _CSV_COLUMNS: list[tuple[str, str, str, str]] = [
         "Subject weight in kilograms at time of recording.",
     ),
     (
+        "Box ephys folder ID",
+        "",
+        "",
+        "OPTIONAL — Box folder ID for automatic download of this subject's "
+        "ephys data.  Leave blank for local-only workflows.",
+    ),
+    (
         "ephys directory",
         "/data/raw/experiment_001/ephys",
         "/data/raw/experiment_002/ephys",
         "REQUIRED — absolute path to the folder containing Neuralynx .ncs files.",
+    ),
+    (
+        "Box Calcium Folder ID",
+        "",
+        "",
+        "OPTIONAL — Box folder ID for automatic download of this subject's "
+        "miniscope data.  Leave blank for local-only workflows.",
     ),
     (
         "calcium imaging directory",
