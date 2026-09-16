@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — experiment version control prototype (Comenius F07 / decisions D07–D08)
+- New `aceneurotools.evc` subpackage: git-like version control for experiment parameters
+  and result manifests, modeled on git's verified internals (Pro Git §10: content-addressed
+  `<type> <size>\0<body>` objects, blob/tree/commit model, refs + symbolic HEAD,
+  reflog-style journal), with documented deviations: SHA-256 ids (git's own transition
+  target), text tree serialization, no index/packfiles/merge in v1. Modular OO layers:
+  `objects` → `store` → `refs` → `repository` (plumbing) → `worktree`/`diff`/`remote` →
+  `porcelain` (axiomatic commands: `record`, `status`, `history`, `show`, `diff`,
+  `restore`, `comment`, `recover`, `push`). Invariants: immutable integrity-checked
+  objects; every ref move journaled; `restore` never destroys (dirty state auto-preserved
+  as a journal-reachable safety snapshot) and never rewinds refs; comments annotate via a
+  notes ref without rewriting history; push is fast-forward-only. CLI:
+  `python -m aceneurotools.evc`. Pure standard library. Design doc:
+  `docs/design/experiment-version-control.md`; 35 tests in `tests/test_evc_*.py`.
+
 ### Changed — package reorganization (pre-refactor cleanup)
 - **New `aceneurotools.config` subpackage** for all user-editable configuration loading. `lab_config.py` and `stats_config.py` moved out of `multimodal/`; `config_utils.py` moved out of `shared/`. Update imports: `aceneurotools.multimodal.lab_config` → `aceneurotools.config.lab_config`, `aceneurotools.multimodal.stats_config` → `aceneurotools.config.stats_config`, `aceneurotools.shared.config_utils` → `aceneurotools.config.config_utils`.
 - **New `aceneurotools.stats` subpackage** holding the statistical engines and modular toolbox previously in `multimodal/`: `coherence_analysis`, `scatter_analysis`, `signal_utils`, `surrogate`, `wavelets`, `oscillatory_events`, `event_correlograms`, `perievent`, and `stats_loader` (renamed to `stats.loader`). Update imports: `aceneurotools.multimodal.<module>` → `aceneurotools.stats.<module>`; `aceneurotools.multimodal.stats_loader` → `aceneurotools.stats.loader`. The toolbox re-exports moved from `aceneurotools.multimodal` to `aceneurotools.stats` (e.g. `from aceneurotools.stats import permutation_test`).
