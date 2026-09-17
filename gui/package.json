@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "license": "GPL-3.0-or-later",
-  "engines": { "node": ">=22.12" },
+  "engines": {
+    "node": ">=22.12"
+  },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
@@ -16,7 +18,7 @@
     "@lumino/commands": "^2.3.3",
     "@lumino/widgets": "^2.7.2",
     "@vscode/codicons": "^0.0.36",
-    "monaco-editor": "^0.55.1"
+    "monaco-editor": "^0.56.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
