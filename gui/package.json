@@ -21,6 +21,7 @@
     "monaco-editor": "^0.56.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.56.1",
     "@types/node": "^22.18.0",
     "typescript": "^5.9.3",
