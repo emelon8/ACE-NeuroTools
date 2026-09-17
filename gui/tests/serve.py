@@ -1,4 +1,5 @@
 """Isolated synthetic workspaces for browser tests; never uses research data."""
+
 import tempfile
 from pathlib import Path
 

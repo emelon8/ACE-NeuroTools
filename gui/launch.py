@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Launch the installed workbench from any current working directory."""
+
 import os
 import sys
 from pathlib import Path

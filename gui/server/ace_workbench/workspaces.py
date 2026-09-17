@@ -11,6 +11,8 @@ from aceneurotools.evc.api import ExperimentVersionControl
 
 class WorkspaceRegistry:
     def __init__(self, roots: list[Path], author: str | None = None):
+        if author and ("\n" in author or "<" not in author or not author.endswith(">")):
+            raise ValueError("Author must have the form 'Name <email>'.")
         self.author = author
         self.lock = threading.RLock()
         self.roots: dict[str, Path] = {}

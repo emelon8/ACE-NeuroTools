@@ -6,7 +6,7 @@ import json
 import math
 from dataclasses import asdict
 
-from aceneurotools.evc.api import read_manifest, verify_manifest
+from aceneurotools.evc.api import EVCError, read_manifest, verify_manifest
 
 from .workspaces import WorkspaceRegistry, confined
 
@@ -40,7 +40,7 @@ def list_results(registry: WorkspaceRegistry, workspace: str) -> list[dict]:
         try:
             _, _, pointers = manifest(registry, workspace, run.name)
             results.append({"id": run.name, "artifacts": [p.to_dict() for p in pointers], "error": None})
-        except (ValueError, OSError, KeyError, TypeError) as exc:
+        except (ValueError, OSError, KeyError, TypeError, EVCError) as exc:
             results.append({"id": run.name, "artifacts": [], "error": str(exc)})
     return results
 

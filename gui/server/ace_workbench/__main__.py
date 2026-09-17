@@ -8,6 +8,8 @@ from pathlib import Path
 
 import uvicorn
 
+from aceneurotools.evc.api import EVCError
+
 from .app import create_app
 from .demo import create_demo
 from .workspaces import WorkspaceRegistry, discover
@@ -25,7 +27,7 @@ def main():
     parser.add_argument("--project", type=Path, help="Discover immediate child EVC experiments")
     parser.add_argument("--demo", type=Path, help="Create or reopen synthetic examples in this directory")
     parser.add_argument("--port", type=int, default=8765)
-    parser.add_argument("--author", help="Name used for experiment history (defaults to EVC local identity)")
+    parser.add_argument("--author", help="'Name <email>' used for experiment history (defaults to EVC local identity)")
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--dist", type=Path, default=Path(__file__).resolve().parents[2] / "dist")
     args = parser.parse_args()
@@ -40,7 +42,7 @@ def main():
         if args.demo:
             roots += create_demo(args.demo)
         registry = WorkspaceRegistry(roots, author=args.author)
-    except (ValueError, OSError) as exc:
+    except (ValueError, OSError, EVCError) as exc:
         parser.error(str(exc))
     token = secrets.token_urlsafe(32)
     url = f"http://127.0.0.1:{args.port}/#token={token}"

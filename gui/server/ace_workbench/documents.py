@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import tempfile
 from pathlib import Path
@@ -58,7 +59,21 @@ def parse_document(path: str, text: str) -> dict:
     def reject_constant(value: str):
         raise ValueError(f"Non-finite JSON number: {value}")
 
-    value = json.loads(text, parse_constant=reject_constant)
+    def finite_number(raw: str):
+        value = float(raw)
+        if not math.isfinite(value):
+            raise ValueError("JSON numbers must be finite.")
+        return value
+
+    def unique_keys(pairs):
+        value = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError(f"Duplicate JSON key: {key}")
+            value[key] = item
+        return value
+
+    value = json.loads(text, parse_constant=reject_constant, parse_float=finite_number, object_pairs_hook=unique_keys)
     if not isinstance(value, dict):
         raise ValueError("A parameter document must be a JSON object.")
     schema = SCHEMAS.get(Path(path).name)
