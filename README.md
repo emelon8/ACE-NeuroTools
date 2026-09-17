@@ -1,8 +1,18 @@
 # ACE-NeuroTools: Analysis of Calcium Imaging and Electrophysiology
 
+## Local research workbench
+
+The independent [GUI in `gui/`](gui/README.md) provides a VS Code-inspired
+research workspace built with Lumino, Monaco Editor and Codicons, using viridis
+colors. It connects to the existing EVC backend for parameter editing,
+revision recording/comparison, comments, safe recovery and result verification.
+See the [development audit](gui/docs/AUDIT.md) and
+[remaining scientific/product issues](gui/docs/KNOWN_ISSUES.md).
+Scientific pipeline execution remains available through the existing CLI.
+
 ## Comenius planning
 
-The `proj-comenius` branch plans a human-first GUI workflow, recoverable experiment history, and modular multimodal analysis. Start with the [shared roadmap and feature issues](https://github.com/emelon8/experiment_analysis/issues/69), the [planning overview](docs/comenius/README.md), and the [open decision register](docs/comenius/decisions.md). These documents describe proposed work; they do not claim the GUI workflow is implemented.
+The `proj-comenius` branch plans a human-first GUI workflow, recoverable experiment history, and modular multimodal analysis. Start with the [shared roadmap and feature issues](https://github.com/emelon8/experiment_analysis/issues/69), the [planning overview](docs/comenius/README.md), and the [open decision register](docs/comenius/decisions.md). Those documents describe the wider proposed workflow. The `gui/` workbench implements the local EVC interaction subset; run orchestration, curation integration and cloud sharing remain separate work.
 
 **A comprehensive, open-source data analysis pipeline for systems neuroscience.**
 
