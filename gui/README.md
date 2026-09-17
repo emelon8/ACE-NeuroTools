@@ -120,6 +120,5 @@ gui/.venv/bin/ruff format --check gui/server gui/tests/serve.py gui/launch.py
 ```
 
 Tests create temporary synthetic workspaces. The browser test reset endpoint
-exists only in `tests/serve.py`, never in the production service. `npm run dev`
-is for frontend-only debugging; use the production build and local launcher for
-the authenticated, same-origin integrated application.
+exists only in `tests/serve.py`, never in the production service. For frontend iteration, rebuild with `npm run build` and reload the browser.
+The local launcher serves the editor, workers and API from the same origin.
