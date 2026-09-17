@@ -1,5 +1,5 @@
 const NS = 'http://www.w3.org/2000/svg';
-const COLORS = ['#5ec962', '#35b5ac', '#a1a6dc', '#fde725', '#678fcc'];
+const COLORS = ['#5ec962', '#21918c', '#fde725', '#35b779', '#3b528b'];
 export function tracePlot(columns: string[], rows: number[][]): SVGSVGElement {
   const svg = document.createElementNS(NS, 'svg'); svg.setAttribute('viewBox', '0 0 960 260');
   svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', `Artifact preview: ${columns.slice(1).join(', ')} against ${columns[0]}`);
