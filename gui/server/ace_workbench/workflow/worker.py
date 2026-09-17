@@ -105,6 +105,7 @@ def run(spec_path: Path, check_only: bool) -> None:
             "environment": environment(),
             "preflight": checked,
             "approved_plan": spec["plan"],
+            "approval": spec["approval"],
             "pre_revision": spec["pre_revision"],
         },
     )

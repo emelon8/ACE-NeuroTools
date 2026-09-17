@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import getpass
 import os
 import shutil
 import signal
@@ -191,6 +192,12 @@ class JobManager:
                 "pre_revision": plan["pre_revision"],
                 "post_revision": None,
             }
+            approval = {
+                "time": job["created"],
+                "researcher": self.registry.author or getpass.getuser(),
+                "action": "Run approved configuration",
+                "plan": key,
+            }
             spec = {
                 "configuration": plan["configuration"],
                 "input_root": plan["input_root"],
@@ -199,10 +206,11 @@ class JobManager:
                 "plan": key,
                 "pre_revision": plan["pre_revision"],
                 "parent_pid": os.getpid(),
+                "approval": approval,
             }
+            plan.update(used=True, approval=approval)
             atomic_json(directory / "approved-plan.json", plan)
             atomic_json(directory / "worker-spec.json", spec)
-            plan["used"] = True
             atomic_json(plan_path, plan)
             atomic_json(self.path(key), job)
             self.registry.active.add(workspace)

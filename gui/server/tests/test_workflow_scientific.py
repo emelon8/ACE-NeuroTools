@@ -117,6 +117,13 @@ writer.release()
     review = json.loads((output / "quality-review.json").read_text())
     assert review["status"] == "uncurated"
     assert review["components"] > 0
+    actual = json.loads((output / "saved_movies/opts_caiman.json").read_text())
+    assert actual["data"]["fr"] == pytest.approx(20)
+    assert actual["data"]["decay_time"] == 0.4
+    assert actual["init"]["gSig"] == [3, 3]
+    assert actual["init"]["min_corr"] == 0.6
+    assert actual["init"]["min_pnr"] == 5
+    assert actual["temporal"]["p"] == 0
     assert (output / "saved_movies/estimates.hdf5").is_file()
     assert sum(1 for _ in (output / "component-traces.csv").open()) == 161
 

@@ -147,6 +147,9 @@ def test_trace_workflow_runs_and_preserves_inputs_in_evc(service):
     job = wait_job(client, plan["id"])
     assert job["state"] == "succeeded", job
     assert job["pre_revision"] and job["post_revision"]
+    provenance = json.loads((Path(job["output"]) / "provenance.json").read_text())
+    assert provenance["approval"]["action"] == "Run approved configuration"
+    assert provenance["approval"]["researcher"] == "Test researcher <test@localhost>"
     result = json.loads((Path(job["output"]) / "trace-summary.json").read_text())
     assert result["channels"][0]["mean"] == 3
     assert result["channels"][0]["sample_sd"] == 2
