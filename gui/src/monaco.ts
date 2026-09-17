@@ -20,7 +20,9 @@ monaco.editor.defineTheme('ace-viridis', {
 });
 monaco.editor.setTheme('ace-viridis');
 export const options: monaco.editor.IStandaloneEditorConstructionOptions = {
-  theme: 'ace-viridis', fontSize: 13, fontFamily: "'SFMono-Regular', Consolas, monospace", lineHeight: 21,
+  theme: 'ace-viridis', fontSize: 13, lineHeight: 20,
+  fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--mono').trim(),
+  fontWeight: '400', fontLigatures: false,
   minimap: { enabled: false }, scrollBeyondLastLine: false, automaticLayout: true,
   padding: { top: 14 }, tabSize: 2, renderWhitespace: 'selection', smoothScrolling: false,
   accessibilitySupport: 'on', fixedOverflowWidgets: true,
