@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import sys
 import threading
 from pathlib import Path
 
@@ -10,18 +11,39 @@ from aceneurotools.evc.api import ExperimentVersionControl
 
 
 class WorkspaceRegistry:
-    def __init__(self, roots: list[Path], author: str | None = None):
+    def __init__(
+        self,
+        roots: list[Path],
+        author: str | None = None,
+        project: Path | None = None,
+        runner_python: Path | None = None,
+    ):
         if author and ("\n" in author or "<" not in author or not author.endswith(">")):
             raise ValueError("Author must have the form 'Name <email>'.")
         self.author = author
         self.lock = threading.RLock()
+        self.active: set[str] = set()
+        self.runner_python = str(runner_python or sys.executable)
         self.roots: dict[str, Path] = {}
         for root in roots:
             root = root.expanduser().resolve(strict=True)
             ExperimentVersionControl.open(root)
             self.roots[hashlib.sha256(str(root).encode()).hexdigest()[:16]] = root
-        if not self.roots:
+        if not self.roots and project is None:
             raise ValueError("Supply at least one EVC workspace or use --demo.")
+        self.project = (project or next(iter(self.roots.values())).parent).expanduser().resolve()
+        self.project.mkdir(parents=True, exist_ok=True)
+
+    def register(self, root: Path) -> dict:
+        root = root.resolve(strict=True)
+        ExperimentVersionControl.open(root)
+        key = hashlib.sha256(str(root).encode()).hexdigest()[:16]
+        self.roots[key] = root
+        return {"id": key, "name": root.name, "path": str(root)}
+
+    def require_idle(self, workspace: str) -> None:
+        if workspace in self.active:
+            raise ValueError("A run is active in this experiment. Wait or cancel before changing tracked state.")
 
     def root(self, workspace: str) -> Path:
         if workspace not in self.roots:

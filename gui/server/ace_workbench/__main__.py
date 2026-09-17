@@ -25,6 +25,9 @@ def main():
         help="Existing EVC experiment; repeat for multiple experiments",
     )
     parser.add_argument("--project", type=Path, help="Discover immediate child EVC experiments")
+    parser.add_argument(
+        "--runner-python", type=Path, help="Python executable with the scientific stack for CNMF-E/ephys runs"
+    )
     parser.add_argument("--demo", type=Path, help="Create or reopen synthetic examples in this directory")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--author", help="'Name <email>' used for experiment history (defaults to EVC local identity)")
@@ -38,10 +41,17 @@ def main():
     roots = args.workspace
     try:
         if args.project:
+            args.project.expanduser().mkdir(parents=True, exist_ok=True)
             roots += discover(args.project)
         if args.demo:
             roots += create_demo(args.demo)
-        registry = WorkspaceRegistry(roots, author=args.author)
+        project = args.project or args.demo
+        if not roots and project is None:
+            project = Path.home() / "ACENeuroTools"
+        runner = args.runner_python.expanduser().absolute() if args.runner_python else None
+        if runner and not runner.is_file():
+            raise ValueError("--runner-python must point to an existing Python executable.")
+        registry = WorkspaceRegistry(roots, author=args.author, project=project, runner_python=runner)
     except (ValueError, OSError, EVCError) as exc:
         parser.error(str(exc))
     token = secrets.token_urlsafe(32)

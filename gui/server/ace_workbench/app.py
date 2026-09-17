@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hmac
+from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
 
@@ -14,6 +15,9 @@ from pydantic import BaseModel, Field
 from aceneurotools.evc.api import EVCError, load_schema
 
 from . import documents, history, results
+from .workflow.jobs import JobManager
+from .workflow.router import router
+from .workflow.service import WorkflowService
 from .workspaces import WorkspaceRegistry
 
 
@@ -38,7 +42,19 @@ class Comment(BaseModel):
 
 
 def create_app(registry: WorkspaceRegistry, token: str, port: int = 8765, dist: Path | None = None) -> FastAPI:
-    app = FastAPI(title="ACENeuroTools local workbench", docs_url=None, redoc_url=None, openapi_url=None)
+    workflow = WorkflowService(registry)
+    jobs = JobManager(workflow)
+
+    @asynccontextmanager
+    async def lifespan(_app):
+        yield
+        jobs.shutdown()
+
+    app = FastAPI(
+        title="ACENeuroTools local workbench", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan
+    )
+    app.state.workflow = workflow
+    app.state.jobs = jobs
     hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
     origins = {f"http://{host}" for host in hosts}
 
@@ -56,8 +72,15 @@ def create_app(registry: WorkspaceRegistry, token: str, port: int = 8765, dist: 
                     {"detail": "Session expired. Reopen the URL printed by ace-workbench."}, status_code=401
                 )
             size = request.headers.get("content-length")
-            if size and int(size) > 3 * 1024 * 1024:
+            if size and (not size.isdigit() or int(size) > 3 * 1024 * 1024):
                 return JSONResponse({"detail": "Request too large."}, status_code=413)
+            chunks, received = [], 0
+            async for chunk in request.stream():
+                received += len(chunk)
+                if received > 3 * 1024 * 1024:
+                    return JSONResponse({"detail": "Request too large."}, status_code=413)
+                chunks.append(chunk)
+            request._body = b"".join(chunks)
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
@@ -94,7 +117,14 @@ def create_app(registry: WorkspaceRegistry, token: str, port: int = 8765, dist: 
 
     @app.get("/api/session")
     def session():
-        return {"version": "0.1.0", "workspaces": registry.list(), "mode": "local", "author": registry.author}
+        return {
+            "version": "0.2.0",
+            "workspaces": registry.list(),
+            "mode": "local",
+            "author": registry.author,
+            "project": str(registry.project),
+            "runner_python": registry.runner_python,
+        }
 
     @app.get("/api/schemas")
     def schemas():
@@ -166,6 +196,7 @@ def create_app(registry: WorkspaceRegistry, token: str, port: int = 8765, dist: 
     def preview(workspace: str, run: str, path: str):
         return results.preview(registry, workspace, run, path)
 
+    app.include_router(router(workflow, jobs))
     if dist and dist.is_dir():
         app.mount("/", StaticFiles(directory=dist, html=True), name="workbench")
     return app

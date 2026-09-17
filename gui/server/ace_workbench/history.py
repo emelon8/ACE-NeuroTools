@@ -21,6 +21,7 @@ def require_version(registry: WorkspaceRegistry, workspace: str, version: str) -
 
 def record(registry: WorkspaceRegistry, workspace: str, message: str, version: str) -> dict:
     with registry.lock:
+        registry.require_idle(workspace)
         require_version(registry, workspace, version)
         revision = registry.evc(workspace).record(message, author=registry.author)
         return {"revision": revision}
@@ -28,5 +29,6 @@ def record(registry: WorkspaceRegistry, workspace: str, message: str, version: s
 
 def restore(registry: WorkspaceRegistry, workspace: str, revision: str, version: str) -> dict:
     with registry.lock:
+        registry.require_idle(workspace)
         require_version(registry, workspace, version)
         return asdict(registry.evc(workspace).restore(revision, author=registry.author))

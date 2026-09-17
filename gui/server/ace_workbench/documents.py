@@ -88,6 +88,7 @@ def save_document(registry: WorkspaceRegistry, workspace: str, path: str, text: 
     value = parse_document(path, text)
     target = document_path(registry.root(workspace), path)
     with registry.lock:
+        registry.require_idle(workspace)
         current = read_document(registry, workspace, path)
         if current["etag"] != etag:
             raise ConflictError("This file changed on disk. Reload it before saving; your editor buffer is preserved.")
