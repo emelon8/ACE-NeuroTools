@@ -10,4 +10,4 @@ export interface Artifact { sha256: string; size: number; relpath: string; creat
 export interface Run { id: string; artifacts: Artifact[]; error: string | null }
 export interface Verification { clean: boolean; verified: string[]; missing: string[]; modified: string[] }
 export interface Preview { kind: 'table' | 'text'; columns?: string[]; rows?: string[][]; numeric?: number[][]; truncated?: boolean; text?: string }
-export interface Session { version: string; workspaces: Workspace[]; mode: string; author: string | null }
+export interface Session { project: string; runner_python: string; version: string; workspaces: Workspace[]; mode: string; author: string | null }
