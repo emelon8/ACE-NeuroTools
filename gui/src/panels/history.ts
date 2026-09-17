@@ -20,7 +20,7 @@ export class HistoryPanel extends Panel {
         const row = el('div', 'history-row');
         const graph = el('div', 'history-graph'); graph.append(el('span', 'revision-dot'));
         const description = el('div', 'history-description');
-        description.append(button(revision.message.split('\n')[0], () => this.show(revision), undefined, 'text-button'), el('span', 'muted', `${revision.author} · ${timestamp(revision.author_time)}`));
+        description.append(button(revision.message.split('\n')[0], () => this.showDetail(revision), undefined, 'text-button'), el('span', 'muted', `${revision.author} · ${timestamp(revision.author_time)}`));
         row.append(graph, description, el('code', 'revision-id', short(revision.oid)));
         if (index === 0) row.append(el('span', 'badge', 'HEAD'));
         row.append(button('Compare to HEAD', () => compare(revision.oid, 'HEAD'), 'diff', 'icon-only'), button('Restore revision', () => restore(revision.oid), 'discard', 'icon-only'));
@@ -30,7 +30,7 @@ export class HistoryPanel extends Panel {
     };
     void load().catch(report); this.listen(context, 'change', () => { void load().catch(report); });
   }
-  private async show(revision: Revision): Promise<void> {
+  private async showDetail(revision: Revision): Promise<void> {
     const generation = ++this.generation;
     const comments = await request<{ text: string }>(context.path(`/revision/${revision.oid}/comments`));
     if (this.isDisposed || generation !== this.generation) return;
@@ -38,7 +38,7 @@ export class HistoryPanel extends Panel {
     const notes = el('pre', 'comment-thread', comments.text || 'No comments on this revision.');
     this.details.replaceChildren(el('h2', '', revision.message), el('code', '', revision.oid), notes, text, button('Add comment', async () => {
       await request(context.path(`/revision/${revision.oid}/comments`), 'POST', { text: text.value });
-      context.log(`Added comment to ${short(revision.oid)}`); await this.show(revision);
+      context.log(`Added comment to ${short(revision.oid)}`); await this.showDetail(revision);
     }, 'comment'));
     this.details.scrollIntoView({ block: 'nearest' });
   }

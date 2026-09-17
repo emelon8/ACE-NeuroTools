@@ -13,7 +13,7 @@ export class Shell {
   status = el('footer', 'statusbar');
   title = el('span', 'window-title', 'ACENeuroTools');
   root = el('div', 'workbench');
-  menu = new MenuBar({ commands: this.commands });
+  menu = new MenuBar();
   constructor() {
     const top = el('header', 'titlebar');
     const mark = el('div', 'app-mark'); mark.append(icon('pulse'));

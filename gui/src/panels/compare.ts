@@ -16,12 +16,12 @@ export class ComparePanel extends Panel {
       if (this.isDisposed) return;
       if (!diffs.length) { files.append(empty('Identical parameter state', 'These revisions contain the same tracked files.')); return; }
       for (const diff of diffs) {
-        files.append(button(`${diff.status}  ${diff.path}`, () => this.show(diff), 'diff'));
+        files.append(button(`${diff.status}  ${diff.path}`, () => this.showDetail(diff), 'diff'));
       }
-      return this.show(diffs.find(d => d.path.startsWith('parameters/') && d.path.endsWith('.json')) ?? diffs[0]);
+      return this.showDetail(diffs.find(d => d.path.startsWith('parameters/') && d.path.endsWith('.json')) ?? diffs[0]);
     }).catch(report);
   }
-  private async show(diff: FileDiff): Promise<void> {
+  private async showDetail(diff: FileDiff): Promise<void> {
     const selection = ++this.selection;
     if (!diff.path.startsWith('parameters/') || !diff.path.endsWith('.json')) {
       this.release(); this.host.replaceChildren(table(['Key', 'Previous', 'Selected'], diff.param_changes.map(c => [c.key, code(c.old), code(c.new)]))); return;

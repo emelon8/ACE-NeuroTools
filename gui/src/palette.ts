@@ -15,7 +15,7 @@ export function installPalette(shell: Shell): () => void {
     if (event.key === 'Escape') { event.preventDefault(); close(); }
     if (event.key === 'Tab') { event.preventDefault(); palette.inputNode.focus(); }
   });
-  shell.commands.commandExecuted.connect(() => { if (!overlay.hidden) close(); });
+  shell.commands.commandExecuted.connect((_sender, args) => { if (args.id !== 'palette' && !overlay.hidden) close(); });
   return () => {
     previous = document.activeElement as HTMLElement;
     palette.clearItems();
