@@ -15,4 +15,6 @@ for (const [path, info] of Object.entries(lock.packages)) {
   else throw new Error(`Missing license text for ${pkg.name}`);
 }
 mkdirSync(resolve(root, 'public'), { recursive: true });
+// Normalize whitespace only; preserve all license wording and attribution.
+text = text.replace(/\r\n?/g, '\n').replace(/[ \t]+$/gm, '').trimEnd() + '\n';
 writeFileSync(resolve(root, 'public/THIRD_PARTY_NOTICES.txt'), text);
