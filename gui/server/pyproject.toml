@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aceneurotools-workbench"
+version = "0.1.0"
+description = "Local Lumino/Monaco research workbench over ACENeuroTools EVC"
+requires-python = ">=3.10"
+license = "GPL-3.0-or-later"
+dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.34,<1", "jsonschema>=4.23,<5"]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10", "httpx>=0.28,<1", "ruff>=0.11"]
+
+[project.scripts]
+ace-workbench = "ace_workbench.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ace_workbench*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
