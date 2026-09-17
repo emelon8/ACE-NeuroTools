@@ -62,7 +62,7 @@ export class WorkflowController extends EventTarget {
       this.name = files[0].path.includes('/') ? files[0].path.split('/')[0] : files[0].file.name.replace(/\.[^.]+$/, '');
       if (this.imported.candidates!.length === 1) await this.chooseCandidate(this.imported.candidates![0].id);
       else { this.candidate = ''; this.pipeline = ''; this.questionnaire = undefined; }
-      context.log(`Copied and inspected ${files.length} recording files locally`);
+      context.log(`Copied and inspected ${files.length} recording ${files.length === 1 ? 'file' : 'files'} locally`);
     });
   }
   async chooseCandidate(id: string): Promise<void> {

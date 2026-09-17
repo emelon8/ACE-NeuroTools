@@ -14,7 +14,7 @@ export class ResultsPanel extends Panel {
       const runs = await request<Run[]>(context.path('/results'));
       if (this.isDisposed) return;
       list.replaceChildren();
-      if (!runs.length) list.append(empty('No result manifests', 'Results recorded by the EVC pipeline hooks appear here. Run scientific processing through the existing CLI.'));
+      if (!runs.length) list.append(empty('No result manifests', 'Completed, recorded runs appear here. Use Import & Run to configure a recording and start a local operation.'));
       for (const run of runs) {
         const section = el('section', 'result-run'); const status = el('span', 'muted', 'Not verified this session');
         const bar = el('div', 'toolbar');
