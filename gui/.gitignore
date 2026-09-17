@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.venv/
+.demo/
+playwright-report/
+test-results/
+*.log
