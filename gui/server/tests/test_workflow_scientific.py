@@ -3,6 +3,7 @@
 import csv
 import json
 import os
+import struct
 import subprocess
 import time
 from pathlib import Path
@@ -73,7 +74,8 @@ np.full((128,32),512,dtype='<u2').tofile(root / 'rhs2116pair-dc_0.raw')
     assert json.loads((output / "channel-metadata.json").read_text())["signal_unit"] == "uV"
 
 
-def test_real_cnmfe_extracts_generated_calcium_movie(service, tmp_path):
+@pytest.mark.parametrize("acquisition", ["ucla", "onix"])
+def test_real_cnmfe_extracts_generated_calcium_movie(service, tmp_path, acquisition):
     script = tmp_path / "generate.py"
     script.write_text("""import numpy as np, cv2
 from pathlib import Path
@@ -94,11 +96,17 @@ writer.release()
     subprocess.run([RUNTIME, str(script)], check=True)
     files = {
         "0.avi": (tmp_path / "0.avi").read_bytes(),
-        "metaData.json": b'{"frameRate":20}',
+        "metaData.json": b'{"frameRate":20,"deviceType":"Miniscope_V4"}',
         "timeStamps.csv": (
             "Frame Number,Time Stamp (ms),Buffer Index\n" + "".join(f"{i},{i * 50},0\n" for i in range(160))
         ).encode(),
     }
+    if acquisition == "onix":
+        files = {
+            "0.avi": files["0.avi"],
+            "start-time_0_miniscope.csv": b"2026-09-17T00:00:00,250000000,32,32\n",
+            "ucla-miniscope-v4-clock_0.raw": b"".join(struct.pack("<Q", i * 12500000) for i in range(160)),
+        }
     output = execute(
         service,
         files,
@@ -111,3 +119,47 @@ writer.release()
     assert review["components"] > 0
     assert (output / "saved_movies/estimates.hdf5").is_file()
     assert sum(1 for _ in (output / "component-traces.csv").open()) == 161
+
+
+def test_real_neuralynx_export_preserves_gaps_and_hardware_time(service, tmp_path):
+    script = tmp_path / "generate.py"
+    script.write_text('''import numpy as np
+from pathlib import Path
+from neo.rawio.neuralynxrawio.neuralynxrawio import NeuralynxRawIO, nev_dtype
+root=Path(__file__).parent
+base="""######## Neuralynx Data File Header
+-FileVersion 3.4
+-CheetahRev 5.7.4
+-AcquisitionSystem AcqSystem1 DigitalLynxSX
+-TimeCreated 2026/09/17 00:00:00
+-TimeClosed 2026/09/17 00:01:00
+-SamplingFrequency 1000
+-ADBitVolts 0.000001
+-InputInverted False
+-ADMaxValue 32767
+"""
+header=(base+'-FileType CSC\\n-AcqEntName CSC1\\n-ADChannel 1\\n-NumADChannels 1\\n').encode().ljust(16384,b'\\0')
+records=np.zeros(2,dtype=NeuralynxRawIO._ncs_dtype)
+records['timestamp']=[10000000,12000000]
+records['channel_id']=1
+records['sample_rate']=1000
+records['nb_valid']=512
+records['samples'][0]=np.arange(512)
+records['samples'][1]=np.arange(512)+1000
+(root/'CSC1.ncs').write_bytes(header+records.tobytes())
+events=np.zeros(1,dtype=nev_dtype)
+events['timestamp']=10000000
+events['event_id']=1
+events['event_string']=b'synthetic start'
+header=(base+'-FileType Event\\n-AcqEntName Events\\n').encode().ljust(16384,b'\\0')
+(root/'Events.nev').write_bytes(header+events.tobytes())
+''')
+    subprocess.run([RUNTIME, str(script)], check=True)
+    files = {p.name: p.read_bytes() for p in tmp_path.iterdir() if p.suffix in {".nev", ".ncs"}}
+    output = execute(service, files, "ephys-export", {"channel": "CSC1"}, "Neuralynx generated fixture")
+    with (output / "channel.csv").open() as stream:
+        rows = list(csv.reader(stream))[1:]
+    assert len(rows) == 1024  # No synthetic samples inserted in the recording gap.
+    assert float(rows[0][0]) == pytest.approx(10)
+    assert float(rows[512][0]) == pytest.approx(12)
+    assert float(rows[512][1]) == pytest.approx(1000)

@@ -100,7 +100,7 @@ def test_duplicate_paths_and_prefixes_rejected(service):
 
 
 def test_conditional_questions_do_not_invent_scientific_values():
-    known = Candidate("id", "ucla-miniscope", "UCLA", ".", [], metadata={"frame_rate": 20})
+    known = Candidate("id", "ucla-miniscope", "UCLA", ".", [], metadata={"frame_rate": 20, "calcium_evidence": True})
     pipeline = CNMFEPipeline()
     assert "frame_rate" not in {q.key for q in pipeline.questions(known)}
     assert next(q for q in pipeline.questions(known) if q.key == "decay_time").default is None
@@ -221,3 +221,84 @@ def test_cancel_stops_worker_and_blocks_mutations(service, monkeypatch):
     assert client.post(f"/api/workflow/runs/{plan['id']}/cancel").status_code == 200
     assert wait_job(client, plan["id"])["state"] == "cancelled"
     assert workspace not in manager.registry.active
+
+
+def test_failed_copy_rolls_back_new_experiment_and_keeps_staging(service, monkeypatch):
+    import ace_workbench.workflow.service as module
+
+    client, _, registry, _ = service
+    key, info = upload(client, {"data.bin": b"original"})
+
+    def broken_copy(source, target):
+        target.mkdir()
+        (target / "partial").write_bytes(b"incomplete")
+        raise OSError("simulated disk failure")
+
+    monkeypatch.setattr(module.shutil, "copytree", broken_copy)
+    response = client.post(
+        f"/api/workflow/imports/{key}/setup",
+        json={
+            "candidate": info["candidates"][0]["id"],
+            "pipeline": "inventory",
+            "answers": {},
+            "destination": "new",
+            "name": "Failed copy",
+        },
+    )
+    assert response.status_code == 400
+    assert not (registry.project / "Failed copy").exists()
+    assert client.get(f"/api/workflow/imports/{key}").json()["state"] == "inspected"
+    assert (client.app.state.workflow.imports.directory(key) / "files/data.bin").read_bytes() == b"original"
+
+
+def test_source_mutation_during_setup_cannot_be_recorded(service):
+    client, _, registry, _ = service
+    key, info = upload(client, {"data.bin": b"original"})
+    (client.app.state.workflow.imports.directory(key) / "files/data.bin").write_bytes(b"modified")
+    response = client.post(
+        f"/api/workflow/imports/{key}/setup",
+        json={
+            "candidate": info["candidates"][0]["id"],
+            "pipeline": "inventory",
+            "answers": {},
+            "destination": "new",
+            "name": "Changed source",
+        },
+    )
+    assert response.status_code == 400
+    assert not (registry.project / "Changed source").exists()
+
+
+def test_restart_marks_unfinished_run_and_does_not_report_success(service):
+    from ace_workbench.workflow.common import atomic_json
+    from ace_workbench.workflow.jobs import JobManager
+
+    client, _, registry, workspace = service
+    manager = client.app.state.jobs
+    key = "f" * 32
+    atomic_json(manager.path(key), {"id": key, "workspace": workspace, "state": "running", "created": 0})
+    manager.shutdown()
+    replacement = JobManager(client.app.state.workflow)
+    try:
+        assert replacement.read(key)["state"] == "interrupted"
+        assert replacement.current is None
+    finally:
+        replacement.shutdown()
+
+
+def test_second_project_session_cannot_reclassify_live_runs(service):
+    from ace_workbench.workflow.jobs import JobManager
+
+    client, *_ = service
+    with pytest.raises(ValueError, match="already open"):
+        JobManager(client.app.state.workflow)
+
+
+def test_unknown_camera_needs_content_confirmation_and_behavior_is_blocked(tmp_path):
+    (tmp_path / "metaData.json").write_text('{"frameRate":20,"deviceType":"WebCam"}')
+    (tmp_path / "timeStamps.csv").write_text("Frame Number,Time Stamp (ms)\n0,0\n1,50\n")
+    (tmp_path / "0.avi").write_bytes(b"video")
+    candidate = DetectorRegistry().inspect(tmp_path, [{"path": p.name} for p in tmp_path.iterdir()])[0]
+    assert any("behavior camera" in error for error in candidate.blockers)
+    candidate.metadata = {"frame_rate": 20}
+    assert "recording_content" in {q.key for q in CNMFEPipeline().questions(candidate)}

@@ -35,6 +35,7 @@ export class WorkflowPanel extends Panel {
     if (c.error) { const error = el('p', 'workflow-error', c.error); error.setAttribute('role', 'alert'); this.body.append(error); }
     if (!c.imported && !c.plan) this.renderLanding();
     if (c.imported?.state === 'uploading') this.renderDrop();
+    if (c.imported?.state === 'inspected' && !c.questionnaire) this.renderCandidateChoice();
     if (c.imported && c.imported.state !== 'uploading' && c.questionnaire) this.renderQuestions();
     if (c.plan) this.renderPlan();
     if (c.job) this.renderJob();
@@ -90,10 +91,17 @@ export class WorkflowPanel extends Panel {
     this.progress.value = p.total ? p.done / p.total : 0;
     this.progressText.textContent = `${bytes(p.done)} / ${bytes(p.total)} · ${p.file}`;
   }
+  private renderCandidateChoice(): void {
+    const c = this.controller;
+    this.body.append(el('h2', '', 'Choose a recording'), el('p', 'muted', 'Multiple acquisition candidates were found. Select the recording for this workflow; no pairing, merging or alignment is inferred.'));
+    const selection = this.select('Detected recording', [{ value: '', label: 'Select a recording…' }, ...c.imported!.candidates!.map(item => ({ value: item.id, label: `${item.label} · ${item.directory}` }))], '');
+    selection.input.addEventListener('change', () => { if (selection.input.value) void c.action('Inspecting selected recording', () => c.chooseCandidate(selection.input.value)); });
+    this.body.append(selection.label, button('Discard staged copy', () => c.discard(), 'close'));
+  }
   private renderQuestions(): void {
     const c = this.controller, imported = c.imported!, selected = c.selected!, questionnaire = c.questionnaire!;
     this.body.append(el('h2', '', c.configuration ? 'Edit recording workflow' : 'Set up this recording'));
-    this.body.append(el('p', 'muted', `${imported.files.length} files · ${bytes(imported.files.reduce((sum, file) => sum + file.size, 0))} copied and hashed`));
+    this.body.append(el('p', 'muted', `${imported.files.length} ${imported.files.length === 1 ? 'file' : 'files'} · ${bytes(imported.files.reduce((sum, file) => sum + file.size, 0))} copied and hashed`));
     const form = el('form', 'workflow-form');
     form.addEventListener('submit', event => { event.preventDefault(); void c.setup(); });
     if (!c.configuration) {
@@ -110,6 +118,11 @@ export class WorkflowPanel extends Panel {
     recording.input.addEventListener('change', () => { void c.action('Inspecting selected recording', () => c.chooseCandidate(recording.input.value)); }); form.append(recording.label);
     form.append(el('p', 'muted', imported.candidates!.length > 1 ? 'Multiple candidates were found. This run uses only the selected recording; no pairing or alignment is inferred.' : 'Review the acquisition evidence before proceeding.'));
     const evidence = el('ul', 'workflow-evidence'); selected.evidence.forEach(line => evidence.append(el('li', '', line))); form.append(evidence);
+    const rate = selected.metadata.frame_rate;
+    if (rate) form.append(el('p', 'muted', `Acquisition frame rate: ${rate} Hz · source: ${selected.metadata.frame_rate_source}`));
+    const columns = selected.metadata.columns as string[] | undefined;
+    const timing = columns?.filter(column => column === 'time_s' || column === 'time_ms');
+    if (timing?.length === 1) form.append(el('p', 'muted', `Time column: ${timing[0]} · ${timing[0] === 'time_s' ? 'seconds' : 'milliseconds'} (from the column name)`));
     const metadata = el('details'); metadata.append(el('summary', '', 'Acquisition metadata and ordered input files'), el('pre', 'workflow-json', JSON.stringify({ ...selected.metadata, files: selected.files }, null, 2))); form.append(metadata);
     const pipeline = this.select('Operation', selected.pipelines.map(p => ({ value: p.id, label: p.label })), c.pipeline);
     pipeline.input.addEventListener('change', () => { c.pipeline = pipeline.input.value; c.answers = {}; void c.action('Loading operation questions', () => c.loadQuestions()); });

@@ -45,13 +45,14 @@ export class WorkflowController extends EventTarget {
       if (pending) {
         try {
           const imported = await request<ImportSession>(`/workflow/imports/${pending}`);
-          if (imported.state !== 'attached') { this.imported = imported; if (imported.state === 'inspected') await this.chooseCandidate(imported.candidates![0].id); }
+          if (imported.state !== 'attached') { this.imported = imported; if (imported.state === 'inspected' && imported.candidates!.length === 1) await this.chooseCandidate(imported.candidates![0].id); }
           else sessionStorage.removeItem('ace-import');
         } catch { sessionStorage.removeItem('ace-import'); }
       }
     });
   }
   async importFiles(files: DroppedFile[]): Promise<void> {
+    if (this.busy) { this.error = 'Wait for the current operation before dropping more files.'; this.changed(); return; }
     if (this.imported && this.imported.state !== 'uploading') { this.error = 'Finish or discard the current setup before selecting more files.'; this.changed(); return; }
     await this.action('Copying recording files', async () => {
       this.plan = undefined;
@@ -59,7 +60,8 @@ export class WorkflowController extends EventTarget {
         this.progress = { done, total, file }; this.dispatchEvent(new Event('progress'));
       }, session => { this.imported = session; sessionStorage.setItem('ace-import', session.id); });
       this.name = files[0].path.includes('/') ? files[0].path.split('/')[0] : files[0].file.name.replace(/\.[^.]+$/, '');
-      await this.chooseCandidate(this.imported.candidates![0].id);
+      if (this.imported.candidates!.length === 1) await this.chooseCandidate(this.imported.candidates![0].id);
+      else { this.candidate = ''; this.pipeline = ''; this.questionnaire = undefined; }
       context.log(`Copied and inspected ${files.length} recording files locally`);
     });
   }

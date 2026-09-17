@@ -15,12 +15,12 @@ with tempfile.TemporaryDirectory(prefix="ace-browser-test-") as temp:
     app = create_app(registry, "browser-test-session", 8766)
 
     @app.post("/api/test/reset")
-    def reset():
+    def reset(empty: bool = False):
         # Test-only route, behind the same capability header; absent in production.
         with registry.lock:
             root = Path(tempfile.mkdtemp(dir=directory)) / "demo"
             fresh = WorkspaceRegistry(create_demo(root))
-            registry.roots = fresh.roots
+            registry.roots = {} if empty else fresh.roots
         return {"ready": True}
 
     app.mount("/", StaticFiles(directory=Path(__file__).resolve().parents[1] / "dist", html=True))

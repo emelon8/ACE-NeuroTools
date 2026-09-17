@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import shutil
 from pathlib import Path
@@ -10,11 +11,11 @@ from aceneurotools.evc.api import ExperimentVersionControl
 
 from .. import documents
 from ..workspaces import WorkspaceRegistry, confined
-from .common import atomic_json, read_json
+from .common import atomic_json, file_hash, read_json
 from .detectors import DetectorRegistry
 from .models import Candidate, Selection, Setup
-from .pipelines import PipelineRegistry, QuestionEngine
-from .storage import ImportStore
+from .pipelines import Pipeline, PipelineRegistry, QuestionEngine
+from .storage import RESERVE, ImportStore, relative_path
 
 
 class WorkflowService:
@@ -42,7 +43,7 @@ class WorkflowService:
         ]
         return result
 
-    def selection(self, key: str, selection: Selection) -> tuple[dict, Candidate, object]:
+    def selection(self, key: str, selection: Selection) -> tuple[dict, Candidate, Pipeline]:
         value = self.imports.read(key)
         if value["state"] not in {"inspected", "attached"}:
             raise ValueError("Finish copying all files before configuring an experiment.")
@@ -79,32 +80,28 @@ class WorkflowService:
                     raise documents.ConflictError(
                         "Record or restore existing experiment changes before attaching a recording."
                     )
+                ignore = confined(root, ".evc/ignore").read_text()
+                if "artifacts/" not in {line.strip() for line in ignore.splitlines()}:
+                    raise ValueError(
+                        "This experiment must exclude artifacts/ in .evc/ignore before importing recordings."
+                    )
             else:
-                name = setup.name.strip()
-                if not re.fullmatch(r"[\w][\w .-]{0,99}", name) or name.endswith((".", " ")):
+                name = relative_path(setup.name.strip())
+                if not re.fullmatch(r"[\w][\w .-]{0,99}", name):
                     raise ValueError(
                         "Experiment names must begin with a letter/number and use letters, numbers, spaces, dots or hyphens."
                     )
                 root = confined(self.registry.project, name)
-                # mkdir, not exist_ok: no overwrite or automatic merging of experiment names.
-                root.mkdir(exist_ok=False)
-                ExperimentVersionControl.init(root, workspace=True)
-            evc = ExperimentVersionControl.open(root)
-            # A user may have customized EVC ignores. Never import bulk unless artifacts is excluded.
-            ignore = (root / ".evc/ignore").read_text()
-            if "artifacts/" not in {line.strip() for line in ignore.splitlines()}:
-                raise ValueError("This experiment must exclude artifacts/ in .evc/ignore before importing recordings.")
+                if any(child.name.casefold() == name.casefold() for child in self.registry.project.iterdir()):
+                    raise documents.ConflictError(
+                        "An experiment or folder with that name already exists. Choose another name or an existing experiment."
+                    )
             target = confined(root, f"artifacts/recordings/{key}")
-            target.parent.mkdir(parents=True, exist_ok=True)
-            if target.exists():
-                raise documents.ConflictError("Recording destination already exists; no files were replaced.")
-            # Keep staging as the recoverable source until the setup is fully recorded.
-            shutil.copytree(self.imports.directory(key) / "files", target)
             configuration_path = f"parameters/workflow.{key}.json"
             configuration = {
                 "schema": "ace-workflow-v1",
                 "id": key,
-                "recording_root": str(target.relative_to(root)),
+                "recording_root": target.relative_to(root).as_posix(),
                 "candidate": candidate.to_dict(),
                 "pipeline": pipeline.id,
                 "answers": answers,
@@ -114,24 +111,62 @@ class WorkflowService:
                 "experiment_name": root.name,
                 "meaning": "Subject, condition and treatment are not inferred; record them in experiment notes when relevant.",
             }
-            atomic_json(confined(root, configuration_path), configuration)
-            if not existing:
-                atomic_json(
-                    root / "parameters/experiment.json",
-                    {
-                        "schema": "aceneuro-experiment-v1",
-                        "line_number": 1,
-                        "id": "",
-                        "date": None,
-                        "comments": "Imported through the workbench. Subject and treatment have not been specified.",
-                        "_csv": {"columns": [], "raw": {}},
-                    },
+            documents.parse_document(configuration_path, json.dumps(configuration, indent=2))
+            if (
+                shutil.disk_usage(root if existing else root.parent).free
+                < sum(f["size"] for f in value["files"]) + RESERVE
+            ):
+                raise ValueError(
+                    "Insufficient experiment disk space for the recording copy; staged files are retained."
                 )
-            revision = evc.record(f"Attach recording and configure {pipeline.label}", author=self.registry.author)
-            workspace = self.registry.register(root)
-            value.update(state="attached", workspace=workspace, configuration=configuration_path, revision=revision)
-            self.imports.write(value)
-            shutil.rmtree(self.imports.directory(key) / "files")
+            config_target = confined(root, configuration_path)
+            if target.exists() or config_target.exists():
+                raise documents.ConflictError("Recording destination already exists; no files were replaced.")
+            committed = False
+            created_root = False
+            try:
+                if not existing:
+                    root.mkdir(exist_ok=False)
+                    created_root = True
+                    ExperimentVersionControl.init(root, workspace=True)
+                evc = ExperimentVersionControl.open(root)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                # Retain the staging source until EVC records the complete setup.
+                shutil.copytree(self.imports.directory(key) / "files", target)
+                for item in configuration["inputs"]:
+                    copied = confined(target, item["path"])
+                    if copied.stat().st_size != item["size"] or file_hash(copied) != item["sha256"]:
+                        raise ValueError(f"Copied input failed integrity verification: {item['path']}")
+                atomic_json(config_target, configuration)
+                if not existing:
+                    atomic_json(
+                        root / "parameters/experiment.json",
+                        {
+                            "schema": "aceneuro-experiment-v1",
+                            "line_number": 1,
+                            "id": "",
+                            "date": None,
+                            "comments": "Imported through the workbench. Subject and treatment have not been specified.",
+                            "_csv": {"columns": [], "raw": {}},
+                        },
+                    )
+                revision = evc.record(f"Attach recording and configure {pipeline.label}", author=self.registry.author)
+                committed = True
+                workspace = self.registry.register(root)
+                value.update(state="attached", workspace=workspace, configuration=configuration_path, revision=revision)
+                self.imports.write(value)
+                # An ignored provenance copy travels with the experiment if its project changes.
+                atomic_json(confined(root, f"artifacts/recordings/{key}.import.json"), value)
+            except Exception:
+                if not committed:
+                    if created_root:
+                        shutil.rmtree(root)
+                    elif existing:
+                        shutil.rmtree(target, ignore_errors=True)
+                        config_target.unlink(missing_ok=True)
+                raise
+            # Cleanup failure must not make a successfully committed import look unsuccessful.
+            shutil.rmtree(self.imports.directory(key) / "files", ignore_errors=True)
             return {"workspace": workspace, "configuration": configuration_path, "revision": revision}
 
     def configurations(self, workspace: str) -> list[dict]:
@@ -155,7 +190,15 @@ class WorkflowService:
         if value.get("schema") != "ace-workflow-v1":
             raise ValueError("Choose a saved workflow configuration.")
         # Immutable import provenance is authoritative, even if JSON was edited externally.
-        original = self.imports.read(value["id"])
+        try:
+            original = self.imports.read(value["id"])
+        except FileNotFoundError:
+            original = read_json(
+                confined(self.registry.root(workspace), f"artifacts/recordings/{value['id']}.import.json")
+            )
+            original["workspace"] = next(item for item in self.registry.list() if item["id"] == workspace)
+            self.imports.directory(value["id"]).mkdir(parents=True, exist_ok=True)
+            self.imports.write(original)
         if original.get("workspace", {}).get("id") != workspace or original.get("configuration") != path:
             raise ValueError("Configuration does not belong to this imported recording.")
         candidate = next((Candidate(**c) for c in original["candidates"] if c["id"] == value["candidate"]["id"]), None)

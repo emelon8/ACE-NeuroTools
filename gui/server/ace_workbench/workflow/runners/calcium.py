@@ -92,7 +92,7 @@ class CalciumRunner(Runner):
             "estimated_output_bytes": raw * 5,
             "warnings": [
                 "Resource estimates are lower bounds; CNMF-E can require substantially more memory and disk.",
-                "Extraction thresholds need recording-specific review; components are uncurated.",
+                "Extraction thresholds need recording-specific review; components are uncurated. Deconvolution is disabled (p=0); no spike estimates are requested.",
                 "All segments are concatenated in the displayed natural filename order; no crop, detrend or ΔF/F normalization is applied.",
             ],
         }

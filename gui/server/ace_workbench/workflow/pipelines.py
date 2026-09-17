@@ -76,7 +76,7 @@ class TracePipeline(Pipeline):
             Question(
                 "signal_unit",
                 "Signal unit",
-                help="Use the recorded unit, for example µV or ΔF/F. Enter 'arbitrary units' only if that describes the data.",
+                help="Applies to every signal column. Use the recorded unit (for example µV or ΔF/F); split tables with different units. Enter 'arbitrary units' only if appropriate.",
             )
         )
         return result
@@ -101,6 +101,16 @@ class CNMFEPipeline(Pipeline):
 
     def questions(self, candidate: Candidate) -> list[Question]:
         result = []
+        if candidate.format == "ucla-miniscope" and not candidate.metadata.get("calcium_evidence"):
+            result.append(
+                Question(
+                    "recording_content",
+                    "Recording content",
+                    "select",
+                    "Metadata does not identify a calcium imaging device. Confirm what the movie contains before CNMF-E.",
+                    choices=choices(["calcium imaging"]),
+                )
+            )
         if candidate.format == "ucla-miniscope" and not candidate.metadata.get("frame_rate"):
             result.append(
                 Question(
@@ -174,11 +184,11 @@ class CNMFEPipeline(Pipeline):
             "pw_rigid": False,
             "method_init": "corr_pnr",
             "method_deconvolution": "oasis",
-            "p": 1,
+            "p": 0,
             "K": None,
             "nb": 0,
-            "rf": 40,
-            "stride": 20,
+            "rf": max(40, 4 * radius),
+            "stride": max(20, 2 * radius),
             "tsub": 1,
             "ssub": 1,
             "merge_thr": 0.8,

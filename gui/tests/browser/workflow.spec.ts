@@ -63,3 +63,25 @@ test('incomplete acquisition blocks scientific setup and keeps integrity inspect
   await expect(page.getByRole('button', { name: 'Create experiment', exact: true })).toBeEnabled();
   await expect(page.getByText('Hash and inventory the copied files. No signal processing or biological conclusions.', { exact: true })).toBeVisible();
 });
+
+test('multiple recordings require an explicit selection', async ({ page }) => {
+  await page.goto('/#token=browser-test-session');
+  await page.getByRole('navigation').getByRole('button', { name: 'Import & Run', exact: true }).click();
+  await page.getByTestId('recording-files').setInputFiles([
+    { name: 'first.csv', mimeType: 'text/csv', buffer: Buffer.from(trace) },
+    { name: 'second.csv', mimeType: 'text/csv', buffer: Buffer.from(trace) },
+  ]);
+  await expect(page.getByRole('heading', { name: 'Choose a recording', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Create experiment', exact: true })).toHaveCount(0);
+  await page.getByLabel('Detected recording', { exact: true }).selectOption({ label: 'Trace table · second.csv · .' });
+  await expect(page.getByRole('heading', { name: 'Set up this recording', exact: true })).toBeVisible();
+});
+
+test('an empty project opens directly into the recording workflow', async ({ page, request }) => {
+  await request.post('/api/test/reset?empty=true', { headers: { 'X-Ace-Token': 'browser-test-session' } });
+  await page.goto('/#token=browser-test-session');
+  await expect(page.getByRole('heading', { name: 'Drop recording files or a folder here' })).toBeVisible();
+  await expect(page.getByText('No experiments yet. Drop a recording to create your first experiment.', { exact: true })).toBeVisible();
+  const audit = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+  expect(audit.violations).toEqual([]);
+});

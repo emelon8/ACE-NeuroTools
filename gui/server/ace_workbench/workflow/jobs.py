@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -16,6 +17,7 @@ from aceneurotools.evc.api import write_manifest
 from .. import documents, history
 from ..workspaces import confined
 from .common import atomic_json, read_json
+from .lease import ProjectLease
 from .service import WorkflowService
 from .storage import identifier
 
@@ -27,6 +29,7 @@ class JobManager:
         self.service, self.registry = service, service.registry
         self.directory = confined(self.registry.project, ".ace-workbench")
         self.directory.mkdir(parents=True, exist_ok=True)
+        self.lease = ProjectLease(confined(self.directory, "server.lock"))
         self.lock = threading.RLock()
         self.process: subprocess.Popen | None = None
         self.current: str | None = None
@@ -103,8 +106,6 @@ class JobManager:
                     report = {"ok": False, "error": "Preflight worker exited unexpectedly."}
             except (OSError, subprocess.TimeoutExpired) as exc:
                 report = {"ok": False, "error": f"Could not complete preflight: {exc}"}
-        import shutil
-
         required = (
             sum(f["size"] for f in configuration["inputs"]) + report.get("estimated_output_bytes", 0) + 64 * 1024**2
         )
@@ -174,6 +175,8 @@ class JobManager:
             if self.service.configuration(workspace, plan["configuration_path"]) != plan["configuration"]:
                 raise documents.ConflictError("Configuration changed; run preflight again.")
             directory = confined(self.registry.root(workspace), f"artifacts/runs/{key}")
+            if shutil.disk_usage(self.registry.root(workspace)).free < plan["required_disk_bytes"]:
+                raise documents.ConflictError("Free disk space changed since preflight. Review a new plan.")
             directory.mkdir(parents=True, exist_ok=False)
             job = {
                 "id": key,
@@ -308,3 +311,4 @@ class JobManager:
                 self.cancel(self.current)
         if self.monitor:
             self.monitor.join(timeout=8)
+        self.lease.close()

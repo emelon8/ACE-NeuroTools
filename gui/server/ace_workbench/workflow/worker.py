@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.metadata
 import os
 import platform
 import shutil
+import signal
 import sys
+import threading
+import time
 import traceback
 from pathlib import Path
 
@@ -34,6 +38,13 @@ def verify_inputs(root: Path, configuration: dict) -> None:
 
 
 def environment() -> dict:
+    import aceneurotools
+
+    source = hashlib.sha256()
+    for directory in (Path(__file__).parent, Path(aceneurotools.__file__).parent):
+        for path in sorted(directory.rglob("*.py")):
+            source.update(str(path.relative_to(directory)).encode())
+            source.update(path.read_bytes())
     packages = {}
     for name in ("aceneurotools", "caiman", "numpy", "scipy", "neo", "opencv-python", "h5py"):
         try:
@@ -41,6 +52,7 @@ def environment() -> dict:
         except importlib.metadata.PackageNotFoundError:
             pass
     return {
+        "source_sha256": source.hexdigest(),
         "python": sys.version.split()[0],
         "executable": sys.executable,
         "platform": platform.platform(),
@@ -50,6 +62,18 @@ def environment() -> dict:
 
 def run(spec_path: Path, check_only: bool) -> None:
     spec = read_json(spec_path)
+    if not check_only and spec.get("parent_pid"):
+
+        def watch_parent():
+            while True:
+                time.sleep(1)
+                if os.getppid() != spec["parent_pid"]:
+                    # The worker is its own process-group leader on POSIX.
+                    if os.name != "nt":
+                        os.killpg(os.getpid(), signal.SIGKILL)
+                    os._exit(1)
+
+        threading.Thread(target=watch_parent, daemon=True).start()
     configuration = spec["configuration"]
     root, destination = Path(spec["input_root"]), Path(spec["output"])
     runner = RUNNERS[configuration["pipeline"]]()

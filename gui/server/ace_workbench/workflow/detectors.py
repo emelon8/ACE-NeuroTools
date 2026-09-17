@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import csv
 import hashlib
-import json
 import math
 import re
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from .models import Candidate
 
@@ -29,7 +28,9 @@ def positive(value) -> float | None:
 def small_json(path: Path) -> dict:
     if path.stat().st_size > 2 * 1024**2:
         raise ValueError("Metadata JSON exceeds 2 MiB.")
-    value = json.loads(path.read_text(encoding="utf-8-sig"))
+    from ..documents import parse_document
+
+    value = parse_document("acquisition-metadata", path.read_text(encoding="utf-8-sig"))
     if not isinstance(value, dict):
         raise ValueError("Metadata JSON must be an object.")
     return value
@@ -70,6 +71,10 @@ class UCLADetector(Detector):
         if len(metadata) == 1:
             try:
                 data = small_json(root / metadata[0])
+                device = str(data.get("deviceType", data.get("deviceName", ""))).lower()
+                item.metadata["calcium_evidence"] = "miniscope" in device or "calcium" in device
+                if "behav" in device or "webcam" in device:
+                    item.blockers.append("Metadata identifies a behavior camera, not a calcium imaging recording.")
                 rate = positive(data.get("frameRate"))
                 if rate:
                     item.metadata.update(frame_rate=rate, frame_rate_source=metadata[0] + ": frameRate")
@@ -96,7 +101,7 @@ class OnixDetector(Detector):
             item.blockers.append("Multiple ONIX recording starts in one folder; import one recording at a time.")
             return item
         suffix = Path(starts[0]).name.removeprefix("start-time_").removesuffix("_miniscope.csv")
-        clock = str(Path(directory) / f"ucla-miniscope-v4-clock_{suffix}.raw")
+        clock = str(PurePosixPath(directory) / f"ucla-miniscope-v4-clock_{suffix}.raw")
         item.metadata.update(start_file=starts[0], clock_file=clock)
         item.blockers.extend(validate_start(root / starts[0], item.metadata))
         if clock not in names:
@@ -156,8 +161,10 @@ class RHSDetector(Detector):
             item.blockers.append("Multiple RHS recordings in one folder; import one recording at a time.")
             return item
         suffix = Path(analog[0]).stem.removeprefix("rhs2116pair-ac_")
-        expected = {kind: str(Path(directory) / f"rhs2116pair-{kind}_{suffix}.raw") for kind in ("ac", "dc", "clock")}
-        start = str(Path(directory) / f"start-time_{suffix}.csv")
+        expected = {
+            kind: str(PurePosixPath(directory) / f"rhs2116pair-{kind}_{suffix}.raw") for kind in ("ac", "dc", "clock")
+        }
+        start = str(PurePosixPath(directory) / f"start-time_{suffix}.csv")
         item.metadata.update(streams=expected, start_file=start, channels=[f"RHS2116_AC_{i}" for i in range(32)])
         for name in [*expected.values(), start]:
             if name not in names:
@@ -217,7 +224,7 @@ class DetectorRegistry:
     def inspect(self, root: Path, files: list[dict]) -> list[Candidate]:
         groups: dict[str, list[str]] = defaultdict(list)
         for item in files:
-            groups[str(Path(item["path"]).parent)].append(item["path"])
+            groups[str(PurePosixPath(item["path"]).parent)].append(item["path"])
         found = []
         for directory, names in sorted(groups.items()):
             for detector in self.detectors:

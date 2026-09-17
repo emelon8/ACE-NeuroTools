@@ -29,7 +29,7 @@ class EphysRunner(Runner):
         else:
             from neo.io import NeuralynxIO
 
-            reader = NeuralynxIO(dirname=str(root / candidate["directory"]))
+            reader = NeuralynxIO(dirname=str(root / candidate["directory"]), keep_original_times=True)
             names = list(reader.header["signal_channels"]["name"])
             if configuration["effective"]["channel"] not in names:
                 raise ValueError("Selected channel filename does not match a channel in the Neuralynx header.")
@@ -60,9 +60,17 @@ class EphysRunner(Runner):
             segments = [(channel.time_vector, channel.signal)]
             unit = "uV"
         else:
+            from neo.io import NeuralynxIO
+
             from aceneurotools.ephys.neuralynx_data_manager import NeuralynxDataManager
 
-            manager = NeuralynxDataManager(directory, auto_process_block=False, auto_compute_phases=False)
+            class AcquisitionTimeReader(NeuralynxDataManager):
+                def import_ephys_block(self, ephys_directory):
+                    # The legacy loader resets the time origin; keep hardware timestamps here.
+                    reader = NeuralynxIO(dirname=str(ephys_directory), keep_original_times=True)
+                    self.ephys_block = reader.read_block(signal_group_mode="split-all")
+
+            manager = AcquisitionTimeReader(directory, auto_process_block=False, auto_compute_phases=False)
             # Legacy BlockProcessor interpolates gaps. Export original Neo segments instead.
             segments = []
             for segment in manager.ephys_block.segments:

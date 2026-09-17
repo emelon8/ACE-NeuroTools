@@ -48,6 +48,9 @@ def main():
         project = args.project or args.demo
         if not roots and project is None:
             project = Path.home() / "ACENeuroTools"
+        if project:
+            project.expanduser().mkdir(parents=True, exist_ok=True)
+            roots += discover(project)
         runner = args.runner_python.expanduser().absolute() if args.runner_python else None
         if runner and not runner.is_file():
             raise ValueError("--runner-python must point to an existing Python executable.")
