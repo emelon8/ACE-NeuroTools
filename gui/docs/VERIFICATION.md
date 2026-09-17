@@ -95,3 +95,53 @@ loads successfully; further bundle optimization is not claimed. The Python
 test adapter emits upstream Starlette/httpx and AnyIO deprecation notices; all
 assertions pass. The original scientific tree still has 298 advisory Ruff
 findings, separately documented in the audit.
+
+## Recording workflow — 2026-09-17
+
+Verified the complete browser drop → conditional setup → new EVC experiment →
+preflight → explicit Run → actual worker → manifest-backed results path. A
+separate browser test covers unknown time units, saved-workflow editing and the
+1024×768 layout. Further journeys cover incomplete acquisitions, explicit
+selection among multiple recordings, and an empty project.
+
+| Check | Measured result |
+| --- | --- |
+| GUI backend suite with scientific runtime enabled | 49 passed, 44.90 s |
+| Included real scientific worker cases | UCLA CNMF-E, ONIX CNMF-E, RHS2116 calibrated export, Neuralynx export with a deliberate gap and nonzero hardware time |
+| Effective CaImAn settings | Saved library parameters match requested frame rate, decay, gSig and seed thresholds; p=0 confirmed |
+| Chromium workflows | 14 passed, 12.2 s |
+| Browser accessibility | Parameter form, workflow setup and empty-project shell: no automated WCAG 2 A/AA or 2.1 AA violations detected |
+| Frontend unit tests | 11 passed, including >100-entry folder enumeration and unreadable-source rejection |
+| Existing scientific fast suite | 277 passed, 1 skipped, 11.89 s |
+| Production build | Passed; local dist rebuilt |
+| GUI Python lint/format and whitespace | Passed |
+| Production launcher | Empty project created, configured scientific Python exposed, authenticated API and built GUI served, clean shutdown |
+| Existing scientific source/test changes | None relative to c2ab5f6 |
+
+Backend coverage includes upload retries, conflicting bytes, partial copies,
+unsafe/duplicate paths, ambiguous cameras, rollback after copy failure,
+preserved existing parameters, EVC raw-data exclusion, stale plans, modified
+inputs, invalid timing/nonfinite CSV values, concurrent-run refusal, guarded
+parameter edits, cancellation, restart interruption, project ownership and
+explicit researcher approval provenance. Successful generated-data artifacts
+were verified through the actual EVC manifest API.
+
+Scientific runtime: installed CaImAn 1.13.1, NumPy 2.2.6, OpenCV 4.13.0 and
+Neo 0.14.4 in the existing CaImAn Python 3.10.20 environment. These are real
+library executions against generated data, not mocked scientific calls. The
+standard GUI environment/CI deliberately skips these four opt-in scientific
+cases; its other 45 backend tests still execute real inventory/trace workers.
+
+Updated screenshots from the running application:
+
+- [Recording setup and minimal questions](screenshots/workflow-setup.png)
+- [Preflight review](screenshots/workflow-preflight.png)
+- [Completed worker and provenance](screenshots/workflow-complete.png)
+- [Compact setup form](screenshots/workflow-compact.png)
+
+The latest complete workflow CI run during verification was
+[35272823322](https://github.com/emelon8/experiment_analysis/actions/runs/35272823322),
+with Python 3.10/3.12 and Chromium jobs successful. Subsequent commits trigger
+the same checks. Acquired recordings, scientific component acceptance,
+Windows process-tree cancellation and other browser engines remain unvalidated;
+the [workflow guide](WORKFLOW.md) describes those limits and implemented scope.

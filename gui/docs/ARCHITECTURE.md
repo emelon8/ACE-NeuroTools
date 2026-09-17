@@ -55,6 +55,15 @@ The layout and discovery are an adapter over the existing provisional D06
 contract, not a new project file format. Restore presents its target and preserves
 dirty disk state through EVC; unsaved editor buffers must be resolved first.
 
+## Recording workflow
+
+The object-oriented workflow is isolated in `gui/src/workflow/` and
+`gui/server/ace_workbench/workflow/`. Browser enumeration/upload, conditional
+question rendering and run monitoring are separate from backend detector,
+pipeline, question, storage, preflight and worker strategies. The scientific
+worker consumes a frozen configuration and private input copy; the server owns
+EVC finalization. See [the workflow contract and extension guide](WORKFLOW.md).
+
 ## Delivery
 
 Incremental commits and pushes on `feat/aceneurotools-workbench`, using the

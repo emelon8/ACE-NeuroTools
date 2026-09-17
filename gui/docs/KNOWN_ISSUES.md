@@ -27,12 +27,20 @@ correctness. Priorities below are audit recommendations, not closed issues.
   API are implemented; lab/stats documents and retirement of CSV writeback are
   incomplete, not missing decisions disguised as completed features.
 
-## Remaining product scope
+## Workflow update — 2026-09-17
 
-The GUI completes a local EVC interaction path. It does not complete every
-Comenius feature envelope: GUI project creation/import, scientific run preflight
-and approval, job execution/progress/cancellation, curation integration, full
-recording visualization, cloud synchronization, plugin contracts, native
-installers and multi-user collaboration remain separate work. D03 has an
-implementation choice under Eli's session authorization; broader issue-owner
-acceptance and the other open human decisions remain open.
+The [recording workflow](WORKFLOW.md) now implements project creation, browser
+file/folder import, conditional configuration, preflight approval, local workers,
+logs and cancellation. It reuses the existing scientific processing/reader
+classes without changing the scientific source tree. The calcium adapter stays
+headless and avoids the unrelated legacy postprocessing failure; the Neuralynx
+adapter preserves original samples and timestamps instead of invoking implicit
+gap interpolation. The raw-file ignore limitation is addressed for new imports
+by placing all copied inputs under `artifacts/`.
+
+Curation integration, full recording visualization, multimodal alignment,
+study-level statistics, cloud synchronization, public third-party plugin
+contracts, native installers and multi-user collaboration remain separate work.
+The existing unrelated scientific bugs above remain open. Broader issue-owner
+acceptance and other Comenius decisions have not been marked complete by this
+branch's implementation.
