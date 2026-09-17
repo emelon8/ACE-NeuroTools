@@ -1,3 +1,4 @@
+import { parseParameter } from '../parameter-value';
 import { el } from '../ui';
 
 export function parameterForm(text: string, onChange: (text: string) => void): HTMLElement {
@@ -21,9 +22,7 @@ export function parameterForm(text: string, onChange: (text: string) => void): H
     const error = el('span', 'field-error'); error.setAttribute('aria-live', 'polite');
     input.addEventListener('change', () => {
       try {
-        const next = typeof value === 'string' ? input.value : JSON.parse(input.value);
-        if (typeof value === 'number' && (typeof next !== 'number' || !Number.isFinite(next))) throw new Error('Enter a finite number.');
-        if (Array.isArray(value) && !Array.isArray(next)) throw new Error('Enter a JSON array, for example [3, 3].');
+        const next = parseParameter(value, input.value);
         params[key] = next; error.textContent = ''; input.removeAttribute('aria-invalid');
         onChange(JSON.stringify(document, null, 2) + '\n');
       } catch (reason) { error.textContent = reason instanceof Error ? reason.message : 'Invalid value'; input.setAttribute('aria-invalid', 'true'); }

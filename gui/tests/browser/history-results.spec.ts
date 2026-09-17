@@ -35,7 +35,7 @@ test('verifies actual artifacts and renders data preview', async ({ page }) => {
   await page.screenshot({ path: 'test-results/workbench-results.png', fullPage: true });
 });
 
-test('protects unsaved edits and exposes schema errors', async ({ page }) => {
+test('protects unsaved edits when recording and switching experiments', async ({ page }) => {
   await page.goto('/#token=browser-test-session');
   await page.getByRole('button', { name: 'Parameters', exact: true }).click();
   await page.getByRole('spinbutton', { name: 'min_corr', exact: true }).fill('0.99');
@@ -43,7 +43,7 @@ test('protects unsaved edits and exposes schema errors', async ({ page }) => {
   await page.getByRole('navigation').getByRole('button', { name: 'Experiment changes', exact: true }).click();
   await page.getByLabel('Revision message').fill('Must not record unsaved buffer');
   await page.getByRole('button', { name: 'Record revision', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('Save or close unsaved editor buffers');
+  await expect(page.locator('.notification[role=alert]')).toContainText('Save or close unsaved editor buffers');
   page.once('dialog', dialog => dialog.dismiss());
   const previous = await page.getByLabel('Selected experiment').inputValue();
   await page.getByLabel('Selected experiment').selectOption({ index: 1 });

@@ -2,7 +2,7 @@ import type { Message } from '@lumino/messaging';
 import { context, request } from '../api';
 import { monaco, options } from '../monaco';
 import type { Document } from '../types';
-import { button, el, Panel } from '../ui';
+import { button, el, Panel, report } from '../ui';
 import { parameterForm } from './parameters';
 
 export class DocumentPanel extends Panel {
@@ -26,16 +26,18 @@ export class DocumentPanel extends Panel {
     this.node.append(bar, this.editorHost, this.form, foot); this.form.hidden = true;
     this.model = monaco.editor.createModel(document.text, 'json', monaco.Uri.parse(`ace://${context.workspace.id}/${document.path}`));
     this.editor = monaco.editor.create(this.editorHost, { ...options, model: this.model, ariaLabel: `JSON editor for ${document.path}` });
-    this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => { void this.save().catch(error => context.log(String(error), true)); });
+    this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => { void this.save().catch(report); });
+    this.form.addEventListener('change', () => { context.dispatchEvent(new Event('buffers')); });
     this.model.onDidChangeContent(() => {
       this.title.label = `${document.path.split('/').pop()}${this.dirty ? ' ●' : ''}`;
       this.status.textContent = this.dirty ? 'Unsaved changes' : 'Saved';
       context.dispatchEvent(new Event('buffers'));
     });
   }
-  get dirty(): boolean { return this.model.getValue() !== this.saved; }
+  get dirty(): boolean { return this.model.getValue() !== this.saved || !!this.form.querySelector('[aria-invalid=true]'); }
   get path(): string { return this.document.path; }
   switchMode(mode: 'json' | 'form'): void {
+    if (this.form.querySelector('[aria-invalid=true]')) throw new Error('Correct invalid parameter values before switching editors.');
     this.mode = mode; this.form.hidden = mode !== 'form'; this.editorHost.hidden = mode !== 'json';
     if (mode === 'form') this.form.replaceChildren(parameterForm(this.model.getValue(), text => {
       this.model.pushEditOperations([], [{ range: this.model.getFullModelRange(), text }], () => null);
@@ -43,6 +45,7 @@ export class DocumentPanel extends Panel {
     else { this.editor.layout(); this.editor.focus(); }
   }
   async save(): Promise<void> {
+    if (this.form.querySelector('[aria-invalid=true]')) throw new Error('Correct invalid parameter values before saving.');
     if (this.saving) return;
     this.saving = true;
     const text = this.model.getValue();
