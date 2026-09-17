@@ -61,3 +61,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Obsolete `src/` directory.
 - Legacy `setup.py`.
 - Stale root scripts and temporary README files.
+
+
+## Workbench branch — 2026-09-16
+
+- Added an independent local researcher GUI in `gui/`, using Lumino IDE widgets,
+  Monaco Editor and VS Code Codicons with a restrained viridis theme.
+- Connected JSON parameter editing, EVC change review, revision recording,
+  side-by-side comparison, comments, safe restore/recovery and result integrity.
+- Added synthetic examples, an authenticated loopback service, optimistic edit
+  checks, automated browser/accessibility tests and branch CI.
+- Recorded a fresh development audit and reproduced outstanding scientific-code
+  issues; existing scientific implementations and EVC semantics are unchanged.
