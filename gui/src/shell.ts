@@ -1,10 +1,11 @@
 import { CommandRegistry } from '@lumino/commands';
-import { DockPanel, Menu, MenuBar, SplitPanel, Widget } from '@lumino/widgets';
+import { DockPanel, FocusTracker, Menu, MenuBar, SplitPanel, Widget } from '@lumino/widgets';
 import { button, el, icon } from './ui';
 
 export class Shell {
   commands = new CommandRegistry();
   dock = new DockPanel();
+  focus = new FocusTracker<Widget>();
   sidebar = new Widget();
   output = new Widget();
   horizontal = new SplitPanel({ orientation: 'horizontal', spacing: 3 });
@@ -47,8 +48,13 @@ export class Shell {
     this.menu.addMenu(menu);
   }
   open(widget: Widget, split = false): void {
-    if (!widget.parent) this.dock.addWidget(widget, split ? { mode: 'split-right' } : undefined);
+    if (!widget.parent) {
+      this.dock.addWidget(widget, split ? { mode: 'split-right' } : undefined);
+      this.focus.add(widget);
+      widget.node.tabIndex = -1;
+    }
     this.dock.activateWidget(widget);
+    widget.node.focus();
   }
   activityButton(label: string, glyph: string, action: () => void): HTMLButtonElement {
     const node = button(label, () => {

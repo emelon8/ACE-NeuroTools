@@ -22,7 +22,7 @@ export class OverviewPanel extends Panel {
         ['EVC branch', context.state.status.branch], ['Latest revision', short(context.state.status.head)],
         ['Saved parameter documents', String(context.state.documents.length)],
         ['Working state', context.state.status.clean ? 'Matches latest revision' : 'Unrecorded changes'],
-        ['Storage', 'Local · parameters and manifests tracked · bulk artifacts excluded'],
+        ['Storage', 'Local · tracking follows .evc/ignore'],
       ]));
       const bar = el('div', 'toolbar section-toolbar'); bar.append(button('Review changes', () => view('changes'), 'source-control'), button('Browse results', () => view('results'), 'graph-line'), button('Recovery journal', () => view('recovery'), 'history')); body.append(bar);
       body.append(el('h2', '', 'Recent revisions'), table(['Revision', 'Message', 'Recorded'], revisions.map(r => [short(r.oid), r.message, timestamp(r.author_time)])));

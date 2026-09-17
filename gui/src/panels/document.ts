@@ -59,6 +59,7 @@ export class DocumentPanel extends Panel {
   }
   async reload(): Promise<void> {
     const value = await request<Document>(`${this.base}?path=${encodeURIComponent(this.path)}`);
+    this.form.replaceChildren();
     this.document = value; this.saved = value.text; this.model.setValue(value.text);
     this.switchMode(this.mode);
   }

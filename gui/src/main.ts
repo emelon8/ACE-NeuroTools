@@ -92,12 +92,12 @@ async function start(): Promise<void> {
   };
   command('palette', 'Show command palette', showPalette, ['Accel Shift P']);
   command('save', 'Save active parameter document', async () => {
-    const current = shell.dock.selectedWidgets().next().value;
+    const current = shell.focus.currentWidget;
     if (current instanceof DocumentPanel) await current.save();
   }, ['Accel S']);
   command('save-all', 'Save all parameter documents', async () => { for (const doc of docs.values()) if (!doc.isDisposed && doc.dirty) await doc.save(); });
   command('reload', 'Reload active parameter document', async () => {
-    const current = shell.dock.selectedWidgets().next().value;
+    const current = shell.focus.currentWidget;
     if (current instanceof DocumentPanel && (!current.dirty || window.confirm('Discard unsaved changes and reload this document?'))) await current.reload();
   });
   command('refresh', 'Refresh workspace', () => context.refresh(), ['Accel Shift R']);

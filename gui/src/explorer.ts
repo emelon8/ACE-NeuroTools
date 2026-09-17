@@ -24,6 +24,6 @@ export function renderExplorer(host: HTMLElement, open: (path: string) => void, 
   const state = el('div', 'explorer-state');
   state.append(button('Changes', () => view('changes'), 'source-control', 'file-row'), button('History', () => view('history'), 'history', 'file-row'), button('Recovery journal', () => view('recovery'), 'archive', 'file-row'));
   const info = el('div', 'workspace-info');
-  info.append(el('span', 'badge', 'EVC WORKSPACE'), el('p', 'muted', context.workspace.path), el('p', 'muted', 'Parameters and manifests are versioned. Bulk artifacts stay on disk.'));
+  info.append(el('span', 'badge', 'EVC WORKSPACE'), el('p', 'muted', context.workspace.path), el('p', 'muted', 'Tracking follows .evc/ignore. Keep recordings outside tracked paths.'));
   host.replaceChildren(top, picker, project, files, evc, state, info);
 }
