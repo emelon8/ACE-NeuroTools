@@ -51,7 +51,8 @@ malformed manifest reporting and preserving edits when reopening the demo.
 ## Visual evidence
 
 Screenshots were captured from the running application with real synthetic EVC
-fixtures and inspected, not generated mockups:
+fixtures and inspected, not generated mockups. They were refreshed on 2026-09-17
+after the typography refinement:
 
 - [Desktop JSON editor, 1440×960](screenshots/workbench-desktop.png)
 - [Verified synthetic result traces](screenshots/workbench-results.png)
@@ -61,6 +62,30 @@ The compact screenshot deliberately includes an operation-log entry from its
 invalid-input test. The result plot uses values read from the manifest-listed
 CSV, with canonical viridis color samples. Preview data are synthetic and labeled
 as such. No acquired recording was copied into the repository.
+
+## Typography refinement — 2026-09-17
+
+Chromium's `CSS.getPlatformFontsForNode` confirmed that the original code-font
+stack fell back to Courier on the development Mac: SFMono-Regular, Consolas and
+Liberation Mono were unavailable. The revised shared stack resolves to installed
+Menlo for Monaco code, parameter names and output logs. Interface text and badges
+resolve to the native macOS system font (`.SF NS`). These are measured rendered
+fonts, not just computed CSS declarations; Windows/Linux fallbacks were not
+visually verified on their native platforms.
+
+Controls and tabs now use regular 13 px interface text, secondary text uses 12 px,
+and code/logs use 13/12 px Menlo with ligatures disabled. Decorative letter
+spacing was removed from headings and status labels. The existing IDE layout
+and viridis colors are preserved, with no new font assets or dependencies.
+
+Validation after the change:
+
+- TypeScript and Vite production build passed; local `gui/dist` rebuilt.
+- All 9 Chromium workflow tests passed in 6.7 s, including form accessibility,
+  the compact 1024×768 layout, and Monaco keyboard editing/save.
+- Desktop 1440×960 and compact screenshots were visually inspected.
+- Existing scientific fast suite: 277 passed, 1 skipped in 13.72 s.
+- `git diff --check` passed.
 
 ## Non-blocking observations
 
