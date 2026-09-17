@@ -37,3 +37,31 @@ and tests; verify repository state, GitHub issue/PR status and current component
 licenses; run the existing fast suite and independent GUI checks. Known older
 scientific bugs are assessed separately from the GUI; passing EVC tests does not
 validate scientific outputs. Detailed measured results are appended at completion.
+
+## Completed workbench status
+
+The implemented workbench now provides an authenticated local launcher, explicit
+multi-workspace selection, a real Lumino docking shell, Monaco JSON editing and
+schema diagnostics, typed parameter forms, atomic ETag-guarded saves, EVC change
+review and revision recording, side-by-side comparison, comments, reviewed
+restore, safety-snapshot recovery, result provenance, integrity verification and
+bounded text/CSV/TSV/JSON previews. Synthetic example data are persisted through
+the same EVC backend. No separate GUI history engine was introduced.
+
+The UI uses the requested technical IDE layout, thin separators, compact controls
+and neutral dark surfaces with viridis accents. It bundles genuine open-source
+IDE widgets and license notices. There are no generated art assets, AI controls,
+marketing dashboards or runtime CDN dependencies.
+
+[Verification evidence](VERIFICATION.md) records the test counts, CI, launcher
+smoke, dependency audits and inspected screenshots. [Known scientific and product
+issues](KNOWN_ISSUES.md) separates reproduced failures from source-inspection
+findings and unimplemented roadmap scope. The original scientific source and
+tests are byte-for-byte unchanged on this branch.
+
+Development was delivered as more than 50 separately pushed, nonempty commits
+on `feat/aceneurotools-workbench`, authored/committed as Eli Keldsen and attributed
+by GitHub to `elijah-keldsen`. No AI authorship trailer was added. The baseline
+`proj-comenius` branch was not force-pushed, merged or rewritten. The collective
+memory `.comenius/AGENT_MEMORY.md` is updated locally and remains git-ignored
+under its existing protocol; these audit documents are the versioned record.
