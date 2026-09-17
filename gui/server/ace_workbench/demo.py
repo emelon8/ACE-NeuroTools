@@ -40,10 +40,10 @@ def create_demo(directory: Path) -> list[Path]:
         (root / "parameters/experiment.json").write_text(json.dumps(experiment, indent=2) + "\n")
         config = root / "parameters/analysis.cnmfe.json"
         config.write_text(json.dumps(analysis, indent=2) + "\n")
-        evc.record("Initialize synthetic example parameters", author="ACENeuroTools example fixture", author_time=1789560000)
+        evc.record("Initialize synthetic example parameters", author="Synthetic example <example@localhost>", author_time=1789560000)
         analysis["params"]["min_corr"] = 0.85
         config.write_text(json.dumps(analysis, indent=2) + "\n")
-        revision = evc.record("Adjust correlation threshold to 0.85", author="ACENeuroTools example fixture", author_time=1789560600)
+        revision = evc.record("Adjust correlation threshold to 0.85", author="Synthetic example <example@localhost>", author_time=1789560600)
         artifacts = root / "artifacts/synthetic-traces"
         artifacts.mkdir(parents=True)
         lines = ["time_s,cell_01,cell_02,cell_03"]
@@ -57,6 +57,6 @@ def create_demo(directory: Path) -> list[Path]:
         (artifacts / "synthetic-traces.csv").write_text("\n".join(lines) + "\n")
         write_manifest(artifacts, pipeline="synthetic-example (not a scientific run)", revision=revision,
                        manifest_dir=root / "results/synthetic-traces")
-        evc.record("Register synthetic trace artifacts and provenance", author="ACENeuroTools example fixture", author_time=1789561200)
+        evc.record("Register synthetic trace artifacts and provenance", author="Synthetic example <example@localhost>", author_time=1789561200)
         evc.comment(revision, "Example only. Edit min_corr, save, and record a revision to explore EVC.")
     return roots
