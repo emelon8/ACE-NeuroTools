@@ -43,3 +43,20 @@ test('keyboard palette and experiment switch work', async ({ page }) => {
   await page.getByLabel('Selected experiment').selectOption(await options[1].getAttribute('value') as string);
   await expect(page.getByRole('heading', { name: '02-paired-recording-demo', exact: true })).toBeVisible();
 });
+
+
+test('Monaco find and keyboard save use the focused editor', async ({ page }) => {
+  await page.goto('/#token=browser-test-session');
+  await page.locator('.monaco-editor .view-lines').click();
+  await page.keyboard.press('ControlOrMeta+f');
+  await expect(page.locator('.find-widget')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Parameters', exact: true }).click();
+  await page.getByRole('spinbutton', { name: 'min_corr', exact: true }).fill('0.93');
+  await page.getByRole('spinbutton', { name: 'min_corr', exact: true }).press('Tab');
+  await page.keyboard.press('ControlOrMeta+s');
+  await expect(page.getByRole('log')).toContainText('Saved parameters/analysis.cnmfe.json');
+  await page.reload();
+  await page.getByRole('button', { name: 'Parameters', exact: true }).click();
+  await expect(page.getByRole('spinbutton', { name: 'min_corr', exact: true })).toHaveValue('0.93');
+});

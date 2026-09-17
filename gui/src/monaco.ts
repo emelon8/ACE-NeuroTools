@@ -1,3 +1,11 @@
+import 'monaco-editor/features/find/register';
+import 'monaco-editor/features/folding/register';
+import 'monaco-editor/features/format/register';
+import 'monaco-editor/features/contextmenu/register';
+import 'monaco-editor/features/hover/register';
+import 'monaco-editor/features/suggest/register';
+import 'monaco-editor/features/bracketMatching/register';
+import 'monaco-editor/features/clipboard/register';
 import * as monaco from 'monaco-editor/editor/editor.api';
 import { jsonDefaults } from 'monaco-editor/languages/features/json/register';
 import EditorWorker from 'monaco-editor/editor/editor.worker?worker';

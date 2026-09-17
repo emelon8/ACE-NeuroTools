@@ -29,8 +29,9 @@ export class Context extends EventTarget {
   path(suffix: string): string { return `/workspaces/${encodeURIComponent(this.workspace.id)}${suffix}`; }
   async refresh(): Promise<void> {
     const generation = ++this.generation;
+    const workspace = this.workspace.id;
     const state = await request<WorkspaceState>(this.path('/state'));
-    if (generation !== this.generation) return;
+    if (generation !== this.generation || workspace !== this.workspace.id) return;
     this.state = state;
     this.dispatchEvent(new Event('change'));
   }
