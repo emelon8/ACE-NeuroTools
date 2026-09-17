@@ -6,11 +6,12 @@ import hmac
 from dataclasses import asdict
 from pathlib import Path
 
-from aceneurotools.evc.api import EVCError, load_schema
 from fastapi import FastAPI, Query, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+
+from aceneurotools.evc.api import EVCError, load_schema
 
 from . import documents, history, results
 from .workspaces import WorkspaceRegistry
@@ -51,7 +52,9 @@ def create_app(registry: WorkspaceRegistry, token: str, port: int = 8765, dist: 
         if request.url.path.startswith("/api/"):
             supplied = request.headers.get("x-ace-token", "")
             if not hmac.compare_digest(supplied, token):
-                return JSONResponse({"detail": "Session expired. Reopen the URL printed by ace-workbench."}, status_code=401)
+                return JSONResponse(
+                    {"detail": "Session expired. Reopen the URL printed by ace-workbench."}, status_code=401
+                )
             size = request.headers.get("content-length")
             if size and int(size) > 3 * 1024 * 1024:
                 return JSONResponse({"detail": "Request too large."}, status_code=413)
@@ -70,11 +73,20 @@ def create_app(registry: WorkspaceRegistry, token: str, port: int = 8765, dist: 
     @app.exception_handler(Exception)
     async def unexpected(_request, exc):
         import logging
+
         logging.getLogger(__name__).exception("Workbench request failed", exc_info=exc)
-        return JSONResponse({"detail": "Operation failed. See the local server log; refresh before retrying."}, status_code=500)
+        return JSONResponse(
+            {"detail": "Operation failed. See the local server log; refresh before retrying."}, status_code=500
+        )
 
     async def expected(_request, exc):
-        code = 409 if isinstance(exc, documents.ConflictError) else 404 if isinstance(exc, (KeyError, FileNotFoundError)) else 400
+        code = (
+            409
+            if isinstance(exc, documents.ConflictError)
+            else 404
+            if isinstance(exc, (KeyError, FileNotFoundError))
+            else 400
+        )
         return JSONResponse({"detail": str(exc)}, status_code=code)
 
     for error in (ValueError, EVCError, KeyError, OSError):
@@ -91,7 +103,10 @@ def create_app(registry: WorkspaceRegistry, token: str, port: int = 8765, dist: 
     @app.get("/api/workspaces/{workspace}/state")
     def state(workspace: str):
         with registry.lock:
-            return {"status": history.state(registry, workspace), "documents": documents.list_documents(registry, workspace)}
+            return {
+                "status": history.state(registry, workspace),
+                "documents": documents.list_documents(registry, workspace),
+            }
 
     @app.get("/api/workspaces/{workspace}/document")
     def document(workspace: str, path: str, revision: str | None = None):

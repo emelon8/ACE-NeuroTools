@@ -15,7 +15,13 @@ from .workspaces import WorkspaceRegistry, discover
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--workspace", action="append", type=Path, default=[], help="Existing EVC experiment; repeat for multiple experiments")
+    parser.add_argument(
+        "--workspace",
+        action="append",
+        type=Path,
+        default=[],
+        help="Existing EVC experiment; repeat for multiple experiments",
+    )
     parser.add_argument("--project", type=Path, help="Discover immediate child EVC experiments")
     parser.add_argument("--demo", type=Path, help="Create or reopen synthetic examples in this directory")
     parser.add_argument("--port", type=int, default=8765)

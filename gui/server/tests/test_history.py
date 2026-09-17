@@ -8,7 +8,12 @@ def test_real_record_diff_restore_and_recovery(service):
     doc = client.get(f"{base}/document", params={"path": path}).json()
     changed = json.loads(doc["text"])
     changed["params"]["min_corr"] = 0.94
-    assert client.put(f"{base}/document", json={"path": path, "text": json.dumps(changed), "etag": doc["etag"]}).status_code == 200
+    assert (
+        client.put(
+            f"{base}/document", json={"path": path, "text": json.dumps(changed), "etag": doc["etag"]}
+        ).status_code
+        == 200
+    )
     version = client.get(f"{base}/state").json()["status"]["version"]
     saved = client.post(f"{base}/record", json={"message": "Reviewed threshold", "version": version})
     assert saved.status_code == 200

@@ -30,10 +30,7 @@ class WorkspaceRegistry:
         return ExperimentVersionControl.open(self.root(workspace))
 
     def list(self) -> list[dict]:
-        return [
-            {"id": key, "name": path.name, "path": str(path)}
-            for key, path in self.roots.items()
-        ]
+        return [{"id": key, "name": path.name, "path": str(path)} for key, path in self.roots.items()]
 
 
 def confined(root: Path, relative: str) -> Path:
@@ -53,6 +50,5 @@ def confined(root: Path, relative: str) -> Path:
 def discover(project: Path) -> list[Path]:
     project = project.expanduser().resolve(strict=True)
     return sorted(
-        child for child in project.iterdir()
-        if child.is_dir() and not child.is_symlink() and (child / ".evc").is_dir()
+        child for child in project.iterdir() if child.is_dir() and not child.is_symlink() and (child / ".evc").is_dir()
     )

@@ -3,13 +3,18 @@ import json
 import pytest
 
 
-@pytest.mark.parametrize("headers,code", [({"x-ace-token": "bad"}, 401), ({"origin": "https://foreign.example"}, 403), ({"host": "evil.example:8765"}, 403)])
+@pytest.mark.parametrize(
+    "headers,code",
+    [({"x-ace-token": "bad"}, 401), ({"origin": "https://foreign.example"}, 403), ({"host": "evil.example:8765"}, 403)],
+)
 def test_local_session_boundary(service, headers, code):
     client, _, _, _ = service
     assert client.get("/api/session", headers=headers).status_code == code
 
 
-@pytest.mark.parametrize("path", ["../private.json", "/etc/passwd", "parameters/../../private.json", ".evc/HEAD", "artifacts/data.json"])
+@pytest.mark.parametrize(
+    "path", ["../private.json", "/etc/passwd", "parameters/../../private.json", ".evc/HEAD", "artifacts/data.json"]
+)
 def test_document_path_boundary(service, path):
     client, base, _, _ = service
     assert client.get(f"{base}/document", params={"path": path}).status_code == 400

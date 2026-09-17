@@ -8,8 +8,9 @@ import os
 import tempfile
 from pathlib import Path
 
-from aceneurotools.evc.api import load_schema
 from jsonschema import Draft202012Validator
+
+from aceneurotools.evc.api import load_schema
 
 from .workspaces import WorkspaceRegistry, confined
 
@@ -53,8 +54,10 @@ def read_document(registry: WorkspaceRegistry, workspace: str, path: str, revisi
 def parse_document(path: str, text: str) -> dict:
     if len(text.encode()) > MAX_DOCUMENT:
         raise ValueError("Document exceeds the 2 MiB editor limit.")
+
     def reject_constant(value: str):
         raise ValueError(f"Non-finite JSON number: {value}")
+
     value = json.loads(text, parse_constant=reject_constant)
     if not isinstance(value, dict):
         raise ValueError("A parameter document must be a JSON object.")
@@ -93,7 +96,9 @@ def list_documents(registry: WorkspaceRegistry, workspace: str) -> list[str]:
     root = registry.root(workspace)
     directory = confined(root, "parameters")
     return sorted(
-        str(path.relative_to(root)) for path in directory.rglob("*.json")
-        if not path.is_symlink() and path.is_file()
+        str(path.relative_to(root))
+        for path in directory.rglob("*.json")
+        if not path.is_symlink()
+        and path.is_file()
         and not any(parent.is_symlink() for parent in path.parents if parent != root)
     )
