@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 test('renders the real IDE shell and local Monaco workers', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));

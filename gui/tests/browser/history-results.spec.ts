@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 test('compares revisions and restores without rewinding history', async ({ page }) => {
   await page.goto('/#token=browser-test-session');
@@ -21,10 +21,7 @@ test('compares revisions and restores without rewinding history', async ({ page 
   await page.getByLabel('Revision comment').fill('Reviewed in the browser');
   await page.getByRole('button', { name: 'Add comment', exact: true }).click();
   await expect(page.locator('.comment-thread')).toContainText('Reviewed in the browser');
-  // Return tracked manifests to their original state for independent results tests.
-  page.once('dialog', dialog => dialog.accept());
-  await page.getByRole('button', { name: 'Restore revision', exact: true }).nth(1).click();
-  await expect(page.getByRole('log')).toContainText('Restored');
+
 });
 
 test('verifies actual artifacts and renders data preview', async ({ page }) => {
