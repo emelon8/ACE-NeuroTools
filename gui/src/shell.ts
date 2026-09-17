@@ -18,6 +18,8 @@ export class Shell {
     const top = el('header', 'titlebar');
     const mark = el('div', 'app-mark'); mark.append(icon('pulse'));
     top.append(mark);
+    this.root.append(top);
+    document.getElementById('app')!.append(this.root);
     this.menu.addClass('menubar'); Widget.attach(this.menu, top);
     top.append(button('Search commands', () => this.commands.execute('palette').then(() => undefined), 'search', 'command-search'));
     top.append(this.title, el('span', 'badge local-label', 'LOCAL'));
@@ -33,7 +35,6 @@ export class Shell {
     this.vertical.setRelativeSizes([0.79, 0.21]);
     const body = el('div', 'workbench-body'); const host = el('main', 'workspace-host');
     body.append(this.activity, host); this.root.append(top, body, this.status);
-    document.getElementById('app')!.append(this.root);
     Widget.attach(this.vertical, host);
     const resize = () => this.vertical.update();
     new ResizeObserver(resize).observe(host); window.addEventListener('resize', resize);
