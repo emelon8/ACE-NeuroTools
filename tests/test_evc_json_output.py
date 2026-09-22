@@ -8,6 +8,7 @@ import json
 
 import pytest
 
+import aceneurotools.evc.worktree as worktree_module
 from aceneurotools.cli import main as cli_main
 from aceneurotools.evc.pointers import write_manifest
 
@@ -102,3 +103,34 @@ def test_errors_stay_on_stderr_not_json(exp, capsys):
     assert rc == 1
     assert captured.out == ""
     assert "error:" in captured.err
+
+
+def test_record_explains_why_an_oversized_file_is_refused(
+    exp, capsys, monkeypatch
+):
+    monkeypatch.setattr(worktree_module, "MAX_SNAPSHOT_BLOB_BYTES", 16)
+    payload = exp / "legacy-recording.tiff"
+    payload.write_bytes(b"x" * 17)
+
+    rc = cli_main(
+        [
+            "history",
+            "--dir",
+            str(exp),
+            "record",
+            "-m",
+            "must refuse bulk",
+            "--json",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert rc == 1
+    assert captured.out == ""
+    assert "error: Refusing to snapshot" in captured.err
+    assert "legacy-recording.tiff" in captured.err
+    assert "because EVC revisions copy file contents into .evc/objects" in captured.err
+    assert "unexpectedly large and slow" in captured.err
+    assert "source file was left untouched" in captured.err
+    assert "artifacts/" in captured.err
+    assert ".evc/ignore" in captured.err

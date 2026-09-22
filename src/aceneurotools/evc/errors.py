@@ -43,6 +43,10 @@ class NothingToRecordError(EVCError):
     """The working state is identical to the current head revision."""
 
 
+class OversizedSnapshotError(EVCError):
+    """An unignored file is too large to copy safely into experiment history."""
+
+
 class PushRejectedError(EVCError):
     """A push was refused (non-fast-forward or unverifiable remote state)."""
 

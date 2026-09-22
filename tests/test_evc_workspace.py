@@ -8,7 +8,8 @@ import time
 
 import pytest
 
-from aceneurotools.evc.errors import EVCError
+import aceneurotools.evc.worktree as worktree_module
+from aceneurotools.evc.errors import EVCError, OversizedSnapshotError
 from aceneurotools.evc.porcelain import ExperimentVersionControl
 from aceneurotools.evc.workspace import (
     DEFAULT_IGNORE_PATTERNS,
@@ -118,6 +119,73 @@ def test_snapshot_excludes_ignored_bulk(exp):
     assert "parameters/params.json" in files
     assert not any(".avi" in f or ".hdf5" in f for f in files)
     assert not any(f.startswith(("saved_movies", "artifacts")) for f in files)
+
+
+def test_snapshot_excludes_neuralynx_recordings_by_default(exp):
+    exp_dir, evc = exp
+    (exp_dir / "channel.ncs").write_bytes(b"continuous signal")
+    (exp_dir / "events.nev").write_bytes(b"event signal")
+
+    oid = evc.record("parameters without recordings", author=AUTHOR)
+
+    assert "channel.ncs" not in evc.show(oid).files
+    assert "events.nev" not in evc.show(oid).files
+
+
+def test_oversized_unignored_file_is_rejected_before_objects_are_written(
+    exp, monkeypatch
+):
+    exp_dir, evc = exp
+    monkeypatch.setattr(worktree_module, "MAX_SNAPSHOT_BLOB_BYTES", 32)
+    payload = exp_dir / "legacy" / "stack.tiff"
+    payload.parent.mkdir()
+    payload.write_bytes(b"x" * 33)
+
+    with pytest.raises(OversizedSnapshotError) as exc_info:
+        evc.record("must refuse bulk payload", author=AUTHOR)
+
+    message = str(exc_info.value)
+    assert "legacy/stack.tiff" in message
+    assert "33 bytes" in message
+    assert "32 bytes" in message
+    assert ".evc/objects" in message
+    assert "unexpectedly large and slow" in message
+    assert "source file was left untouched" in message
+    assert "artifacts/" in message
+    assert ".evc/ignore" in message
+    assert "*.tiff" in message
+    assert payload.read_bytes() == b"x" * 33
+    assert not any((exp_dir / ".evc" / "objects").rglob("*"))
+
+
+def test_small_scientific_images_and_arrays_remain_versionable(exp):
+    exp_dir, evc = exp
+    (exp_dir / "figure.tiff").write_bytes(b"small figure")
+    (exp_dir / "summary.npy").write_bytes(b"small array")
+
+    oid = evc.record("small scientific documents", author=AUTHOR)
+
+    files = evc.show(oid).files
+    assert "figure.tiff" in files
+    assert "summary.npy" in files
+
+
+@pytest.mark.parametrize("location", ["artifacts", "custom-ignore"])
+def test_ignored_large_files_bypass_the_snapshot_limit(exp, monkeypatch, location):
+    exp_dir, evc = exp
+    monkeypatch.setattr(worktree_module, "MAX_SNAPSHOT_BLOB_BYTES", 16)
+    if location == "artifacts":
+        payload = exp_dir / "artifacts" / "large.npy"
+    else:
+        payload = exp_dir / "legacy" / "large.npy"
+        payload.parent.mkdir()
+        with open(exp_dir / ".evc" / IGNORE_FILE, "a") as fh:
+            fh.write("*.npy\n")
+    payload.write_bytes(b"x" * 17)
+
+    oid = evc.record("ignored bulk remains outside history", author=AUTHOR)
+
+    assert not any(path.endswith("large.npy") for path in evc.show(oid).files)
 
 
 def test_bulk_avi_records_fast_with_zero_bytes_stored(exp):

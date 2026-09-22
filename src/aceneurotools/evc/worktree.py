@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from fnmatch import fnmatchcase
 from pathlib import Path
 
+from aceneurotools.evc.errors import OversizedSnapshotError
 from aceneurotools.evc.objects import MODE_DIR, MODE_FILE, Tree, TreeEntry
 from aceneurotools.evc.repository import EVC_DIR, ExperimentRepository
 
@@ -30,6 +31,18 @@ DEFAULT_IGNORES = frozenset({EVC_DIR, ".DS_Store", ".git"})
 
 #: Name of the declarative ignore file inside ``.evc/``.
 IGNORE_FILE = "ignore"
+
+# EVC history is for parameters, configuration, and small manifests. This
+# ceiling prevents an overlooked recording format from being copied into the
+# object store merely because its extension was absent from the ignore file.
+MAX_SNAPSHOT_BLOB_BYTES = 100 * 1024 * 1024
+
+
+def _format_size(size: int) -> str:
+    """Return a readable binary size while retaining the exact byte count."""
+    if size < 1024:
+        return f"{size} bytes"
+    return f"{size / (1024 * 1024):.1f} MiB ({size:,} bytes)"
 
 
 @dataclass(frozen=True)
@@ -101,7 +114,49 @@ class WorkingTree:
 
     def snapshot(self) -> str:
         """Write the current directory contents as objects; return the tree id."""
-        return self._snapshot_dir(self.root, self._ignore_rules(), prefix="")
+        rules = self._ignore_rules()
+        # Validate the whole candidate tree before writing any blobs. A failure
+        # therefore cannot leave part of a rejected snapshot in the object store.
+        self._validate_snapshot_sizes(self.root, rules, prefix="")
+        return self._snapshot_dir(self.root, rules, prefix="")
+
+    def _validate_snapshot_sizes(
+        self, directory: Path, rules: IgnoreRules, prefix: str
+    ) -> None:
+        for child in sorted(directory.iterdir(), key=lambda p: p.name):
+            rel_path = f"{prefix}{child.name}"
+            if self._skip(child, rel_path, rules):
+                continue
+            if child.is_dir():
+                self._validate_snapshot_sizes(
+                    child, rules, prefix=f"{rel_path}/"
+                )
+            elif child.is_file():
+                self._check_snapshot_size(child, rel_path, child.stat().st_size)
+
+    def _check_snapshot_size(self, child: Path, rel_path: str, size: int) -> None:
+        if size <= MAX_SNAPSHOT_BLOB_BYTES:
+            return
+        suggested_pattern = f"*{child.suffix}" if child.suffix else child.name
+        raise OversizedSnapshotError(
+            f"Refusing to snapshot unignored file {rel_path!r} ({_format_size(size)}) "
+            "because EVC revisions copy file contents into .evc/objects. EVC "
+            "history is intended for small parameter and configuration files "
+            "and manifests; recording this file could make experiment history "
+            "unexpectedly large and slow.\n"
+            f"The per-file snapshot limit is "
+            f"{_format_size(MAX_SNAPSHOT_BLOB_BYTES)}. The source file was left "
+            "untouched. To keep this bulk file outside history, move it under "
+            f"artifacts/ or add {suggested_pattern!r} to "
+            f"{self.repo.evc_dir / IGNORE_FILE}, then record again."
+        )
+
+    def _read_snapshot_file(self, child: Path, rel_path: str) -> bytes:
+        """Read at most one byte beyond the limit to remain safe if a file grows."""
+        with child.open("rb") as stream:
+            data = stream.read(MAX_SNAPSHOT_BLOB_BYTES + 1)
+        self._check_snapshot_size(child, rel_path, len(data))
+        return data
 
     def _snapshot_dir(self, directory: Path, rules: IgnoreRules, prefix: str) -> str:
         entries = []
@@ -115,7 +170,9 @@ class WorkingTree:
                     TreeEntry(mode=MODE_DIR, type="tree", oid=subtree_oid, name=child.name)
                 )
             elif child.is_file():
-                blob_oid = self.repo.write_blob(child.read_bytes())
+                blob_oid = self.repo.write_blob(
+                    self._read_snapshot_file(child, rel_path)
+                )
                 entries.append(
                     TreeEntry(mode=MODE_FILE, type="blob", oid=blob_oid, name=child.name)
                 )
