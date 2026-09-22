@@ -215,6 +215,7 @@ def test_recorder_none_is_a_true_no_op(tmp_path, monkeypatch):
     assert set(log) == {
         "run_timestamp", "analyses_requested", "subjects_requested",
         "lab_config_path", "stats_config_path", "params", "completed", "skipped",
+        "output_failures",
     }
     assert log["completed"] == [{"line_num": 97, "analysis": "scatter_correlation"}]
 
