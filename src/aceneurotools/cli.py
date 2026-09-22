@@ -645,15 +645,21 @@ def main(argv: list[str] | None = None) -> int:
     # ── First-time setup wizard ───────────────────────────────────────────────
     # Run the wizard if the user asked for it explicitly, OR if no config was
     # found in the cwd (auto first-run experience). When --config was given
-    # explicitly and points at a missing file, that's a user error — just exit
-    # without the wizard so we don't surprise them by creating files elsewhere.
+    # explicitly and points at a missing file, handle it below as an error
+    # without launching the wizard or creating files somewhere unexpected.
     if args.setup or (not config_path.exists() and not args.config):
         return _setup_wizard()
 
     if not config_path.exists():
-        # Explicit --config that doesn't exist — exit silently; no scary
-        # error and no wizard since the user knew where they wanted to look.
-        return 0
+        # An explicit config path is a contract with scripts and schedulers.
+        # Returning success here would report a run that never started as complete.
+        print(
+            f"ERROR: --config file does not exist: {config_path}\n"
+            "Check the path, run `ace-neuro --setup`, or generate templates with:\n"
+            f"  python -m aceneurotools.init --project-path {config_path.parent}",
+            file=sys.stderr,
+        )
+        return 1
 
     # ── Load lab config ───────────────────────────────────────────────────────
     from aceneurotools.config.lab_config import LabConfig
