@@ -42,6 +42,8 @@ DEFAULT_IGNORE_PATTERNS = (
     "*.hdf5",
     "*.raw",
     "*.mmap",
+    "*.ncs",
+    "*.nev",
     "saved_movies/",
 )
 

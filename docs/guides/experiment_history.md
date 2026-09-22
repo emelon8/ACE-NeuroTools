@@ -41,9 +41,16 @@ This creates:
 ```
 
 Raw recordings are excluded by default (`*.avi`, `*.hdf5`, `*.raw`, `*.mmap`,
-`saved_movies/`, `artifacts/`) — recording a snapshot next to a 100 GB movie
-is instant and stores none of the movie's bytes. Edit `.evc/ignore` (one name
-or glob per line) to adjust the policy.
+`*.ncs`, `*.nev`, `saved_movies/`, `artifacts/`) — recording a snapshot next
+to a 100 GB movie is instant and stores none of the movie's bytes. Edit
+`.evc/ignore` (one name or glob per line) to adjust the policy.
+
+As a second safeguard for legacy layouts and unrecognized formats, EVC refuses
+to snapshot any unignored file larger than 100 MiB. The error explains that EVC
+would otherwise copy the file into `.evc/objects`, confirms the source was left
+untouched, and names the exact `artifacts/` and `.evc/ignore` remedies. This size
+check allows small TIFF figures, NumPy summaries, and other scientific documents
+to remain versioned instead of silently excluding every scientific file type.
 
 ## Everyday commands
 
