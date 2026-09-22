@@ -9,7 +9,9 @@ from aceneurotools.miniscope.gui_utils import component_gui
 from aceneurotools.miniscope.pipeline_results import PostprocessingResult
 from aceneurotools.miniscope.projections import Projections
 from aceneurotools.shared.multitaper_spectrogram_python import multitaper_spectrogram
-from aceneurotools.shared.plotting import plot_spectrogram
+# Keep the callable distinct from the public plot_spectrogram boolean parameter;
+# otherwise that local flag shadows the function and plotting tries to call True.
+from aceneurotools.shared.plotting import plot_spectrogram as draw_spectrogram
 
 if TYPE_CHECKING:
     from caiman.source_extraction.cnmf.estimates import Estimates
@@ -114,7 +116,7 @@ class MiniscopePostprocessor:
         if compute_miniscope_spectrogram:
             data = self.data_manager.projections.time
             PSDSpectMiniscope, tSpect, freqsSpect, pSpectMiniscope = self.compute_miniscope_spectrogram(data, frame_rate=self.frame_rate, window_length=window_length, window_step=window_step, freq_lims=freq_lims, time_bandwidth=time_bandwidth)
-            h, ax = plot_spectrogram(tSpect/60, freqsSpect, pSpectMiniscope, xLabel='Time (min)')
+            h, ax = draw_spectrogram(tSpect/60, freqsSpect, pSpectMiniscope, xLabel='Time (min)')
             self.data_manager.PSD_spect, self.data_manager.t_spect, self.data_manager.freqs_spect, self.data_manager.p_spect = PSDSpectMiniscope, tSpect, freqsSpect, pSpectMiniscope
 
         if compute_miniscope_phase:
@@ -320,7 +322,7 @@ class MiniscopePostprocessor:
         pSpectMiniscope = 10 * np.log10(PSDSpectMiniscope)
 
         if plot_spectrogram:
-            h, ax = plot_spectrogram(tSpect/60, freqsSpect, pSpectMiniscope, xLabel='Time (min)')
+            h, ax = draw_spectrogram(tSpect/60, freqsSpect, pSpectMiniscope, xLabel='Time (min)')
 
         return PSDSpectMiniscope, tSpect, freqsSpect, pSpectMiniscope
 
