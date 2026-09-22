@@ -64,6 +64,7 @@ class _RunLog:
         self.params: dict = params
         self.completed: list[dict] = []
         self.skipped: list[dict] = []
+        self.output_failures: list[dict] = []
 
     def record_complete(self, line_num: int, analysis: str) -> None:
         self.completed.append({"line_num": line_num, "analysis": analysis})
@@ -82,6 +83,16 @@ class _RunLog:
                 entry["hint"] = ctx.hint
         self.skipped.append(entry)
 
+    def record_output_failure(self, analysis: str, output: str, exc: Exception) -> None:
+        """Record a failed aggregate output without misclassifying subjects."""
+        self.output_failures.append(
+            {
+                "analysis": analysis,
+                "output": output,
+                "reason": str(exc),
+            }
+        )
+
     def write(self, path: Path) -> None:
         payload = {
             "run_timestamp": self.run_timestamp,
@@ -92,6 +103,7 @@ class _RunLog:
             "params": self.params,
             "completed": self.completed,
             "skipped": self.skipped,
+            "output_failures": self.output_failures,
         }
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w") as fh:
@@ -110,6 +122,11 @@ class _RunLog:
                     f"  Skipped: line {entry['line_num']} "
                     f"({entry['analysis']}) — {entry['reason']}"
                 )
+        for entry in self.output_failures:
+            print(
+                f"  Output failed: {entry['output']} ({entry['analysis']}) — {entry['reason']}"
+            )
+        if skipped_subjects or self.output_failures:
             print(f"  Full details: {log_path}")
 
 
@@ -609,14 +626,22 @@ class StatsPipeline:
                 except Exception as exc:
                     print(f"  [population] violin plot for '{drug}' failed: {exc}")
             try:
+                # The mapping keys are the drug labels used to group statistics
+                # and label the summary plot; converting to values loses them.
                 create_all_drugs_summary_plot(
-                    all_collectors=list(self.scatter_collectors.values()),
+                    all_collectors=self.scatter_collectors,
                     output_dir=output_dir,
                     channel=channel,
                     config=config,
                 )
             except Exception as exc:
                 print(f"  [population] all-drugs summary plot failed: {exc}")
+                assert self._run_log is not None
+                self._run_log.record_output_failure(
+                    analysis_name,
+                    "all_drugs_summary_plot",
+                    exc,
+                )
 
 
 # Module-level helpers
