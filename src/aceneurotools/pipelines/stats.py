@@ -152,8 +152,6 @@ class StatsPipeline:
         from aceneurotools.shared.plotting import set_backend
         set_backend(headless=headless)
         config = stats_config or StatsConfig()
-        if headless:
-            config.headless = True
 
         # Resolve study metadata: study_metadata > lab_config > error
         if study_metadata is not None:
@@ -189,6 +187,16 @@ class StatsPipeline:
                 if lab_config is not None
                 else [config.lowcut, config.highcut]
             )
+        )
+        # Both analysis engines read their filter band from StatsConfig. Copy
+        # the resolved CLI/lab override into this run's config so the applied
+        # filter and recorded provenance cannot diverge. A copy also prevents
+        # one run from rewriting a caller-owned, reusable StatsConfig object.
+        config = dataclasses.replace(
+            config,
+            lowcut=effective_freq_range[0],
+            highcut=effective_freq_range[1],
+            headless=config.headless or headless,
         )
 
         project_path = Path(project_path)
