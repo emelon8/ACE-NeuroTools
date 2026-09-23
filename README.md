@@ -16,6 +16,27 @@ This software facilitates the processing, analysis, and visualization of simulta
 *   **Data Management:** Integrated utilities for managing large experiment cohorts with explicit path management and automated cloud storage (Box) interaction.
 *   **Modern Infrastructure:** 100% type-hinted codebase, automated documentation site, and CI/CD testing framework.
 
+## Guided GUI design preview
+
+A new, optional GUI is being designed around projects and experiments, with
+cropping, neuron review, and experiment history in one workspace. The current
+version is an interactive **design prototype with sample data**. It does not
+run scientific analysis or modify experiment files; existing scripts are unchanged.
+
+From the repository root, with Python 3.10 or newer installed:
+
+```bash
+python scripts/preview_guided_gui.py
+```
+
+Open [the local preview](http://127.0.0.1:8765/?variant=A). No package installation,
+CaImAn environment, Node.js, or frontend build is needed to view it.
+
+See the [prototype guide](prototypes/guided-experiments/README.md) for the review
+walkthrough, layout alternatives, limitations, and troubleshooting. The
+[MVP design](docs/design/guided-experiments-mvp.md) records the proposed scope,
+integration boundaries, and compatibility requirements.
+
 ## System Architecture
 
 The project is built on a robust object-oriented framework designed for scalability and reproducibility:
