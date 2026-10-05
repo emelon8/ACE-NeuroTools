@@ -16,26 +16,26 @@ This software facilitates the processing, analysis, and visualization of simulta
 *   **Data Management:** Integrated utilities for managing large experiment cohorts with explicit path management and automated cloud storage (Box) interaction.
 *   **Modern Infrastructure:** 100% type-hinted codebase, automated documentation site, and CI/CD testing framework.
 
-## Guided GUI design preview
+## Experiment GUI
 
-A new, optional GUI is being designed around projects and experiments, with
-cropping, neuron review, and experiment history in one workspace. The current
-version is an interactive **design prototype with sample data**. It does not
-run scientific analysis or modify experiment files; existing scripts are unchanged.
+Open existing `experiments.csv` and `analysis_parameters.csv` in a minimal local
+GUI. Browse projects, click an experiment row, and edit clearly labeled metadata
+and analysis settings. A file browser opens projects and selects recording folders;
+missing settings identify each affected experiment. Saves update the existing CSVs
+through the tool’s write helpers, with backups and checks for external edits.
+Existing scripts and source are unchanged.
 
-From the repository root, with Python 3.10 or newer installed:
+From this checkout, activate your existing analysis environment, then run:
 
 ```bash
-python scripts/preview_guided_gui.py
+python scripts/run_gui.py --project /path/to/project
 ```
 
-Open [the local preview](http://127.0.0.1:8765/?variant=A). No package installation,
-CaImAn environment, Node.js, or frontend build is needed to view it.
-
-See the [prototype guide](prototypes/guided-experiments/README.md) for the review
-walkthrough, layout alternatives, limitations, and troubleshooting. The
-[MVP design](docs/design/guided-experiments-mvp.md) records the proposed scope,
-integration boundaries, and compatibility requirements.
+Omit `--project` to choose a folder in the GUI. Try `--project data` for the
+repository's actual CSVs (118 experiments and 114 parameter records).
+No demo workspaces, Node.js, or frontend build are needed. See the
+[GUI guide](gui/README.md) for usage and error handling and the
+[source findings](docs/design/csv-viewer-findings.md) for known backend issues.
 
 ## System Architecture
 

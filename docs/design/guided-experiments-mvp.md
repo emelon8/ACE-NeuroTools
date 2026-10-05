@@ -1,11 +1,21 @@
 # Guided experiment GUI — MVP design
 
-Status: design proposal with an interactive, disposable prototype. No production GUI or pipeline integration has been implemented.
+Status: [project browsing and CSV editing](../../gui/README.md) are implemented.
+The old sample-data prototypes and launcher have been removed. The broader workflows
+below remain a future design, not implemented functionality.
 
-Branch: `design/guided-experiments`. See the
-[prototype guide](../../prototypes/guided-experiments/README.md) for setup,
-a review walkthrough, limitations, and validation evidence. The initial saved
-checkpoint retains all three layouts; a final layout has not been selected.
+Branch: `design/guided-experiments`. Current scope: load existing projects, browse
+all experiments, edit labeled metadata/settings, select folders, and follow Box links. No changes to `src` are
+authorized for this slice.
+
+## October 3 implementation priorities
+
+The [project roadmap](project-roadmap-2026-10-03.md) incorporates the September 29
+meeting and the user's goal for a working backend-connected GUI, actual experiment
+runs, and improved visual style. The [source capability inventory](pipeline-capabilities.md)
+provides the scientific parity checklist. The first real-data workflow must load
+existing experiments from `experiments.csv`, use their Box links, and read/save
+compatible metadata and parameters in the existing CSV files.
 
 ## Agreed direction
 
@@ -20,17 +30,47 @@ checkpoint retains all three layouts; a final layout has not been selected.
 
 ## Concrete design
 
+### Guided first-time setup
+
+User requirement added September 29, 2026: provide one guided setup process for
+the analysis environment, Box integration, and the first experiment. This is a
+requirement for the working frontend. Setup is outside the current CSV-viewing slice.
+
+1. **Prepare analysis tools.** Detect an existing compatible environment, explain
+   missing dependencies in plain language, and offer a guided installation or
+   selection of an existing environment. Verify that the actual worker can
+   import its scientific dependencies before reporting readiness. Show progress,
+   actionable failures, and a retry path. Preserve existing environments.
+2. **Choose the data source.** Offer Box and local recordings. For Box, guide the
+   user through the authentication method supported by the existing integration,
+   verify access, choose source folders and a local download location, and explain
+   any lab-administrator setup required. Never treat entered credentials as a
+   successful connection until access is verified. Keep credentials out of
+   experiment settings, version history, logs, and exported configurations.
+3. **Create or open a project.** Choose its name and folder, initialize or validate
+   existing configuration, and retain existing files unless the user deliberately
+   chooses to replace them.
+4. **Create the first experiment.** Keep the form within its project, select the
+   recording type and source data, enter metadata, and validate required files,
+   channels, and timestamps. Make defaults and missing information visible.
+5. **Review readiness.** Summarize the environment, data connection, project, and
+   experiment, then open the experiment workspace. Starting analysis remains an
+   explicit action. Allow users to revisit setup later to repair connections or
+   choose a different environment.
+
+### Projects and experiment workspace
+
 **Home:** stacked project folders, expanded experiment rows, search, and a Needs attention filter. Show recording type, subject, recording date, and an actionable status. Add/open a project through a folder chooser in the real application. Remember project locations without moving recordings. A missing or disconnected folder stays listed with a Reconnect action. The Add experiment form belongs inside its destination project folder and explicitly names that project; it must not appear as a detached page-level form.
 
 **Experiment:** title and project breadcrumb, current status, Save a version, and Run / Run again. Sections: Overview, Data & settings, Crop, Neurons, Results, History. Hide actions that do not apply to the recording type. A focused editor replaces the content area; no detached crop or neuron windows.
 
 **Data & settings:** labeled fields with units, validation, field help, and an Advanced section. Preserve all supported parameters and unrecognized lab-specific columns. Show recording locations, channels, timestamps, and missing inputs. Avoid displaying serialized files as the primary editor. Project identity and the legacy experiment line number are stable even if the display title changes.
 
-**Crop:** projection preview with drag selection, numeric bounds for precision/accessibility, reset, Apply, and explicit cancel/discard semantics. Coordinates refer to the original image, not the scaled viewport. Validate bounds and orientation. Never crop raw data in place. Show the actual available projections (max/min/mean/median/std/range); the prototype illustrates only a synthetic maximum projection.
+**Crop:** projection preview with drag selection, numeric bounds for precision/accessibility, reset, Apply, and explicit cancel/discard semantics. Coordinates refer to the original image, not the scaled viewport. Validate bounds and orientation. Never crop raw data in place. Show the actual available projections (max/min/mean/median/std/range).
 
 **Neurons:** contours over a projection, a numbered candidate list, Keep / Exclude, selected-neuron trace, and kept/excluded counts. Color is accompanied by outline style and text. Preserve original candidate IDs, including excluded candidates, until finalizing a working copy. Existing code translates 1-based display labels into 0-based component indices; the frontend adapter must preserve this mapping exactly. New source extraction produces a new candidate set: old decisions must not silently attach to new indices.
 
-**Run:** validate inputs → review effective settings and changes → save run settings → process → pause for neuron review if needed → finalize downstream analysis → show results. One active run per experiment in the MVP; users can browse other experiments while it runs. MVP should serialize heavy jobs rather than introduce concurrent CaImAn worker pools. Editing/restoring a running experiment must not change the captured run inputs. Report stages and indeterminate progress unless the backend supplies a real denominator; the percentage in this prototype is simulated.
+**Run:** validate inputs → review effective settings and changes → save run settings → process → pause for neuron review if needed → finalize downstream analysis → show results. One active run per experiment in the MVP; users can browse other experiments while it runs. MVP should serialize heavy jobs rather than introduce concurrent CaImAn worker pools. Editing/restoring a running experiment must not change the captured run inputs. Report stages and indeterminate progress unless the backend supplies a real denominator.
 
 **Results:** show plots, traces, artifact locations, and the exact run/version that produced them. Mark existing results “From earlier settings” after edits. Missing or changed artifacts get explicit status. An unsuccessful/cancelled run must not replace the latest successful results. Overwriting output paths requires a documented staging/preservation policy before real execution is connected; current scripts may use stable output filenames.
 
@@ -49,7 +89,7 @@ Backend inspected in `proj-comenius` at `fa9e79b`; only backend source and its A
 | Run provenance | `RunRecorder` lifecycle hooks | Link approved effective settings to completion or failure |
 | Check result availability | `verify_manifest()` | Available / missing / changed |
 
-History covers tracked settings, decisions, metadata, and artifact references according to EVC’s workspace policy. It is **not** a raw-recording backup, and restoring a manifest cannot recreate a missing file. The existing restore safety snapshot may live in the recovery journal instead of ordinary history; the frontend must surface it. The prototype uses a simplified in-memory timeline to demonstrate the interaction, not a replacement EVC implementation.
+History covers tracked settings, decisions, metadata, and artifact references according to EVC’s workspace policy. It is **not** a raw-recording backup, and restoring a manifest cannot recreate a missing file. The existing restore safety snapshot may live in the recovery journal instead of ordinary history; the frontend must surface it.
 
 The CSV bridge offers `extract`, `import_experiment`, `validate_document`, and `writeback`. Reuse these instead of inventing another experiment format. Audit optional/missing parameter CSV behavior, unknown-column preservation, cross-experiment writes, and concurrent external edits before enabling Save. Detect changed source files and reload/resolve instead of silently overwriting script edits. Saving/restoring GUI state must update the legacy representation deliberately, with a reviewable diff.
 
@@ -97,16 +137,39 @@ This is a staged MVP, not a claim that the first miniscope slice covers everythi
 - Run inputs stay fixed; stop/failure preserve the last successful outputs; results identify their producing settings.
 - Editing a crop invalidates dependent results and neuron decisions; reviewing existing estimates invalidates only affected downstream products.
 
-## Prototype and pending decision
+## Current implementation
 
-Run `python scripts/preview_guided_gui.py`, then open `http://127.0.0.1:8765/?variant=A`.
+Launch with `python scripts/run_gui.py --project /path/to/project` from the
+analysis environment. The current GUI has expandable project folders, clickable experiment rows, and
+grouped field editors, with square controls, strong rules, serif headings, and
+no decorative cards, gradients, animations, or dashboard sidebar.
 
-All three variants retain the requested stacked project home. They compare **experiment detail structure**:
+It loads actual CSV records, preserves unknown fields and exact text, and detects
+external changes before inspection. Missing or invalid settings remain visible;
+no defaults, execution, history, or connection success are simulated. Explicit saves
+reuse existing CSV write helpers on a staged file, preserve other records, and keep
+backups. New settings rows are added only after the user chooses Add settings and Save.
 
-- **A — Tabbed experiment (recommended):** a compact overview and direct access to data, crop, neurons, results, and history. Fits repeat use without forcing a linear walkthrough.
-- **B — Experiment overview:** larger overview sections make the available tasks immediately visible.
-- **C — Guided steps:** a persistent vertical step list helps first-time users locate their place.
+## Repository attachment and visible error handling
 
-The floating arrows (or keyboard arrows outside form controls) switch variants. The switcher is restricted to local/file previews. Prototype state is inspectable at the bottom. Data, images, edits, history, and execution are simulated in memory; reloading discards them. Only a representative parameter subset is editable. Synthetic images and traces are not research data.
+The user requested an easy way to attach another Git repository and clear errors
+when setup is incorrect. The future integration should offer a project-level repository
+address/branch, separate Check connection and Attach/Switch actions, separate local
+save and publish actions, and preservation of the current connection on failure.
+Editing the proposed destination invalidates earlier checks. Publishing must never
+force-overwrite someone else's shared history.
 
-Pending: review the clickable prototype with the user, select/adjust the detail layout, and confirm the smallest useful recording-to-result slice. Record that decision here, then remove losing variants and rewrite the selected UI under production standards. Do not promote this throwaway code directly.
+A standard Git repository is a new integration requirement. The inspected EVC
+backend provides `LocalDirectoryRemote`; it does not establish standard Git
+transport/interoperability, Git-host authentication, or a pull/merge workflow.
+Separate-branch recovery is a proposed Git-adapter interaction, not an existing EVC feature. Define the tracked-file/export contract
+and preservation rules before connecting it to real repositories.
+
+Blocking errors should be persistent, prominent, keyboard-focused alert panels:
+what failed, what was preserved, what is blocked, and a concrete recovery action.
+Keep details available without requiring users to interpret a traceback. Checks
+need actual evidence before marking environments, accounts, data, or remotes ready.
+Local saving and remote publishing remain distinct, with no assumption that a saved
+version has been shared or that sharing backs up raw recordings.
+
+Repository attachment and setup are outside the current project and CSV editing slice.
