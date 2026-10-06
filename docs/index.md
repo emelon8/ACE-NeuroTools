@@ -22,11 +22,25 @@ For a **class-diagram overview** of core managers and processors, see the Mermai
 
 -   __HPC Ready__
     
-    Headless mode and Slurm support built-in for high-throughput batch processing on supercomputers.
+    Headless mode for batch processing, with a [Slurm submission example](examples.md#2-supercomputer-slurm-workflow).
 
 </div>
 
 ---
+
+## Experiment GUI
+
+From a checkout with the scientific environment installed:
+
+```bash
+./launch-gui --project /path/to/project
+```
+
+Open the folder containing `experiments.csv` and `analysis_parameters.csv`, edit
+settings, review a run, and inspect results. **Results → Output inventory** lists
+events, component IDs, signals, and diagnostics with export status. **Neurons →
+Finish review** can save curated estimates and rerun calcium-event detection;
+earlier run outputs remain unchanged. See the [experiment GUI guide](guides/experiment_gui.md).
 
 ## Step-by-step tutorials
 
@@ -45,6 +59,7 @@ Install ACE-NeuroTools and its core dependencies in your environment:
 # Clone and install in editable mode
 git clone https://github.com/emelon8/experiment_analysis.git
 cd experiment_analysis
+# Install scientific dependencies first using linux_environment.yml (see Getting Started)
 pip install -e "."
 ```
 
@@ -74,7 +89,17 @@ api.run(
 )
 ```
 
-**Parameters:** every pipeline exposes a `run(...)` method whose arguments are **keyword-only in practice** (see docstrings). You set them via **Python kwargs**, optional **`analysis_parameters.csv`** (loaded with `load_analysis_params`), and **CLI defaults** for `python -m aceneurotools.pipelines.*`. The precedence and full pattern are spelled out under **§3a. Passing parameters into the pipelines** in [Getting started](getting_started.md).
+**Parameters:** use named arguments to `run(...)` for clarity. Direct Python calls
+use method defaults and explicit arguments; loading a CSV row into run arguments
+requires `load_analysis_params`. Module CLIs merge CLI defaults, supported CSV
+settings, and CLI overrides. Miniscope CNMF-E extraction defaults to **off** in
+`MiniscopePipeline.run()` and **on** in its module CLI and GUI CNMF-E mode. See
+[Getting started](getting_started.md#3a-passing-parameters-into-the-pipelines) for
+precedence and examples.
+
+Headless mode respects the configured `inline` filtering behavior. A filtered final
+temporal projection can coexist with phases/spectra computed before filtering.
+See the [Miniscope guide](guides/miniscope.md) for signal semantics.
 
 ---
 
@@ -84,7 +109,7 @@ api.run(
 *   **Ephys**: Neuralynx/ONIX import, artifact removal, bandpass filtering, and spectral analysis.
 *   **Alignment**: TTL-based synchronization of dual-stream datasets.
 *   **Data Management**: CSV-driven experiment cohorts and automated Box cloud storage downloads.
-*   **Modern Infrastructure**: 100% Type-hinted, Google-style docstrings, and automated testing.
+*   **Development Tools**: Type annotations, Google-style docstrings, and automated testing.
 
 ---
 

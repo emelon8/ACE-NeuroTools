@@ -2,7 +2,7 @@
 
 **A comprehensive, open-source data analysis pipeline for systems neuroscience.**
 
-This software facilitates the processing, analysis, and visualization of simultaneous calcium imaging (Miniscope) and electrophysiology (EEG/LFP) data. It provides a modular and extensible framework for handling complex multimodal datasets, as described in **[Paper Title/Citation Placeholder]**.
+This software facilitates the processing, analysis, and visualization of simultaneous calcium imaging (Miniscope) and electrophysiology (EEG/LFP) data. It provides a modular and extensible framework for handling complex multimodal datasets through the Python API, command-line pipelines, and a local experiment GUI.
 
 ## Key Features
 
@@ -14,7 +14,7 @@ This software facilitates the processing, analysis, and visualization of simulta
 *   **Electrophysiology Analysis:** Tools for importing and cleaning Neuralynx data, including artifact removal, filtering, phase computation, and spectral analysis.
 *   **Multimodal Integration:** Seamless alignment of independent Miniscope and Ephys timestamps, enabling cross-modal analysis such as phase-locking of calcium events to channel-specific oscillations.
 *   **Data Management:** Integrated utilities for managing large experiment cohorts with explicit path management and automated cloud storage (Box) interaction.
-*   **Modern Infrastructure:** 100% type-hinted codebase, automated documentation site, and CI/CD testing framework.
+*   **Development Tools:** Type annotations, an API documentation site, and automated tests.
 
 ## Experiment GUI
 
@@ -23,7 +23,6 @@ GUI. Browse projects, click an experiment row, and edit clearly labeled metadata
 and analysis settings. System file dialogs open projects and select recording folders;
 missing settings identify each affected experiment. Saves update the existing CSVs
 through the tool’s write helpers, with backups and checks for external edits.
-Existing scripts and source are unchanged.
 
 Search for **ACE Experiments** in the application menu on this computer, or run
 from this checkout:
@@ -32,8 +31,10 @@ from this checkout:
 ./launch-gui
 ```
 
-The launcher finds the existing CaImAn environment and opens the repository's
-data project. Use `--project /path/to/project` or choose **Open project** in the GUI.
+The launcher searches for an existing CaImAn environment and opens the repository's
+`data` project when present. Use `./launch-gui --project /path/to/project` or choose
+**Open project** in the GUI. Run `./launch-gui --check` to check the environment
+without starting the server. It does not install dependencies.
 The wrapper also provides guided Box authentication, embedded crop editing, and
 reviewed analysis runs with preserved per-run inputs and results. Box setup is shared
 across projects; missing recordings open a file selection and size review before
@@ -41,11 +42,21 @@ you confirm a download to the configured location. Downloads can be cancelled, a
 small test selections are reused for cropping and analysis. Embedded neuron review
 loads real CNMF estimates, displays footprints and traces, saves keep/reject
 decisions, preselects the newest estimates, and exports named curated HDF5/NPZ
-copies without replacing the source. CNMF-E setup and run review show where
-outputs will be saved; Results opens the output folder in the system file manager.
-No demo workspaces, Node.js, or frontend build are needed. See the
-[GUI guide](gui/README.md) for usage and error handling and the
-[source findings](docs/design/csv-viewer-findings.md) for known backend issues.
+copies without replacing the source.
+
+In **Neurons → Finish review**, **Save curated copies & detect events** reruns the
+calcium-event detector on kept neurons and writes a new `calcium-events.json` with
+original component IDs and provenance. Saving curated copies alone does not update
+events. The extraction run still detects events before embedded neuron review;
+earlier results remain tied to that run. Ephys and multimodal results need separate
+runs.
+
+CNMF-E setup and run review show the output location. **Results → Output inventory**
+reports exported events, component IDs, traces/footprints, raw and filtered signals,
+and available diagnostics, with reasons for missing outputs. GUI runs preserve inputs
+and outputs under `<project>/.ace-runs/<run-id>/`; curations use separate folders.
+No Node.js or frontend build is needed. See the [experiment GUI guide](docs/guides/experiment_gui.md)
+and [GUI reference](gui/README.md) for launch, review, output, and error details.
 
 ## System Architecture
 
@@ -127,14 +138,15 @@ classDiagram
    ```bash
    git clone https://github.com/emelon8/experiment_analysis.git
    cd experiment_analysis
-   mamba env create -f linux_environment.yml && conda activate caiman
+   mamba env create -f linux_environment.yml
+   conda activate caiman
    pip install -e .
    ```
 3. **Configure Paths**: Use `--project-path` CLI arguments or pass paths to `Pipeline.run()` (see below).
 
 ### Project Setup
 
-The pipeline requires explicit paths — no hidden environment variables or config files:
+For the individual pipelines, supply project and recording paths explicitly:
 
 1.  **CLI Arguments**: Use `--project-path` and `--data-path` when running scripts.
 2.  **Programmatic API**: Pass paths directly to the `Pipeline.run()` method.
@@ -143,39 +155,53 @@ The pipeline requires explicit paths — no hidden environment variables or conf
 from aceneurotools.pipelines.ephys import EphysPipeline
 
 api = EphysPipeline()
-api.run(line_num=96, project_path="/path/to/project")
+api.run(line_num=96, project_path="/path/to/project", data_path="/path/to/raw_data")
 ```
 
 For more details on directory structure and cloud integration, see the **[Getting Started guide on Read the Docs](https://aceneurotools.readthedocs.io/en/latest/getting_started/)** (source: [`docs/getting_started.md`](docs/getting_started.md)).
 
 ## Usage
 
-The project uses modular pipeline scripts as the primary entry points. Each pipeline loads parameters from your project's `analysis_parameters.csv` based on the experiment's line number.
+The individual pipeline CLIs merge their defaults with supported values from
+`analysis_parameters.csv`, then apply CLI paths and headless policy. A direct Python
+`run(...)` call uses the method's defaults and supplied arguments; load and merge CSV
+run settings explicitly when needed. Managers still read CSV metadata, crop coordinates,
+and scientific CaImAn settings. See [parameter precedence](docs/getting_started.md#3a-passing-parameters-into-the-pipelines).
+
+`MiniscopePipeline.run()` defaults to `run_CNMFE=False` and `inline=False`;
+the Miniscope module CLI and GUI CNMF-E mode default to `run_CNMFE=True` and
+`inline=True`. Set these explicitly when comparing entry points.
 
 ### 1. Miniscope Analysis
 **Entry point:** `python -m aceneurotools.pipelines.miniscope` (implementation under `src/aceneurotools/pipelines/miniscope.py`).
 
 ```bash
 # Run analysis for experiment line 96
-python -m aceneurotools.pipelines.miniscope --line-num 96
+python -m aceneurotools.pipelines.miniscope --line-num 96 --project-path /path/to/project --data-path /path/to/raw_data
 
 # Run in headless mode (e.g., for HPC/Slurm jobs)
-python -m aceneurotools.pipelines.miniscope --line-num 96 --headless
+python -m aceneurotools.pipelines.miniscope --line-num 96 --project-path /path/to/project --data-path /path/to/raw_data --headless
 ```
 
 ### 2. Electrophysiology Analysis
 **Entry point:** `python -m aceneurotools.pipelines.ephys` (implementation under `src/aceneurotools/pipelines/ephys.py`).
 
 ```bash
-python -m aceneurotools.pipelines.ephys --line-num 96
+python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /path/to/project --data-path /path/to/raw_data
 ```
 
 ### 3. Multimodal Analysis
 **Entry point:** `python -m aceneurotools.pipelines.multimodal` (implementation under `src/aceneurotools/pipelines/multimodal.py`).
 
 ```bash
-python -m aceneurotools.pipelines.multimodal --line-num 97
+python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /path/to/project --data-path /path/to/raw_data
 ```
+
+Headless mode suppresses interactive steps and respects `inline`. When filtering
+runs, `inline=True` replaces the final temporal projection with filtered data;
+`inline=False` keeps the unfiltered projection. Earlier headless versions forced
+`inline=False`; specify it explicitly to preserve that behavior. Calcium events use
+component traces `C`, and phases/spectra are computed before projection filtering.
 
 For detailed documentation, see the user guides: [Miniscope](docs/guides/miniscope.md), [Ephys](docs/guides/ephys.md), and [Multimodal](docs/guides/multimodal.md) (also published on [Read the Docs](https://aceneurotools.readthedocs.io/en/latest/)).
 
@@ -186,7 +212,8 @@ A comprehensive documentation site, including full API references and guides, is
 
 To view the documentation locally:
 ```bash
-pip install mkdocs-material mkdocstrings-python
+pip install -e ".[docs]"
+bash scripts/sync_notebooks_for_docs.sh
 mkdocs serve
 ```
 
