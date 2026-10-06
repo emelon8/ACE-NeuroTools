@@ -168,7 +168,6 @@ class MiniscopePipeline:
             inspect_motion_correction = False
             remove_components_with_gui = False
             plot_params = False
-            inline = False
             print("Running in HEADLESS mode. GUI steps disabled.", flush=True)
 
         try:

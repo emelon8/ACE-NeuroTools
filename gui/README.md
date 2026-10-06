@@ -406,8 +406,14 @@ sampling rate, timing, and events.
 The core postprocessor computes phases and spectra before filtering. Its final
 temporal projection may therefore be filtered while those products describe the
 unfiltered signal. Exports retain both signal versions and record that ordering.
-Headless mode currently forces `inline=False`; `diagnostics.json` records whether
-replacement actually occurred.
+Headless mode respects the configured `inline` setting while suppressing GUI
+steps. `inline=True` replaces the final temporal projection with filtered data;
+`inline=False` retains the unfiltered projection. `diagnostics.json` records
+whether replacement actually occurred. This changes earlier headless behavior,
+which always forced `inline=False`: batch runs that specify or inherit
+`inline=True` now return a filtered final projection. Set `inline=False`
+explicitly to retain the earlier behavior. Calcium-event detection and the
+phases/spectra computed before filtering keep their existing input semantics.
 
 **Run settings** exposes the applicable run arguments, and **Save run settings**
 writes edited values to the real parameter CSV (adding supported missing columns).
