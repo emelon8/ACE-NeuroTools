@@ -1,6 +1,6 @@
 # ACE-NeuroTools: working GUI and research roadmap
 
-Planning date: October 3, 2026 (America/Denver).
+Planning date: October 3, 2026 (America/Denver); status updated October 6.
 
 Sources: the user-supplied September 29 lab-meeting transcript, the current
 `design/guided-experiments` checkout, and the existing EVC backend in
@@ -33,21 +33,38 @@ See the transcript's GUI discussion (lines 437–759), missed-neuron discussion
 
 ## Current state and practical constraints
 
-Scope update: the user narrowed the immediate work to **Load existing CSV projects**,
-with no modifications to `src`. The [experiment GUI](../../gui/README.md) now reads actual
+The initial implementation slice was **Load existing CSV projects**, with no
+modifications to `src`. The [experiment GUI](../guides/experiment_gui.md) now reads actual
 projects, displays all records and Box links, and edits labeled metadata/settings
 through the existing CSV helpers with backups. The sample-data
-workspaces were removed. Runs, setup, EVC, and Git remain future work; the
-broader roadmap below records earlier goals rather than the current acceptance gate.
+workspaces were removed. October 5 update: the wrapper now adds guided Box
+global verification, confirmed file selection and cancellable downloads, embedded crop selection, real parameter writes, reviewed compute/
+preprocessing/miniscope/ephys runs, and retained per-run artifacts. Those wrapper
+changes made no source edits. Embedded curation of saved CNMF estimates and an application-menu launcher
+are now connected; see [script parity and meeting follow-ups](neuron-review-and-meeting-followups.md).
+October 6 update: finishing review can optionally recompute calcium events from
+saved curated estimates with original IDs/provenance. Runs now publish an explicit
+output inventory for events, component IDs, signals, footprints, and available
+diagnostics. Approved source changes made the existing derivative detector static
+and removed forced `inline=False` assignments from headless policy. Headless runs
+respect filtering replacement: miniscope CLI defaults to `inline=True`, direct
+API to `False`; explicit `inline=False` retains historical headless behavior.
+Phases/spectra still precede filtering and event detection still uses `C`.
+Automatic downstream continuation after curation and environment
+installation, EVC/Git, statistics/multimodal and batch controls remain future work;
+the broader roadmap below is not a claim of full feature parity.
 
 An existing Python 3.10 scientific environment is present at
 `/home/reedpen/.conda/envs/caiman`. Package discovery found CaImAn, NumPy, SciPy,
 pandas, matplotlib, OpenCV, Neo, h5py, FreeSimpleGUI, and pytest there. The default
 system Python lacks this stack. Package discovery is not proof of successful
-imports or a working analysis run; the actual worker environment must be tested.
+imports or a working analysis run. October 5 tests verified actual imports and real
+compute/preprocessing runs on temporary recordings in this environment. Full CNMF-E
+and ephys runs on researcher recordings remain unverified.
 
-No raw AVI/NCS recordings or estimates HDF5 files were found by the workspace
-file inventory. The bundled experiment CSVs contain historical paths, including
+At the October 3 audit, no raw AVI/NCS recordings or estimates HDF5 files were
+found by the workspace file inventory. That is not a current recording inventory.
+The bundled experiment CSVs contain historical paths, including
 Windows locations, and are not proof that those recordings are present here.
 The user clarified that experiments already live in `experiments.csv` and link
 to Box. The first real GUI workflow must open that existing CSV/project rather
@@ -93,7 +110,7 @@ This is the first implementation slice, based on the user's clarification:
    edits back to their CSVs. Store reviewed estimates/results in preserved run
    artifacts and history; the CSV alone does not hold neuron arrays or video data.
 
-## Today's target: a demonstrably working GUI
+## Original October 3 target: a demonstrably working GUI
 
 **Target date: October 3, 2026. Completion requires evidence, not an enabled Run
 button or a successful simulation.** The GUI must load a real project, persist
@@ -112,7 +129,7 @@ GUI acceptance checks.
 | 2 | Real project/experiment management | Add/open a project; list CSV experiments; edit settings through labeled fields; save and reload without losing unknown columns or overwriting external changes |
 | 3 | Real preview and crop | Display an actual projection; save the selected bounds; verify that the same region is passed to the existing crop method |
 | 4 | Actual analysis execution | Start an isolated worker using existing pipeline/stage APIs; capture effective parameters; show real stage/log/error information and output paths |
-| 5 | Review neurons and continue | Display actual contours and traces; submit keep/exclude decisions before downstream event analysis; preserve original detections and persist curated results |
+| 5 | Review neurons and continue | Display actual contours and traces; preserve original detections; recompute events from saved kept-neuron estimates. The explicit event-rerun path is implemented; automatic checkpoint/resume remains future work |
 | 6 | Results and experiment history | Show artifacts from the actual run and their producing settings; preserve previous successful output; save/compare/restore tracked decisions through EVC |
 | 7 | Visual finish and acceptance run | Apply a consistent visual system to the real screens; complete the full workflow on real data; verify a representative existing script still works |
 
@@ -125,16 +142,19 @@ Run-dependent work needs a selected authoritative CSV, working Box access (or ca
 mapping, persistence boundaries, worker design, UI components, and tests for
 configuration/history can advance independently.
 
-### Scientific integration rules for today's implementation
+### Scientific integration rules
 
 - Reuse scientific APIs; do not rewrite CNMF-E, filtering, event detection, or
   alignment in the frontend.
 - Do not equate `headless=True` with a complete GUI integration. It suppresses
   existing neuron review and other inspections. Add an optional interaction seam
   or stage adapter while preserving existing script behavior.
-- Neuron review must happen before downstream event detection. The current
-  processing stage saves estimates before review; explicitly preserve that original
-  result and save the curated result and selected original IDs separately.
+- Results described as curated must use reviewed estimates. The core processing
+  stage saves estimates before review; preserve that original result and save
+  curated estimates and selected original IDs separately. The implemented explicit
+  event rerun satisfies this for calcium events; saving curated estimates alone
+  does not update earlier run results. Automatic pre-event review and multimodal
+  continuation remain future work.
 - Translate browser image coordinates to the current crop convention. The existing
   crop method uses bottom-left GUI coordinates and flips y for array slicing.
 - Keep recorded run inputs fixed. Settings edits produce a new working version;
@@ -247,8 +267,8 @@ colors. Improve clarity and polish alongside the real integration:
 
 ## Completion and prioritization
 
-**Today is successful only when a real experiment completes through the GUI and
-its outputs and review decisions can be reopened.** A mock error walkthrough,
+**The original October 3 completion gate requires a real experiment to complete
+through the GUI, with outputs and review decisions that can be reopened.** A mock error walkthrough,
 a settings form, or a completed timer does not satisfy that gate.
 
 Full capability parity has its own gate: every supported user-facing script,

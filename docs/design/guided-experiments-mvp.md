@@ -1,12 +1,22 @@
 # Guided experiment GUI — MVP design
 
-Status: [project browsing and CSV editing](../../gui/README.md) are implemented.
-The old sample-data prototypes and launcher have been removed. The broader workflows
-below remain a future design, not implemented functionality.
+Status (October 6): [project browsing, CSV editing, global Box setup/downloads, cropping, and reviewed
+local analysis runs, and embedded neuron curation](../guides/experiment_gui.md) are implemented as an additive wrapper.
+The old sample-data prototypes remain removed. A launcher now opens the real application.
+Finishing neuron review can save curated estimates and recompute calcium events
+from those saved copies. Runs now export an explicit output inventory, events,
+component IDs, signals, footprints, and available quality diagnostics.
+EVC, automatic downstream continuation after curation,
+environment installation, and statistics/multimodal run workflows
+remain future work; the broader design below is not a feature-completion claim.
 
 Branch: `design/guided-experiments`. Current scope: load existing projects, browse
-all experiments, edit labeled metadata/settings, select folders, and follow Box links. No changes to `src` are
-authorized for this slice.
+all experiments, edit labeled metadata/settings, select folders, reuse global Box access and download recordings,
+edit crops, review and run four supported local analyses, curate saved CNMF estimates,
+and preserve outputs. See [neuron review and meeting follow-ups](neuron-review-and-meeting-followups.md).
+Source changes require explicit user approval. Approved changes made the existing
+derivative detector callable from saved estimates and removed forced `inline=False`
+assignments from headless policy; scientific calculations and stage order are unchanged.
 
 ## October 3 implementation priorities
 
@@ -29,6 +39,10 @@ compatible metadata and parameters in the existing CSV files.
 - Browse experiments and see what needs attention before asking users to start a wizard.
 
 ## Concrete design
+
+The following describes the target workflow. The current GUI runs headlessly,
+then offers review of saved estimates and an explicit event rerun. It does not
+automatically pause a pipeline before event detection or resume multimodal analysis.
 
 ### Guided first-time setup
 
@@ -111,9 +125,16 @@ Existing scripts and Python callers → existing pipeline/config APIs
 
 A local browser-style interface is the design vehicle, not a hosting decision. The actual GUI must launch locally with one user action and keep recordings local. A packaged desktop shell can follow if needed; cloud hosting/accounts are outside this MVP. Keep frontend dependencies optional and avoid importing them from the CLI/scientific core.
 
-Cropping already accepts `crop_coords` with `headless=True`. Neuron review is currently embedded in `MiniscopePostprocessor.postprocess_calcium_movie`: `plot_contours()` and `component_gui()` run before calcium-event detection. Simply running the whole pipeline headlessly suppresses review; running it interactively opens old windows. Neither satisfies this design.
+Cropping accepts `crop_coords` with `headless=True`. The core interactive neuron review remains embedded in `MiniscopePostprocessor.postprocess_calcium_movie`: `plot_contours()` and `component_gui()` run before calcium-event detection. The GUI runs headlessly and reviews saved estimates afterward. **Save curated copies & detect events** reruns the existing detector on saved kept-neuron traces and preserves original IDs/provenance; saving curated copies alone does not recompute events. Earlier run results remain associated with their original inputs.
 
-A focused technical spike must establish a GUI-only orchestration/checkpoint adapter over the current stage APIs, with optional backward-compatible interaction hooks only if needed. Reuse scientific methods; do not duplicate computation or monkey-patch GUI functions. CLI defaults continue to invoke existing interactions. The frontend needs a real pause/resume or persisted-stage boundary before downstream events are computed; selecting neurons only after final results have been calculated would produce inconsistent results. Audit other plot and inspection windows too, including motion correction and electrophysiology plots.
+A future automatic review checkpoint needs an orchestration adapter over the current stage APIs, with optional backward-compatible interaction hooks only if needed. Reuse scientific methods; do not duplicate computation or monkey-patch GUI functions. Until that exists, use explicit event recomputation to obtain results from curated estimates and do not relabel earlier results as curated. Multimodal continuation still needs its own curated-input contract. Audit other plot and inspection windows too, including motion correction and electrophysiology plots.
+
+Headless execution now respects `inline`: filtering runs when enabled, and
+`inline=True` replaces the final temporal projection with the filtered signal.
+The miniscope CLI defaults to `True`; direct `MiniscopePipeline.run` defaults to
+`False`. Set `inline=False` explicitly for the historical headless projection
+behavior. Phases and spectra are still computed before filtering; calcium events
+use component traces `C`, so this change does not switch their inputs.
 
 Use the same configuration resolution as the selected existing entry point. CLI commands and direct `run(...)` calls do not necessarily merge CSV values the same way. Capture the resolved effective values shown on Review before running, including their source, rather than silently substituting frontend defaults.
 
@@ -149,6 +170,13 @@ external changes before inspection. Missing or invalid settings remain visible;
 no defaults, execution, history, or connection success are simulated. Explicit saves
 reuse existing CSV write helpers on a staged file, preserve other records, and keep
 backups. New settings rows are added only after the user chooses Add settings and Save.
+
+Results reads `output-inventory.json` to show exported products and reasons for
+unavailable outputs. Numeric outputs are stored in pickle-free NPZ archives,
+dictionary-shaped events in JSON, and sparse footprints in `components.npz`.
+`diagnostics.json` records settings, filtering behavior, and unavailable diagnostics;
+available component quality arrays use `diagnostics.npz`. The inventory is an
+explicit contract for supported GUI runs, not a claim of full scientific API parity.
 
 ## Repository attachment and visible error handling
 

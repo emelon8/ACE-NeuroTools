@@ -34,7 +34,7 @@ existing analysis environment, start the local server, and open the browser.
 Launching again reuses the server. No additional packages or frontend build are
 required. This is environment discovery, not environment installation.
 
-See the [usage and file-format guide](../../gui/README.md#review-neurons).
+See the [usage and file-format guide](../guides/experiment_gui.md#review-neurons-and-recompute-calcium-events).
 
 Finish review now offers calcium-event recomputation from the saved curated
 HDF5. Visible derivative/threshold controls start from the current experiment
@@ -42,6 +42,26 @@ settings. The optional `calcium-events.json` records kept-neuron events, the
 curated-to-original ID mapping, parameters, frame rate, and source/curation
 provenance. Repeated exports preserve earlier trials. Detection failures leave
 source estimates and decisions available without installing partial output.
+
+Saving curated copies alone does not recompute events. Event dictionary keys
+index rows in curated `C`; the `neuron_ids` list maps those rows to original
+zero-based component IDs. First/second derivative peak indices refer to
+`np.diff(C, n=1 or 2)` without an added frame offset, matching the existing detector.
+This export is separate from the initial run's `calcium-events.json` and does not
+replace earlier run products.
+
+Initial analysis runs now expose `output-inventory.json` in Results, including
+events, component IDs, original/filtered signals, sparse footprints, and available
+component quality diagnostics. Missing products have explicit reasons. Quality
+arrays are exported when CaImAn provides them; explanatory quality views in the
+Neurons workspace remain a separate priority.
+
+The approved headless-policy fix preserves the selected `inline` setting while
+suppressing GUI interactions. `inline=True` replaces the final temporal projection
+with filtered data; `False` retains the original. Miniscope CLI defaults to `True`,
+direct API to `False`; explicitly choose `False` for historical headless behavior.
+Events use `C`, and phases/spectra still precede filtering, so these inputs are
+unchanged by the fix. See the [capability inventory](pipeline-capabilities.md).
 
 ## Next priorities from the meeting
 
@@ -64,7 +84,7 @@ computed run arrays and multimodal products remain associated with their run.
 Residual-video generation, manual ROI addition, event overlays, and cluster export
 are not implemented in this pass.
 
-## Source changes to consider, not implemented
+## Remaining source changes to consider, not implemented
 
 - **Broader saved-estimates continuation.** Event analysis now runs from reviewed
   estimates without extraction. Extend that explicit input/provenance contract to
