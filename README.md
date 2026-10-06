@@ -20,19 +20,29 @@ This software facilitates the processing, analysis, and visualization of simulta
 
 Open existing `experiments.csv` and `analysis_parameters.csv` in a minimal local
 GUI. Browse projects, click an experiment row, and edit clearly labeled metadata
-and analysis settings. A file browser opens projects and selects recording folders;
+and analysis settings. System file dialogs open projects and select recording folders;
 missing settings identify each affected experiment. Saves update the existing CSVs
 through the tool’s write helpers, with backups and checks for external edits.
 Existing scripts and source are unchanged.
 
-From this checkout, activate your existing analysis environment, then run:
+Search for **ACE Experiments** in the application menu on this computer, or run
+from this checkout:
 
 ```bash
-python scripts/run_gui.py --project /path/to/project
+./launch-gui
 ```
 
-Omit `--project` to choose a folder in the GUI. Try `--project data` for the
-repository's actual CSVs (118 experiments and 114 parameter records).
+The launcher finds the existing CaImAn environment and opens the repository's
+data project. Use `--project /path/to/project` or choose **Open project** in the GUI.
+The wrapper also provides guided Box authentication, embedded crop editing, and
+reviewed analysis runs with preserved per-run inputs and results. Box setup is shared
+across projects; missing recordings open a file selection and size review before
+you confirm a download to the configured location. Downloads can be cancelled, and
+small test selections are reused for cropping and analysis. Embedded neuron review
+loads real CNMF estimates, displays footprints and traces, saves keep/reject
+decisions, preselects the newest estimates, and exports named curated HDF5/NPZ
+copies without replacing the source. CNMF-E setup and run review show where
+outputs will be saved; Results opens the output folder in the system file manager.
 No demo workspaces, Node.js, or frontend build are needed. See the
 [GUI guide](gui/README.md) for usage and error handling and the
 [source findings](docs/design/csv-viewer-findings.md) for known backend issues.

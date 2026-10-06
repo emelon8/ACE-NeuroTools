@@ -52,3 +52,11 @@ CLAUDE.local.md
 .anthropic/
 memory/
 MEMORY.md
+
+# GUI CSV backups and preserved analysis runs stay in their local project.
+.ace-gui-backups/
+.ace-runs/
+
+# Embedded neuron decisions and non-destructive curation exports.
+.ace-neuron-reviews/
+.ace-curations/

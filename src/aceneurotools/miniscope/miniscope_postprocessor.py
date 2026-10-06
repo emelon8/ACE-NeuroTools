@@ -226,8 +226,8 @@ class MiniscopePostprocessor:
         return ca_events_idx
 
 
+    @staticmethod
     def find_calcium_events_with_derivatives(
-        self,
         estimates: 'Estimates',
         derivative: str = 'first',
         event_height: float = 5
@@ -236,6 +236,9 @@ class MiniscopePostprocessor:
         
         Computes the specified derivative of calcium traces and finds
         peaks above the threshold height.
+
+        Callable on saved estimates without loading a movie or constructing a
+        postprocessor, for downstream continuation after component review.
         
         Args:
             estimates: CNMF-E estimates with calcium traces (C matrix).
@@ -378,7 +381,5 @@ class MiniscopePostprocessor:
 
         print("Calculations complete. Attempting to play movie...", flush=True)
         return movie_without_neurons
-
-
 
 

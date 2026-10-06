@@ -60,6 +60,20 @@ def test_failed_open_keeps_current_project(viewer):
     assert len(request(base, "/api/projects")[1]["projects"]) == 1
 
 
+def test_system_picker_routes_and_arbitrary_file_browser(viewer, monkeypatch):
+    base, folder = viewer
+    monkeypatch.setattr(
+        "gui.native_dialogs.NativeDialogs.pick", lambda self, body: {"available": True, "paths": [str(folder)]}
+    )
+    assert request(base, "/api/system/pick", {"kind": "folder"})[1]["paths"] == [str(folder)]
+    assert request(base, "/api/system/pick", {"kind": "folder"}, {"Origin": "https://foreign.invalid"})[0] == 403
+    assert request(base, "/api/system/open-folder", {"path": []})[0] == 400
+    (folder / "Events.nev").touch()
+    assert any(
+        item["name"] == "Events.nev" for item in request(base, f"/api/folders?path={folder}&files=all")[1]["files"]
+    )
+
+
 def test_changed_snapshot_requires_reload_over_http(viewer):
     base, folder = viewer
     project = request(base, "/api/projects")[1]["projects"][0]
@@ -99,3 +113,31 @@ def test_save_over_http_updates_csv_and_refreshes_project(viewer):
     status, error = request(base, "/api/experiment/save", body)
     assert status == 409 and error["reload"]
     assert request(base, route)[1]["metadata"]["id"] == "Rchanged"
+
+
+def test_box_routes_do_not_expose_credentials(viewer, monkeypatch):
+    base, folder = viewer
+    assert request(base, "/api/box/status")[0] == 200
+    status, error = request(base, "/api/box/check", {"method": "ccg", "client_id": "x"})
+    assert status == 400 and "Complete all" in error["error"]
+    assert request(base, "/api/box/check", {}, {"Origin": "https://foreign.invalid"})[0] == 403
+    status, error = request(base, "/api/box/finish", {"proof": "missing"})
+    assert status == 400 and "expired" in error["error"]
+
+
+def test_run_review_and_new_settings_over_http(viewer):
+    base, folder = viewer
+    project = request(base, "/api/projects")[1]["projects"][0]
+    detail = request(base, f"/api/experiment?project={project['id']}&number=1")[1]
+    payload = {"project": project["id"], "number": "1", "versions": detail["versions"], "kind": "compute"}
+    status, review = request(base, "/api/run/review", payload)
+    assert status == 200 and review["blockers"]
+    status, error = request(base, "/api/run/start", {**payload, "review": review["review"]})
+    assert status == 400 and "confirm" in error["error"]
+    payload["kind"] = "miniscope"
+    payload["changes"] = {"n_processes": "2", "run_CNMFE": "False"}
+    status, saved = request(base, "/api/run/settings/save", payload)
+    assert status == 200
+    assert saved["experiment"]["parameters"]["n_processes"] == "2"
+    assert "run_CNMFE" in (folder / "analysis_parameters.csv").read_text()
+    assert request(base, f"/api/run/file?project={project['id']}&run=../../experiments.csv&name=x")[0] == 400

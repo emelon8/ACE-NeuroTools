@@ -1,6 +1,6 @@
 "use strict";
 const $ = id => document.getElementById(id);
-let projects = [], project = null, experiment = null, activeTab = "metadata";
+let projects = [], project = null, experiment = null, activeTab = "metadata", workspaceView = "overview";
 let drafts = {metadata: {}, parameters: {}}, creating = false, busy = false, selectionRequest = 0;
 let folder = null, folderTarget = null, expanded = new Set(), editorExpanded = new Set(), savedMessage = "", lastBackup = "";
 const element = (tag, text, className) => {
@@ -10,7 +10,7 @@ const element = (tag, text, className) => {
   return node;
 };
 const dirty = section => Object.keys(drafts[section]).length > 0 || (section === "parameters" && creating);
-const anyDirty = () => dirty("metadata") || dirty("parameters");
+const anyDirty = () => dirty("metadata") || dirty("parameters") || (typeof extraUnsaved === "function" && extraUnsaved());
 function canLeave() { return !busy && (!anyDirty() || window.confirm("Leave without saving your changes? Choose Cancel to keep editing.")); }
 function clearError() { $("error").hidden = true; }
 function showError(error) {
@@ -123,11 +123,11 @@ async function reloadProject(id) {
   } catch (error) { showError(error); }
   finally { busy = false; }
 }
-function resetEditor() { selectionRequest++; experiment = null; drafts = {metadata: {}, parameters: {}}; creating = false; savedMessage = ""; lastBackup = ""; }
-async function selectExperiment(projectId, number, tab = "metadata") {
+function resetEditor() { if (typeof resetAnalysisDrafts === "function") resetAnalysisDrafts(); selectionRequest++; experiment = null; drafts = {metadata: {}, parameters: {}}; creating = false; savedMessage = ""; lastBackup = ""; }
+async function selectExperiment(projectId, number, tab = null) {
   if (!canLeave()) return;
   clearError(); resetEditor(); const revision = ++selectionRequest;
-  project = projects.find(item => item.id === projectId); activeTab = tab; $("field-search").value = "";
+  project = projects.find(item => item.id === projectId); activeTab = tab || "metadata"; workspaceView = tab ? "editor" : "overview"; $("field-search").value = "";
   $("home").hidden = true; $("detail").hidden = false; $("detail-loading").hidden = false; $("detail-content").hidden = true;
   const row = project.experiments.find(item => item.number === number);
   $("detail-project").textContent = project.name; $("detail-title").textContent = rowName(row);
@@ -136,7 +136,7 @@ async function selectExperiment(projectId, number, tab = "metadata") {
   try {
     const result = await request(`/api/experiment?project=${encodeURIComponent(projectId)}&number=${encodeURIComponent(number)}`);
     if (revision !== selectionRequest) return;
-    experiment = result; $("detail-content").hidden = false; renderEditor();
+    experiment = result; $("detail-content").hidden = false; renderEditor(); renderWorkspace();
   } catch (error) { if (revision === selectionRequest) showError(error); }
   finally { if (revision === selectionRequest) $("detail-loading").hidden = true; }
 }
@@ -172,8 +172,8 @@ function makeField(field) {
   control.id = id; control.dataset.key = field.key; control.title = field.key;
   control.value = control.type === "date" ? isoDate(value) : value;
   const controls = element("div", undefined, "field-controls"); controls.append(control); container.append(controls);
-  if (field.kind === "folder") {
-    const browseButton = element("button", "Choose folder"); browseButton.type = "button";
+  if (field.kind === "folder" || field.kind === "file") {
+    const browseButton = element("button", field.kind === "file" ? "Choose file" : "Choose folder"); browseButton.type = "button";
     browseButton.onclick = () => browse(project.path, {field, section: activeTab}); controls.append(browseButton);
   }
   let boxLink;
@@ -181,6 +181,10 @@ function makeField(field) {
     boxLink = element("a", "Open Box folder", "box-link"); boxLink.target = "_blank"; boxLink.rel = "noopener noreferrer";
     const updateLink = raw => { boxLink.hidden = !/^[0-9]+$/.test(raw.trim()); boxLink.href = boxLink.hidden ? "#" : `https://app.box.com/folder/${raw.trim()}`; };
     updateLink(value); container.append(boxLink);
+    if (activeTab === "metadata") {
+      const chooseBox = element("button", "Choose Box folder"); chooseBox.type = "button";
+      chooseBox.onclick = () => openBoxFolderPicker(field.key); controls.append(chooseBox);
+    }
     control.addEventListener("input", () => updateLink(control.value));
   }
   const help = field.help || (field.kind === "date" && control.type !== "date" ? "Recording date as YYMMDD, e.g. 240101." : "");
@@ -228,42 +232,81 @@ async function saveChanges(event) {
     lastBackup = result.backup || ""; savedMessage = "Saved.";
     const row = project.experiments.find(item => item.number === experiment.number);
     $("detail-title").textContent = rowName(row); $("detail-subtitle").textContent = `Experiment ${experiment.number} · ${friendlyDate(row.date)}`;
-    renderProjects(); renderEditor();
+    renderProjects(); renderEditor(); renderWorkspace();
   } catch (error) { showError(error); }
   finally { busy = false; $("editor-form").inert = false; updateSaveBar(); }
 }
+let pickerBusy = false;
+function applyPickedPath(path, target) {
+  if (target?.onpick) { target.onpick(path); return; }
+  if (target?.kind === "box-cache") { $("box-download-path").value = path; $("box-finish").focus(); }
+  else if (target?.kind === "neuron-estimates") { chooseNeuronSource(path); $("neuron-load").focus(); }
+  else if (target?.kind === "neuron-output") { $("neuron-output-path").value = path; if (neuronSession && !$("neuron-finish").hidden) finishNeurons(); }
+  else if (target?.kind === "data-base") { dataBases.set(project.id, path); renderAnalysis(); }
+  else if (target?.field) {
+    const {field, section} = target;
+    updateValue(field, field.kind === "file" ? path.split(/[\\/]/).pop() : path, section); renderEditor();
+  } else openProject(path);
+}
 async function browse(path, target = null) {
+  if (busy || pickerBusy) return;
+  pickerBusy = true; clearError();
+  let initial = target?.field ? fieldValue(target.field) : path;
+  if (!initial || initial.includes("\\")) initial = path || project?.path;
+  if (initial && !initial.startsWith("/")) initial = (path || project?.path || "") + "/" + initial;
+  $("picker-status").hidden = false; $("picker-status").textContent = "Choose a location in the system file picker, or cancel to return.";
+  $("main-content").inert = true;
+  try {
+    const result = await post("/api/system/pick", {kind: target?.kind === "neuron-estimates" ? "estimates" : target?.field?.kind === "file" ? "file" : "folder", initial});
+    $("main-content").inert = false;
+    if (!result.available) { await browseFolders(path, target); $("folder-description").textContent += " · System picker unavailable; choose a location here."; }
+    else if (result.paths.length) applyPickedPath(result.paths[0], target);
+  } catch (error) { showError(error); }
+  finally { pickerBusy = false; $("main-content").inert = false; $("picker-status").hidden = true; }
+}
+async function openSystemFolder(path) {
+  try { await post("/api/system/open-folder", {path}); }
+  catch (error) { showError(error); }
+}
+async function browseFolders(path, target = null) {
   if (busy) return; clearError();
   try {
-    const result = await request(`/api/folders${path ? `?path=${encodeURIComponent(path)}` : ""}`);
-    folder = result; folderTarget = target; $("folders").hidden = false; $("folder-title").textContent = target ? `Choose ${target.field.label.toLowerCase()}` : "Open a project";
+    const query = new URLSearchParams(); if (path) query.set("path", path); if (target?.kind === "neuron-estimates") query.set("files", "estimates"); else if (target?.field?.kind === "file" || target?.onpick) query.set("files", "all");
+    const result = await request(`/api/folders?${query}`);
+    folder = result; folderTarget = target; $("folders").hidden = false; $("folder-title").textContent = target ? target.kind === "data-base" ? "Choose the base folder containing recordings" : target.kind === "box-cache" ? "Choose a local download folder" : target.kind === "neuron-estimates" ? "Choose a CNMF-E estimates file" : target.kind === "neuron-output" ? "Choose a curation output folder" : target.kind === "movie-files" ? "Choose a recording movie" : `Choose ${target.field.label.toLowerCase()}` : "Open a project";
     $("folder-path").value = result.path; $("parent-folder").disabled = result.path === result.parent;
-    $("use-folder").textContent = target ? "Use this folder" : "Open this project"; $("use-folder").disabled = !target && !result.has_experiments;
+    $("use-folder").textContent = target ? "Use this folder" : "Open this project"; $("use-folder").disabled = (target?.kind === "neuron-estimates" || target?.field?.kind === "file" || Boolean(target?.onpick)) || (!target && !result.has_experiments);
     $("breadcrumbs").replaceChildren(...result.breadcrumbs.flatMap((crumb, index) => {
-      const button = element("button", crumb.name); button.onclick = () => browse(crumb.path, folderTarget);
+      const button = element("button", crumb.name); button.onclick = () => browseFolders(crumb.path, folderTarget);
       return index ? [element("span", "/"), button] : [button];
     }));
     $("folder-description").textContent = target ? result.path : result.has_experiments ? `Project found${result.has_parameters ? " · analysis settings found" : " · no analysis settings file"}` : "Open a folder to find your project. A project contains experiments.csv.";
     const rows = result.folders.map(item => {
       const tr = element("tr", undefined, "folder-row"); const cell = element("td"), button = element("button", item.name, "row-open"); button.tabIndex = -1; cell.append(button);
-      tr.append(cell, element("td", item.project ? "Project folder" : "Folder", "folder-kind")); actionableRow(tr, () => browse(item.path, folderTarget)); return tr;
+      tr.append(cell, element("td", item.project ? "Project folder" : "Folder", "folder-kind")); actionableRow(tr, () => browseFolders(item.path, folderTarget)); return tr;
     });
     for (const file of result.files) {
-      const tr = element("tr", undefined, `folder-file${file.name === "experiments.csv" && !target ? " folder-row" : ""}`);
-      tr.append(element("td", file.name), element("td", file.name === "experiments.csv" ? "Experiment list" : file.name === "analysis_parameters.csv" ? "Analysis settings" : "CSV file", "folder-kind"));
+      const tr = element("tr", undefined, `folder-file${(file.name === "experiments.csv" && !target) || target?.kind === "neuron-estimates" ? " folder-row" : ""}`);
+      tr.append(element("td", file.name), element("td", target?.kind === "neuron-estimates" ? "CNMF-E estimates" : target?.field?.kind === "file" || target?.onpick ? "File" : file.name === "experiments.csv" ? "Experiment list" : file.name === "analysis_parameters.csv" ? "Analysis settings" : "CSV file", "folder-kind"));
+      if (target?.kind === "neuron-estimates") actionableRow(tr, () => { chooseNeuronSource(file.path); $("folders").hidden = true; $("neuron-load").focus(); });
+      if (target?.field?.kind === "file" || target?.onpick) actionableRow(tr, () => { applyPickedPath(file.path, target); $("folders").hidden = true; });
       if (file.name === "experiments.csv" && !target) actionableRow(tr, () => openProject(result.path)); rows.push(tr);
     }
     $("folder-list").replaceChildren(...rows); $("folder-empty").hidden = rows.length !== 0;
+    $("folder-empty").textContent = target?.kind === "neuron-estimates" ? "No folders or estimates files in this location." : target?.field?.kind === "file" || target?.onpick ? "No folders or files in this location." : "No folders or CSV files in this location.";
     $("folders").scrollIntoView({block: "start"}); $("use-folder").focus({preventScroll: true});
   } catch (error) { showError(error); }
 }
 $("open-project").onclick = () => browse(project?.path || projects[0]?.path);
 $("close-folders").onclick = () => { $("folders").hidden = true; };
-$("home-folder").onclick = () => browse(null, folderTarget); $("root-folder").onclick = () => browse("/", folderTarget);
-$("parent-folder").onclick = () => browse(folder.parent, folderTarget);
-$("folder-form").onsubmit = event => { event.preventDefault(); browse($("folder-path").value.trim(), folderTarget); };
+$("home-folder").onclick = () => browseFolders(null, folderTarget); $("root-folder").onclick = () => browseFolders("/", folderTarget);
+$("parent-folder").onclick = () => browseFolders(folder.parent, folderTarget);
+$("folder-form").onsubmit = event => { event.preventDefault(); browseFolders($("folder-path").value.trim(), folderTarget); };
 $("use-folder").onclick = () => {
-  if (folderTarget) { const {field, section} = folderTarget; updateValue(field, folder.path, section); $("folders").hidden = true; renderEditor(); if (section === activeTab) document.querySelector(`[data-key="${CSS.escape(field.key)}"]`)?.focus(); }
+  if (folderTarget?.kind === "box-cache") { $("box-download-path").value = folder.path; $("folders").hidden = true; $("box-finish").focus(); }
+  else if (folderTarget?.kind === "neuron-output") { $("neuron-output-path").value = folder.path; $("folders").hidden = true; }
+  else if (folderTarget?.kind === "data-base") { dataBases.set(project.id, folder.path); $("folders").hidden = true; renderAnalysis(); }
+  else if (folderTarget) { const {field, section} = folderTarget; updateValue(field, folder.path, section); $("folders").hidden = true; renderEditor(); if (section === activeTab) document.querySelector(`[data-key="${CSS.escape(field.key)}"]`)?.focus(); }
   else openProject(folder.path);
 };
 $("search").oninput = renderProjects; $("missing-only").onchange = renderProjects;
@@ -276,3 +319,37 @@ $("field-search").oninput = renderEditor; $("editor-form").onsubmit = saveChange
 $("discard").onclick = () => { if (!busy && window.confirm("Discard the unsaved changes in this section?")) { drafts[activeTab] = {}; if (activeTab === "parameters") creating = false; savedMessage = ""; renderEditor(); } };
 window.addEventListener("beforeunload", event => { if (anyDirty()) { event.preventDefault(); event.returnValue = ""; } });
 request("/api/projects").then(result => { projects = result.projects; if (projects.length) expanded.add(projects[0].id); renderProjects(); if (result.startup_error) showError(new Error(result.startup_error)); }).catch(showError);
+
+function setWorkspace(view) {
+  if (busy) return;
+  workspaceView = view; renderWorkspace();
+}
+function renderWorkspace() {
+  if (!experiment) return;
+  for (const button of $("workspace-tabs").querySelectorAll("button")) button.setAttribute("aria-current", button.dataset.view === workspaceView ? "page" : "false");
+  $("overview-panel").hidden = workspaceView !== "overview";
+  $("editor-panel").hidden = workspaceView !== "editor";
+  $("unconnected-panel").hidden = workspaceView !== "history";
+  const messages = {
+    history: ["History · not connected yet", "Scientific version history and attached Git repositories are not connected yet. CSV saves keep a copy of the previous file; the latest backup location appears in File details after saving."],
+  };
+  if (messages[workspaceView]) { $("unconnected-title").textContent = messages[workspaceView][0]; $("unconnected-text").textContent = messages[workspaceView][1]; }
+  $("unconnected-edit").hidden = workspaceView === "history";
+  const row = project.experiments.find(item => item.number === experiment.number);
+  const facts = [["Subject", row.subject || "Not set"], ["Recorded", friendlyDate(row.date)], ["Experiment number", experiment.number], ["Analysis settings", experiment.parameter_error ? "File needs attention" : experiment.parameters ? "Available" : "Missing"]];
+  $("experiment-overview").replaceChildren(...facts.flatMap(([label, value]) => [element("dt", label), element("dd", value)]));
+  $("experiment-attention").replaceChildren(element("p", experiment.parameter_error || (experiment.parameters ? "Experiment details and analysis settings are ready to edit." : `Experiment ${experiment.number} has no analysis settings. Add them in Data & settings.`)));
+  if (typeof renderAnalysis === "function") renderAnalysis();
+  if (typeof renderNeurons === "function") renderNeurons();
+  $("recording-overview").replaceChildren(...experiment.recordings.map(recording => {
+    const section = element("section", undefined, "recording-summary"); section.append(element("h4", recording.name));
+    section.append(element("p", recording.directory || "Local folder not set", "recording-path"));
+    if (recording.box_url) { const link = element("a", `Open Box folder ${recording.box_id}`); link.href = recording.box_url; link.target = "_blank"; link.rel = "noopener noreferrer"; section.append(link); }
+    else section.append(element("p", "Box folder not set"));
+    return section;
+  }));
+}
+for (const button of $("workspace-tabs").querySelectorAll("button")) button.onclick = () => setWorkspace(button.dataset.view);
+$("overview-edit").onclick = () => setWorkspace("editor");
+$("unconnected-edit").onclick = () => { activeTab = "parameters"; renderEditor(); setWorkspace("editor"); };
+$("overview-box").onclick = () => $("box-setup-button").click();

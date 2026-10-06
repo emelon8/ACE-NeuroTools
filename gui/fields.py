@@ -29,7 +29,7 @@ FIELDS = {
     "systemic drug concentration (mg/mL)": ("Drug concentration (mg/mL)", "Treatment", "number", ""),
     "total systemic time (min)": ("Treatment duration (min)", "Treatment", "number", ""),
     "emg channel": ("EMG channel", "Channels and events", "text", ""),
-    "events filename": ("Events file", "Channels and events", "text", ""),
+    "events filename": ("Events file", "Channels and events", "file", "Filename within the recording folder."),
     "LFP and EEG CSCs": (
         "LFP and EEG channels",
         "Channels and events",

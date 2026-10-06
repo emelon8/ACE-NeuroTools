@@ -260,7 +260,14 @@ class Project:
             return next(csv.reader(handle))
 
     def save(
-        self, number: str, section: str, changes: dict[str, str], versions: dict, create: bool = False
+        self,
+        number: str,
+        section: str,
+        changes: dict[str, str],
+        versions: dict,
+        create: bool = False,
+        *,
+        new_columns: tuple[str, ...] = (),
     ) -> tuple[Project, str | None]:
         """Save one selected record/file. Stage existing utilities, back up, then replace."""
         self.ensure_current()
@@ -275,14 +282,18 @@ class Project:
         filename = "experiments.csv" if section == "metadata" else "analysis_parameters.csv"
         if section == "parameters" and self.parameter_error:
             raise ProjectError(f"Settings cannot be saved until the file is repaired: {self.parameter_error}")
-        columns = self.metadata_columns if section == "metadata" else self.settings_columns()
+        columns = list(self.metadata_columns if section == "metadata" else self.settings_columns())
+        additions = (
+            [key for key in new_columns if key in changes and key not in columns] if section == "parameters" else []
+        )
+        columns.extend(additions)
         existing = self.experiments.get(number) if section == "metadata" else self.parameters.get(number)
         if existing is None and not create:
             raise ProjectError("This experiment has no settings record. Choose Add settings first.")
         if "line number" in changes or any(key not in columns for key in changes):
             raise ProjectError("Experiment numbers and column names cannot be changed here.")
         # A missing row is created deliberately; unchanged values are never reinterpreted.
-        changes = {key: value for key, value in changes.items() if existing is None or existing[key] != value}
+        changes = {key: value for key, value in changes.items() if existing is None or existing.get(key) != value}
         for key, value in changes.items():
             try:
                 validate(key, value)
@@ -310,6 +321,13 @@ class Project:
                     buffer = io.StringIO(newline="")
                     csv.writer(buffer).writerow(columns)
                     handle.write(buffer.getvalue().encode())
+            if original is not None and additions:
+                with staged.open(newline="", encoding="utf-8") as handle:
+                    records = list(csv.DictReader(handle))
+                with staged.open("w", newline="", encoding="utf-8") as handle:
+                    writer = csv.DictWriter(handle, fieldnames=columns)
+                    writer.writeheader()
+                    writer.writerows(records)
             if existing is None:
                 row = {key: changes.get(key, "") for key in columns}
                 row["line number"] = number
