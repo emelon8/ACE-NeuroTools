@@ -1,7 +1,11 @@
 """Read the existing CLI defaults without importing heavy pipeline modules."""
 
 import ast
+import csv
+import io
 from pathlib import Path
+
+import pandas as pd
 
 from aceneurotools.shared import config_utils
 from aceneurotools.shared.cli_utils import apply_headless_policy
@@ -56,7 +60,18 @@ def specification(kind):
 
 def effective_parameters(kind, raw):
     defaults, allowed = specification(kind)
-    converted = CSVWorker.convert_data_types(raw or {})
+    # Match the existing CSV reader's missing-value handling. GUI rows retain raw
+    # strings; the CLI reads through pandas, which treats nan/NA/NULL as blanks.
+    if raw:
+        table = io.StringIO(newline="")
+        writer = csv.DictWriter(table, fieldnames=list(raw))
+        writer.writeheader()
+        writer.writerow(raw)
+        table.seek(0)
+        values = pd.read_csv(table, dtype=str).iloc[0].to_dict()
+    else:
+        values = {}
+    converted = CSVWorker.convert_data_types(values)
     parsed = config_utils.parse_analysis_params(converted)
     params = dict(defaults)
     sources = {key: "CLI default" for key in defaults}
