@@ -74,6 +74,7 @@ dev = [
     "ruff>=0.4",
     "pyrefly",
 ]
+# Keep in sync with docs/requirements.txt (used by Read the Docs).
 docs = [
     "mkdocs-material>=9.0",
     "mkdocstrings[python]>=0.24",

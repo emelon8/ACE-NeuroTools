@@ -1,0 +1,7 @@
+# Read the Docs build dependencies. Keep in sync with the `docs` extra in pyproject.toml.
+# The package itself is not installed: CaImAn is conda-only, and mkdocstrings reads src/ directly.
+mkdocs-material>=9.0
+mkdocstrings[python]>=0.24
+pymdown-extensions>=10.0
+mkdocs-jupyter>=0.24.0
+python-markdown-math>=0.8

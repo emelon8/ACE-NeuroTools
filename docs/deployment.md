@@ -37,7 +37,7 @@ Documentation is built and published by [Read the Docs](https://readthedocs.org/
 
 On each build, RTD:
 
-1. Installs the package with docs extras (`pip install -e ".[docs]"`).
+1. Installs the docs dependencies from `docs/requirements.txt`. It does not install the package itself, because CaImAn is only available from conda-forge; mkdocstrings reads the API from `src/`. Keep that file in sync with the `docs` extra in `pyproject.toml`.
 2. Runs `scripts/sync_notebooks_for_docs.sh` so `docs/notebooks/` matches `notebooks/`.
 3. Runs `mkdocs build` with `mkdocs.yml`.
 
