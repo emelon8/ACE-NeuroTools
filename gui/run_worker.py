@@ -9,12 +9,11 @@ import traceback
 from pathlib import Path
 
 from gui.csv_projects import Project
+from gui.run_outputs import OutputInventory, ephys_outputs, miniscope_outputs
 from gui.runs import atomic_json
 
 
 def execute(manifest):
-    import numpy as np
-
     from aceneurotools.shared.csv_worker import CSVWorker
     from aceneurotools.shared.misc_functions import update_csv_cell
 
@@ -46,6 +45,7 @@ def execute(manifest):
         "headless": True,
     }
     atomic_json(root / "effective-parameters.json", params)
+    report = OutputInventory(root, manifest["kind"], params)
     if manifest["kind"] in {"compute", "miniscope", "preprocess"}:
         # The factory registry intentionally uses explicit imports in this wrapper.
         from aceneurotools.miniscope import onix_miniscope_data_manager, ucla_data_manager  # noqa: F401
@@ -93,6 +93,12 @@ def execute(manifest):
                 if key not in {"line_num", "project_path", "data_path", "filenames", "crop_coords"}
             },
         )
+        report.artifact("preprocessed_movie", manager.preprocessed_movie_filepath)
+        for name in ["max", "std", "min", "mean", "median", "range", "time"]:
+            report.array(f"projection_{name}", getattr(manager.projections, name, None), "preprocessing.npz")
+        report.array("frame_rate", manager.fr, "preprocessing.npz")
+        report.array("time_stamps", manager.time_stamps, "preprocessing.npz")
+        report.array("frame_numbers", manager.frame_numbers, "preprocessing.npz")
     elif manifest["kind"] == "compute":
         from aceneurotools.pipelines.compute import ComputePipeline
 
@@ -112,35 +118,21 @@ def execute(manifest):
         )
         if params["line_num"] not in outputs:
             raise RuntimeError("The existing compute pipeline skipped this experiment. Read the run log for its error.")
+        report.artifact("mean_fluorescence", outputs[params["line_num"]])
     elif manifest["kind"] == "miniscope":
         from aceneurotools.pipelines.miniscope import MiniscopePipeline
 
         pipeline = MiniscopePipeline()
         pipeline.run(**params)
-        dm = pipeline.miniscope_data_manager
-        arrays = {}
-        for name in ["ca_events_idx", "PSD_spect", "t_spect", "freqs_spect", "p_spect", "miniscope_phases"]:
-            value = getattr(dm, name, None)
-            if value is not None:
-                array = np.asarray(value)
-                if array.dtype.kind != "O":
-                    arrays[name] = array
-        if arrays:
-            np.savez_compressed(root / "postprocessing.npz", **arrays)
+        miniscope_outputs(report, pipeline.miniscope_data_manager)
     else:
         from aceneurotools.pipelines.ephys import EphysPipeline
 
         pipeline = EphysPipeline()
         pipeline.run(**params)
         channel = pipeline.ephys_data_manager.get_channel(params["channel_name"])
-        arrays = {"signal": channel.signal, "time": channel.time_vector, "sampling_rate": channel.sampling_rate}
-        for name in ["signal_filtered", "phases"]:
-            if getattr(channel, name, None) is not None:
-                arrays[name] = getattr(channel, name)
-        np.savez_compressed(root / "ephys.npz", **arrays)
-        atomic_json(
-            root / "ephys-events.json", {key: np.asarray(value).tolist() for key, value in channel.events.items()}
-        )
+        ephys_outputs(report, channel)
+    report.finish()
     print("Analysis completed. Results and reviewed parameters are preserved in this run folder.", flush=True)
 
 

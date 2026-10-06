@@ -213,8 +213,15 @@ class Runs:
             "Run folder": str(directory),
             "Reviewed parameters": str(directory / "effective-parameters.json"),
             "Run log": str(directory / "run.log"),
+            "Output inventory": str(directory / "output-inventory.json"),
+            "Diagnostics summary": str(directory / "diagnostics.json"),
         }
         if kind == "miniscope":
+            destinations["Signals, component IDs, and postprocessing"] = str(directory / "postprocessing.npz")
+            destinations["Spatial footprints (when extracted)"] = str(directory / "components.npz")
+            if params.get("find_calcium_events"):
+                destinations["Calcium events (when estimates are available)"] = str(directory / "calcium-events.json")
+            destinations["Quality diagnostics (when available)"] = str(directory / "diagnostics.npz")
             if params.get("run_CNMFE") and params.get("save_estimates"):
                 destinations["Neuron estimates"] = str(
                     directory
@@ -228,8 +235,10 @@ class Runs:
             destinations["Mean fluorescence"] = str(directory / "calcium_signals" / f"meanFluorescence_{number}.npz")
         elif kind == "preprocess":
             destinations["Preprocessed movies"] = str(directory / "recording" / "saved_movies")
+            destinations["Projection and timing arrays"] = str(directory / "preprocessing.npz")
         else:
             destinations["Electrophysiology data"] = str(directory / "ephys.npz")
+            destinations["Electrophysiology events"] = str(directory / "ephys-events.json")
         value = {
             "number": number,
             "project": project.id,
@@ -371,6 +380,8 @@ class Runs:
                 ):
                     outputs.append({"name": str(rel), "size": item.stat().st_size})
             log = directory / "run.log"
+            inventory_path = directory / "output-inventory.json"
+            output_inventory = json.loads(inventory_path.read_text()) if inventory_path.is_file() else None
             with log.open("rb") if log.exists() else open(os.devnull, "rb") as handle:
                 handle.seek(0, 2)
                 handle.seek(max(0, handle.tell() - 65536))
@@ -385,6 +396,7 @@ class Runs:
                 "finished": value["finished"],
                 "directory": str(directory),
                 "files": outputs,
+                "output_inventory": output_inventory,
                 "log": tail,
                 "parameters": value["parameters"],
                 "error": value.get("error"),

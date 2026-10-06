@@ -178,6 +178,9 @@ def test_real_compute_rerun_preserves_results_and_original_csvs(recording):
     assert all((root / name).read_bytes() == value for name, value in csvs.items())
     assert (root / "raw" / "0.avi").read_bytes() == raw
     assert len(Runs().listing(project, "1")["runs"]) == 2
+    assert first["output_inventory"]["kind"] == "compute"
+    assert any(item["name"] == "mean_fluorescence" and item["status"] == "exported"
+               for item in first["output_inventory"]["outputs"])
 
 
 def test_real_cropped_movie_uses_core_preprocessor(recording):
@@ -196,6 +199,9 @@ def test_real_cropped_movie_uses_core_preprocessor(recording):
     finally:
         cap.release()
     assert any(item["name"] == "recording/saved_movies/preprocessed.avi" for item in result["files"])
+    assert result["output_inventory"]["kind"] == "preprocess"
+    with np.load(Path(result["directory"]) / "preprocessing.npz", allow_pickle=False) as arrays:
+        assert arrays["projection_time"].shape == (20,) and arrays["frame_rate"] == 10
 
 
 def test_crop_settings_do_not_leak_into_ephys_arguments():

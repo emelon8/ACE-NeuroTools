@@ -377,8 +377,37 @@ The Analysis menu connects four existing workflows:
 | --- | --- | --- |
 | Mean fluorescence | `ComputePipeline.run` | `calcium_signals/meanFluorescence_<number>.npz` |
 | Crop & preprocess movie | `MiniscopeDataManager.create` + `MiniscopePreprocessor.preprocess_calcium_movie` | `recording/saved_movies/preprocessed*.avi` |
-| Calcium imaging / CNMF-E | `MiniscopePipeline.run` | Cropped/preprocessed movies, configured estimates/params, numeric postprocessing arrays |
+| Calcium imaging / CNMF-E | `MiniscopePipeline.run` | Cropped/preprocessed movies, configured estimates/params, events with IDs, component traces/footprints, raw/filtered projections, spectra, phases, available quality metrics |
 | Electrophysiology | `EphysPipeline.run` | `ephys.npz` with signal, time, sampling rate, filtered signal/phases when requested, plus event JSON |
+
+Every new completed run writes `output-inventory.json` and `diagnostics.json`.
+**Results → Output inventory** lists each result's status and its exact file/key,
+or explains why it is unavailable or disabled. Older runs have no inventory;
+their existing output files remain accessible. Serialization errors fail the run
+instead of silently dropping a computed value.
+
+| Miniscope export | Contents |
+| --- | --- |
+| `calcium-events.json` | Ragged `ca_events_idx` dictionary, zero-based component IDs, frame rate, detector settings, and index convention; includes empty event lists |
+| `postprocessing.npz` | Component IDs and available `C`, `S`, `F_dff`, `YrA`, `b`, `f`; temporal projection as left by the pipeline; unfiltered and filtered temporal projections; spatial projection images; frame rate, timestamps/frame numbers, spectra/axes, and phases |
+| `components.npz` | Sparse CSC footprints as `A_data`, `A_indices`, `A_indptr`, `A_shape` |
+| `diagnostics.npz` | Available `SNR_comp`, `r_values`, `cnn_preds`, automatic accepted/rejected indices, neuron noise and fitted `g`, `bl`, `c1` values |
+| `diagnostics.json` | Run settings, neuron count, requested inline mode and observed projection replacement, phase/spectral input semantics, and unavailable outputs |
+
+NPZ files use numeric arrays and load with `allow_pickle=False`. `neuron_ids`
+maps `C` rows and event dictionary keys to extraction component IDs; automatic
+accepted/rejected indices are saved separately. The GUI does not invent missing
+quality scores or compute the interactive correlation/PNR diagnostics. The core
+pipeline does not retain motion-correction shifts; the inventory identifies that
+limitation. Preprocess runs additionally export projection/timing arrays to
+`preprocessing.npz`; ephys inventories cover signal, filtered signal, phases,
+sampling rate, timing, and events.
+
+The core postprocessor computes phases and spectra before filtering. Its final
+temporal projection may therefore be filtered while those products describe the
+unfiltered signal. Exports retain both signal versions and record that ordering.
+Headless mode currently forces `inline=False`; `diagnostics.json` records whether
+replacement actually occurred.
 
 **Run settings** exposes the applicable run arguments, and **Save run settings**
 writes edited values to the real parameter CSV (adding supported missing columns).

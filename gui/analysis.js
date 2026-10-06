@@ -222,6 +222,19 @@ function showRun(run) {
   $("review-run-neurons").hidden = run.kind !== "miniscope" || run.state !== "completed" || !estimates;
   $("review-run-neurons").onclick = () => { setWorkspace("neurons"); chooseNeuronSource(run.directory + "/" + estimates.name); $("neuron-load").click(); };
   $("run-log").textContent = run.log; $("run-used-parameters").textContent = JSON.stringify(run.parameters, null, 2);
+  const inventory = run.output_inventory;
+  if (inventory) {
+    const table = element("table"), head = element("tr");
+    for (const label of ["Result", "Status", "Location / reason"]) head.append(element("th", label));
+    table.append(head);
+    for (const output of inventory.outputs) {
+      const row = element("tr");
+      const location = output.status === "exported" ? output.file + (output.key ? ` · ${output.key}` : "") : output.reason;
+      row.append(element("td", output.name), element("td", output.status === "exported" ? "Exported" : "Not computed / unavailable"), element("td", location));
+      table.append(row);
+    }
+    $("run-output-inventory").replaceChildren(table);
+  } else $("run-output-inventory").replaceChildren(element("p", run.state === "running" ? "The output inventory will be saved when analysis finishes." : "No output inventory was saved for this run."));
   $("run-output-files").replaceChildren(...run.files.map(file => {
     const line = element("div", undefined, "output-link"), link = element("a", file.name);
     link.href = `/api/run/file?project=${encodeURIComponent(project.id)}&run=${encodeURIComponent(run.id)}&name=${encodeURIComponent(file.name)}`; link.download = file.name.split("/").pop();
