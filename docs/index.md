@@ -113,8 +113,8 @@ See the [Miniscope guide](guides/miniscope.md) for signal semantics.
 
 ---
 
-<p align="center">
+<div class="ace-doc-actions" markdown>
   [Getting Started](getting_started.md){ .md-button .md-button--primary }
   [Tutorials: Miniscope](notebooks/miniscope_pipeline_tutorial.ipynb){ .md-button }
   [API Reference](api/index.md){ .md-button }
-</p>
+</div>
