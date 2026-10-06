@@ -3,8 +3,13 @@
 A local GUI for browsing projects, editing experiment CSVs, setting up Box,
 cropping recordings, reviewing neurons, and running existing analyses. It uses
 `CSVWorker`, `update_csv_cell`, and `append_row_csv` from the existing tool. All GUI
-code lives outside `src`; scripts and scientific processing remain unchanged.
+orchestration lives outside `src` and calls the existing scientific methods.
+Headless runs respect `inline`, and curated exports can recompute events from
+saved estimates.
 There are no sample-data workspaces or frontend build dependencies.
+
+For a task-oriented walkthrough, see the [Experiment GUI user guide](../docs/guides/experiment_gui.md).
+This README also documents storage, Box downloads, validation, and desktop integration.
 
 ## Launch
 
@@ -41,8 +46,7 @@ in the application. A full path to `experiments.csv` also works. `--no-browser`
 leaves browser opening to you; `--port 8780` uses another port. Stop with Ctrl+C.
 The GUI needs the existing scientific Python environment, not an empty system Python.
 
-`--project data` opens the repository's actual CSVs: 118 experiments and 114
-parameter records. Historical paths and Box IDs are shown as stored; the application
+`--project data` opens the repository's actual CSVs. Historical paths and Box IDs are shown as stored; the application
 checks local recording availability before runs. Box authentication is optional;
 Missing Box-linked recordings are downloaded before cropping or run review.
 An existing folder ID selects the recording automatically; global account setup
@@ -191,7 +195,7 @@ button is disabled during the final installation of verified files. Cancellation
 discards newly staged files, including files completed during that cancelled request;
 retrying the selection downloads those again. Previously installed files are retained.
 
-An absolute CSV recording directory remains An absolute CSV recording directory remains the download destination. A relative directory is appended to the global download
+An absolute CSV recording directory remains the download destination. A relative directory is appended to the global download
 folder (e.g. `sessions/rat03` → `<download folder>/sessions/rat03`). An explicitly
 selected **data base folder** takes priority. Existing local recordings under the CSV
 project remain usable without moving them. Existing local data can also be used
@@ -408,7 +412,9 @@ temporal projection may therefore be filtered while those products describe the
 unfiltered signal. Exports retain both signal versions and record that ordering.
 Headless mode respects the configured `inline` setting while suppressing GUI
 steps. `inline=True` replaces the final temporal projection with filtered data;
-`inline=False` retains the unfiltered projection. `diagnostics.json` records
+`inline=False` retains the unfiltered projection. The GUI inherits the miniscope
+CLI default of `inline=True`; the Python API default is `False`. Filtering must
+be enabled for replacement to occur. `diagnostics.json` records
 whether replacement actually occurred. This changes earlier headless behavior,
 which always forced `inline=False`: batch runs that specify or inherit
 `inline=True` now return a filtered final projection. Set `inline=False`
