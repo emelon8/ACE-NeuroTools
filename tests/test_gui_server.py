@@ -49,6 +49,24 @@ def test_load_and_inspect_actual_csvs(viewer):
     assert listing["has_experiments"] and listing["has_parameters"]
 
 
+def test_generate_job_without_local_recordings(viewer):
+    base, folder = viewer
+    project = request(base, "/api/projects")[1]["projects"][0]
+    detail = request(base, f"/api/experiment?project={project['id']}&number=1")[1]
+    body = {"project": project["id"], "number": "1", "versions": detail["versions"],
+            "kind": "compute", "cluster": {"recording_path": "/scratch/rat01",
+            "output_path": "/scratch/results", "cpus": "6", "memory_gb": "150", "time": "12:00:00"}}
+    status, result = request(base, "/api/job/scripts", body)
+    assert status == 200
+    assert result["filename"] == "ace-1-compute.zip"
+    assert result["config"]["parameters"]["crop"] is False
+    assert result["archive"]
+    assert request(base, "/api/job/scripts", body, {"Origin": "https://foreign.invalid"})[0] == 403
+    body["versions"] = {}
+    assert request(base, "/api/job/scripts", body)[0] == 400
+    assert not (folder / ".ace-runs").exists()
+
+
 def test_failed_open_keeps_current_project(viewer):
     base, folder = viewer
     invalid = folder / "invalid"

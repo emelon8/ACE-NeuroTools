@@ -159,7 +159,7 @@ async function chooseRunMovies(control) {
   });
   if (fallback) await fallback();
 }
-$("run-kind").onchange = () => { if (Object.keys(runSettingDraft).length) { showError(new Error("Save or discard the run settings before changing analysis.")); $("run-kind").value = runSettings.kind; return; } runReview = null; if (workspaceView === "review" || workspaceView === "run-settings") setWorkspace("overview"); };
+$("run-kind").onchange = () => { if (Object.keys(runSettingDraft).length) { showError(new Error("Save or discard the run settings before changing analysis.")); $("run-kind").value = runSettings.kind; return; } runReview = null; if (workspaceView === "review" || workspaceView === "run-settings" || workspaceView === "job") setWorkspace("overview"); };
 $("run-settings-form").onsubmit = event => {
   event.preventDefault();
   analysisAction("Saving run settings…", async () => {

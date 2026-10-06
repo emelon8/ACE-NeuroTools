@@ -340,6 +340,7 @@ function renderWorkspace() {
   $("experiment-overview").replaceChildren(...facts.flatMap(([label, value]) => [element("dt", label), element("dd", value)]));
   $("experiment-attention").replaceChildren(element("p", experiment.parameter_error || (experiment.parameters ? "Experiment details and analysis settings are ready to edit." : `Experiment ${experiment.number} has no analysis settings. Add them in Data & settings.`)));
   if (typeof renderAnalysis === "function") renderAnalysis();
+  if (typeof renderJobScripts === "function") renderJobScripts();
   if (typeof renderNeurons === "function") renderNeurons();
   $("recording-overview").replaceChildren(...experiment.recordings.map(recording => {
     const section = element("section", undefined, "recording-summary"); section.append(element("h4", recording.name));

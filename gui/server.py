@@ -14,6 +14,7 @@ from urllib.parse import parse_qs, urlsplit
 from gui.box_setup import BoxSetup, BoxSetupError
 from gui.cropping import Cropping
 from gui.csv_projects import Project, ProjectChangedError, ProjectError
+from gui.job_scripts import generate as generate_job_scripts
 from gui.native_dialogs import NativeDialogs
 from gui.neurons import Neurons
 from gui.recordings import Recordings
@@ -175,7 +176,7 @@ class Handler(BaseHTTPRequestHandler):
                         ],
                     }
                 )
-            elif route.path in {"/", "/index.html", "/style.css", "/app.js", "/box.js", "/analysis.js", "/neurons.js"}:
+            elif route.path in {"/", "/index.html", "/style.css", "/app.js", "/box.js", "/analysis.js", "/neurons.js", "/job_scripts.js"}:
                 name = "index.html" if route.path == "/" else route.path[1:]
                 body = (ASSETS / name).read_bytes()
                 self.send_response(200)
@@ -216,6 +217,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/run/start",
             "/api/run/stop",
             "/api/run/settings/save",
+            "/api/job/scripts",
             "/api/crop/preview",
             "/api/crop/save",
             "/api/recording/prepare",
@@ -289,6 +291,10 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 if route == "/api/run/review":
                     self._json(self.server.runs.review(project, body))
+                    return
+                if route == "/api/job/scripts":
+                    with self.server.lock:
+                        self._json(generate_job_scripts(project, body))
                     return
                 if route == "/api/run/start":
                     with self.server.lock:

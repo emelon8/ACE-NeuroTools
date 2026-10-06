@@ -124,10 +124,42 @@ and environment installation are not connected yet. The History section says so
 explicitly. Embedded neuron curation and the four supported run modes are documented below. See [source findings](../docs/design/csv-viewer-findings.md) for
 backend issues recorded without source fixes.
 
+## Supercomputer job scripts
+
+Select an experiment and analysis, save any pending settings, then choose **Output
+script** beside **Review & run**. Enter the recording folder and output base folder
+on the cluster, CPU count, memory in GB, and time limit. Slurm account and partition
+are optional. Use `python` from an activated ACE environment or enter its absolute
+interpreter path. These are cluster locations; local recording availability and
+Box authentication are not required to generate scripts.
+
+**Generate scripts** previews the Slurm file and effective settings. **Download job
+ZIP** includes `run_job.py`, `submit.slurm`, `job.json`, the selected experiment's
+CSV rows, and the existing GUI analysis worker and its helper modules. No running
+GUI is required on the cluster. Copy and extract the ZIP there, activate the same
+ACE-NeuroTools analysis environment, and run `sbatch submit.slurm` from the extracted
+folder. Add site-specific module loads to the Slurm file if required. Direct
+execution with `python run_job.py` also works. The Slurm flags follow the
+[official sbatch reference](https://slurm.schedmd.com/sbatch.html).
+
+The job reuses the local run worker and output exports. It copies inputs into a
+fresh folder under the chosen output base; allow disk space for that copy and
+results. Original recordings and results remain intact. CNMF-E worker processes
+match `SLURM_CPUS_PER_TASK` (or the configured CPUs for direct execution). Crop and
+neuron review windows stay disabled. A confirmed local Box file selection is
+included when its receipt is available; otherwise the cluster folder's supported
+recording files are used, with the saved movie filename selection applied by the
+pipeline. Recordings and Box credentials are not bundled. Job logs identify the
+output folder. Bring estimates back to the GUI's Neurons workflow for review.
+
+The resource fields are requests, not estimates of the memory or time needed for
+the recording. Real cluster execution still requires appropriate files, an installed
+analysis environment, and valid account/partition limits.
+
 ## Validation
 
 ```bash
-PYTHONPATH=.:src python -m pytest tests/test_gui_csv_projects.py tests/test_gui_server.py tests/test_gui_box_setup.py tests/test_gui_analysis.py tests/test_gui_recordings.py tests/test_gui_neurons.py tests/test_gui_launcher.py tests/test_gui_native_dialogs.py tests/test_csv_worker.py
+PYTHONPATH=.:src python -m pytest tests/test_gui_job_scripts.py tests/test_gui_csv_projects.py tests/test_gui_server.py tests/test_gui_box_setup.py tests/test_gui_analysis.py tests/test_gui_recordings.py tests/test_gui_neurons.py tests/test_gui_launcher.py tests/test_gui_native_dialogs.py tests/test_csv_worker.py
 ```
 
 Tests cover raw values, stable-number joins, missing/malformed files, selected-row
