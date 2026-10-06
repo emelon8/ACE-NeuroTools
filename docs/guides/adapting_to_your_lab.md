@@ -19,9 +19,9 @@ Many differences between labs are handled without changing Python code:
 | What varies | Where to set it |
 |-------------|-----------------|
 | Raw data layout under a shared root | `data_path` + columns in `experiments.csv` (e.g. **ephys directory**, **calcium imaging directory**) |
-| Per-session analysis choices | `analysis_parameters.csv` and kwargs to `run()` (see [Getting started](../getting_started.md) §3a) |
+| Per-session analysis choices | Supported CSV settings through the CLI/GUI, or explicit kwargs to direct `run()` calls (see [Getting started](../getting_started.md)) |
 | Imaging frame rate and file layout | Miniscope **metadata** (e.g. `frameRate`, paths to movies). TTL gap logic scales with `frameRate` when present (see [Multimodal integration](multimodal.md#ttl-synchronization-and-gap-detection)) |
-| Headless / cluster runs | `headless=True` and the same kwargs you would use locally |
+| Headless / cluster runs | `headless=True` with explicit scientific settings, saved crop coordinates, and recordings already available locally; `inline` keeps its configured value |
 
 If your files match an existing **on-disk pattern** already recognized by the library, the factory will pick the right manager automatically (see Step 2).
 

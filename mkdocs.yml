@@ -78,10 +78,12 @@ nav:
       - Ephys Processing: notebooks/ephys_pipeline_tutorial.ipynb
       - Multimodal Alignment: notebooks/multimodal_alignment_tutorial.ipynb
   - User Guides:
+      - Experiment GUI: guides/experiment_gui.md
       - Miniscope Analysis: guides/miniscope.md
       - Ephys Analysis: guides/ephys.md
       - Multimodal Integration: guides/multimodal.md
       - Data Management: guides/data_management.md
+      - Adapting to Your Lab: guides/adapting_to_your_lab.md
   - API Reference:
       - Overview: api/index.md
       - Pipelines: api/pipelines.md
@@ -89,4 +91,10 @@ nav:
       - Ephys Components: api/ephys.md
       - Multimodal: api/multimodal.md
       - Shared Utils: api/shared.md
+  - Design and Status:
+      - Guided Experiments: design/guided-experiments-mvp.md
+      - Pipeline Capabilities: design/pipeline-capabilities.md
+      - Neuron Review: design/neuron-review-and-meeting-followups.md
+      - Source Findings: design/csv-viewer-findings.md
+      - Project Roadmap: design/project-roadmap-2026-10-03.md
   - Deploying the docs: deployment.md
