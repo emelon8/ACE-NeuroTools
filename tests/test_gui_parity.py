@@ -156,6 +156,8 @@ def open_experiment(base, root):
 @pytest.mark.parametrize("kind,changes", [
     ("miniscope", {"n_processes": "2", "inline": "False", "run_CNMFE": "True"}),
     ("ephys", {"channel_name": "RHS2116_AC_0", "filter_range": "[0.5, 4]", "compute_phases": "True"}),
+    ("multimodal", {"channel_name": "RHS2116_AC_0", "miniscope_filenames": "['0.avi']",
+                    "ca_events": "True", "fix_TTL_gaps": "True", "time_range": "[1.0, 5.0]"}),
 ])
 def test_gui_http_saved_settings_match_real_cli(app, kind, changes):
     root, base = app
@@ -170,10 +172,14 @@ def test_gui_http_saved_settings_match_real_cli(app, kind, changes):
         from aceneurotools.pipelines.miniscope import MiniscopePipeline
 
         method = MiniscopePipeline.run
-    else:
+    elif kind == "ephys":
         from aceneurotools.pipelines.ephys import EphysPipeline
 
         method = EphysPipeline.run
+    else:
+        from aceneurotools.pipelines.multimodal import MultimodalPipeline
+
+        method = MultimodalPipeline.run
     bound = inspect.signature(method).bind_partial(None, **shown["parameters"], line_num=1,
         project_path=str(root), data_path=str(root), headless=True)
     bound.apply_defaults()
