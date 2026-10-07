@@ -9,6 +9,27 @@ permissions:
   contents: read
 
 jobs:
+  verify:
+    name: Test locked environment and documentation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-file: conda-lock.yml
+          environment-name: aceneurotools
+          cache-environment: true
+          init-shell: bash
+      - run: pip install --no-deps -e .
+      - run: pytest tests/ -m "not slow" -p no:cacheprovider
+      - run: |
+          bash scripts/sync_notebooks_for_docs.sh
+          python scripts/check_docs_links.py
+          mkdocs build --strict
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -31,7 +52,9 @@ jobs:
           path: dist/
 
   publish-pypi:
-    needs: build
+    # A tag alone must never publish while tracked lab CSV rights are unaudited.
+    if: vars.PUBLIC_ARCHIVE_APPROVED_TAG == github.ref_name
+    needs: [verify, build]
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -46,7 +69,8 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
 
   github-release:
-    needs: build
+    if: vars.PUBLIC_ARCHIVE_APPROVED_TAG == github.ref_name
+    needs: [verify, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write

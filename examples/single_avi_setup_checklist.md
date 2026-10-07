@@ -55,7 +55,7 @@ micromamba create -n aceneurotools -f conda-lock.yml
 ```
 
 On macOS, use the human-maintained environment file instead; this checkout
-does not include a macOS lock:
+does not include a macOS lock and has not been smoke-tested on macOS:
 
 ```bash
 micromamba create -f environment.yml

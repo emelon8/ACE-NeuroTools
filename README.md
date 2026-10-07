@@ -93,6 +93,10 @@ and [GUI reference](gui/README.md) for launch, review, output, and error details
    micromamba activate aceneurotools
    pip install --no-deps -e .
    ```
+   For a published release, replace the editable checkout step with
+   `pip install --no-deps aceneurotools==<version>` inside that locked
+   environment. The PyPI wheel does not contain CaImAn; a pip-only install
+   cannot run the full miniscope pipeline.
 3. **Prepare your data**: Run `python -m aceneurotools.init --project-path /path/to/project`, then copy its `experiments_template.csv` to `experiments.csv` in that folder. Replace the example row with one of your own recordings: enter a unique `line number`, the relevant recording directory, and the actual ephys channel name when running ephys. Leave Box folder IDs blank when your files are already local. Note the folder containing your raw recordings. The [Getting Started guide](docs/getting_started.md) explains the CSV columns and folder layout.
 
 ### Project Setup
