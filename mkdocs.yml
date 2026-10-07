@@ -8,21 +8,19 @@ theme:
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: deep-purple
-      accent: cyan
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: deep-purple
-      accent: cyan
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
-  font:
-    text: Inter
-    code: JetBrains Mono
+  font: false
   icon:
     logo: material/flask-outline   # A science flask icon
   features:
@@ -36,6 +34,9 @@ theme:
     - search.share
     - content.code.copy
     - content.code.annotate
+
+extra_css:
+  - stylesheets/ace.css
 
 
 markdown_extensions:
@@ -78,11 +79,13 @@ nav:
       - Ephys Processing: notebooks/ephys_pipeline_tutorial.ipynb
       - Multimodal Alignment: notebooks/multimodal_alignment_tutorial.ipynb
   - User Guides:
+      - Experiment GUI: guides/experiment_gui.md
       - Miniscope Analysis: guides/miniscope.md
       - Ephys Analysis: guides/ephys.md
       - Multimodal Integration: guides/multimodal.md
       - Data Management: guides/data_management.md
       - Experiment History: guides/experiment_history.md
+      - Adapting to Your Lab: guides/adapting_to_your_lab.md
   - API Reference:
       - Overview: api/index.md
       - Pipelines: api/pipelines.md
@@ -93,6 +96,12 @@ nav:
       - Config: api/config.md
       - Experiment Version Control: api/evc.md
       - Shared Utils: api/shared.md
+  - Design and Status:
+      - Guided Experiments: design/guided-experiments-mvp.md
+      - Pipeline Capabilities: design/pipeline-capabilities.md
+      - Neuron Review: design/neuron-review-and-meeting-followups.md
+      - Source Findings: design/csv-viewer-findings.md
+      - Project Roadmap: design/project-roadmap-2026-10-03.md
   - Deploying the docs: deployment.md
   - Comenius planning:
       - Overview: comenius/README.md

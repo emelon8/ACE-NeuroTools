@@ -72,7 +72,7 @@ Hands-on walkthrough of **electrophysiology** loading and analysis: metadata fro
         ),
         (
             "md",
-            """## Project layout: `project_path` vs `data_path`
+            """## Project layout: project_path vs data_path
 
 | Variable | Role |
 |----------|------|
@@ -145,7 +145,7 @@ print("ephys directory (resolved):", edm.get_ephys_directory())
         ),
         (
             "md",
-            """### Step 1 — Verify raw data (`file_downloader.verify_file_by_line`)
+            """### Step 1 — Verify raw data (file_downloader.verify_file_by_line)
 
 Mirrors [EphysPipeline.run](https://aceneurotools.readthedocs.io/en/latest/api/pipelines/). Ensures ephys files for this `line_num` exist under `data_path`.
 """,
@@ -165,7 +165,7 @@ file_downloader.verify_file_by_line(
         ),
         (
             "md",
-            """### Step 2 — Import ephys block (`EphysDataManager.create`)
+            """### Step 2 — Import ephys block (EphysDataManager.create)
 
 Auto-selects backend from the folder layout. Processing is a separate step so you can see the object between import and channel extraction.
 """,
@@ -188,7 +188,7 @@ ephys_dm = EphysDataManager.create(
         ),
         (
             "md",
-            """### Step 3 — `process_ephys_block_to_channels`
+            """### Step 3 — process_ephys_block_to_channels
 
 Builds `Channel` objects for each requested CSC name (`channel_name` must exist in metadata).
 """,
@@ -205,7 +205,7 @@ print("has signal:", ch0.signal is not None, "n:", len(ch0.signal) if ch0.signal
         ),
         (
             "md",
-            """### Step 4 — Bandpass (`filter_ephys`)
+            """### Step 4 — Bandpass (filter_ephys)
 
 **`EphysPipeline.run` only filters when `filter_type` is not `None`.** Here we call `filter_ephys` directly with `replace_signal=False` (pipeline default): filtered samples go to `signal_filtered`.
 """,
@@ -219,9 +219,9 @@ assert ch.signal_filtered is not None
         ),
         (
             "md",
-            """### Step 5 — Phase (`compute_phases_all_channels`)
+            """### Step 5 — Phase (compute_phases_all_channels)
 
-Typically run **after** bandpass so phase reflects the band of interest.
+This method computes phases from `channel.signal`. The previous step used `replace_signal=False`, so these phases describe the unfiltered signal. To obtain band-specific phases, deliberately replace `channel.signal` before computing phases.
 """,
         ),
         (
@@ -232,7 +232,7 @@ ch = ephys_dm.get_channel(channel_name)
         ),
         (
             "md",
-            """### Step 6 — `ChannelWorker` plots
+            """### Step 6 — ChannelWorker plots
 
 `plot_channel`, `plot_spectrogram`, and `plot_phases` match the flags on `EphysPipeline.run`. Uncomment in a desktop session if your backend is interactive.
 """,
@@ -390,7 +390,7 @@ print("analysis params keys (sample):", list(edm.analysis_params.keys())[:12] if
         ),
         (
             "md",
-            """### Step 1 — `filenames` and `headless`
+            """### Step 1 — filenames and headless
 
 `filenames` must list movies to load (CLI default pattern: `["0.avi"]`). **`headless=True`** skips interactive crop and curation GUIs — use **`analysis_parameters.csv`** for `crop_coords` when headless.
 """,
@@ -402,7 +402,7 @@ print("analysis params keys (sample):", list(edm.analysis_params.keys())[:12] if
         ),
         (
             "md",
-            """### Step 2 — Create data manager (`MiniscopeDataManager.create`)
+            """### Step 2 — Create data manager (MiniscopeDataManager.create)
 
 `ONIX` vs `UCLA`-style acquisition is inferred from your data layout.
 """,
@@ -423,7 +423,7 @@ print("frame rate:", getattr(dm, "fr", None))
         ),
         (
             "md",
-            """### Step 3 — Preprocess (`MiniscopePreprocessor`)
+            """### Step 3 — Preprocess (MiniscopePreprocessor)
 
 Crop coordinates come from **`analysis_parameters.csv`** / GUI when `crop_coords` is None. Below mirrors pipeline defaults you can tune.
 """,
@@ -450,7 +450,7 @@ dm = pre.preprocess_calcium_movie(
         ),
         (
             "md",
-            """### Step 4 — Process (`MiniscopeProcessor`)
+            """### Step 4 — Process (MiniscopeProcessor)
 
 Heavy steps: motion correction (optional) and CNMF-E. For a quick notebook test, set `run_CNMFE=False` (you will not get spatial components until CNMF-E runs).
 """,
@@ -475,7 +475,7 @@ dm = proc.process_calcium_movie(
         ),
         (
             "md",
-            """### Step 5 — Postprocess (`MiniscopePostprocessor`)
+            """### Step 5 — Postprocess (MiniscopePostprocessor)
 
 Runs only if `dm.CNMFE_obj` is not None. With `headless=True`, component-removal GUI is skipped (see `MiniscopePipeline.run`).
 """,
@@ -512,7 +512,7 @@ else:
             "md",
             """### Step 6 — Inspect results
 
-Common fields after a full run: `Cn`, `ca_events_idx`, `miniscope_phases`.
+Inspect component traces through `dm.CNMFE_obj.estimates.C`, events through `ca_events_idx`, and projections/phases through the data manager. Event indices use the detector's derivative coordinates without a frame offset. Phases and spectra are computed before temporal-projection filtering; `inline=True` replaces only the final projection. Headless pipeline runs respect this setting. The GUI can save curated estimates and recompute events in a separate export, with an explicit output inventory for its completed runs.
 """,
         ),
         (
@@ -530,7 +530,7 @@ else:
         ),
         (
             "md",
-            """### Step 7 — One-shot `MiniscopePipeline.run`
+            """### Step 7 — One-shot MiniscopePipeline.run
 
 Equivalent to chaining the three stages with shared kwargs.
 """,
@@ -680,7 +680,7 @@ print("Alignment timestamps shape:", None if mm.t_ca_im is None else getattr(mm.
         ),
         (
             "md",
-            """### Step 2 — Outputs on `MultimodalPipeline`
+            """### Step 2 — Outputs on MultimodalPipeline
 
 After `run()`, use **`mm.ephys_pipeline`** / **`mm.miniscope_pipeline`** for modality-specific state, and the alignment fields below for cross-modal analysis.
 """,
@@ -727,7 +727,7 @@ if mm.phase_hist_miniscope is not None and mm.phase_bin_edges_miniscope is not N
         ),
         (
             "md",
-            """## Internals (same as `MultimodalPipeline.run`)
+            """## Internals (same as MultimodalPipeline.run)
 
 1. `EphysPipeline.run` → `MiniscopePipeline.run`
 2. `sync_neuralynx_miniscope_timestamps` — `delete_TTLs`, `fix_TTL_gaps`, `only_experiment_events`

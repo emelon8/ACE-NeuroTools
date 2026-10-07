@@ -2,7 +2,10 @@
 
 ACE-NeuroTools uses a declarative, CSV-based approach to managing experimental data. Instead of writing custom scripts for every recording session, you maintain a master list of experiments and their analysis parameters in two CSV files.
 
-This approach ensures that your analysis pipelines can be run in large batches without manual intervention.
+The module CLIs and GUI load supported run settings from the parameter CSV.
+Direct Python calls need explicit pipeline kwargs. Batch execution also requires
+local recordings and noninteractive settings; CSV metadata alone does not ensure
+an unattended run.
 
 ## The Core Files
 
@@ -60,7 +63,9 @@ pipeline = MiniscopePipeline()
 pipeline.run(
     line_num=5,
     project_path="/path/to/my_awesome_project/data",  # Where the CSVs live
-    data_path="/path/to/my_awesome_project/raw_data"  # Where the base data folders live
+    data_path="/path/to/my_awesome_project/raw_data",  # Where the base data folders live
+    run_CNMFE=True,  # Direct Python API defaults to no source extraction
+    headless=True,
 )
 ```
 
@@ -72,6 +77,15 @@ If your lab uses Box to store and share raw data, ACE-NeuroTools can automatical
 In your `experiments.csv`, fill in the **Box Calcium Folder ID** and/or **Box ephys folder ID** columns for the experiments you want to sync. If these columns are empty, ACE-NeuroTools will only look for data at the local paths provided.
 
 ### 2. Configure Authentication
+
+In the [experiment GUI](experiment_gui.md), use **Box connection** to verify the
+account and choose a download folder. Saved CCG connection settings live under
+`$XDG_CONFIG_HOME/aceneurotools/gui/box.json` (normally
+`~/.config/aceneurotools/gui/box.json`); temporary developer tokens stay in
+memory. This GUI connection is separate from the legacy script credentials
+below and does not write into the package source.
+
+For existing scripts using the library downloader:
 To allow the code to talk to Box, you must provide your own API credentials:
 1.  **Install the SDK**: Ensure you have the optional dependencies installed: `pip install aceneurotools[box]`
 2.  **Locate the Template**: Find `src/aceneurotools/shared/BLANK_box_credentials.py` in the package source.
@@ -80,14 +94,30 @@ To allow the code to talk to Box, you must provide your own API credentials:
 
 ### How it Works
 - **Local First**: If the data already exists at the specified local path, the pipeline starts immediately without connecting to Box.
-- **Smart Sync**: If files are missing locally **and** a Box ID is provided, the system will connect to Box and download the required files automatically.
+- **Script download checks**: If a folder is missing or empty and a Box ID is
+  provided, configured scripts can attempt a download. A nonempty folder does not
+  prove a recording is complete. Verify the required movie, timestamp, and
+  metadata files before relying on that check.
+- **GUI downloads**: Review a Box file selection and its size, then confirm the
+  download. A small selected subset can be reused for crop and analysis runs;
+  the GUI does not silently expand it to the full recording.
 - **Graceful Fallback**: If Box IDs are present but you haven't configured your credentials, the system will print a reminder with setup instructions and proceed using only what is available locally.
 
 ### Where are the outputs saved?
 
-By default, ACE-NeuroTools saves all intermediate and final analysis results (such as HDF5 files, filtered movies, and generated plots) **directly adjacent to the raw data**.
+Core miniscope stages save processed movies and configured estimates/options
+under the recording's `saved_movies` folder. Other results may remain in memory;
+core API calls do not produce the GUI's output inventory. Compute and statistics
+workflows accept separate output destinations.
 
-If your `calcium imaging directory` is set to `Rat01/2024_01_01/Miniscope`, the pipeline will create analysis folders inside that specific `Miniscope` directory. This keeps the derived data organized alongside the raw data it came from.
+GUI runs preserve private recording and CSV copies in a new
+`<project>/.ace-runs/<run-id>/` folder. Each completed run includes an
+`output-inventory.json` identifying exported arrays/events and unavailable
+results. Neuron review saves its journal in `.ace-neuron-reviews`; each curated
+export uses a fresh folder under the chosen destination (default
+`<project>/.ace-curations`). Original recordings, estimates, and earlier results
+remain available. See the [GUI guide](experiment_gui.md#output-inventory) for
+the exported file formats and component-ID mapping.
 
 ## Adding New Columns
 

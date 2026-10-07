@@ -1,6 +1,7 @@
 # Ephys Modules API
 
-This section details the pipeline for processing electrophysiological data (Neuralynx/ONIX).
+This section details the pipeline for processing electrophysiological data
+(Neuralynx, RHS2116, and ONIX).
 
 
 ## Ephys Data Manager
