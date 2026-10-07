@@ -36,8 +36,8 @@ Pick a folder you're happy keeping code in (e.g. `~/code/`):
 
 ```bash
 cd ~/code
-git clone https://github.com/emelon8/experiment_analysis.git
-cd experiment_analysis
+git clone https://github.com/emelon8/ACE-NeuroTools.git
+cd ACE-NeuroTools
 git checkout proj-comenius
 ```
 

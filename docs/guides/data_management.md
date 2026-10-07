@@ -23,7 +23,7 @@ Keep these files in the folder you pass as `--project-path`:
 
 Start with the provided templates so the column names match what the software reads. Edit the example values for your own experiment.
 
-You can find the templates in the [source code repository](https://github.com/emelon8/experiment_analysis/tree/proj-comenius/src/aceneurotools/shared/metadata_templates).
+You can find the templates in the [source code repository](https://github.com/emelon8/ACE-NeuroTools/tree/proj-comenius/src/aceneurotools/shared/metadata_templates).
 
 1. Run the [initializer](../getting_started.md#3-create-project-configuration) or copy `experiments_template.csv` to your project folder and rename it to `experiments.csv`.
 2. Copy `analysis_parameters_template.csv` only when you need to set per-experiment options. Give its row the same `line number` value as the experiment it describes.

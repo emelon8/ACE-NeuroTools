@@ -3,7 +3,7 @@
 
 Replace the placeholder paths with your ``project_path`` (directory containing
 ``experiments.csv`` and ``analysis_parameters.csv``) and ``data_path`` (raw
-recordings root). See the user guide: https://github.com/emelon8/experiment_analysis/blob/proj-comenius/docs/getting_started.md
+recordings root). See the user guide: https://github.com/emelon8/ACE-NeuroTools/blob/proj-comenius/docs/getting_started.md
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 # Contributing to ACE-NeuroTools
 
 Bug reports and improvements are welcome through the
-[issue tracker](https://github.com/emelon8/experiment_analysis/issues) and pull requests.
+[issue tracker](https://github.com/emelon8/ACE-NeuroTools/issues) and pull requests.
 For bugs, include the version or commit, operating system, recording format,
 command, and traceback. Use synthetic or de-identified examples and omit Box
 credentials and tokens.
