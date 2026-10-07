@@ -36,6 +36,7 @@ from pathlib import Path
 # Template content definitions                                         #
 # ------------------------------------------------------------------ #
 
+
 def _lab_config_template() -> dict:
     """Return the annotated lab_config template as a Python dict."""
     return {
@@ -78,7 +79,7 @@ def _lab_config_template() -> dict:
                 "Per-subject control and treatment analysis windows in "
                 "MINUTES.  Keys are subject line numbers written as strings "
                 "(JSON requirement).  Format:\n"
-                "  \"<line_num>\": [[ctrl_start, ctrl_end], "
+                '  "<line_num>": [[ctrl_start, ctrl_end], '
                 "[treat_start, treat_end]]\n"
                 "Every subject listed in 'conditions' must have an entry here."
             ),
@@ -133,33 +134,33 @@ def _lab_config_template() -> dict:
         },
         "time_windows": {
             # dexmedetomidine 0.00045
-            "46":  [[1,    20],    [28.24, 75]],
-            "47":  [[1,    20],    [28.24, 75]],
-            "64":  [[4,    17],    [28.24, 75]],
-            "88":  [[1,     8],    [28.24, 83.24]],
-            "97":  [[1,    13],    [28.24, 83.24]],
-            "101": [[1,    25],    [37,    90]],
+            "46": [[1, 20], [28.24, 75]],
+            "47": [[1, 20], [28.24, 75]],
+            "64": [[4, 17], [28.24, 75]],
+            "88": [[1, 8], [28.24, 83.24]],
+            "97": [[1, 13], [28.24, 83.24]],
+            "101": [[1, 25], [37, 90]],
             # dexmedetomidine 0.0003
-            "40":  [[8,    20],    [55,    75]],
-            "41":  [[10,   19],    [60,    68]],
-            "48":  [[1,    20],    [25,    35]],
-            "87":  [[5,    13],    [73,    85]],
-            "93":  [[18,   28],    [75,    95]],
-            "94":  [[1,    20],    [75,    90]],
+            "40": [[8, 20], [55, 75]],
+            "41": [[10, 19], [60, 68]],
+            "48": [[1, 20], [25, 35]],
+            "87": [[5, 13], [73, 85]],
+            "93": [[18, 28], [75, 95]],
+            "94": [[1, 20], [75, 90]],
             # propofol
-            "36":  [[1,    11],    [55,    67]],
-            "43":  [[15,   20],    [40,    60]],
-            "44":  [[0,    21],    [40,    65]],
-            "86":  [[5,    16],    [33,    65]],
-            "99":  [[0,    19],    [33,    45]],
-            "103": [[1,    17],    [38,    65]],
+            "36": [[1, 11], [55, 67]],
+            "43": [[15, 20], [40, 60]],
+            "44": [[0, 21], [40, 65]],
+            "86": [[5, 16], [33, 65]],
+            "99": [[0, 19], [33, 45]],
+            "103": [[1, 17], [38, 65]],
             # ketamine
-            "39":  [[10,   20],    [38,    50]],
-            "42":  [[1,    20],    [40,    51]],
-            "45":  [[1,    15],    [40,    60]],
-            "85":  [[14,   24],    [30,    50]],
-            "96":  [[1,    12],    [38,    55]],
-            "112": [[1,    10],    [40,    60]],
+            "39": [[10, 20], [38, 50]],
+            "42": [[1, 20], [40, 51]],
+            "45": [[1, 15], [40, 60]],
+            "85": [[14, 24], [30, 50]],
+            "96": [[1, 12], [38, 55]],
+            "112": [[1, 10], [40, 60]],
         },
         "paths": {
             "project_path": "/path/to/your/project",
@@ -202,8 +203,7 @@ def _stats_config_template() -> dict:
                 "correlation analysis; coherence analysis ignores this."
             ),
             "normalization_method": (
-                "'zscore' or 'none'.  The original coherence script uses "
-                "'none'; scatter correlation uses 'zscore'."
+                "'zscore' or 'none'.  The original coherence script uses 'none'; scatter correlation uses 'zscore'."
             ),
             "coherence_nperseg_seconds": (
                 "Welch segment length in seconds.  null uses scipy's default "
@@ -259,6 +259,18 @@ _CSV_COLUMNS: list[tuple[str, str, str, str]] = [
         "Animal/subject identifier string.",
     ),
     (
+        "Box Calcium Folder ID",
+        "",
+        "",
+        "Optional Box folder ID for calcium-imaging recordings. Leave blank when data is local.",
+    ),
+    (
+        "Box ephys folder ID",
+        "",
+        "",
+        "Optional Box folder ID for electrophysiology recordings. Leave blank when data is local.",
+    ),
+    (
         "date (YYMMDD)",
         "230415",
         "230416",
@@ -300,8 +312,7 @@ _CSV_COLUMNS: list[tuple[str, str, str, str]] = [
         "LFP and EEG CSCs",
         "CBvsPCEEG;PFCEEGvsCBEEG",
         "CBvsPCEEG;PFCEEGvsCBEEG",
-        "REQUIRED — semicolon-separated list of available channel names "
-        "(the .ncs filenames without extension).",
+        "REQUIRED — semicolon-separated list of available channel names (the .ncs filenames without extension).",
     ),
     (
         "method_deconvolution",
@@ -327,6 +338,7 @@ _CSV_COLUMNS: list[tuple[str, str, str, str]] = [
 # ------------------------------------------------------------------ #
 # File writers                                                         #
 # ------------------------------------------------------------------ #
+
 
 def _write_lab_config(path: Path) -> None:
     """Write the annotated lab_config.json template to *path*."""
@@ -368,6 +380,7 @@ def _column_notes_text() -> str:
 # Main entry point                                                     #
 # ------------------------------------------------------------------ #
 
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m aceneurotools.init",
@@ -395,8 +408,7 @@ After running this command:
         "--project-path",
         required=True,
         metavar="PATH",
-        help="Directory where the template files will be written.  "
-             "Created if it does not exist.",
+        help="Directory where the template files will be written.  Created if it does not exist.",
     )
     parser.add_argument(
         "--force",

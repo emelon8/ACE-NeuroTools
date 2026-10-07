@@ -46,14 +46,16 @@ class ComputePipeline:
         completed: dict[int, Path] = {}
 
         if recorder is not None:
-            recorder.on_run_approved({
-                "pipeline": "compute",
-                "subjects": subjects,
-                "project_path": str(project_path),
-                "data_path": str(data_path) if data_path is not None else None,
-                "calcium_signal_dir": str(output_dir),
-                "headless": headless,
-            })
+            recorder.on_run_approved(
+                {
+                    "pipeline": "compute",
+                    "subjects": subjects,
+                    "project_path": str(project_path),
+                    "data_path": str(data_path) if data_path is not None else None,
+                    "calcium_signal_dir": str(output_dir),
+                    "headless": headless,
+                }
+            )
 
         print(f"  Subjects to process ({len(subjects)}): {subjects}")
         print(f"  Output directory: {output_dir}\n")
@@ -124,9 +126,7 @@ class ComputePipeline:
 
         movie_directory = meta_dm.get_miniscope_directory()
         if movie_directory is None:
-            raise ValueError(
-                f"No 'calcium imaging directory' set in experiments.csv for line {line_num}"
-            )
+            raise ValueError(f"No 'calcium imaging directory' set in experiments.csv for line {line_num}")
 
         raw_paths = PathFinder.find(str(movie_directory), suffix=".avi")
         if not raw_paths:
@@ -168,10 +168,7 @@ class ComputePipeline:
             final_coords = coords_dict
             x0, x1 = coords_dict.get("x0", "?"), coords_dict.get("x1", "?")
             y0, y1 = coords_dict.get("y0", "?"), coords_dict.get("y1", "?")
-            print(
-                f"    Crop coordinates loaded from analysis_parameters.csv: "
-                f"x=[{x0}, {x1}]  y=[{y0}, {y1}]"
-            )
+            print(f"    Crop coordinates loaded from analysis_parameters.csv: x=[{x0}, {x1}]  y=[{y0}, {y1}]")
         elif headless:
             print(
                 "    No saved crop coordinates found and running headless.\n"
@@ -225,10 +222,7 @@ class ComputePipeline:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="python -m aceneurotools.pipelines.compute",
-        description=(
-            "Generate meanFluorescence_<line_num>.npz files from raw "
-            "miniscope .avi recordings."
-        ),
+        description=("Generate meanFluorescence_<line_num>.npz files from raw miniscope .avi recordings."),
     )
     parser.add_argument(
         "--project-path",

@@ -90,18 +90,15 @@ def push_ref(repo: ExperimentRepository, remote: Remote, ref: str) -> PushResult
         raise PushRejectedError(f"nothing to push: local ref {ref} is unset")
     remote_oid = remote.get_ref(ref)
     if remote_oid == local_oid:
-        return PushResult(ref=ref, old_oid=remote_oid, new_oid=local_oid,
-                          objects_sent=0, up_to_date=True)
+        return PushResult(ref=ref, old_oid=remote_oid, new_oid=local_oid, objects_sent=0, up_to_date=True)
     if remote_oid is not None:
         if not repo.objects.exists(remote_oid):
             raise PushRejectedError(
-                f"remote {ref} is at {remote_oid[:12]}, which is unknown locally; "
-                "fetch/sync the remote history first"
+                f"remote {ref} is at {remote_oid[:12]}, which is unknown locally; fetch/sync the remote history first"
             )
         if not repo.is_ancestor(remote_oid, local_oid):
             raise PushRejectedError(
-                f"non-fast-forward: remote {ref} at {remote_oid[:12]} is not an "
-                f"ancestor of local {local_oid[:12]}"
+                f"non-fast-forward: remote {ref} at {remote_oid[:12]} is not an ancestor of local {local_oid[:12]}"
             )
     sent = 0
     for oid in sorted(repo.reachable_objects(local_oid)):

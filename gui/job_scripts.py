@@ -15,8 +15,16 @@ from gui.run_specs import PIPELINES, effective_parameters, validate_settings
 
 ASSETS = Path(__file__).parent
 WORKER_FILES = (
-    "__init__.py", "cluster_job.py", "run_worker.py", "run_outputs.py", "runs.py",
-    "csv_projects.py", "fields.py", "run_specs.py", "cropping.py", "recording_scope.py",
+    "__init__.py",
+    "cluster_job.py",
+    "run_worker.py",
+    "run_outputs.py",
+    "runs.py",
+    "csv_projects.py",
+    "fields.py",
+    "run_specs.py",
+    "cropping.py",
+    "recording_scope.py",
 )
 
 
@@ -47,7 +55,9 @@ def generate(project, body):
     if not isinstance(options, dict):
         raise ProjectError("Enter the cluster paths and job resources.")
     source = absolute_path(options.get("recording_path"), "Recording folder")
-    ephys_source = absolute_path(options.get("ephys_recording_path"), "Ephys recording folder") if kind == "multimodal" else None
+    ephys_source = (
+        absolute_path(options.get("ephys_recording_path"), "Ephys recording folder") if kind == "multimodal" else None
+    )
     output = absolute_path(options.get("output_path"), "Output folder")
     if any(PurePosixPath(output).is_relative_to(PurePosixPath(path)) for path in [source, ephys_source] if path):
         raise ProjectError("Choose an output folder outside the recording folders.")
@@ -68,9 +78,11 @@ def generate(project, body):
         if params.get("crop", True) and not coords:
             raise ProjectError("Save a crop first, or set Apply crop to No in Run settings.")
         if coords is not None and (
-            not isinstance(coords, (list, tuple)) or len(coords) != 4
+            not isinstance(coords, (list, tuple))
+            or len(coords) != 4
             or any(type(v) is not int or v < 0 for v in coords)
-            or coords[0] >= coords[2] or coords[1] >= coords[3]
+            or coords[0] >= coords[2]
+            or coords[1] >= coords[3]
         ):
             raise ProjectError("Crop coordinates must be four ordered, non-negative pixel integers.")
     if kind in {"miniscope", "preprocess", "multimodal"}:
@@ -79,15 +91,25 @@ def generate(project, body):
         if isinstance(names, str):
             names = [names]
         if not isinstance(names, (list, tuple)) or any(
-            not isinstance(name, str) or PurePosixPath(name).name != name or "\\" in name
-            or name in {"", ".", ".."} for name in names
+            not isinstance(name, str) or PurePosixPath(name).name != name or "\\" in name or name in {"", ".", ".."}
+            for name in names
         ):
             raise ProjectError("Movie filenames must be filenames within the recording, or [] for all movies.")
         params[names_key] = list(names)
         estimate = params.get("save_CNMFE_estimates_filename", "estimates.hdf5")
-        if not isinstance(estimate, str) or PurePosixPath(estimate).name != estimate or "\\" in estimate or estimate in {"", ".", ".."}:
+        if (
+            not isinstance(estimate, str)
+            or PurePosixPath(estimate).name != estimate
+            or "\\" in estimate
+            or estimate in {"", ".", ".."}
+        ):
             raise ProjectError("Estimates filename must be a filename without a directory path.")
-        if kind in {"miniscope", "multimodal"} and params.get("run_CNMFE") and params.get("save_estimates") and not estimate.endswith(".hdf5"):
+        if (
+            kind in {"miniscope", "multimodal"}
+            and params.get("run_CNMFE")
+            and params.get("save_estimates")
+            and not estimate.endswith(".hdf5")
+        ):
             raise ProjectError("CNMF-E estimates filenames must end in .hdf5.")
     if kind in {"miniscope", "multimodal"}:
         params.update(n_processes=cpus, parallel=cpus > 1)
@@ -112,28 +134,53 @@ def generate(project, body):
                 apply_scope(ephys_local_path, [])
                 ephys_selected = json.loads((ephys_local_path / ".ace-box.json").read_text()).get("selection")
     config = {
-        "number": number, "kind": kind, "parameters": params, "cpus": cpus,
-        "recording_path": source, "recording_column": column, "output_path": output,
+        "number": number,
+        "kind": kind,
+        "parameters": params,
+        "cpus": cpus,
+        "recording_path": source,
+        "recording_column": column,
+        "output_path": output,
         "selected_files": selected,
-        "ephys_recording_path": ephys_source, "ephys_selected_files": ephys_selected,
+        "ephys_recording_path": ephys_source,
+        "ephys_selected_files": ephys_selected,
     }
     name = f"ace-{number}-{kind}"
-    directives = [f"#SBATCH --job-name={name}", "#SBATCH --nodes=1", "#SBATCH --ntasks=1",
-                  f"#SBATCH --cpus-per-task={cpus}", f"#SBATCH --mem={memory}G",
-                  f"#SBATCH --time={walltime}", "#SBATCH --output=slurm-%j.out"]
+    directives = [
+        f"#SBATCH --job-name={name}",
+        "#SBATCH --nodes=1",
+        "#SBATCH --ntasks=1",
+        f"#SBATCH --cpus-per-task={cpus}",
+        f"#SBATCH --mem={memory}G",
+        f"#SBATCH --time={walltime}",
+        "#SBATCH --output=slurm-%j.out",
+    ]
     for key in ("account", "partition"):
         value = options.get(key, "")
         if not isinstance(value, str) or (value and not re.fullmatch(r"[A-Za-z0-9_.-]+", value)):
             raise ProjectError(f"{key.capitalize()}: use letters, numbers, underscores, dots, or hyphens.")
         if value:
             directives.append(f"#SBATCH --{key}={value}")
-    slurm = "\n".join(["#!/bin/bash", *directives, "", "set -euo pipefail",
-        'cd "${SLURM_SUBMIT_DIR:?Submit from the extracted job folder}"',
-        "export MPLBACKEND=Agg", "export PYTHONUNBUFFERED=1",
-        "export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1",
-        f"{shlex.quote(python)} run_job.py", ""])
+    slurm = "\n".join(
+        [
+            "#!/bin/bash",
+            *directives,
+            "",
+            "set -euo pipefail",
+            'cd "${SLURM_SUBMIT_DIR:?Submit from the extracted job folder}"',
+            "export MPLBACKEND=Agg",
+            "export PYTHONUNBUFFERED=1",
+            "export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1",
+            f"{shlex.quote(python)} run_job.py",
+            "",
+        ]
+    )
     script = '"""Run this exported experiment without starting the GUI."""\n\nfrom gui.cluster_job import main\n\nif __name__ == "__main__":\n    main()\n'
-    files = {"run_job.py": script, "submit.slurm": slurm, "job.json": json.dumps(config, indent=2, allow_nan=False) + "\n"}
+    files = {
+        "run_job.py": script,
+        "submit.slurm": slurm,
+        "job.json": json.dumps(config, indent=2, allow_nan=False) + "\n",
+    }
     for filename, columns, row in (
         ("experiments.csv", project.metadata_columns, detail["metadata"]),
         ("analysis_parameters.csv", project.parameter_columns, detail["parameters"]),
@@ -147,7 +194,7 @@ def generate(project, body):
 
 Copy this ZIP to the cluster and extract it. The recording must already be at:
 {source}
-{f'Electrophysiology recording: {ephys_source}' if ephys_source else ''}
+{f"Electrophysiology recording: {ephys_source}" if ephys_source else ""}
 Activate an environment with ACE-NeuroTools (the same version as this GUI), CaImAn,
 and its scientific dependencies installed. If your cluster needs module loads,
 add those to submit.slurm before its Python command.
@@ -174,5 +221,10 @@ Review extracted neurons in the GUI after transferring the results back.
             bundle.writestr(filename, content)
         for filename in WORKER_FILES:
             bundle.writestr(f"gui/{filename}", (ASSETS / filename).read_bytes())
-    return {"filename": f"{name}.zip", "archive": base64.b64encode(archive.getvalue()).decode(),
-            "script": script, "slurm": slurm, "config": config}
+    return {
+        "filename": f"{name}.zip",
+        "archive": base64.b64encode(archive.getvalue()).decode(),
+        "script": script,
+        "slurm": slurm,
+        "config": config,
+    }

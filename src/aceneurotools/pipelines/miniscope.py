@@ -37,13 +37,22 @@ from aceneurotools.shared.exceptions import (
 )
 
 
+def _save_crop_coords_if_configured(coords: dict[str, int], line_num: int, project_path: Path) -> bool:
+    """Persist crop coordinates only when the optional parameter CSV exists."""
+    analysis_params_csv = project_path / "analysis_parameters.csv"
+    if not analysis_params_csv.is_file():
+        return False
+    update_csv_cell(coords, "crop_coords", line_num, analysis_params_csv)
+    return True
+
+
 class MiniscopePipeline:
     """High-level API for calcium imaging analysis workflows.
-    
+
     Orchestrates the complete miniscope analysis pipeline from raw video
     through CNMF-E source extraction and post-processing. Designed for
     non-technical users with sensible defaults.
-    
+
     Attributes:
         miniscope_data_manager: Data manager populated after run().
         preprocessor: MiniscopePreprocessor instance.
@@ -71,17 +80,15 @@ class MiniscopePipeline:
         project_path: str | Path | None = None,
         data_path: str | Path | None = None,
         filenames: list[str] = [],
-
         # preprocessing parameters
         crop: bool = True,
         crop_coords: list[int] | tuple[int, int, int, int] | None = None,
-        detrend_method: str | None = 'median',
+        detrend_method: str | None = "median",
         df_over_f: bool = False,
         # if df_over_f = True
         secs_window: float = 5,
         quantile_min: float = 8,
-        df_over_f_method: str = 'delta_f_over_sqrt_f',
-
+        df_over_f_method: str = "delta_f_over_sqrt_f",
         # processing parameters
         parallel: bool = False,
         n_processes: int = 12,
@@ -90,20 +97,19 @@ class MiniscopePipeline:
         plot_params: bool = False,
         run_CNMFE: bool = False,
         save_estimates: bool = True,
-        save_CNMFE_estimates_filename: str = 'estimates.hdf5',
+        save_CNMFE_estimates_filename: str = "estimates.hdf5",
         save_CNMFE_params: bool = False,
-
         # post processing parameters
         remove_components_with_gui: bool = True,
         find_calcium_events: bool = True,
-        derivative_for_estimates: str = 'first',
+        derivative_for_estimates: str = "first",
         event_height: float = 5,
         compute_miniscope_phase: bool = True,
         filter_miniscope_data: bool = True,
         n: int = 2,
         cut: list[float] = [0.1, 1.5],
-        ftype: str = 'butter',
-        btype: str = 'bandpass',
+        ftype: str = "butter",
+        btype: str = "bandpass",
         inline: bool = False,
         compute_miniscope_spectrogram: bool = True,
         window_length: float = 30,
@@ -170,7 +176,6 @@ class MiniscopePipeline:
             headless: If True, disable all GUI interactions.
         """
 
-
         if headless:
             inspect_motion_correction = False
             remove_components_with_gui = False
@@ -179,11 +184,12 @@ class MiniscopePipeline:
 
         if recorder is not None:
             run_args = locals()
-            recorder.on_run_approved({
-                "pipeline": "miniscope",
-                **{k: v for k, v in run_args.items()
-                   if k not in ("self", "recorder", "run_args")},
-            })
+            recorder.on_run_approved(
+                {
+                    "pipeline": "miniscope",
+                    **{k: v for k, v in run_args.items() if k not in ("self", "recorder", "run_args")},
+                }
+            )
 
         try:
             try:
@@ -213,15 +219,10 @@ class MiniscopePipeline:
                     hint="Check metadata row values and input filenames.",
                 ) from e
 
-
-
-            #get cropping coordinates from crop_coords argument or from analysis_params
+            # get cropping coordinates from crop_coords argument or from analysis_params
             if crop_coords is not None:
-                coords_dict = {
-                    'x0': crop_coords[0], 'y0': crop_coords[1],
-                    'x1': crop_coords[2], 'y1': crop_coords[3]
-                }
-                crop_job_name = '_crop'
+                coords_dict = {"x0": crop_coords[0], "y0": crop_coords[1], "x1": crop_coords[2], "y1": crop_coords[3]}
+                crop_job_name = "_crop"
             else:
                 coords_dict, crop_job_name = get_coords_dict_from_analysis_params(self.miniscope_data_manager)
 
@@ -250,12 +251,18 @@ class MiniscopePipeline:
                 ) from e
 
             if self.miniscope_data_manager.coords is not None:
-                analysis_params_csv = self.miniscope_data_manager.project_path / "analysis_parameters.csv"
-                print(f"updating {analysis_params_csv} with your cropping coordinates", flush=True)
-                update_csv_cell(self.miniscope_data_manager.coords, 'crop_coords', line_num, analysis_params_csv)
+                if _save_crop_coords_if_configured(
+                    self.miniscope_data_manager.coords, line_num, self.miniscope_data_manager.project_path
+                ):
+                    print("Saved crop coordinates in analysis_parameters.csv.", flush=True)
+                else:
+                    print(
+                        "Crop coordinates were used for this run but not saved; "
+                        "add analysis_parameters.csv to reuse them later.",
+                        flush=True,
+                    )
 
-
-            #Ensure self.miniscope.data_manager has 'movie' and 'preprocessed_movie_filepath' filled in with the movie that you want to process before you process
+            # Ensure self.miniscope.data_manager has 'movie' and 'preprocessed_movie_filepath' filled in with the movie that you want to process before you process
 
             try:
                 self.processor = MiniscopeProcessor(self.miniscope_data_manager)
@@ -281,13 +288,12 @@ class MiniscopePipeline:
                     hint="Check CNMF-E and motion-correction parameters and data integrity.",
                 ) from e
 
-
-
             if self.miniscope_data_manager.CNMFE_obj is not None:
                 from aceneurotools.shared.plotting import set_backend
+
                 set_backend(headless=headless)
                 if not headless:
-                    if hasattr(tkinter, '_default_root') and tkinter._default_root:
+                    if hasattr(tkinter, "_default_root") and tkinter._default_root:
                         tkinter._default_root.destroy()
 
                 try:
@@ -335,7 +341,6 @@ class MiniscopePipeline:
                     run_log=None,
                     run_id=f"miniscope-line-{line_num}",
                 )
-
 
     def run_with_configs(
         self,
@@ -420,62 +425,61 @@ if __name__ == "__main__":
 Examples:
   # Run with explicit project path
   python -m aceneurotools.pipelines.miniscope --line-num 96 --project-path /path/to/project
-  
+
   # Run in headless mode (no GUI) for batch processing
   python -m aceneurotools.pipelines.miniscope --line-num 96 --project-path /path/to/project --headless
-"""
+""",
     )
-    parser.add_argument('--line-num', type=int, required=True,
-                        help="Experiment line number from experiments.csv")
-    parser.add_argument('--project-path', type=str, required=True,
-                        help="Path to project directory (containing experiments.csv)")
-    parser.add_argument('--data-path', type=str,
-                        help="Base path for raw experimental data")
-    parser.add_argument('--headless', action='store_true',
-                        help="Run in headless mode (no GUI)")
+    parser.add_argument("--line-num", type=int, required=True, help="Experiment line number from experiments.csv")
+    parser.add_argument(
+        "--project-path", type=str, required=True, help="Path to project directory (containing experiments.csv)"
+    )
+    parser.add_argument("--data-path", type=str, help="Base path for raw experimental data")
+    parser.add_argument("--headless", action="store_true", help="Run in headless mode (no GUI)")
 
     args = parser.parse_args()
 
     # Default parameters
     defaults = {
-        'filenames': ['0.avi'],
+        "filenames": ["0.avi"],
         # Preprocessing
-        'crop': True,
-        'detrend_method': None,
-        'df_over_f': False,
-        'secs_window': 5,
-        'quantile_min': 8,
-        'df_over_f_method': 'delta_f_over_sqrt_f',
+        "crop": True,
+        "detrend_method": None,
+        "df_over_f": False,
+        "secs_window": 5,
+        "quantile_min": 8,
+        "df_over_f_method": "delta_f_over_sqrt_f",
         # Processing
-        'parallel': True,
-        'n_processes': 6,
-        'apply_motion_correction': False,
-        'inspect_motion_correction': True,
-        'plot_params': False,
-        'run_CNMFE': True,
-        'save_estimates': True,
-        'save_CNMFE_estimates_filename': 'estimates.hdf5',
-        'save_CNMFE_params': True,
+        "parallel": True,
+        "n_processes": 6,
+        "apply_motion_correction": False,
+        "inspect_motion_correction": True,
+        "plot_params": False,
+        "run_CNMFE": True,
+        "save_estimates": True,
+        "save_CNMFE_estimates_filename": "estimates.hdf5",
+        "save_CNMFE_params": True,
         # Post-processing
-        'remove_components_with_gui': True,
-        'find_calcium_events': True,
-        'derivative_for_estimates': 'first',
-        'event_height': 5,
-        'compute_miniscope_phase': True,
-        'filter_miniscope_data': True,
-        'n': 2,
-        'cut': [0.1, 1.5],
-        'ftype': 'butter',
-        'btype': 'bandpass',
-        'inline': True,
-        'compute_miniscope_spectrogram': True,
-        'window_length': 30,
-        'window_step': 3,
-        'freq_lims': [0, 15],
-        'time_bandwidth': 2
+        "remove_components_with_gui": True,
+        "find_calcium_events": True,
+        "derivative_for_estimates": "first",
+        "event_height": 5,
+        "compute_miniscope_phase": True,
+        "filter_miniscope_data": True,
+        "n": 2,
+        "cut": [0.1, 1.5],
+        "ftype": "butter",
+        "btype": "bandpass",
+        "inline": True,
+        "compute_miniscope_spectrogram": True,
+        "window_length": 30,
+        "window_step": 3,
+        "freq_lims": [0, 15],
+        "time_bandwidth": 2,
     }
 
     from aceneurotools.config.config_utils import load_analysis_params
+
     run_params = build_run_params(
         defaults=defaults,
         allowed_keys=run_allowed_keys(MiniscopePipeline.run),

@@ -67,7 +67,7 @@ class MultimodalPipeline:
         project_path: str | Path | None = None,
         data_path: str | Path | None = None,
         # ephys parameters
-        channel_name: str = 'PFCLFPvsCBEEG',
+        channel_name: str = "PFCLFPvsCBEEG",
         remove_artifacts: bool = False,
         filter_type: str | None = None,
         filter_range: list[float] = [0.5, 4],
@@ -75,19 +75,17 @@ class MultimodalPipeline:
         plot_spectrogram: bool = False,
         plot_phases: bool = False,
         logging_level: str = "CRITICAL",
-
         # miniscope parameters
         miniscope_filenames: list[str] = [],
         # preprocessing parameters
         crop: bool = True,
         crop_coords: list[int] | tuple[int, int, int, int] | None = None,
-        detrend_method: str = 'median',
+        detrend_method: str = "median",
         df_over_f: bool = False,
         # if df_over_f = True
         secs_window: float = 5,
         quantile_min: float = 8,
-        df_over_f_method: str = 'delta_f_over_sqrt_f',
-
+        df_over_f_method: str = "delta_f_over_sqrt_f",
         # processing parameters
         parallel: bool = False,
         n_processes: int = 6,
@@ -96,27 +94,25 @@ class MultimodalPipeline:
         plot_params: bool = False,
         run_CNMFE: bool = True,
         save_estimates: bool = True,
-        save_CNMFE_estimates_filename: str = 'estimates.hdf5',
+        save_CNMFE_estimates_filename: str = "estimates.hdf5",
         save_CNMFE_params: bool = False,
-
         # post-processing parameters
         remove_components_with_gui: bool = True,
         find_calcium_events: bool = True,
-        derivative_for_estimates: str = 'first',
+        derivative_for_estimates: str = "first",
         event_height: float = 5,
         compute_miniscope_phase: bool = True,
         filter_miniscope_data: bool = True,
         n: int = 2,
         cut: list[float] = [0.1, 1.5],
-        ftype: str = 'butter',
-        btype: str = 'bandpass',
+        ftype: str = "butter",
+        btype: str = "bandpass",
         inline: bool = False,
         compute_miniscope_spectrogram: bool = True,
         window_length: float = 30,
         window_step: float = 3,
         freq_lims: list[float] = [0, 15],
         time_bandwidth: float = 2,
-
         # multimodal parameters
         delete_TTLs: bool = True,
         fix_TTL_gaps: bool = False,
@@ -124,7 +120,7 @@ class MultimodalPipeline:
         all_TTL_events: bool = True,
         ca_events: bool = False,
         time_range: list[float] | None = None,
-        headless: bool = False
+        headless: bool = False,
     ) -> None:
         """Run the complete multimodal analysis pipeline.
 
@@ -302,12 +298,16 @@ class MultimodalPipeline:
         self.ephys_idx_ca_events = ephys_idx_ca_events
 
         if ephys_idx_all_TTL_events is not None:
-            self.ca_frame_num_of_ephys_idx = find_ca_movie_frame_num_of_ephys_idx(channel_object, ephys_idx_all_TTL_events)
+            self.ca_frame_num_of_ephys_idx = find_ca_movie_frame_num_of_ephys_idx(
+                channel_object, ephys_idx_all_TTL_events
+            )
 
         if ephys_idx_ca_events is not None:
             try:
-                self.ca_events_phases_ephys = ephys_phase_ca_events(ephys_idx_ca_events, channel_object, neurons='all')
-                self.ca_events_phases_miniscope = miniscope_phase_ca_events(ca_events_idx, miniscope_phases, neurons='all')
+                self.ca_events_phases_ephys = ephys_phase_ca_events(ephys_idx_ca_events, channel_object, neurons="all")
+                self.ca_events_phases_miniscope = miniscope_phase_ca_events(
+                    ca_events_idx, miniscope_phases, neurons="all"
+                )
             except Exception as e:
                 raise PipelineExecutionError(
                     "Failed to compute event-locked phases.",
@@ -347,74 +347,71 @@ Examples:
 
   # Run in headless mode (no GUI) for batch processing
   python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /path/to/project --headless
-"""
+""",
     )
-    parser.add_argument('--line-num', type=int, required=True,
-                        help="Experiment line number from experiments.csv")
-    parser.add_argument('--project-path', type=str, required=True,
-                        help="Path to project directory (containing experiments.csv)")
-    parser.add_argument('--data-path', type=str,
-                        help="Base path for raw experimental data")
-    parser.add_argument('--headless', action='store_true',
-                        help="Run in headless mode (no GUI)")
+    parser.add_argument("--line-num", type=int, required=True, help="Experiment line number from experiments.csv")
+    parser.add_argument(
+        "--project-path", type=str, required=True, help="Path to project directory (containing experiments.csv)"
+    )
+    parser.add_argument("--data-path", type=str, help="Base path for raw experimental data")
+    parser.add_argument("--headless", action="store_true", help="Run in headless mode (no GUI)")
 
     args = parser.parse_args()
 
     # Default parameters
     defaults = {
         # ephys parameters
-        'channel_name': 'PFCLFPvsCBEEG',
-        'remove_artifacts': False,
-        'filter_type': None,
-        'filter_range': [0.5, 4],
-        'plot_channel': False,
-        'plot_spectrogram': False,
-        'plot_phases': False,
-        'logging_level': "CRITICAL",
-
+        "channel_name": "PFCLFPvsCBEEG",
+        "remove_artifacts": False,
+        "filter_type": None,
+        "filter_range": [0.5, 4],
+        "plot_channel": False,
+        "plot_spectrogram": False,
+        "plot_phases": False,
+        "logging_level": "CRITICAL",
         # miniscope parameters
-        'miniscope_filenames': ['0.avi'],
+        "miniscope_filenames": ["0.avi"],
         # preprocessing parameters
-        'crop': True,
-        'detrend_method': 'linear',
-        'df_over_f': True,
-        'secs_window': 5,
-        'quantile_min': 8,
-        'df_over_f_method': 'delta_f_over_sqrt_f',
+        "crop": True,
+        "detrend_method": "linear",
+        "df_over_f": True,
+        "secs_window": 5,
+        "quantile_min": 8,
+        "df_over_f_method": "delta_f_over_sqrt_f",
         # processing parameters
-        'parallel': False,
-        'n_processes': 6,
-        'apply_motion_correction': True,
-        'inspect_motion_correction': True,
-        'plot_params': False,
-        'run_CNMFE': True,
-        'save_estimates': False,
-        'save_CNMFE_estimates_filename': 'estimates.hdf5',
-        'save_CNMFE_params': False,
+        "parallel": False,
+        "n_processes": 6,
+        "apply_motion_correction": True,
+        "inspect_motion_correction": True,
+        "plot_params": False,
+        "run_CNMFE": True,
+        "save_estimates": False,
+        "save_CNMFE_estimates_filename": "estimates.hdf5",
+        "save_CNMFE_params": False,
         # post-processing parameters
-        'remove_components_with_gui': True,
-        'find_calcium_events': True,
-        'derivative_for_estimates': 'first',
-        'event_height': 5,
-        'compute_miniscope_phase': True,
-        'filter_miniscope_data': True,
-        'n': 2,
-        'cut': [0.1, 1.5],
-        'ftype': 'butter',
-        'btype': 'bandpass',
-        'inline': False,
-        'compute_miniscope_spectrogram': False,
-        'window_length': 30,
-        'window_step': 3,
-        'freq_lims': [0, 15],
-        'time_bandwidth': 2,
+        "remove_components_with_gui": True,
+        "find_calcium_events": True,
+        "derivative_for_estimates": "first",
+        "event_height": 5,
+        "compute_miniscope_phase": True,
+        "filter_miniscope_data": True,
+        "n": 2,
+        "cut": [0.1, 1.5],
+        "ftype": "butter",
+        "btype": "bandpass",
+        "inline": False,
+        "compute_miniscope_spectrogram": False,
+        "window_length": 30,
+        "window_step": 3,
+        "freq_lims": [0, 15],
+        "time_bandwidth": 2,
         # multimodal parameters
-        'delete_TTLs': True,
-        'fix_TTL_gaps': True,
-        'only_experiment_events': False,
-        'all_TTL_events': True,
-        'ca_events': True,
-        'time_range': None
+        "delete_TTLs": True,
+        "fix_TTL_gaps": True,
+        "only_experiment_events": False,
+        "all_TTL_events": True,
+        "ca_events": True,
+        "time_range": None,
     }
 
     run_params = build_run_params(

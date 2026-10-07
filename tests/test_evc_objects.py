@@ -83,7 +83,11 @@ def test_commit_serializes_in_git_field_order_and_round_trips():
 
 def test_root_commit_has_no_parents():
     commit = Commit(
-        tree="t" * 64, parents=(), author="A <a@b>", author_time=1, author_tz="+0000",
+        tree="t" * 64,
+        parents=(),
+        author="A <a@b>",
+        author_time=1,
+        author_tz="+0000",
         message="root",
     )
     assert b"parent" not in commit.serialize()
@@ -92,12 +96,10 @@ def test_root_commit_has_no_parents():
 
 def test_commit_rejects_malformed_author():
     with pytest.raises(InvalidObjectError):
-        Commit(tree="t" * 64, parents=(), author="no email", author_time=1,
-               author_tz="+0000", message="m")
+        Commit(tree="t" * 64, parents=(), author="no email", author_time=1, author_tz="+0000", message="m")
 
 
 def test_commit_message_preserved_exactly():
     message = "line one\n\nbody with tabs\t and unicode µ\n"
-    commit = Commit(tree="t" * 64, parents=(), author="A <a@b>", author_time=1,
-                    author_tz="+0000", message=message)
+    commit = Commit(tree="t" * 64, parents=(), author="A <a@b>", author_time=1, author_tz="+0000", message=message)
     assert Commit.parse(commit.serialize()).message == message

@@ -11,9 +11,7 @@ def _silence_banner(monkeypatch) -> None:
     monkeypatch.setattr(banner, "welcome", lambda: None)
 
 
-def test_explicit_missing_config_returns_error_without_side_effects(
-    monkeypatch, tmp_path, capsys
-):
+def test_explicit_missing_config_returns_error_without_side_effects(monkeypatch, tmp_path, capsys):
     _silence_banner(monkeypatch)
     missing = tmp_path / "missing" / "lab_config.json"
     setup_called = False

@@ -128,7 +128,8 @@ def test_cli_verify_run_id(tmp_path):
     def run_cli(*args):
         return subprocess.run(
             [sys.executable, "-m", "aceneurotools.evc", "--dir", str(exp_dir), *args],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
 
     ok = run_cli("verify", "run-042")

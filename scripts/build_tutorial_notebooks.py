@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Regenerate pipeline tutorial notebooks (used during development)."""
+
 from __future__ import annotations
 
 import json
+from hashlib import sha1
 from pathlib import Path
 
 
@@ -20,10 +22,11 @@ def make_nb(cells: list[tuple[str, str]]) -> dict:
         },
         "cells": [],
     }
-    for kind, text in cells:
+    for index, (kind, text) in enumerate(cells):
+        cell_id = sha1(f"{index}:{kind}:{text}".encode()).hexdigest()[:20]
         if kind == "md":
             lines = text.splitlines(keepends=True) or [text]
-            out["cells"].append({"cell_type": "markdown", "metadata": {}, "source": lines})
+            out["cells"].append({"cell_type": "markdown", "id": cell_id, "metadata": {}, "source": lines})
         else:
             lines = [ln + "\n" for ln in text.split("\n")]
             if lines and lines[-1] == "\n":
@@ -31,6 +34,7 @@ def make_nb(cells: list[tuple[str, str]]) -> dict:
             out["cells"].append(
                 {
                     "cell_type": "code",
+                    "id": cell_id,
                     "metadata": {},
                     "execution_count": None,
                     "outputs": [],
@@ -57,7 +61,7 @@ Hands-on walkthrough of **electrophysiology** loading and analysis: metadata fro
 
 **Audience:** You have a project directory with `experiments.csv` and `analysis_parameters.csv`, plus Neuralynx (or compatible) data under a shared raw-data root.
 
-**Published docs:** after syncing notebooks ([contributing](https://aceneurotools.readthedocs.io/en/latest/getting_started/)), these render under the site *Tutorials* tab.
+**Documentation preview:** after syncing notebooks ([getting started](https://github.com/emelon8/ACE-NeuroTools/blob/main/docs/getting_started.md)), these render under the site *Tutorials* tab.
 """,
         ),
         (
@@ -147,7 +151,7 @@ print("ephys directory (resolved):", edm.get_ephys_directory())
             "md",
             """### Step 1 — Verify raw data (file_downloader.verify_file_by_line)
 
-Mirrors [EphysPipeline.run](https://aceneurotools.readthedocs.io/en/latest/api/pipelines/). Ensures ephys files for this `line_num` exist under `data_path`.
+Mirrors [EphysPipeline.run](https://github.com/emelon8/ACE-NeuroTools/blob/main/docs/api/pipelines.md). Ensures ephys files for this `line_num` exist under `data_path`.
 """,
         ),
         (
@@ -620,6 +624,8 @@ Pick **`line_num`** only for recordings that actually have both streams populate
             "code",
             """from pathlib import Path
 
+from aceneurotools.shared.experiment_data_manager import ExperimentDataManager
+
 project_path = Path("/path/to/your/project")
 data_path = Path("/path/to/your/raw_data")
 line_num = 97
@@ -632,8 +638,6 @@ for label, p in ("experiments.csv", project_path / "experiments.csv"), (
 ):
     if not p.is_file():
         raise FileNotFoundError(f"Missing {label} at {p}")
-
-from aceneurotools.shared.experiment_data_manager import ExperimentDataManager
 
 edm = ExperimentDataManager(line_num, project_path=project_path, data_path=data_path)
 print("ephys dir:", edm.get_ephys_directory())

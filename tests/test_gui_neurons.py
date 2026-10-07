@@ -151,9 +151,15 @@ def test_keep_reject_navigation_bulk_and_resume_preserve_explicit_choices(estima
     assert kept["current"] == 1 and (kept["kept"], kept["undecided"]) == (1, 2)
     rejected = decide(service, project, kept, 2, False)
     assert rejected["current"] == 2 and rejected["decisions"] == [True, None, False]
-    filled = service.decide(project, body(
-        project, session=session["session"], revision=rejected["revision"], bulk="reject",
-    ))
+    filled = service.decide(
+        project,
+        body(
+            project,
+            session=session["session"],
+            revision=rejected["revision"],
+            bulk="reject",
+        ),
+    )
     assert filled["decisions"] == [True, False, False]
     assert (filled["kept"], filled["rejected"], filled["undecided"]) == (1, 2, 0)
     resumed = Neurons().open(project, body(project, path=str(path)))
@@ -239,9 +245,14 @@ def test_all_rejected_keeps_a_decision_record_without_invalid_empty_estimates(es
     assert json.loads((Path(job["directory"]) / "decisions.json").read_text())["decisions"] == [False] * 3
 
 
-@pytest.mark.parametrize("derivative,peaks", [
-    ("zeroth", [10, 580]), ("first", [9, 579]), ("second", [8, 578]),
-])
+@pytest.mark.parametrize(
+    "derivative,peaks",
+    [
+        ("zeroth", [10, 580]),
+        ("first", [9, 579]),
+        ("second", [8, 578]),
+    ],
+)
 def test_curated_export_recomputes_events_only_for_kept_neurons(estimates, derivative, peaks):
     project, path, A, C = estimates
     original = path.read_bytes()
@@ -255,10 +266,20 @@ def test_curated_export_recomputes_events_only_for_kept_neurons(estimates, deriv
     # A second derivative has two positive peaks around each impulse.
     event_lists = [[index, index + 2] if derivative == "second" else [index] for index in peaks]
     for height, expected in [(5, dict(zip(["0", "1"], event_lists))), (25, {"0": [], "1": event_lists[1]})]:
-        job = wait_export(service, project, service.export(project, body(
-            project, session=session["session"], revision=session["revision"], confirmed=True,
-            event_analysis={"derivative": derivative, "event_height": height},
-        )))
+        job = wait_export(
+            service,
+            project,
+            service.export(
+                project,
+                body(
+                    project,
+                    session=session["session"],
+                    revision=session["revision"],
+                    confirmed=True,
+                    event_analysis={"derivative": derivative, "event_height": height},
+                ),
+            ),
+        )
         folder = Path(job["directory"])
         events = json.loads((folder / "calcium-events.json").read_text())
         assert events["ca_events_idx"] == expected
@@ -273,22 +294,43 @@ def test_curated_export_recomputes_events_only_for_kept_neurons(estimates, deriv
     assert path.read_bytes() == original
 
 
-@pytest.mark.parametrize("settings", [
-    False, {}, {"derivative": []}, {"derivative": "third", "event_height": 5},
-    *[{"derivative": "first", "event_height": value} for value in [None, True, "", "bad", float("nan"), float("inf")]],
-])
+@pytest.mark.parametrize(
+    "settings",
+    [
+        False,
+        {},
+        {"derivative": []},
+        {"derivative": "third", "event_height": 5},
+        *[
+            {"derivative": "first", "event_height": value}
+            for value in [None, True, "", "bad", float("nan"), float("inf")]
+        ],
+    ],
+)
 def test_invalid_event_settings_do_not_create_an_export(estimates, settings):
     project, path, A, C = estimates
     service = Neurons()
     session = service.open(project, body(project, path=str(path)))
-    session = service.decide(project, body(
-        project, session=session["session"], revision=session["revision"], bulk="keep",
-    ))
+    session = service.decide(
+        project,
+        body(
+            project,
+            session=session["session"],
+            revision=session["revision"],
+            bulk="keep",
+        ),
+    )
     with pytest.raises(ProjectError):
-        service.export(project, body(
-            project, session=session["session"], revision=session["revision"], confirmed=True,
-            event_analysis=settings,
-        ))
+        service.export(
+            project,
+            body(
+                project,
+                session=session["session"],
+                revision=session["revision"],
+                confirmed=True,
+                event_analysis=settings,
+            ),
+        )
     assert not (project.path / ".ace-curations").exists()
 
 
@@ -299,16 +341,30 @@ def test_event_detection_failure_retains_source_and_review_without_partial_expor
     original = path.read_bytes()
     service = Neurons()
     session = service.open(project, body(project, path=str(path)))
-    session = service.decide(project, body(
-        project, session=session["session"], revision=session["revision"], bulk="keep",
-    ))
+    session = service.decide(
+        project,
+        body(
+            project,
+            session=session["session"],
+            revision=session["revision"],
+            bulk="keep",
+        ),
+    )
+
     def fail(*args, **kwargs):
         raise RuntimeError("detector failed")
+
     monkeypatch.setattr(MiniscopePostprocessor, "find_calcium_events_with_derivatives", fail)
-    job = service.export(project, body(
-        project, session=session["session"], revision=session["revision"], confirmed=True,
-        event_analysis={"derivative": "first", "event_height": 5},
-    ))
+    job = service.export(
+        project,
+        body(
+            project,
+            session=session["session"],
+            revision=session["revision"],
+            confirmed=True,
+            event_analysis={"derivative": "first", "event_height": 5},
+        ),
+    )
     end = time.monotonic() + 20
     while job["state"] == "saving" and time.monotonic() < end:
         time.sleep(0.02)
@@ -328,13 +384,29 @@ def test_event_controls_use_saved_settings_and_export_reviewed_frame_rate(estima
     service = Neurons()
     session = service.open(project, body(project, path=str(path), fr=20))
     assert session["event_parameters"] == {"derivative": "zeroth", "event_height": 12}
-    session = service.decide(project, body(
-        project, session=session["session"], revision=session["revision"], bulk="keep",
-    ))
-    job = wait_export(service, project, service.export(project, body(
-        project, session=session["session"], revision=session["revision"], confirmed=True,
-        event_analysis=session["event_parameters"],
-    )))
+    session = service.decide(
+        project,
+        body(
+            project,
+            session=session["session"],
+            revision=session["revision"],
+            bulk="keep",
+        ),
+    )
+    job = wait_export(
+        service,
+        project,
+        service.export(
+            project,
+            body(
+                project,
+                session=session["session"],
+                revision=session["revision"],
+                confirmed=True,
+                event_analysis=session["event_parameters"],
+            ),
+        ),
+    )
     folder = Path(job["directory"])
     events = json.loads((folder / "calcium-events.json").read_text())
     assert events["fr"] == 20 and events["frames"] == 600
@@ -472,14 +544,28 @@ def test_neuron_http_and_estimates_file_browser(estimates):
         )
         status, opened = request(base, "/api/neuron/open", body(project, path=str(path)))
         assert status == 200
-        status, completed = request(base, "/api/neuron/decide", body(
-            project, session=opened["session"], revision=opened["revision"], bulk="keep",
-        ))
+        status, completed = request(
+            base,
+            "/api/neuron/decide",
+            body(
+                project,
+                session=opened["session"],
+                revision=opened["revision"],
+                bulk="keep",
+            ),
+        )
         assert status == 200
-        status, job = request(base, "/api/neuron/export", body(
-            project, session=opened["session"], revision=completed["revision"], confirmed=True,
-            event_analysis={"derivative": "zeroth", "event_height": 5},
-        ))
+        status, job = request(
+            base,
+            "/api/neuron/export",
+            body(
+                project,
+                session=opened["session"],
+                revision=completed["revision"],
+                confirmed=True,
+                event_analysis={"derivative": "zeroth", "event_height": 5},
+            ),
+        )
         assert status == 200
         job = wait_export(server.neurons, project, job)
         status, result = request(base, f"/api/neuron/export?project={project.id}&job={job['id']}")

@@ -1,3 +1,5 @@
+# Legacy Windows environment export. New installations use conda-lock.yml
+# or environment.yml; this snapshot is retained until Windows QA is complete.
 name: caiman
 channels:
   - defaults

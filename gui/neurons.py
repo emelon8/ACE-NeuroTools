@@ -493,24 +493,28 @@ class Neurons:
                         curated_path = stage / job["filename"]
                         curated = self.loader(curated_path).estimates
                         if not np.isfinite(curated.C).all():
-                            raise ProjectError("Curated traces contain invalid numeric values; events cannot be detected.")
+                            raise ProjectError(
+                                "Curated traces contain invalid numeric values; events cannot be detected."
+                            )
                         events = MiniscopePostprocessor.find_calcium_events_with_derivatives(
                             curated, **job["event_analysis"]
                         )
-                        write_json(stage / "calcium-events.json", {
-                            "experiment": session["number"],
-                            "source": session["signature"],
-                            "estimates": signature(curated_path) | {
-                                "path": str(Path(job["directory"]) / job["filename"])
+                        write_json(
+                            stage / "calcium-events.json",
+                            {
+                                "experiment": session["number"],
+                                "source": session["signature"],
+                                "estimates": signature(curated_path)
+                                | {"path": str(Path(job["directory"]) / job["filename"])},
+                                "revision": session["revision"],
+                                "fr": session["fr"],
+                                "frames": session["frames"],
+                                "neuron_ids": job["kept"],
+                                "parameters": job["event_analysis"],
+                                "index_convention": "Zero-based peak indices in C (zeroth) or np.diff(C, n=1 or 2); no frame offset added.",
+                                "ca_events_idx": {str(key): value.tolist() for key, value in events.items()},
                             },
-                            "revision": session["revision"],
-                            "fr": session["fr"],
-                            "frames": session["frames"],
-                            "neuron_ids": job["kept"],
-                            "parameters": job["event_analysis"],
-                            "index_convention": "Zero-based peak indices in C (zeroth) or np.diff(C, n=1 or 2); no frame offset added.",
-                            "ca_events_idx": {str(key): value.tolist() for key, value in events.items()},
-                        })
+                        )
                 if signature(session["source"]) != session["signature"]:
                     raise ProjectError("Estimates changed during export. No curation output was installed.")
                 files = [item.name for item in stage.iterdir()]

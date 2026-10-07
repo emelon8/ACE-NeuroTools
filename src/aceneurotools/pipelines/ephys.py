@@ -37,23 +37,21 @@ class EphysPipeline:
         """Initialize the EphysPipeline."""
         pass
 
-
-
     def run(
         self,
         line_num: int,
         project_path: str | Path | None = None,
         data_path: str | Path | None = None,
-        channel_name: str = 'PFCLFPvsCBEEG',
+        channel_name: str = "PFCLFPvsCBEEG",
         remove_artifacts: bool = False,
-        filter_type: str | None = None, # If desired, enter the type, eg "butter"
+        filter_type: str | None = None,  # If desired, enter the type, eg "butter"
         filter_range: list[float] = [0.5, 4],
         compute_phases: bool = False,
         plot_channel: bool = False,
         plot_spectrogram: bool = False,
         plot_phases: bool = False,
         logging_level: str | int = "CRITICAL",
-        headless: bool = False
+        headless: bool = False,
     ) -> None:
         """Run the ephys analysis pipeline for a single channel.
 
@@ -77,13 +75,14 @@ class EphysPipeline:
         """
 
         from aceneurotools.shared.plotting import set_backend
+
         set_backend(headless=headless)
         if headless:
             print("Running in HEADLESS mode. Plotting disabled.", flush=True)
             plot_channel = False
             plot_spectrogram = False
             plot_phases = False
-        elif hasattr(tkinter, '_default_root') and tkinter._default_root:
+        elif hasattr(tkinter, "_default_root") and tkinter._default_root:
             tkinter._default_root.destroy()
 
         logger = logging.getLogger(__name__)
@@ -139,8 +138,6 @@ class EphysPipeline:
 
         if plot_phases:
             channel_worker.plot_phases()
-
-
 
     def run_all_channels(
         self,
@@ -222,7 +219,6 @@ class EphysPipeline:
             except Exception as e:
                 logger.error(f"Failed to visualize channel {ch_name}: {e}")
 
-
     def run_multiple_channels(
         self,
         line_num: int,
@@ -266,6 +262,7 @@ class EphysPipeline:
                 any loading, processing, or filtering failure.
         """
         from aceneurotools.shared.plotting import set_backend
+
         set_backend(headless=headless)
         if not headless and hasattr(tkinter, "_default_root") and tkinter._default_root:
             tkinter._default_root.destroy()
@@ -286,7 +283,6 @@ class EphysPipeline:
         )
 
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Run Ephys Analysis Pipeline",
@@ -298,33 +294,32 @@ Examples:
 
   # Run in headless mode (no GUI) for batch processing
   python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /path/to/project --headless
-"""
+""",
     )
-    parser.add_argument('--line-num', type=int, required=True,
-                        help="Experiment line number from experiments.csv")
-    parser.add_argument('--project-path', type=str, required=True,
-                        help="Path to project directory (containing experiments.csv)")
-    parser.add_argument('--data-path', type=str,
-                        help="Base path for raw experimental data")
-    parser.add_argument('--headless', action='store_true',
-                        help="Run in headless mode (no GUI)")
+    parser.add_argument("--line-num", type=int, required=True, help="Experiment line number from experiments.csv")
+    parser.add_argument(
+        "--project-path", type=str, required=True, help="Path to project directory (containing experiments.csv)"
+    )
+    parser.add_argument("--data-path", type=str, help="Base path for raw experimental data")
+    parser.add_argument("--headless", action="store_true", help="Run in headless mode (no GUI)")
 
     args = parser.parse_args()
 
     # Default parameters
     defaults = {
-        'channel_name': 'PFCLFPvsCBEEG',
-        'remove_artifacts': False,
-        'filter_type': None,
-        'filter_range': [0.3, 0.5],
-        'compute_phases': False,
-        'plot_channel': True,
-        'plot_spectrogram': True,
-        'plot_phases': False,
-        'logging_level': "DEBUG"
+        "channel_name": "PFCLFPvsCBEEG",
+        "remove_artifacts": False,
+        "filter_type": None,
+        "filter_range": [0.3, 0.5],
+        "compute_phases": False,
+        "plot_channel": True,
+        "plot_spectrogram": True,
+        "plot_phases": False,
+        "logging_level": "DEBUG",
     }
 
     from aceneurotools.config.config_utils import load_analysis_params
+
     run_params = build_run_params(
         defaults=defaults,
         allowed_keys=run_allowed_keys(EphysPipeline.run),

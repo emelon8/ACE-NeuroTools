@@ -1,0 +1,12 @@
+include AUTHORS.md
+include CHANGELOG.md
+include CITATION.cff
+include CODE_OF_CONDUCT.md
+include CONTRIBUTING.md
+include environment.yml
+include conda-lock.yml
+prune data
+prune cache
+recursive-include docs *.md
+recursive-include examples *.md *.py
+recursive-include notebooks *.ipynb

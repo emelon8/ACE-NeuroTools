@@ -91,9 +91,7 @@ class ManifestVerification:
         return not (self.missing or self.modified)
 
 
-def _iter_artifact_relpaths(
-    run_dir: Path, skip_manifest: bool, exclude: frozenset[Path]
-) -> list[str]:
+def _iter_artifact_relpaths(run_dir: Path, skip_manifest: bool, exclude: frozenset[Path]) -> list[str]:
     """Sorted artifact paths relative to ``run_dir`` (posix separators)."""
     found: list[str] = []
     for path in sorted(run_dir.rglob("*")):
@@ -141,11 +139,7 @@ def write_manifest(
             base_dir = str(run_dir)
 
     created = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    producer = (
-        {"pipeline": pipeline, "revision": revision}
-        if pipeline is not None or revision is not None
-        else None
-    )
+    producer = {"pipeline": pipeline, "revision": revision} if pipeline is not None or revision is not None else None
     excluded = frozenset(Path(p).resolve() for p in exclude)
     pointers = [
         ArtifactPointer(
@@ -155,9 +149,7 @@ def write_manifest(
             created=created,
             producer=producer,
         )
-        for rel in _iter_artifact_relpaths(
-            run_dir, skip_manifest=base_dir == ".", exclude=excluded
-        )
+        for rel in _iter_artifact_relpaths(run_dir, skip_manifest=base_dir == ".", exclude=excluded)
     ]
 
     payload = {

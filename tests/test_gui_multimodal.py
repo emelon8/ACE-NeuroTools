@@ -9,13 +9,13 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
-
 from gui.csv_projects import Project, ProjectError
 from gui.run_outputs import OutputInventory, multimodal_outputs
 from gui.run_worker import execute
 from gui.runs import Runs
+
 from tests.test_gui_analysis import make_recording
-from tests.test_gui_parity import app, http, open_experiment
+from tests.test_gui_parity import app, http, open_experiment  # noqa: F401  (pytest fixture)
 
 
 def project_with_two_recordings(root):
@@ -49,7 +49,7 @@ def test_review_requires_and_tracks_both_recordings(tmp_path):
         runs.start(project, {**body, "review": review["review"], "confirmed": True})
 
 
-def test_multimodal_settings_and_review_are_available_over_gui_http(app):
+def test_multimodal_settings_and_review_are_available_over_gui_http(app):  # noqa: F811
     root, base = app
     project_with_two_recordings(root)
     payload = open_experiment(base, root)
@@ -67,8 +67,9 @@ def test_worker_stages_both_recordings_and_calls_multimodal_pipeline(tmp_path, m
     run.mkdir()
     for name in ("experiments.csv", "analysis_parameters.csv"):
         (run / name).write_bytes((tmp_path / name).read_bytes())
-    review = Runs().review(project, {"project": project.id, "number": "1", "versions": project.digests,
-                                   "kind": "multimodal"})
+    review = Runs().review(
+        project, {"project": project.id, "number": "1", "versions": project.digests, "kind": "multimodal"}
+    )
     seen = {}
 
     class Pipeline:
@@ -83,8 +84,10 @@ def test_worker_stages_both_recordings_and_calls_multimodal_pipeline(tmp_path, m
     fake = types.ModuleType("aceneurotools.pipelines.multimodal")
     fake.MultimodalPipeline = Pipeline
     monkeypatch.setitem(sys.modules, fake.__name__, fake)
-    monkeypatch.setattr("gui.run_worker.multimodal_outputs", lambda report, pipeline: report.array(
-        "aligned_frames", np.arange(2), "alignment.npz"))
+    monkeypatch.setattr(
+        "gui.run_worker.multimodal_outputs",
+        lambda report, pipeline: report.array("aligned_frames", np.arange(2), "alignment.npz"),
+    )
     execute({**review, "directory": str(run)})
     assert seen["headless"] is True and seen["line_num"] == 1
     with np.load(run / "alignment.npz", allow_pickle=False) as saved:
@@ -101,10 +104,14 @@ def test_multimodal_export_keeps_alignment_arrays_and_per_neuron_events(tmp_path
     pipeline = SimpleNamespace(
         miniscope_pipeline=SimpleNamespace(miniscope_data_manager=object()),
         ephys_pipeline=SimpleNamespace(ephys_data_manager=SimpleNamespace(get_channel=lambda name: object())),
-        t_ca_im=np.array([0.1, 0.2]), low_confidence_periods=np.empty((0, 2), dtype=int),
-        ephys_idx_all_TTL_events=np.array([3, 6]), ca_frame_num_of_ephys_idx=np.array([0, 1]),
-        phase_hist_ephys=np.array([2, 1]), phase_bin_edges_ephys=np.array([-1, 0, 1]),
-        phase_hist_miniscope=np.array([1, 2]), phase_bin_edges_miniscope=np.array([-1, 0, 1]),
+        t_ca_im=np.array([0.1, 0.2]),
+        low_confidence_periods=np.empty((0, 2), dtype=int),
+        ephys_idx_all_TTL_events=np.array([3, 6]),
+        ca_frame_num_of_ephys_idx=np.array([0, 1]),
+        phase_hist_ephys=np.array([2, 1]),
+        phase_bin_edges_ephys=np.array([-1, 0, 1]),
+        phase_hist_miniscope=np.array([1, 2]),
+        phase_bin_edges_miniscope=np.array([-1, 0, 1]),
         ephys_idx_ca_events={0: np.array([6])},
         ca_events_phases_ephys={0: np.array([0.5])},
         ca_events_phases_miniscope={0: np.array([-0.5])},
@@ -145,8 +152,9 @@ def test_real_subpipelines_match_direct_python_and_gui_worker_with_matched_sync(
         "1,False,\"['0.avi']\",RHS2116_AC_0,False,True,False,False,None,False,False,False,False,False,False\n"
     )
     project = Project.open(tmp_path)
-    review = Runs().review(project, {"project": project.id, "number": "1", "versions": project.digests,
-                                   "kind": "multimodal"})
+    review = Runs().review(
+        project, {"project": project.id, "number": "1", "versions": project.digests, "kind": "multimodal"}
+    )
     assert review["blockers"] == []
 
     def synchronized(channel, manager, ephys_manager, **kwargs):
@@ -154,8 +162,15 @@ def test_real_subpipelines_match_direct_python_and_gui_worker_with_matched_sync(
 
     monkeypatch.setattr(multimodal, "sync_neuralynx_miniscope_timestamps", synchronized)
     direct = multimodal.MultimodalPipeline()
-    direct.run(**{**review["parameters"], "line_num": 1, "project_path": str(tmp_path),
-                  "data_path": str(tmp_path), "headless": True})
+    direct.run(
+        **{
+            **review["parameters"],
+            "line_num": 1,
+            "project_path": str(tmp_path),
+            "data_path": str(tmp_path),
+            "headless": True,
+        }
+    )
     run = tmp_path / "multimodal-run"
     run.mkdir()
     for name in ("experiments.csv", "analysis_parameters.csv"):
@@ -169,8 +184,9 @@ def test_real_subpipelines_match_direct_python_and_gui_worker_with_matched_sync(
         np.testing.assert_array_equal(saved["t_ca_im"], direct.t_ca_im)
         np.testing.assert_array_equal(saved["ephys_idx_all_TTL_events"], direct.ephys_idx_all_TTL_events)
     with np.load(run / "postprocessing.npz", allow_pickle=False) as saved:
-        np.testing.assert_array_equal(saved["temporal_projection"],
-                                      direct.miniscope_pipeline.miniscope_data_manager.projections.time)
+        np.testing.assert_array_equal(
+            saved["temporal_projection"], direct.miniscope_pipeline.miniscope_data_manager.projections.time
+        )
 
 
 @pytest.mark.parametrize("events", [False, True])
@@ -178,8 +194,9 @@ def test_multimodal_requests_ephys_phases_when_aligning_calcium_events(monkeypat
     from aceneurotools.pipelines import multimodal
 
     calls = []
-    channel = SimpleNamespace(name="EEG", signal=np.arange(10), time_vector=np.arange(10),
-                              events={}, phases=np.arange(10))
+    channel = SimpleNamespace(
+        name="EEG", signal=np.arange(10), time_vector=np.arange(10), events={}, phases=np.arange(10)
+    )
 
     class Ephys:
         def run(self, **params):
@@ -192,9 +209,13 @@ def test_multimodal_requests_ephys_phases_when_aligning_calcium_events(monkeypat
 
     monkeypatch.setattr(multimodal, "EphysPipeline", Ephys)
     monkeypatch.setattr(multimodal, "MiniscopePipeline", Miniscope)
-    monkeypatch.setattr(multimodal, "sync_neuralynx_miniscope_timestamps",
-                        lambda channel, dm, ephys_dm, **kwargs: (np.arange(2), np.empty((0, 2)), channel, dm))
+    monkeypatch.setattr(
+        multimodal,
+        "sync_neuralynx_miniscope_timestamps",
+        lambda channel, dm, ephys_dm, **kwargs: (np.arange(2), np.empty((0, 2)), channel, dm),
+    )
     monkeypatch.setattr(multimodal, "find_ephys_idx_of_TTL_events", lambda *args, **kwargs: (None, None))
-    multimodal.MultimodalPipeline().run(line_num=1, channel_name="EEG", ca_events=events,
-                                      all_TTL_events=False, headless=True)
+    multimodal.MultimodalPipeline().run(
+        line_num=1, channel_name="EEG", ca_events=events, all_TTL_events=False, headless=True
+    )
     assert calls[0]["compute_phases"] is events

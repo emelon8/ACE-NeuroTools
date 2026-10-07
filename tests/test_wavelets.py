@@ -63,8 +63,8 @@ def test_morlet_envelope_is_gaussian_like():
     assert abs(peak_idx - centre) < 10
     # Symmetry: left and right halves should be similar
     half = mag.size // 4
-    left = mag[centre - half: centre]
-    right = mag[centre: centre + half]
+    left = mag[centre - half : centre]
+    right = mag[centre : centre + half]
     np.testing.assert_allclose(left, right[::-1], rtol=1e-6, atol=1e-9)
 
 
@@ -161,8 +161,7 @@ def test_cwt_rejects_bad_norm():
 
 def test_cwt_rejects_non_1d_signal():
     with pytest.raises(ValueError, match="signal must be 1D"):
-        compute_wavelet_transform(np.zeros((10, 10)),
-                                  np.array([10.0]), fs=1000.0)
+        compute_wavelet_transform(np.zeros((10, 10)), np.array([10.0]), fs=1000.0)
 
 
 def test_cwt_silent_signal_yields_silent_output():

@@ -20,10 +20,10 @@ def load_obj(filename: str | Path) -> Any:
 
     Returns:
         * For ``.npz``: a :class:`numpy.lib.npyio.NpzFile` mapping of array names
-          to :class:`numpy.ndarray` objects.  Access individual arrays with
-          ``result['key']``.
+            to :class:`numpy.ndarray` objects. Access individual arrays with
+            ``result['key']``.
         * For ``.hdf5`` / ``.h5``: an open read-only :class:`h5py.File` handle.
-          The caller is responsible for closing it (use as a context manager).
+            The caller is responsible for closing it (use as a context manager).
 
     Raises:
         ValueError: If *filename* has an unsupported extension.

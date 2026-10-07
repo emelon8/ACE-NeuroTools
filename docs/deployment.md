@@ -1,4 +1,4 @@
-# Building and deploying documentation
+# Previewing and publishing documentation (maintainers)
 
 ## What gets committed
 
@@ -8,10 +8,16 @@
 ## Local preview
 
 ```bash
-pip install -e ".[docs]"
+micromamba create -n aceneurotools -f conda-lock.yml  # Linux or Windows
+micromamba activate aceneurotools
+pip install --no-deps -e .
 bash scripts/sync_notebooks_for_docs.sh
+python scripts/check_docs_links.py
 mkdocs serve
 ```
+
+The committed lock covers Linux and Windows. On macOS, create the environment
+from `environment.yml` instead; that platform is not covered by the lock.
 
 Open the URL MkDocs prints (usually `http://127.0.0.1:8000`).
 
@@ -41,9 +47,19 @@ On each build, RTD:
 2. Runs `scripts/sync_notebooks_for_docs.sh` so `docs/notebooks/` matches `notebooks/`.
 3. Runs `mkdocs build` with `mkdocs.yml`.
 
-**Project setup (dashboard):** import the GitHub repository in Read the Docs, connect the private repo if needed ([private repositories](https://docs.readthedocs.com/platform/latest/guides/creating-project-private-repository.html)), and point the default branch at your main docs branch. The canonical docs URL is configured in `mkdocs.yml` as `site_url` (currently `https://aceneurotools.readthedocs.io/en/latest/`). If your RTD project slug differs, update `site_url` and any hardcoded links accordingly.
+**Hosting status:** the previously advertised
+`https://aceneurotools.readthedocs.io/en/latest/` returned HTTP 404 during the
+2026-10-05 audit. Repository documentation and local previews are available.
 
-**CI:** You can add a GitHub Actions workflow that runs `mkdocs build` on pushes and pull requests (without deploying); production hosting is typically Read the Docs.
+**Project setup (dashboard):** import the GitHub repository in Read the Docs,
+select the branch to publish, and complete a successful build. Verify the
+public address before adding `site_url` to `mkdocs.yml` and updating the package
+metadata and documentation links. The checked-in RTD configuration alone does
+not establish a live site.
+
+**CI:** The existing GitHub Actions workflow runs the local link checker and
+`mkdocs build --strict` on pushes and pull requests targeting `main`. Read the
+Docs manages hosted publication separately.
 
 ## Updating tutorials
 

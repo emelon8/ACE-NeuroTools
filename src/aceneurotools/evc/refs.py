@@ -70,9 +70,7 @@ class RefStore:
         path = self._ref_path(ref)
         current = self.read_ref(ref)
         if current != expected_old:
-            raise RefConflictError(
-                f"ref {ref} is {current or 'unset'}, expected {expected_old or 'unset'}"
-            )
+            raise RefConflictError(f"ref {ref} is {current or 'unset'}, expected {expected_old or 'unset'}")
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(new_oid + "\n")
         self.append_journal(ref, current or ZERO_OID, new_oid, op, message)
@@ -97,7 +95,7 @@ class RefStore:
         text = (self.root / "HEAD").read_text().strip()
         if not text.startswith("ref: "):
             raise EVCError(f"HEAD is not a symbolic ref: {text!r}")
-        return text[len("ref: "):]
+        return text[len("ref: ") :]
 
     def write_head_ref(self, ref: str) -> None:
         (self.root / "HEAD").write_text(f"ref: {ref}\n")
@@ -125,9 +123,5 @@ class RefStore:
             if not line.strip():
                 continue
             ts, ref, old, new, op, message = line.split("\t", 5)
-            entries.append(
-                JournalEntry(
-                    timestamp=int(ts), ref=ref, old=old, new=new, op=op, message=message
-                )
-            )
+            entries.append(JournalEntry(timestamp=int(ts), ref=ref, old=old, new=new, op=op, message=message))
         return entries

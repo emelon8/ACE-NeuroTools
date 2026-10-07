@@ -93,7 +93,7 @@ def _cross_correlogram_reference(t1, t2, binsize, windowsize):
                 k += 1
             C[j] += k
     if nt1 > 0:
-        C /= (nt1 * binsize)
+        C /= nt1 * binsize
     B = -w + binsize / 2 + np.arange(nbins) * binsize
     return C, B
 
@@ -133,8 +133,7 @@ def test_compute_autocorrelogram_zero_bin_zeroed():
 
 def test_compute_autocorrelogram_norm_baseline_one_for_poisson():
     group = {0: _poisson_train(30.0, 300.0, seed=3)}
-    df = compute_autocorrelogram(group, binsize=0.02, windowsize=0.5, norm=True,
-                                  t_start=0.0, t_end=300.0)
+    df = compute_autocorrelogram(group, binsize=0.02, windowsize=0.5, norm=True, t_start=0.0, t_end=300.0)
     nonzero = df.index != 0.0
     assert df[0][nonzero].mean() == pytest.approx(1.0, rel=0.15)
 
@@ -165,8 +164,7 @@ def test_crosscorrelogram_single_dict_pairs():
 
 def test_crosscorrelogram_two_dicts_full_product():
     g1 = {0: _poisson_train(10.0, 50.0, seed=20)}
-    g2 = {10: _poisson_train(10.0, 50.0, seed=21),
-          11: _poisson_train(10.0, 50.0, seed=22)}
+    g2 = {10: _poisson_train(10.0, 50.0, seed=21), 11: _poisson_train(10.0, 50.0, seed=22)}
     df = compute_crosscorrelogram((g1, g2), binsize=0.05, windowsize=0.5)
     assert df.shape[1] == 2
     assert set(df.columns) == {(0, 10), (0, 11)}
@@ -189,8 +187,7 @@ def test_eventcorrelogram_uniform_for_independent_trains():
     rng = np.random.default_rng(99)
     event = np.sort(rng.uniform(0, 200, size=400))
     group = {n: _poisson_train(15.0, 200.0, seed=100 + n) for n in range(3)}
-    df = compute_eventcorrelogram(group, event, binsize=0.05, windowsize=1.0,
-                                   t_start=0.0, t_end=200.0, norm=True)
+    df = compute_eventcorrelogram(group, event, binsize=0.05, windowsize=1.0, t_start=0.0, t_end=200.0, norm=True)
     # Each column's mean should hover around 1.0 (normalized)
     for col in df.columns:
         assert df[col].mean() == pytest.approx(1.0, rel=0.2)

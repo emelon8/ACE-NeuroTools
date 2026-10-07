@@ -96,11 +96,7 @@ class ExperimentWorkspace:
 
     def run_dir(self, run_id: str) -> Path:
         """The results directory for one run: ``results/<run-id>/``."""
-        if (
-            not run_id
-            or run_id in (".", "..")
-            or any(ch in run_id for ch in ("/", "\\", "\0"))
-        ):
+        if not run_id or run_id in (".", "..") or any(ch in run_id for ch in ("/", "\\", "\0")):
             raise EVCError(f"illegal run id: {run_id!r}")
         return self.results_dir / run_id
 

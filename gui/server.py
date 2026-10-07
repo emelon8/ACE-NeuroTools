@@ -176,7 +176,16 @@ class Handler(BaseHTTPRequestHandler):
                         ],
                     }
                 )
-            elif route.path in {"/", "/index.html", "/style.css", "/app.js", "/box.js", "/analysis.js", "/neurons.js", "/job_scripts.js"}:
+            elif route.path in {
+                "/",
+                "/index.html",
+                "/style.css",
+                "/app.js",
+                "/box.js",
+                "/analysis.js",
+                "/neurons.js",
+                "/job_scripts.js",
+            }:
                 name = "index.html" if route.path == "/" else route.path[1:]
                 body = (ASSETS / name).read_bytes()
                 self.send_response(200)
@@ -272,7 +281,9 @@ class Handler(BaseHTTPRequestHandler):
                             body.get("number"), body.get("metadata"), body.get("parameters"), body.get("versions")
                         )
                         self.server.projects[saved.id] = saved
-                        self._json({"project": saved.summary(), "experiment": saved.inspect(body["number"]), "backup": backup})
+                        self._json(
+                            {"project": saved.summary(), "experiment": saved.inspect(body["number"]), "backup": backup}
+                        )
                 return
             if route in experiment_routes:
                 if (

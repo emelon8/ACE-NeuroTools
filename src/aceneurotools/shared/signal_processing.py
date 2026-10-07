@@ -109,10 +109,7 @@ def filter_signal(
             plt.semilogx(w_b, phase)
 
     else:
-        raise ValueError(
-            f"Unknown filter type: {ftype!r}.  "
-            "Supported values: 'fir', 'butter', 'butterworth'."
-        )
+        raise ValueError(f"Unknown filter type: {ftype!r}.  Supported values: 'fir', 'butter', 'butterworth'.")
 
     return filtered_data
 
@@ -136,11 +133,11 @@ def filter_data(
 
 def thresh_func(dataArray: np.ndarray, threshVal: float) -> np.ndarray:
     """Find indices where data crosses above a threshold.
-    
+
     Args:
         dataArray: Input data array.
         threshVal: Threshold value.
-        
+
     Returns:
         Array of indices where threshold crossings occur.
     """
@@ -156,15 +153,15 @@ def z_score(dataArray: np.ndarray, frameWindow: int = 1000) -> np.ndarray:
     """
     Compute the z-score of the data array values every designated frame window
     length based on the values within that frame window
-    
+
     Args:
         dataArray: A numpy array of values where the row represents the component
                    and the column represents the frame number
         frameWindow: An integer value that determines the length of the window
                      which the function z-scores across. Defaults to 1000 frames
-    
+
     Returns:
-        zScoreArray: A numpy array of the same shape as dataArray containing the 
+        zScoreArray: A numpy array of the same shape as dataArray containing the
                      z-score values of each frame
     """
 

@@ -27,10 +27,7 @@ from aceneurotools.shared.csv_worker import CSVWorker
 
 AUTHOR = "Test Rig <rig@lab>"
 
-_TEMPLATES_DIR = (
-    Path(__file__).resolve().parents[1]
-    / "src" / "aceneurotools" / "shared" / "metadata_templates"
-)
+_TEMPLATES_DIR = Path(__file__).resolve().parents[1] / "src" / "aceneurotools" / "shared" / "metadata_templates"
 
 
 @pytest.fixture()
@@ -38,9 +35,7 @@ def project(tmp_path):
     """A project seeded with the canonical template rows as its live CSVs."""
     project_dir = tmp_path / "project"
     project_dir.mkdir()
-    (project_dir / "experiments.csv").write_text(
-        (_TEMPLATES_DIR / "experiments_template.csv").read_text()
-    )
+    (project_dir / "experiments.csv").write_text((_TEMPLATES_DIR / "experiments_template.csv").read_text())
     (project_dir / "analysis_parameters.csv").write_text(
         (_TEMPLATES_DIR / "analysis_parameters_template.csv").read_text()
     )
@@ -97,8 +92,13 @@ def test_extract_missing_line_or_csv_raises(project, tmp_path):
 
 def test_validate_catches_broken_documents():
     schema = load_schema("experiment.v1")
-    doc = {"schema": "aceneuro-experiment-v1", "line_number": "one", "id": "x",
-           "_csv": {"columns": [], "raw": {}}, "bogus": 1}
+    doc = {
+        "schema": "aceneuro-experiment-v1",
+        "line_number": "one",
+        "id": "x",
+        "_csv": {"columns": [], "raw": {}},
+        "bogus": 1,
+    }
     errors = validate_document(doc, schema)
     assert any("line_number" in e for e in errors)
     assert any("bogus" in e for e in errors)
@@ -108,10 +108,7 @@ def test_validate_catches_broken_documents():
 
 
 def test_untouched_extract_writeback_is_byte_identical(project):
-    before = {
-        name: (project / name).read_bytes()
-        for name in ("experiments.csv", "analysis_parameters.csv")
-    }
+    before = {name: (project / name).read_bytes() for name in ("experiments.csv", "analysis_parameters.csv")}
     extract(1, project)
     writeback(project)
     for name, original in before.items():
@@ -174,6 +171,7 @@ def test_writeback_does_not_clobber_concurrent_csv_edits(project):
     a cell edited in the CSV after extraction survives writeback."""
     extract(1, project)
     from aceneurotools.shared.csv_worker import update_csv_cell
+
     update_csv_cell("oasis_v2", "method_deconvolution", 1, project / "analysis_parameters.csv")
     writeback(project)
     rows = list(csv.reader(open(project / "analysis_parameters.csv")))

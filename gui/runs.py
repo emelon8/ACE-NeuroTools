@@ -123,8 +123,10 @@ class Runs:
             try:
                 ephys_raw = recording_path(project, detail["metadata"], base, "ephys directory")
                 ephys_records = apply_scope(ephys_raw, inventory(ephys_raw))
-                if not any(Path(item["path"]).suffix.lower() in {".ncs", ".rhs", ".rhd", ".dat", ".bin", ".raw"}
-                           for item in ephys_records):
+                if not any(
+                    Path(item["path"]).suffix.lower() in {".ncs", ".rhs", ".rhd", ".dat", ".bin", ".raw"}
+                    for item in ephys_records
+                ):
                     blockers.append("No electrophysiology recording files were found in the ephys folder.")
             except ProjectError as exc:
                 blockers.append(str(exc))
@@ -189,7 +191,8 @@ class Runs:
                 if (
                     kind in {"miniscope", "preprocess", "multimodal"}
                     and params.get("miniscope_filenames" if kind == "multimodal" else "filenames")
-                    and Path(item["path"]).name not in params["miniscope_filenames" if kind == "multimodal" else "filenames"]
+                    and Path(item["path"]).name
+                    not in params["miniscope_filenames" if kind == "multimodal" else "filenames"]
                 ):
                     continue
                 cap = cv2.VideoCapture(str(raw / item["path"]))
@@ -305,9 +308,11 @@ class Runs:
                 raise ProjectError("Parameters changed after review. Review them again before running.")
             if apply_scope(Path(value["recording_path"]), inventory(Path(value["recording_path"]))) != value["files"]:
                 raise ProjectError("Recording files changed after review. Review the experiment again.")
-            if value["kind"] == "multimodal" and apply_scope(
-                Path(value["ephys_recording_path"]), inventory(Path(value["ephys_recording_path"]))
-            ) != value["ephys_files"]:
+            if (
+                value["kind"] == "multimodal"
+                and apply_scope(Path(value["ephys_recording_path"]), inventory(Path(value["ephys_recording_path"])))
+                != value["ephys_files"]
+            ):
                 raise ProjectError("Electrophysiology files changed after review. Review the experiment again.")
             if any(process.poll() is None for process in self.processes.values()):
                 raise ProjectError(

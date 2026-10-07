@@ -56,7 +56,10 @@ def test_envelope_shape_preserved():
 def test_freq_response_matches_scipy_directly():
     fr = 1000.0
     freqs, mag = get_filter_frequency_response(
-        freq_range=(5.0, 50.0), fr=fr, filter_type="bandpass", order=2,
+        freq_range=(5.0, 50.0),
+        fr=fr,
+        filter_type="bandpass",
+        order=2,
     )
     b, a = butter(2, (5.0, 50.0), btype="bandpass", fs=fr)
     w, h = freqz(b, a, worN=1024, fs=fr)
@@ -68,7 +71,10 @@ def test_freq_response_bandpass_passes_centre_attenuates_edges():
     fr = 1000.0
     low, high = 10.0, 100.0
     freqs, mag = get_filter_frequency_response(
-        freq_range=(low, high), fr=fr, filter_type="bandpass", order=4,
+        freq_range=(low, high),
+        fr=fr,
+        filter_type="bandpass",
+        order=4,
     )
     centre_freq = (low + high) / 2
     centre_idx = int(np.argmin(np.abs(freqs - centre_freq)))
@@ -83,7 +89,10 @@ def test_freq_response_lowpass_attenuates_above_cutoff():
     fr = 1000.0
     cutoff = 50.0
     freqs, mag = get_filter_frequency_response(
-        freq_range=cutoff, fr=fr, filter_type="lowpass", order=4,
+        freq_range=cutoff,
+        fr=fr,
+        filter_type="lowpass",
+        order=4,
     )
     # below cutoff: pass; above 2*cutoff: significant attenuation
     below = freqs < cutoff / 2
@@ -118,9 +127,7 @@ def test_filter_signals_matches_canonical_and_manual():
     out1, out2 = filter_signals(s1, s2, fr, freq_range, order)
 
     # Matches the canonical filter_signal ...
-    np.testing.assert_array_equal(
-        out1, filter_signal(s1, n=order, cut=freq_range, ftype="butter", btype="band", fs=fr)
-    )
+    np.testing.assert_array_equal(out1, filter_signal(s1, n=order, cut=freq_range, ftype="butter", btype="band", fs=fr))
     # ... and the old manual Nyquist-normalized butter/filtfilt.
     nyq = 0.5 * fr
     b, a = butter(order, [freq_range[0] / nyq, freq_range[1] / nyq], btype="band")

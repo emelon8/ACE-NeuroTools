@@ -20,21 +20,20 @@ def slice_signal(
     """Return (control, treatment) segments. Time windows are in minutes."""
     if line_num not in selections:
         raise KeyError(
-            f"line_num {line_num} not found in selections dict.  "
-            "Add it via StudyMetadata or --stats-metadata-path."
+            f"line_num {line_num} not found in selections dict.  Add it via StudyMetadata or --stats-metadata-path."
         )
     windows = selections[line_num]
     samples_per_min = fr * 60.0
 
     ctrl_start = int(windows[0][0] * samples_per_min)
-    ctrl_end   = int(windows[0][1] * samples_per_min)
+    ctrl_end = int(windows[0][1] * samples_per_min)
     treat_start = int(windows[1][0] * samples_per_min)
-    treat_end   = int(windows[1][1] * samples_per_min)
+    treat_end = int(windows[1][1] * samples_per_min)
 
     # Clamp to signal length
     n = len(signal)
-    ctrl_end    = min(ctrl_end,   n)
-    treat_end   = min(treat_end,  n)
+    ctrl_end = min(ctrl_end, n)
+    treat_end = min(treat_end, n)
 
     return signal[ctrl_start:ctrl_end], signal[treat_start:treat_end]
 
@@ -85,24 +84,20 @@ def handle_nans(
     valid_mask = np.ones(len(signal), dtype=bool)
     cleaned = signal.copy()
 
-    nan_int  = nan_mask.astype(int)
+    nan_int = nan_mask.astype(int)
     nan_diff = np.diff(np.concatenate([[0], nan_int, [0]]))
-    starts   = np.where(nan_diff == 1)[0]
-    ends     = np.where(nan_diff == -1)[0]
+    starts = np.where(nan_diff == 1)[0]
+    ends = np.where(nan_diff == -1)[0]
 
     n_interpolated = 0
-    n_excluded     = 0
+    n_excluded = 0
 
     for start, end in zip(starts, ends):
         gap = end - start
         if gap <= max_gap_samples:
             # Linear interpolation between adjacent valid values
-            left  = cleaned[start - 1] if start > 0 else 0.0
-            right = (
-                cleaned[end]
-                if end < len(signal) and not np.isnan(cleaned[end])
-                else left
-            )
+            left = cleaned[start - 1] if start > 0 else 0.0
+            right = cleaned[end] if end < len(signal) and not np.isnan(cleaned[end]) else left
             cleaned[start:end] = np.linspace(left, right, gap + 2)[1:-1]
             n_interpolated += gap
         else:
@@ -111,10 +106,7 @@ def handle_nans(
             n_excluded += gap
 
     if n_interpolated > 0 or n_excluded > 0:
-        print(
-            f"    NaN handling: {n_interpolated} samples interpolated, "
-            f"{n_excluded} samples excluded."
-        )
+        print(f"    NaN handling: {n_interpolated} samples interpolated, {n_excluded} samples excluded.")
 
     return cleaned, valid_mask
 
@@ -130,9 +122,9 @@ def normalize_signals_global(
     all_2 = np.concatenate([control_2, treatment_2])
 
     mean_1 = float(np.nanmean(all_1))
-    std_1  = float(np.nanstd(all_1))
+    std_1 = float(np.nanstd(all_1))
     mean_2 = float(np.nanmean(all_2))
-    std_2  = float(np.nanstd(all_2))
+    std_2 = float(np.nanstd(all_2))
 
     def _zscore(arr: np.ndarray, mean: float, std: float) -> np.ndarray:
         if std == 0 or np.isnan(std):
@@ -148,9 +140,9 @@ def normalize_signals_global(
         "signal_2_std": std_2,
     }
     return (
-        _zscore(control_1,   mean_1, std_1),
+        _zscore(control_1, mean_1, std_1),
         _zscore(treatment_1, mean_1, std_1),
-        _zscore(control_2,   mean_2, std_2),
+        _zscore(control_2, mean_2, std_2),
         _zscore(treatment_2, mean_2, std_2),
         params,
     )
@@ -181,11 +173,11 @@ def compute_cross_correlation(
     norm_2 = (signal_2 - np.mean(signal_2)) / (np.std(signal_2) + 1e-12)
 
     nxcorr = correlate(norm_2, norm_1, mode="full")
-    lags   = correlation_lags(len(norm_1), len(norm_2), mode="full") / fr
+    lags = correlation_lags(len(norm_1), len(norm_2), mode="full") / fr
 
-    mask   = (lags >= -max_lag_seconds) & (lags <= max_lag_seconds)
+    mask = (lags >= -max_lag_seconds) & (lags <= max_lag_seconds)
     nxcorr = nxcorr[mask]
-    lags   = lags[mask]
+    lags = lags[mask]
 
     peak_idx = int(np.argmax(nxcorr))
     return float(nxcorr[peak_idx]), float(lags[peak_idx])
@@ -239,7 +231,7 @@ def compute_signal_stats(
     """Returns [power_1, power_2, coherence, xc, lag] for a signal pair."""
     power_1 = compute_spectral_power(signal_1, fr, freq_range, window_length, window_step, time_bandwidth)
     power_2 = compute_spectral_power(signal_2, fr, freq_range, window_length, window_step, time_bandwidth)
-    coh     = compute_coherence(signal_1, signal_2, fr, freq_range, coherence_nperseg_seconds)
+    coh = compute_coherence(signal_1, signal_2, fr, freq_range, coherence_nperseg_seconds)
     xc, lag = compute_cross_correlation(signal_1, signal_2, fr)
     return [power_1, power_2, coh, xc, lag]
 

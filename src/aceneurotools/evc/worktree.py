@@ -120,17 +120,13 @@ class WorkingTree:
         self._validate_snapshot_sizes(self.root, rules, prefix="")
         return self._snapshot_dir(self.root, rules, prefix="")
 
-    def _validate_snapshot_sizes(
-        self, directory: Path, rules: IgnoreRules, prefix: str
-    ) -> None:
+    def _validate_snapshot_sizes(self, directory: Path, rules: IgnoreRules, prefix: str) -> None:
         for child in sorted(directory.iterdir(), key=lambda p: p.name):
             rel_path = f"{prefix}{child.name}"
             if self._skip(child, rel_path, rules):
                 continue
             if child.is_dir():
-                self._validate_snapshot_sizes(
-                    child, rules, prefix=f"{rel_path}/"
-                )
+                self._validate_snapshot_sizes(child, rules, prefix=f"{rel_path}/")
             elif child.is_file():
                 self._check_snapshot_size(child, rel_path, child.stat().st_size)
 
@@ -166,16 +162,10 @@ class WorkingTree:
                 continue
             if child.is_dir():
                 subtree_oid = self._snapshot_dir(child, rules, prefix=f"{rel_path}/")
-                entries.append(
-                    TreeEntry(mode=MODE_DIR, type="tree", oid=subtree_oid, name=child.name)
-                )
+                entries.append(TreeEntry(mode=MODE_DIR, type="tree", oid=subtree_oid, name=child.name))
             elif child.is_file():
-                blob_oid = self.repo.write_blob(
-                    self._read_snapshot_file(child, rel_path)
-                )
-                entries.append(
-                    TreeEntry(mode=MODE_FILE, type="blob", oid=blob_oid, name=child.name)
-                )
+                blob_oid = self.repo.write_blob(self._read_snapshot_file(child, rel_path))
+                entries.append(TreeEntry(mode=MODE_FILE, type="blob", oid=blob_oid, name=child.name))
         return self.repo.write_tree(Tree(entries=tuple(entries)))
 
     # -- restore ------------------------------------------------------------

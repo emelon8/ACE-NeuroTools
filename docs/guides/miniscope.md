@@ -9,9 +9,8 @@ see the [Experiment GUI guide](experiment_gui.md).
 
 ### Prerequisites
 
-1. Ensure your project directory has:
-   - `experiments.csv` with experiment metadata
-   - `analysis_parameters.csv` with CaImAn and pipeline parameters
+1. Ensure your project directory has `experiments.csv` with a `line number` value matching the one you will run. `analysis_parameters.csv` is optional for the runtime, but recommended when you need per-experiment CaImAn settings or crop coordinates.
+2. Point `--data-path` at the root containing the recording paths listed in `experiments.csv`.
 
 `line_num` selects the experiment's `line number` identifier, not its physical
 line in the CSV. The examples use experiment 96; substitute an existing ID in
@@ -20,15 +19,14 @@ your project.
 ### Command Line
 
 ```bash
-# Run with explicit project path
-python -m aceneurotools.pipelines.miniscope --line-num 96 --project-path /my/project
-
-# Run with explicit project and data paths
+# Replace 96 with an experiment ID from the line number column
 python -m aceneurotools.pipelines.miniscope --line-num 96 --project-path /my/project --data-path /my/raw_data
 
 # Run in headless mode (no GUI)
-python -m aceneurotools.pipelines.miniscope --line-num 96 --project-path /my/project --headless
+python -m aceneurotools.pipelines.miniscope --line-num 96 --project-path /my/project --data-path /my/raw_data --headless
 ```
+
+The module command runs CNMF-E by default. Motion correction is optional; enable it through recognized CSV settings or the Python API.
 
 ### Python API
 
@@ -41,6 +39,7 @@ api.run(
     project_path="/my/project",
     data_path="/my/raw_data",
     filenames=["0.avi"],
+    crop=False,  # Full movie; enable cropping only with reviewed coordinates
     run_CNMFE=True,
     save_estimates=True,
     inline=False,

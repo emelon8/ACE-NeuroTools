@@ -49,21 +49,18 @@ def main(argv: list[str] | None = None) -> int:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    p_init = sub.add_parser(
-        "init", parents=[machine], help="start tracking this experiment directory"
-    )
+    p_init = sub.add_parser("init", parents=[machine], help="start tracking this experiment directory")
     p_init.add_argument(
         "--workspace",
         action="store_true",
         help="also scaffold the standard experiment layout (parameters/, results/, artifacts/)",
     )
-    p_record = sub.add_parser(
-        "record", parents=[machine], help="record the current state as a revision"
-    )
+    p_record = sub.add_parser("record", parents=[machine], help="record the current state as a revision")
     p_record.add_argument("-m", "--message", required=True)
     p_record.add_argument("--author", default=None, help="'Name <email>'")
     sub.add_parser(
-        "status", parents=[machine],
+        "status",
+        parents=[machine],
         help="show whether the working state differs from HEAD",
     )
     p_log = sub.add_parser("log", parents=[machine], help="list revisions, newest first")
@@ -74,29 +71,26 @@ def main(argv: list[str] | None = None) -> int:
     p_diff.add_argument("rev_a")
     p_diff.add_argument("rev_b", nargs="?", default="HEAD")
     p_restore = sub.add_parser(
-        "restore", parents=[machine],
+        "restore",
+        parents=[machine],
         help="set working state to a revision (never destroys)",
     )
     p_restore.add_argument("rev")
-    p_comment = sub.add_parser(
-        "comment", parents=[machine], help="annotate a revision without changing it"
-    )
+    p_comment = sub.add_parser("comment", parents=[machine], help="annotate a revision without changing it")
     p_comment.add_argument("rev")
     p_comment.add_argument("-m", "--message", required=True)
-    p_comments = sub.add_parser(
-        "comments", parents=[machine], help="show a revision's comments"
-    )
+    p_comments = sub.add_parser("comments", parents=[machine], help="show a revision's comments")
     p_comments.add_argument("rev", nargs="?", default="HEAD")
     sub.add_parser(
-        "recover", parents=[machine],
+        "recover",
+        parents=[machine],
         help="list journaled states, incl. safety snapshots",
     )
-    p_push = sub.add_parser(
-        "push", parents=[machine], help="publish history to a shared directory remote"
-    )
+    p_push = sub.add_parser("push", parents=[machine], help="publish history to a shared directory remote")
     p_push.add_argument("remote_path", help="path to the shared (bare) store")
     p_verify = sub.add_parser(
-        "verify", parents=[machine],
+        "verify",
+        parents=[machine],
         help="re-hash a run's artifacts against its recorded manifest",
     )
     p_verify.add_argument("run_id", help="run id under results/ in this experiment")
@@ -163,8 +157,7 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 print(f"working state set to {result.restored[:12]}")
                 if result.safety_snapshot:
-                    print(f"previous state preserved as {result.safety_snapshot[:12]} "
-                          "(see: recover)")
+                    print(f"previous state preserved as {result.safety_snapshot[:12]} (see: recover)")
         elif args.command == "comment":
             notes_oid = evc.comment(args.rev, args.message)
             if args.json:
@@ -183,8 +176,9 @@ def main(argv: list[str] | None = None) -> int:
                 _emit({"journal": [dataclasses.asdict(entry) for entry in entries]})
             else:
                 for entry in entries:
-                    print(f"{_fmt_time(entry.timestamp)}  {entry.op:16s} "
-                          f"{entry.new[:12]}  {entry.ref}  {entry.message}")
+                    print(
+                        f"{_fmt_time(entry.timestamp)}  {entry.op:16s} {entry.new[:12]}  {entry.ref}  {entry.message}"
+                    )
         elif args.command == "push":
             remote = LocalDirectoryRemote.create(Path(args.remote_path))
             results = evc.push(remote)

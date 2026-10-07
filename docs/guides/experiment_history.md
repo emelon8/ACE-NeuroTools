@@ -171,7 +171,7 @@ evc = ExperimentVersionControl.open("/path/to/experiment")
 evc.record("tuned gSig after reviewing projections")
 for rev in evc.history():
     print(rev.oid[:12], rev.message)
-report = evc.status()          # typed StatusReport, per-parameter changes
+report = evc.status()  # typed StatusReport, per-parameter changes
 ```
 
 See the [EVC design document](../design/experiment-version-control.md) and

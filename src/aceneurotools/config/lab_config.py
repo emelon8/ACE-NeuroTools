@@ -5,9 +5,12 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from aceneurotools.shared.exceptions import ConfigurationError
+
+if TYPE_CHECKING:
+    from aceneurotools.multimodal.stats_config import StudyMetadata
 
 _VALID_MODES = {"compute", "stats", "all"}
 
@@ -68,8 +71,7 @@ class LabConfig:
             "secondary_channel": self.secondary_channel,
             "freq_range": self.freq_range,
             "conditions": {
-                name: {"subjects": spec.subjects, "is_drug": spec.is_drug}
-                for name, spec in self.conditions.items()
+                name: {"subjects": spec.subjects, "is_drug": spec.is_drug} for name, spec in self.conditions.items()
             },
             "time_windows": {str(k): v for k, v in self.time_windows.items()},
         }
@@ -173,16 +175,12 @@ class LabConfig:
             run=run,
         )
 
-    def to_study_metadata(self) -> StudyMetadata:  # type: ignore[name-defined]
+    def to_study_metadata(self) -> StudyMetadata:
         """Convert to StudyMetadata for use with the analysis engines."""
         from aceneurotools.config.stats_config import StudyMetadata  # local to avoid circular import
 
-        drug_groups: dict[str, list[int]] = {
-            name: list(spec.subjects) for name, spec in self.conditions.items()
-        }
-        no_drug_conditions: set[str] = {
-            name for name, spec in self.conditions.items() if not spec.is_drug
-        }
+        drug_groups: dict[str, list[int]] = {name: list(spec.subjects) for name, spec in self.conditions.items()}
+        no_drug_conditions: set[str] = {name for name, spec in self.conditions.items() if not spec.is_drug}
         return StudyMetadata(
             drug_groups=drug_groups,
             selections={k: [list(w) for w in v] for k, v in self.time_windows.items()},
@@ -193,26 +191,19 @@ class LabConfig:
 def _require_str(data: dict[str, Any], key: str, errors: list[str]) -> str:
     val = data.get(key)
     if not isinstance(val, str) or not val.strip():
-        errors.append(
-            f"[{key}] Must be a non-empty string.  "
-            f"Got: {val!r}"
-        )
+        errors.append(f"[{key}] Must be a non-empty string.  Got: {val!r}")
         return ""
     return val.strip()
 
 
-def _parse_optional_str(
-    data: dict[str, Any], key: str, errors: list[str]
-) -> str | None:
+def _parse_optional_str(data: dict[str, Any], key: str, errors: list[str]) -> str | None:
     val = data.get(key)
     if val is None:
         return None
     if isinstance(val, str):
         stripped = val.strip()
         return stripped if stripped else None
-    errors.append(
-        f"[{key}] Must be a string or null.  Got: {val!r}"
-    )
+    errors.append(f"[{key}] Must be a string or null.  Got: {val!r}")
     return None
 
 
@@ -220,36 +211,27 @@ def _parse_freq_range(data: dict[str, Any], errors: list[str]) -> list[float]:
     val = data.get("freq_range")
     default = [0.5, 4.0]
     if not isinstance(val, list) or len(val) != 2:
-        errors.append(
-            "[freq_range] Must be a list of exactly two numbers, "
-            f"e.g. [0.5, 4.0].  Got: {val!r}"
-        )
+        errors.append(f"[freq_range] Must be a list of exactly two numbers, e.g. [0.5, 4.0].  Got: {val!r}")
         return default
     try:
         low, high = float(val[0]), float(val[1])
     except (TypeError, ValueError):
-        errors.append(
-            f"[freq_range] Both values must be numbers.  Got: {val!r}"
-        )
+        errors.append(f"[freq_range] Both values must be numbers.  Got: {val!r}")
         return default
     if low <= 0:
         errors.append(f"[freq_range] lowcut must be > 0 Hz.  Got: {low}")
     if high <= 0:
         errors.append(f"[freq_range] highcut must be > 0 Hz.  Got: {high}")
     if low >= high:
-        errors.append(
-            f"[freq_range] lowcut ({low}) must be less than highcut ({high})."
-        )
+        errors.append(f"[freq_range] lowcut ({low}) must be less than highcut ({high}).")
     return [low, high]
 
 
-def _parse_conditions(
-    data: dict[str, Any], errors: list[str]
-) -> dict[str, ConditionSpec]:
+def _parse_conditions(data: dict[str, Any], errors: list[str]) -> dict[str, ConditionSpec]:
     raw = data.get("conditions")
     if not isinstance(raw, dict) or not raw:
         errors.append(
-            '[conditions] Must be a non-empty object mapping condition names '
+            "[conditions] Must be a non-empty object mapping condition names "
             'to {"subjects": [...], "is_drug": true/false}.  '
             f"Got: {type(raw).__name__ if raw is not None else 'missing'}"
         )
@@ -261,8 +243,7 @@ def _parse_conditions(
             continue  # skip documentation keys
         if not isinstance(entry, dict):
             errors.append(
-                f'[conditions.{name!r}] Must be an object with "subjects" '
-                f'and "is_drug" keys.  Got: {entry!r}'
+                f'[conditions.{name!r}] Must be an object with "subjects" and "is_drug" keys.  Got: {entry!r}'
             )
             continue
 
@@ -273,25 +254,20 @@ def _parse_conditions(
         subjects: list[int] = []
         if not isinstance(subjects_raw, list) or not subjects_raw:
             cond_errors.append(
-                f'[conditions.{name!r}.subjects] Must be a non-empty list '
-                f"of integers.  Got: {subjects_raw!r}"
+                f"[conditions.{name!r}.subjects] Must be a non-empty list of integers.  Got: {subjects_raw!r}"
             )
         else:
             for idx, s in enumerate(subjects_raw):
                 try:
                     subjects.append(int(s))
                 except (TypeError, ValueError):
-                    cond_errors.append(
-                        f'[conditions.{name!r}.subjects[{idx}]] '
-                        f"Must be an integer.  Got: {s!r}"
-                    )
+                    cond_errors.append(f"[conditions.{name!r}.subjects[{idx}]] Must be an integer.  Got: {s!r}")
 
         # Parse is_drug flag
         is_drug_raw = entry.get("is_drug")
         if not isinstance(is_drug_raw, bool):
             cond_errors.append(
-                f'[conditions.{name!r}.is_drug] Must be true or false '
-                f"(JSON boolean).  Got: {is_drug_raw!r}"
+                f"[conditions.{name!r}.is_drug] Must be true or false (JSON boolean).  Got: {is_drug_raw!r}"
             )
             is_drug = True
         else:
@@ -304,9 +280,7 @@ def _parse_conditions(
     return result
 
 
-def _parse_time_windows(
-    data: dict[str, Any], errors: list[str]
-) -> dict[int, list[list[float]]]:
+def _parse_time_windows(data: dict[str, Any], errors: list[str]) -> dict[int, list[list[float]]]:
     raw = data.get("time_windows")
     if not isinstance(raw, dict) or not raw:
         errors.append(
@@ -344,34 +318,22 @@ def _parse_time_windows(
         for window_idx, window in enumerate(windows):
             label = "control" if window_idx == 0 else "treatment"
             if not isinstance(window, list) or len(window) != 2:
-                errors.append(
-                    f"[time_windows.{subj}] {label} window must be "
-                    f"[start, end] in minutes.  Got: {window!r}"
-                )
+                errors.append(f"[time_windows.{subj}] {label} window must be [start, end] in minutes.  Got: {window!r}")
                 window_ok = False
                 parsed_windows.append([0.0, 0.0])
                 continue
             try:
                 start, end = float(window[0]), float(window[1])
             except (TypeError, ValueError):
-                errors.append(
-                    f"[time_windows.{subj}] {label} window values must be "
-                    f"numbers.  Got: {window!r}"
-                )
+                errors.append(f"[time_windows.{subj}] {label} window values must be numbers.  Got: {window!r}")
                 window_ok = False
                 parsed_windows.append([0.0, 0.0])
                 continue
             if start < 0:
-                errors.append(
-                    f"[time_windows.{subj}] {label} start must be >= 0.  "
-                    f"Got: {start}"
-                )
+                errors.append(f"[time_windows.{subj}] {label} start must be >= 0.  Got: {start}")
                 window_ok = False
             if start >= end:
-                errors.append(
-                    f"[time_windows.{subj}] {label} start ({start}) must be "
-                    f"less than end ({end})."
-                )
+                errors.append(f"[time_windows.{subj}] {label} start ({start}) must be less than end ({end}).")
                 window_ok = False
             parsed_windows.append([start, end])
 
@@ -396,10 +358,7 @@ def _parse_paths(data: dict[str, Any], errors: list[str]) -> PathsConfig | None:
     # project_path is required when paths section is present.
     project_path_raw = raw.get("project_path")
     if not isinstance(project_path_raw, str) or not project_path_raw.strip():
-        errors.append(
-            "[paths.project_path] Must be a non-empty string path.  "
-            f"Got: {project_path_raw!r}"
-        )
+        errors.append(f"[paths.project_path] Must be a non-empty string path.  Got: {project_path_raw!r}")
         project_path = ""
     else:
         project_path = project_path_raw.strip()
@@ -424,10 +383,7 @@ def _parse_paths(data: dict[str, Any], errors: list[str]) -> PathsConfig | None:
 def _parse_run(data: dict[str, Any], errors: list[str]) -> RunConfig | None:
     raw = data.get("run")
     if not isinstance(raw, dict):
-        errors.append(
-            "[run] Must be an object with mode, analyses, line_nums, "
-            f"headless, verbose.  Got: {raw!r}"
-        )
+        errors.append(f"[run] Must be an object with mode, analyses, line_nums, headless, verbose.  Got: {raw!r}")
         return None
 
     # Strip documentation keys.
@@ -436,10 +392,7 @@ def _parse_run(data: dict[str, Any], errors: list[str]) -> RunConfig | None:
     # mode
     mode_raw = raw.get("mode", "all")
     if mode_raw not in _VALID_MODES:
-        errors.append(
-            f"[run.mode] Must be one of {sorted(_VALID_MODES)}.  "
-            f"Got: {mode_raw!r}"
-        )
+        errors.append(f"[run.mode] Must be one of {sorted(_VALID_MODES)}.  Got: {mode_raw!r}")
         mode = "all"
     else:
         mode = str(mode_raw)
@@ -449,10 +402,7 @@ def _parse_run(data: dict[str, Any], errors: list[str]) -> RunConfig | None:
     analyses: list[str] | None = None
     if analyses_raw is not None:
         if not isinstance(analyses_raw, list):
-            errors.append(
-                f"[run.analyses] Must be a list of analysis key strings or null.  "
-                f"Got: {analyses_raw!r}"
-            )
+            errors.append(f"[run.analyses] Must be a list of analysis key strings or null.  Got: {analyses_raw!r}")
         elif analyses_raw:
             analyses = [str(a) for a in analyses_raw]
 
@@ -461,26 +411,17 @@ def _parse_run(data: dict[str, Any], errors: list[str]) -> RunConfig | None:
     line_nums: list[int] | None = None
     if line_nums_raw is not None:
         if not isinstance(line_nums_raw, list):
-            errors.append(
-                f"[run.line_nums] Must be a list of integers or null.  "
-                f"Got: {line_nums_raw!r}"
-            )
+            errors.append(f"[run.line_nums] Must be a list of integers or null.  Got: {line_nums_raw!r}")
         elif line_nums_raw:
             try:
                 line_nums = [int(n) for n in line_nums_raw]
             except (TypeError, ValueError):
-                errors.append(
-                    f"[run.line_nums] All values must be integers.  "
-                    f"Got: {line_nums_raw!r}"
-                )
+                errors.append(f"[run.line_nums] All values must be integers.  Got: {line_nums_raw!r}")
 
     # headless
     headless_raw = raw.get("headless", False)
     if not isinstance(headless_raw, bool):
-        errors.append(
-            f"[run.headless] Must be true or false (JSON boolean).  "
-            f"Got: {headless_raw!r}"
-        )
+        errors.append(f"[run.headless] Must be true or false (JSON boolean).  Got: {headless_raw!r}")
         headless = False
     else:
         headless = headless_raw
@@ -488,10 +429,7 @@ def _parse_run(data: dict[str, Any], errors: list[str]) -> RunConfig | None:
     # verbose
     verbose_raw = raw.get("verbose", False)
     if not isinstance(verbose_raw, bool):
-        errors.append(
-            f"[run.verbose] Must be true or false (JSON boolean).  "
-            f"Got: {verbose_raw!r}"
-        )
+        errors.append(f"[run.verbose] Must be true or false (JSON boolean).  Got: {verbose_raw!r}")
         verbose = False
     else:
         verbose = verbose_raw
@@ -499,10 +437,7 @@ def _parse_run(data: dict[str, Any], errors: list[str]) -> RunConfig | None:
     # history (experiment version control opt-in; off by default until D07/D08)
     history_raw = raw.get("history", False)
     if not isinstance(history_raw, bool):
-        errors.append(
-            f"[run.history] Must be true or false (JSON boolean).  "
-            f"Got: {history_raw!r}"
-        )
+        errors.append(f"[run.history] Must be true or false (JSON boolean).  Got: {history_raw!r}")
         history = False
     else:
         history = history_raw

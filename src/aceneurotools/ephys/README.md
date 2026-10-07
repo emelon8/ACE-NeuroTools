@@ -2,4 +2,4 @@
 
 Neuralynx-oriented electrophysiology processing (channels, filtering, spectrograms, phase).
 
-**Full guide:** [Ephys Analysis](https://aceneurotools.readthedocs.io/en/latest/guides/ephys/) — source: [`docs/guides/ephys.md`](../../../docs/guides/ephys.md).
+**Full guide:** [Ephys Analysis](https://github.com/emelon8/ACE-NeuroTools/blob/main/docs/guides/ephys.md) — source: [`docs/guides/ephys.md`](../../../docs/guides/ephys.md).

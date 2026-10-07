@@ -113,9 +113,15 @@ def validate_settings(kind, changes):
         if key == "time_range":
             import math
 
-            if (not isinstance(value, (list, tuple)) or len(value) != 2
-                or any(isinstance(item, bool) or not isinstance(item, (int, float)) or not math.isfinite(item)
-                       for item in value) or value[0] >= value[1]):
+            if (
+                not isinstance(value, (list, tuple))
+                or len(value) != 2
+                or any(
+                    isinstance(item, bool) or not isinstance(item, (int, float)) or not math.isfinite(item)
+                    for item in value
+                )
+                or value[0] >= value[1]
+            ):
                 raise ValueError("time_range: enter [start, end] in seconds, with end after start.")
         default = defaults.get(key)
         if isinstance(default, bool) and not isinstance(value, bool):

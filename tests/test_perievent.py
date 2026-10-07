@@ -58,24 +58,21 @@ def test_perievent_keeps_all_with_nan_padding():
     fs = 100.0
     sig = np.arange(1000, dtype=np.float64)
     events = np.array([0.0, 5.0, 9.99])
-    out = compute_perievent(sig, events, fs=fs, window=0.5,
-                            drop_boundary_events=False)
+    out = compute_perievent(sig, events, fs=fs, window=0.5, drop_boundary_events=False)
     assert out["n_events"] == 3
     # First event at t=0 should have NaNs in the "before" half
     assert np.any(np.isnan(out["matrix"][0, :50]))
 
 
 def test_perievent_time_axis_symmetric():
-    out = compute_perievent(np.arange(1000, dtype=np.float64),
-                            np.array([5.0]), fs=100.0, window=0.3)
+    out = compute_perievent(np.arange(1000, dtype=np.float64), np.array([5.0]), fs=100.0, window=0.3)
     assert out["time"][0] == pytest.approx(-0.3)
     assert out["time"][-1] == pytest.approx(0.3)
     assert out["time"][len(out["time"]) // 2] == pytest.approx(0.0)
 
 
 def test_perievent_asymmetric_window():
-    out = compute_perievent(np.arange(1000, dtype=np.float64),
-                            np.array([5.0]), fs=100.0, window=(0.2, 0.5))
+    out = compute_perievent(np.arange(1000, dtype=np.float64), np.array([5.0]), fs=100.0, window=(0.2, 0.5))
     # 20 + 50 + 1 = 71 samples
     assert out["matrix"].shape == (1, 71)
     assert out["time"][0] == pytest.approx(-0.2)
@@ -92,8 +89,7 @@ def test_perievent_event_index_correct():
 
 
 def test_perievent_empty_events_returns_empty_matrix():
-    out = compute_perievent(np.arange(1000.0), np.array([]),
-                            fs=100.0, window=0.5)
+    out = compute_perievent(np.arange(1000.0), np.array([]), fs=100.0, window=0.5)
     assert out["n_events"] == 0
     assert out["matrix"].shape == (0, 101)
     assert out["time"].shape == (101,)
@@ -103,8 +99,7 @@ def test_perievent_t_start_offset():
     fs = 100.0
     sig = np.arange(1000, dtype=np.float64)
     # signal starts at absolute time 50s; event at t=55s should map to sample 500.
-    out = compute_perievent(sig, np.array([55.0]), fs=fs, window=0.1,
-                            t_start=50.0)
+    out = compute_perievent(sig, np.array([55.0]), fs=fs, window=0.1, t_start=50.0)
     assert out["n_events"] == 1
     assert out["matrix"][0, 10] == 500.0
 
@@ -123,7 +118,6 @@ def test_eta_recovers_known_waveform():
     """ETA of a clean signal aligned to a known waveform should recover it."""
     fs = 1000.0
     n_samples = 5 * int(fs)
-    t = np.arange(n_samples) / fs
     sig = np.zeros(n_samples)
     # Inject a 50 Hz cosine burst of length 0.2s at 8 event times
     event_times = np.array([0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0])
@@ -131,7 +125,7 @@ def test_eta_recovers_known_waveform():
     for et in event_times:
         i0 = int(et * fs)
         burst = np.cos(2 * np.pi * 50.0 * np.arange(burst_len) / fs)
-        sig[i0: i0 + burst_len] += burst
+        sig[i0 : i0 + burst_len] += burst
 
     out = compute_event_triggered_average(sig, event_times, fs=fs, window=(0.0, 0.2))
     # Mean at t=0 should be ~1 (cosine starts at 1)
@@ -142,8 +136,7 @@ def test_eta_recovers_known_waveform():
 
 
 def test_eta_returns_zero_signal_for_no_events():
-    out = compute_event_triggered_average(np.arange(1000.0), np.array([]),
-                                          fs=100.0, window=0.5)
+    out = compute_event_triggered_average(np.arange(1000.0), np.array([]), fs=100.0, window=0.5)
     assert out["n_events"] == 0
     assert out["mean"].shape == (101,)
     assert np.all(out["mean"] == 0)
@@ -177,8 +170,7 @@ def test_eta_handles_partial_events_with_nan_padding():
     sig = np.ones(1000)
     # Event at t=9.99s — most of the +window slice is past the end
     events = np.array([5.0, 9.99])
-    out = compute_event_triggered_average(sig, events, fs=fs, window=0.5,
-                                          drop_boundary_events=False)
+    out = compute_event_triggered_average(sig, events, fs=fs, window=0.5, drop_boundary_events=False)
     # With nanmean, mean is still well-defined where at least one event
     # contributed
     assert np.all(np.isfinite(out["mean"]))

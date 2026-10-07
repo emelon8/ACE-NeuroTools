@@ -41,8 +41,8 @@ class StatsConfig:
     # Set explicitly (e.g. 5.0) for a time-based nperseg.
 
     # coherogram
-    coherogram_window_length: float = 5.0   # seconds
-    coherogram_window_step: float = 2.5     # seconds
+    coherogram_window_length: float = 5.0  # seconds
+    coherogram_window_step: float = 2.5  # seconds
     coherogram_nrolling: int = 8
 
     # multitaper spectrogram
@@ -71,41 +71,41 @@ class StatsConfig:
 #:
 _DEFAULT_DRUG_GROUPS: dict[str, list[int]] = {
     "dexmedetomidine: 0.00045": [46, 47, 64, 88, 97, 101],
-    "dexmedetomidine: 0.0003":  [40, 41, 48, 87, 93, 94],
-    "propofol":                 [36, 43, 44, 86, 99, 103],
-    "ketamine":                 [39, 42, 45, 85, 96, 112],
+    "dexmedetomidine: 0.0003": [40, 41, 48, 87, 93, 94],
+    "propofol": [36, 43, 44, 86, 99, 103],
+    "ketamine": [39, 42, 45, 85, 96, 112],
 }
 
 # default time windows per subject: { line_num: [[ctrl_start, ctrl_end], [treat_start, treat_end]] } minutes
 _DEFAULT_SELECTIONS: dict[int, list[list[float]]] = {
     # dexmedetomidine 0.00045
-    46:  [[1,    20],    [28.24, 75]],
-    47:  [[1,    20],    [28.24, 75]],
-    64:  [[4,    17],    [28.24, 75]],
-    88:  [[1,     8],    [28.24, 83.24]],
-    97:  [[1,    13],    [28.24, 83.24]],
-    101: [[1,    25],    [37,    90]],
+    46: [[1, 20], [28.24, 75]],
+    47: [[1, 20], [28.24, 75]],
+    64: [[4, 17], [28.24, 75]],
+    88: [[1, 8], [28.24, 83.24]],
+    97: [[1, 13], [28.24, 83.24]],
+    101: [[1, 25], [37, 90]],
     # dexmedetomidine 0.0003
-    40:  [[8,    20],    [55,    75]],
-    41:  [[10,   19],    [60,    68]],
-    48:  [[1,    20],    [25,    35]],
-    87:  [[5,    13],    [73,    85]],
-    93:  [[18,   28],    [75,    95]],
-    94:  [[1,    20],    [75,    90]],
+    40: [[8, 20], [55, 75]],
+    41: [[10, 19], [60, 68]],
+    48: [[1, 20], [25, 35]],
+    87: [[5, 13], [73, 85]],
+    93: [[18, 28], [75, 95]],
+    94: [[1, 20], [75, 90]],
     # propofol
-    36:  [[1,    11],    [55,    67]],
-    43:  [[15,   20],    [40,    60]],
-    44:  [[0,    21],    [40,    65]],
-    86:  [[5,    16],    [33,    65]],
-    99:  [[0,    19],    [33,    45]],
-    103: [[1,    17],    [38,    65]],
+    36: [[1, 11], [55, 67]],
+    43: [[15, 20], [40, 60]],
+    44: [[0, 21], [40, 65]],
+    86: [[5, 16], [33, 65]],
+    99: [[0, 19], [33, 45]],
+    103: [[1, 17], [38, 65]],
     # ketamine
-    39:  [[10,   20],    [38,    50]],
-    42:  [[1,    20],    [40,    51]],
-    45:  [[1,    15],    [40,    60]],
-    85:  [[14,   24],    [30,    50]],
-    96:  [[1,    12],    [38,    55]],
-    112: [[1,    10],    [40,    60]],
+    39: [[10, 20], [38, 50]],
+    42: [[1, 20], [40, 51]],
+    45: [[1, 15], [40, 60]],
+    85: [[14, 24], [30, 50]],
+    96: [[1, 12], [38, 55]],
+    112: [[1, 10], [40, 60]],
 }
 
 
@@ -125,11 +125,7 @@ class StudyMetadata:
         self.selections = selections
         self.no_drug_conditions: set[str] = no_drug_conditions or {"sleep"}
         # Build reverse lookup: line_num → drug label
-        self._number_to_drug: dict[int, str] = {
-            n: drug
-            for drug, nums in drug_groups.items()
-            for n in nums
-        }
+        self._number_to_drug: dict[int, str] = {n: drug for drug, nums in drug_groups.items() for n in nums}
 
     def drug_of(self, line_num: int) -> str | None:
         return self._number_to_drug.get(line_num)
@@ -174,9 +170,7 @@ class StudyMetadata:
 
         # JSON keys are always strings; convert int-keyed dicts back.
         drug_groups: dict[str, list[int]] = raw["drug_groups"]
-        selections: dict[int, list[list[float]]] = {
-            int(k): v for k, v in raw["selections"].items()
-        }
+        selections: dict[int, list[list[float]]] = {int(k): v for k, v in raw["selections"].items()}
         no_drug = set(raw.get("no_drug_conditions", ["sleep"]))
         return cls(drug_groups=drug_groups, selections=selections, no_drug_conditions=no_drug)
 

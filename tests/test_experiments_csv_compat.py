@@ -14,10 +14,7 @@ from aceneurotools.init import _CSV_COLUMNS, _write_experiments_template
 from aceneurotools.shared.csv_worker import CSVWorker
 from aceneurotools.shared.file_downloader import verify_file_by_line
 
-_TEMPLATES_DIR = (
-    Path(__file__).resolve().parents[1]
-    / "src" / "aceneurotools" / "shared" / "metadata_templates"
-)
+_TEMPLATES_DIR = Path(__file__).resolve().parents[1] / "src" / "aceneurotools" / "shared" / "metadata_templates"
 
 
 # -- canonical package templates ----------------------------------------------
@@ -104,10 +101,7 @@ def test_verify_without_box_columns_checks_local_files(tmp_path):
 
     assert verify_file_by_line(7, csv_path, do_type="ephys", base_file_path=base) is True
     # miniscope data absent and no Box ID available -> False, not KeyError
-    assert (
-        verify_file_by_line(7, csv_path, do_type="miniscope", base_file_path=base)
-        is False
-    )
+    assert verify_file_by_line(7, csv_path, do_type="miniscope", base_file_path=base) is False
 
 
 def test_verify_with_empty_box_ids_stays_local(tmp_path):
@@ -117,8 +111,12 @@ def test_verify_with_empty_box_ids_stays_local(tmp_path):
     _write_csv(
         csv_path,
         [
-            "line number", "id", "Box Calcium Folder ID",
-            "calcium imaging directory", "Box ephys folder ID", "ephys directory",
+            "line number",
+            "id",
+            "Box Calcium Folder ID",
+            "calcium imaging directory",
+            "Box ephys folder ID",
+            "ephys directory",
         ],
         ["7", "rat_007", "", "sub7/miniscope", "", "sub7/ephys"],
     )

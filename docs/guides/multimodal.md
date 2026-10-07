@@ -1,6 +1,6 @@
-# Multimodal Pipeline
+# Multimodal alignment
 
-The multimodal pipeline combines ephys and calcium imaging analysis for synchronized electrophysiology and miniscope recordings. It handles timestamp alignment between Neuralynx and Miniscope systems, and performs phase-based calcium event analysis.
+Use this workflow when a miniscope video and an electrical recording came from the same session. It runs both analyses and places their time stamps on a comparable time line. Neuralynx/UCLA recordings use recorded synchronization pulses (TTL pulses); ONIX recordings can use their shared hardware clock. Calcium-event phase analysis is available when the required events and phase signals have been computed.
 
 This pipeline is available through the Python API and CLI. The
 [experiment GUI](experiment_gui.md) runs miniscope and ephys separately; it does
@@ -10,9 +10,9 @@ not provide a multimodal run or automatic continuation from curated estimates.
 
 ### Prerequisites
 
-1. Ensure your project directory has:
-   - `experiments.csv` with both ephys and miniscope paths
-   - `analysis_parameters.csv` with parameters for both modalities
+1. Ensure `experiments.csv` has a row with the same `line number` for both recording paths. The raw recordings must be from one synchronized session.
+2. Give `--data-path` the root containing the paths in that row. `analysis_parameters.csv` is optional for module commands, but an existing file must include the requested ID.
+3. Confirm the ephys channel name and that the chosen recording format supplies timestamps or sync pulses. The default channel name is only an example.
 
 Select an existing `line number` experiment identifier with `--line-num`; it is
 not the physical CSV row number. Both modalities need valid timing metadata
@@ -21,14 +21,10 @@ from the same recording session.
 ### Command Line
 
 ```bash
-# Run with explicit project path
-python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /my/project
-
-# Run with explicit project and data paths
 python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /my/project --data-path /my/raw_data
 
 # Run in headless mode
-python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /my/project --headless
+python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /my/project --data-path /my/raw_data --headless
 ```
 
 ### Python API
@@ -42,6 +38,7 @@ api.run(
     project_path="/my/project",
     data_path="/my/raw_data",
     miniscope_filenames=["0.avi"],
+    save_estimates=True,
     run_CNMFE=True,
     find_calcium_events=True,
     compute_miniscope_phase=True,
@@ -64,12 +61,12 @@ every run flag from `analysis_parameters.csv`.
 
 ## Pipeline Steps
 
-1. **Ephys Processing**: Runs the full ephys pipeline (channel loading, filtering, phase analysis)
-2. **Miniscope Processing**: Runs the full miniscope pipeline (preprocessing, CNMF-E, postprocessing)
-3. **Timestamp Synchronization**: Aligns Neuralynx and Miniscope timestamps using TTL events
+1. **Ephys processing**: Loads the selected channel. Filtering and phase calculation depend on the chosen options.
+2. **Miniscope processing**: Preprocesses the movie, runs CNMF-E with the multimodal defaults, and performs configured postprocessing.
+3. **Timestamp synchronization**: Aligns Neuralynx/UCLA data with TTL events or uses compatible ONIX hardware-clock timing.
 4. **TTL Mapping**: Maps aligned frame/event times to ephys indices
-5. **Phase-Based Event Analysis**: Computes calcium event phases relative to ephys oscillations
-6. **Phase Histograms**: Generates circular histograms when calcium-event phases are available
+5. **Phase-based event analysis**: Computes calcium event phases when events, phase signals, and `ca_events=True` are available.
+6. **Phase histograms**: Generates circular histograms when calcium-event phases are available.
 
 ## TTL Synchronization and Gap Detection
 
@@ -124,7 +121,7 @@ flags, so custom synchronization choices require explicit Python arguments.
 The `experiments.csv` must contain both:
 
 - `calcium imaging directory`: Path to miniscope recordings
-- `ephys directory`: Path to Neuralynx recordings
+- `ephys directory`: Path to ephys recordings
 
 Both directories should contain data from the same synchronized recording session.
 

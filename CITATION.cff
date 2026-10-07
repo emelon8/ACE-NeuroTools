@@ -10,19 +10,10 @@ authors:
   # Order matches `pyproject.toml [project.authors]`. Update both together.
   - given-names: Reed
     family-names: Pennock
-    # email: TODO(humans)
-    # orcid: TODO(humans)
-    # affiliation: TODO(humans)
   - given-names: Luke
     family-names: Richards
-    # email: TODO(humans)
-    # orcid: TODO(humans)
-    # affiliation: TODO(humans)
   - given-names: Eric
     family-names: Melonakos
-    # email: TODO(humans)
-    # orcid: TODO(humans)
-    # affiliation: TODO(humans)
 abstract: >-
   ACE-NeuroTools (Analysis of Calcium Imaging and Electrophysiology) is an
   open-source Python package providing integrated pipelines for one-photon
@@ -42,27 +33,8 @@ keywords:
   - data-analysis
 license: GPL-3.0-or-later
 repository-code: 'https://github.com/emelon8/experiment_analysis'
-url: 'https://aceneurotools.readthedocs.io/en/latest/'  # TODO(humans): confirm RTD subdomain
+url: 'https://github.com/emelon8/experiment_analysis'
 version: 0.1.0
-# Mint a Zenodo (or institutional) DOI when tagging the next release and
-# paste the concept-DOI here. The version DOI is what most journals want;
-# Zenodo issues both a concept-DOI (all-versions) and a version-DOI per tag.
-doi: 'TODO(humans)'
-date-released: 'TODO(humans)'  # YYYY-MM-DD; align with the tagged release.
-
-# Replace the placeholder below with the canonical paper citation once the
-# Neuroinformatics submission is accepted, then reviewers/users can be told
-# to cite the paper rather than the software.
-preferred-citation:
-  type: article
-  title: 'TODO(humans): paper title'
-  authors:
-    - given-names: Reed
-      family-names: Pennock
-    - given-names: Luke
-      family-names: Richards
-    - given-names: Eric
-      family-names: Melonakos
-  journal: 'TODO(humans): e.g. Neuroinformatics'
-  year: 'TODO(humans)'
-  doi: 'TODO(humans)'
+# Add the Zenodo version DOI after the first archived GitHub release. Add a
+# preferred-citation article only after the companion paper has bibliographic
+# metadata; omitted optional fields are preferable to invalid placeholders.

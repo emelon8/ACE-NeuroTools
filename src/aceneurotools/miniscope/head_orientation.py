@@ -12,14 +12,14 @@ import numpy as np
 
 def quat_to_euler(qw: float, qx: float, qy: float, qz: float, degrees: bool = False) -> list[float]:
     """Convert quaternion to Euler angles (roll, pitch, yaw).
-    
+
     Args:
         qw: Quaternion w component.
         qx: Quaternion x component.
         qy: Quaternion y component.
         qz: Quaternion z component.
         degrees: If True, return angles in degrees; otherwise radians.
-        
+
     Returns:
         List of [roll, pitch, yaw] angles.
     """
@@ -44,22 +44,22 @@ def quat_to_euler(qw: float, qx: float, qy: float, qz: float, degrees: bool = Fa
     c1 = np.cos(R)
     Y = np.arctan2(s1 * m20 - c1 * m10, c1 * m11 - s1 * m21)  # Yaw
     eulerAngles.append(Y)
-    if degrees == True:
+    if degrees:
         eulerAngles = [math.degrees(R), math.degrees(P), math.degrees(Y)]
     return eulerAngles
 
 
 def conv_quat_to_euler(line: list[Any]) -> list[Any] | None:
     """Convert a CSV line of quaternion data to Euler angles.
-    
+
     Args:
         line: List of [time, qw, qx, qy, qz].
-        
+
     Returns:
         List of [time, roll, pitch, yaw].
     """
     if len(line) != 5:
-        print('!!! ERROR: Invalid file')  # FIXME
+        print("!!! ERROR: Invalid file")  # FIXME
         return
     time = line[0]
     qw = line[1]

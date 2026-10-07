@@ -24,8 +24,6 @@ def test_create_registers_builtin_subclasses_in_fresh_interpreter(tmp_path):
         "assert 'OnixMiniscopeDataManager' in names, names\n"
         "print('ok')\n"
     )
-    result = subprocess.run(
-        [sys.executable, "-c", code], capture_output=True, text=True
-    )
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
     assert "ok" in result.stdout

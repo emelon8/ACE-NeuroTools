@@ -26,8 +26,9 @@ def repo(tmp_path):
 
 
 def _commit(repo, tree_oid, parents=(), message="m", when=1000):
-    commit = Commit(tree=tree_oid, parents=tuple(parents), author="T <t@t>",
-                    author_time=when, author_tz="+0000", message=message)
+    commit = Commit(
+        tree=tree_oid, parents=tuple(parents), author="T <t@t>", author_time=when, author_tz="+0000", message=message
+    )
     return repo.write_commit(commit)
 
 
@@ -76,6 +77,7 @@ def test_prefix_resolution_reports_ambiguity(tmp_path):
     # Deterministically find two blob bodies whose ids share a 4-hex prefix,
     # store only those two, and check the short prefix is rejected as ambiguous.
     from aceneurotools.evc.objects import object_id
+
     seen: dict[str, bytes] = {}
     colliding: tuple[bytes, bytes] | None = None
     for i in range(100_000):
@@ -107,8 +109,7 @@ def test_update_ref_compare_and_set(repo):
 def test_journal_records_every_update(repo):
     tree_oid = repo.write_tree(Tree(entries=()))
     first = _commit(repo, tree_oid, message="first")
-    repo.refs.update_ref("refs/heads/main", first, expected_old=None,
-                         op="record", message="first")
+    repo.refs.update_ref("refs/heads/main", first, expected_old=None, op="record", message="first")
     entries = repo.refs.journal()
     assert len(entries) == 1
     assert entries[0].new == first
@@ -149,6 +150,7 @@ def test_history_walk_and_ancestry(repo):
 def test_reachable_objects_covers_commits_trees_blobs(repo):
     blob_oid = repo.write_blob(b"data")
     from aceneurotools.evc.objects import MODE_FILE, TreeEntry
+
     tree = Tree(entries=(TreeEntry(mode=MODE_FILE, type="blob", oid=blob_oid, name="f"),))
     tree_oid = repo.write_tree(tree)
     a = _commit(repo, tree_oid, message="a")

@@ -21,14 +21,25 @@ def job(tmp_path):
         "line number,id,calcium imaging directory,ephys directory\n1,R1,missing,mystery\n2,R2,other,other\n"
     )
     (tmp_path / "analysis_parameters.csv").write_text(
-        'line number,crop,crop_coords,n_processes,run_CNMFE,save_estimates,filenames\n'
+        "line number,crop,crop_coords,n_processes,run_CNMFE,save_estimates,filenames\n"
         '1,True,"(1, 2, 30, 40)",99,True,True,"[\'0.avi\']"\n2,False,,6,False,False,[]\n'
     )
     project = Project.open(tmp_path)
-    return project, {"number": "1", "kind": "miniscope", "versions": project.digests,
-        "cluster": {"recording_path": "/scratch/rat one", "output_path": "/scratch/results",
-                    "cpus": "8", "memory_gb": "150", "time": "1-12:00:00",
-                    "python": "/cluster/env's/bin/python", "account": "lab", "partition": "bigmem"}}
+    return project, {
+        "number": "1",
+        "kind": "miniscope",
+        "versions": project.digests,
+        "cluster": {
+            "recording_path": "/scratch/rat one",
+            "output_path": "/scratch/results",
+            "cpus": "8",
+            "memory_gb": "150",
+            "time": "1-12:00:00",
+            "python": "/cluster/env's/bin/python",
+            "account": "lab",
+            "partition": "bigmem",
+        },
+    }
 
 
 def unpack(result):
@@ -41,8 +52,9 @@ def test_exports_saved_parameters_and_only_selected_rows(job, kind):
     body["kind"] = kind
     if kind == "multimodal":
         body["cluster"]["ephys_recording_path"] = "/scratch/ephys/rat one"
-    before = {name: (project.path / name).read_bytes() if (project.path / name).exists() else None
-              for name in project.digests}
+    before = {
+        name: (project.path / name).read_bytes() if (project.path / name).exists() else None for name in project.digests
+    }
     result = generate(project, body)
     assert result["config"]["recording_path"] == "/scratch/rat one"
     assert result["config"]["parameters"].get("crop_coords") == ([1, 2, 30, 40] if kind != "ephys" else None)
@@ -57,7 +69,10 @@ def test_exports_saved_parameters_and_only_selected_rows(job, kind):
             rows = list(csv.DictReader(io.StringIO(archive.read(name).decode())))
             assert len(rows) == 1 and rows[0]["line number"] == "1"
             assert (project.path / name).read_bytes() == before[name]
-        assert archive.read("gui/run_worker.py") == (Path(__file__).resolve().parents[1] / "gui/run_worker.py").read_bytes()
+        assert (
+            archive.read("gui/run_worker.py")
+            == (Path(__file__).resolve().parents[1] / "gui/run_worker.py").read_bytes()
+        )
         for name in archive.namelist():
             if name.endswith(".py"):
                 compile(archive.read(name), name, "exec")
@@ -65,17 +80,28 @@ def test_exports_saved_parameters_and_only_selected_rows(job, kind):
     assert "#SBATCH --mem=150G" in result["slurm"]
     checked = subprocess.run(["bash", "-n"], input=result["slurm"], text=True, capture_output=True)
     assert checked.returncode == 0, checked.stderr
-    assert {name: (project.path / name).read_bytes() if (project.path / name).exists() else None
-            for name in before} == before
+    assert {
+        name: (project.path / name).read_bytes() if (project.path / name).exists() else None for name in before
+    } == before
 
 
-@pytest.mark.parametrize("key,value", [
-    ("cpus", 0), ("cpus", True), ("cpus", "1.5"), ("memory_gb", "0"),
-    ("time", "00:00:00"), ("time", "1-24:00:00"), ("time", "12:60:00"),
-    ("account", "lab\n#SBATCH --exclusive"), ("partition", "x;touch bad"),
-    ("recording_path", "relative/path"), ("recording_path", "/scratch\nnewline"),
-    ("python", "python;rm -rf something"),
-])
+@pytest.mark.parametrize(
+    "key,value",
+    [
+        ("cpus", 0),
+        ("cpus", True),
+        ("cpus", "1.5"),
+        ("memory_gb", "0"),
+        ("time", "00:00:00"),
+        ("time", "1-24:00:00"),
+        ("time", "12:60:00"),
+        ("account", "lab\n#SBATCH --exclusive"),
+        ("partition", "x;touch bad"),
+        ("recording_path", "relative/path"),
+        ("recording_path", "/scratch\nnewline"),
+        ("python", "python;rm -rf something"),
+    ],
+)
 def test_invalid_cluster_options_rejected(job, key, value):
     project, body = job
     body["cluster"][key] = value
@@ -115,7 +141,7 @@ def test_exported_entry_point_uses_bundled_worker_and_fresh_output(job, tmp_path
     with unpack(generate(project, body)) as archive:
         archive.extractall(bundle)
     # Execute from outside the checkout; intercept only the expensive science call.
-    probe = '''import json, runpy
+    probe = """import json, runpy
 from pathlib import Path
 import gui.run_worker
 def execute(manifest):
@@ -126,8 +152,12 @@ def execute(manifest):
     (root / 'called.json').write_text(json.dumps(manifest))
 gui.run_worker.execute = execute
 runpy.run_path('run_job.py', run_name='__main__')
-'''
-    env = {**os.environ, "PYTHONPATH": str(bundle) + os.pathsep + str(Path(__file__).resolve().parents[1] / "src"), "SLURM_CPUS_PER_TASK": "3"}
+"""
+    env = {
+        **os.environ,
+        "PYTHONPATH": str(bundle) + os.pathsep + str(Path(__file__).resolve().parents[1] / "src"),
+        "SLURM_CPUS_PER_TASK": "3",
+    }
     for _ in range(2):
         result = subprocess.run([sys.executable, "-c", probe], cwd=bundle, env=env, capture_output=True, text=True)
         assert result.returncode == 0, result.stderr
@@ -148,7 +178,7 @@ def test_multimodal_export_stages_both_cluster_recordings(job, tmp_path):
     body["cluster"].update(recording_path=str(calcium), ephys_recording_path=str(ephys), output_path=str(output))
     with unpack(generate(project, body)) as archive:
         archive.extractall(bundle)
-    probe = '''import json, runpy
+    probe = """import json, runpy
 from pathlib import Path
 import gui.run_worker
 def execute(manifest):
@@ -159,7 +189,7 @@ def execute(manifest):
     (root / 'called.json').write_text(json.dumps(manifest))
 gui.run_worker.execute = execute
 runpy.run_path('run_job.py', run_name='__main__')
-'''
+"""
     env = {**os.environ, "PYTHONPATH": str(bundle) + os.pathsep + str(Path(__file__).resolve().parents[1] / "src")}
     result = subprocess.run([sys.executable, "-c", probe], cwd=bundle, env=env, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr

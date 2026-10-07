@@ -6,6 +6,7 @@ Usage:
 
 All parameters can be overridden via CLI flags.
 """
+
 import argparse
 import logging
 
@@ -60,5 +61,5 @@ def main() -> None:
         channel_worker.plot_spectrogram(plot_events=True)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

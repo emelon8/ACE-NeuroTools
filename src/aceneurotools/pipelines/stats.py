@@ -33,8 +33,7 @@ VALID_ANALYSES: dict[str, str] = {
         "ephys channel and the mean-fluorescence calcium signal."
     ),
     "coherence_ephys_ephys": (
-        "Spectral power, Welch coherence, and cross-correlation between two "
-        "ephys channels from the same recording."
+        "Spectral power, Welch coherence, and cross-correlation between two ephys channels from the same recording."
     ),
     "scatter_correlation": (
         "Pearson r scatter plots (EEG vs calcium), autocorrelation-corrected "
@@ -112,20 +111,12 @@ class _RunLog:
     def print_summary(self, log_path: Path) -> None:
         completed_subjects = sorted({e["line_num"] for e in self.completed})
         skipped_subjects = sorted({e["line_num"] for e in self.skipped})
-        print(
-            f"\nRun complete: {len(completed_subjects)} subject(s) completed, "
-            f"{len(skipped_subjects)} skipped."
-        )
+        print(f"\nRun complete: {len(completed_subjects)} subject(s) completed, {len(skipped_subjects)} skipped.")
         if skipped_subjects:
             for entry in self.skipped:
-                print(
-                    f"  Skipped: line {entry['line_num']} "
-                    f"({entry['analysis']}) — {entry['reason']}"
-                )
+                print(f"  Skipped: line {entry['line_num']} ({entry['analysis']}) — {entry['reason']}")
         for entry in self.output_failures:
-            print(
-                f"  Output failed: {entry['output']} ({entry['analysis']}) — {entry['reason']}"
-            )
+            print(f"  Output failed: {entry['output']} ({entry['analysis']}) — {entry['reason']}")
         if skipped_subjects or self.output_failures:
             print(f"  Full details: {log_path}")
 
@@ -167,6 +158,7 @@ class StatsPipeline:
         ``None`` the pipeline behaves exactly as without EVC.
         """
         from aceneurotools.shared.plotting import set_backend
+
         set_backend(headless=headless)
         config = stats_config or StatsConfig()
 
@@ -181,9 +173,7 @@ class StatsPipeline:
 
         # Resolve channel names: explicit arg > lab_config > hardcoded fallback
         effective_channel: str = (
-            channel
-            if channel is not None
-            else (lab_config.primary_channel if lab_config is not None else "CBvsPCEEG")
+            channel if channel is not None else (lab_config.primary_channel if lab_config is not None else "CBvsPCEEG")
         )
         effective_channel_2: str = (
             channel_2
@@ -199,11 +189,7 @@ class StatsPipeline:
         effective_freq_range: list[float] = (
             freq_range
             if freq_range is not None
-            else (
-                lab_config.freq_range
-                if lab_config is not None
-                else [config.lowcut, config.highcut]
-            )
+            else (lab_config.freq_range if lab_config is not None else [config.lowcut, config.highcut])
         )
         # Both analysis engines read their filter band from StatsConfig. Copy
         # the resolved CLI/lab override into this run's config so the applied
@@ -218,16 +204,10 @@ class StatsPipeline:
 
         project_path = Path(project_path)
         data_path = Path(data_path) if data_path is not None else None
-        output_dir = (
-            Path(output_dir)
-            if output_dir is not None
-            else project_path / "stats_results"
-        )
+        output_dir = Path(output_dir) if output_dir is not None else project_path / "stats_results"
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        effective_run_log_path = (
-            Path(run_log_path) if run_log_path is not None else output_dir / "run_log.json"
-        )
+        effective_run_log_path = Path(run_log_path) if run_log_path is not None else output_dir / "run_log.json"
 
         subjects = line_nums if line_nums else meta.all_line_nums()
 
@@ -237,10 +217,7 @@ class StatsPipeline:
 
         print(f"\nRunning analyses: {', '.join(selected)}")
         print(f"Subjects ({len(subjects)}): {subjects}")
-        print(
-            f"Channel: {effective_channel}  |  "
-            f"Freq range: {effective_freq_range} Hz"
-        )
+        print(f"Channel: {effective_channel}  |  Freq range: {effective_freq_range} Hz")
         print(f"Output: {output_dir}\n")
 
         params: dict = {
@@ -248,13 +225,8 @@ class StatsPipeline:
             "secondary_channel": effective_channel_2,
             "freq_range_hz": effective_freq_range,
             "stats_config": dataclasses.asdict(config),
-            "conditions": {
-                drug_label: line_nums_list
-                for drug_label, line_nums_list in meta.drug_groups.items()
-            },
-            "time_windows": {
-                str(k): v for k, v in meta.selections.items()
-            },
+            "conditions": {drug_label: line_nums_list for drug_label, line_nums_list in meta.drug_groups.items()},
+            "time_windows": {str(k): v for k, v in meta.selections.items()},
             "project_path": str(project_path),
             "output_dir": str(output_dir),
             "calcium_signal_dir": str(calcium_signal_dir) if calcium_signal_dir else None,
@@ -272,9 +244,7 @@ class StatsPipeline:
         if recorder is not None:
             recorder.on_run_approved(
                 params,
-                config_paths=[
-                    str(p) for p in (lab_config_path, stats_config_path) if p
-                ],
+                config_paths=[str(p) for p in (lab_config_path, stats_config_path) if p],
             )
 
         try:
@@ -378,9 +348,7 @@ class StatsPipeline:
                 msg = "--calcium-signal-dir not provided"
                 print(f"  [line {line_num}] SKIPPED — {msg}.")
                 assert self._run_log is not None
-                self._run_log.record_skip(
-                    line_num, analysis_name, ValueError(msg)
-                )
+                self._run_log.record_skip(line_num, analysis_name, ValueError(msg))
                 continue
 
             calcium = load_calcium_signal(miniscope_dm, calcium_signal_dir, line_num)
@@ -388,9 +356,7 @@ class StatsPipeline:
                 msg = "Calcium signal file not found"
                 print(f"  [line {line_num}] SKIPPED — {msg}.")
                 assert self._run_log is not None
-                self._run_log.record_skip(
-                    line_num, analysis_name, FileNotFoundError(msg)
-                )
+                self._run_log.record_skip(line_num, analysis_name, FileNotFoundError(msg))
                 continue
 
             subj_dir = output_dir / f"line_{line_num}"
@@ -526,8 +492,7 @@ class StatsPipeline:
         analysis_name = "scatter_correlation"
 
         collectors: dict[str, PopulationCorrelationCollector] = {
-            drug: PopulationCorrelationCollector(drug)
-            for drug in meta.drug_groups
+            drug: PopulationCorrelationCollector(drug) for drug in meta.drug_groups
         }
 
         for line_num in subjects:
@@ -552,9 +517,7 @@ class StatsPipeline:
                 msg = "--calcium-signal-dir not provided"
                 print(f"  [line {line_num}] SKIPPED — {msg}.")
                 assert self._run_log is not None
-                self._run_log.record_skip(
-                    line_num, analysis_name, ValueError(msg)
-                )
+                self._run_log.record_skip(line_num, analysis_name, ValueError(msg))
                 continue
 
             calcium = load_calcium_signal(miniscope_dm, calcium_signal_dir, line_num)
@@ -562,9 +525,7 @@ class StatsPipeline:
                 msg = "Calcium signal file not found"
                 print(f"  [line {line_num}] SKIPPED — {msg}.")
                 assert self._run_log is not None
-                self._run_log.record_skip(
-                    line_num, analysis_name, FileNotFoundError(msg)
-                )
+                self._run_log.record_skip(line_num, analysis_name, FileNotFoundError(msg))
                 continue
 
             subj_dir = output_dir / f"line_{line_num}"
@@ -607,14 +568,13 @@ class StatsPipeline:
                 continue
             self._run_log.record_complete(line_num, analysis_name)
 
-        self.scatter_collectors = {
-            drug: col for drug, col in collectors.items() if col.has_data()
-        }
+        self.scatter_collectors = {drug: col for drug, col in collectors.items() if col.has_data()}
         if self.scatter_collectors:
             from aceneurotools.stats.scatter_analysis import (
                 create_all_drugs_summary_plot,
                 create_population_violin_plot,
             )
+
             for drug, col in self.scatter_collectors.items():
                 try:
                     create_population_violin_plot(
@@ -646,6 +606,7 @@ class StatsPipeline:
 
 # Module-level helpers
 
+
 def _print_subject_header(line_num: int, drug: str, analysis: str, verbose: bool) -> None:
     if verbose:
         print(f"  [{analysis}] line {line_num} ({drug})")
@@ -669,10 +630,7 @@ def _resolve_analyses(analyses: list[str] | None) -> list[str]:
     if analyses:
         invalid = [a for a in analyses if a not in VALID_ANALYSES]
         if invalid:
-            print(
-                f"Unknown analysis type(s): {invalid}\n"
-                f"Valid options: {_ANALYSIS_KEYS}"
-            )
+            print(f"Unknown analysis type(s): {invalid}\nValid options: {_ANALYSIS_KEYS}")
             sys.exit(1)
         return list(analyses)
 
@@ -727,12 +685,12 @@ def _interactive_menu() -> list[str]:
 
 # CLI
 
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m aceneurotools.pipelines.stats",
         description=(
-            "Run statistical analyses (coherence, scatter/correlation) across "
-            "experiments defined in experiments.csv."
+            "Run statistical analyses (coherence, scatter/correlation) across experiments defined in experiments.csv."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
@@ -801,16 +759,12 @@ Examples:
     config_group.add_argument(
         "--stats-config-path",
         metavar="PATH",
-        help="Path to stats_config.json (algorithm parameters).  "
-             "Uses built-in defaults when omitted.",
+        help="Path to stats_config.json (algorithm parameters).  Uses built-in defaults when omitted.",
     )
     config_group.add_argument(
         "--stats-metadata-path",
         metavar="PATH",
-        help=(
-            "[DEPRECATED] Use --lab-config instead.  "
-            "JSON file produced by StudyMetadata.to_json()."
-        ),
+        help=("[DEPRECATED] Use --lab-config instead.  JSON file produced by StudyMetadata.to_json()."),
     )
 
     # Analysis selection
@@ -820,10 +774,7 @@ Examples:
         nargs="+",
         metavar="ANALYSIS",
         choices=list(VALID_ANALYSES.keys()),
-        help=(
-            f"One or more analyses to run: {_ANALYSIS_KEYS}.  "
-            "Omit to select interactively."
-        ),
+        help=(f"One or more analyses to run: {_ANALYSIS_KEYS}.  Omit to select interactively."),
     )
     analysis_group.add_argument(
         "--line-nums",
@@ -834,9 +785,7 @@ Examples:
     )
 
     # Signal parameters (override lab_config values when supplied)
-    signal_group = parser.add_argument_group(
-        "signal parameters (override lab_config.json when supplied)"
-    )
+    signal_group = parser.add_argument_group("signal parameters (override lab_config.json when supplied)")
     signal_group.add_argument(
         "--channel",
         default=None,
@@ -847,10 +796,7 @@ Examples:
         "--channel-2",
         default=None,
         metavar="NAME",
-        help=(
-            "Second ephys channel for coherence_ephys_ephys.  "
-            "Overrides secondary_channel in lab_config.json."
-        ),
+        help=("Second ephys channel for coherence_ephys_ephys.  Overrides secondary_channel in lab_config.json."),
     )
     signal_group.add_argument(
         "--freq-range",
@@ -865,8 +811,7 @@ Examples:
     runtime_group.add_argument(
         "--run-log-path",
         metavar="PATH",
-        help="Override location for run_log.json.  "
-             "Defaults to <output-dir>/run_log.json.",
+        help="Override location for run_log.json.  Defaults to <output-dir>/run_log.json.",
     )
     runtime_group.add_argument(
         "--headless",
@@ -917,18 +862,12 @@ if __name__ == "__main__":
         try:
             study_metadata = StudyMetadata.from_json(args.stats_metadata_path)
         except Exception as exc:
-            print(
-                f"ERROR loading study metadata from {args.stats_metadata_path}: {exc}"
-            )
+            print(f"ERROR loading study metadata from {args.stats_metadata_path}: {exc}")
             sys.exit(1)
     # If neither is provided, StudyMetadata.default() will raise inside run().
 
     # Resolve output dir early so run_log_path has a sensible default.
-    output_dir = (
-        Path(args.output_dir)
-        if args.output_dir
-        else Path(args.project_path) / "stats_results"
-    )
+    output_dir = Path(args.output_dir) if args.output_dir else Path(args.project_path) / "stats_results"
 
     pipeline = StatsPipeline()
 

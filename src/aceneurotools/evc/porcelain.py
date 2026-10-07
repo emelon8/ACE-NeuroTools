@@ -85,8 +85,9 @@ class ExperimentVersionControl:
     # -- lifecycle ----------------------------------------------------------
 
     @classmethod
-    def init(cls, experiment_dir: str | Path, branch: str = DEFAULT_BRANCH,
-             workspace: bool = False) -> ExperimentVersionControl:
+    def init(
+        cls, experiment_dir: str | Path, branch: str = DEFAULT_BRANCH, workspace: bool = False
+    ) -> ExperimentVersionControl:
         """Start tracking an experiment directory.
 
         Always writes the declarative ``.evc/ignore`` policy file with safe
@@ -107,8 +108,7 @@ class ExperimentVersionControl:
 
     # -- record (commit) ----------------------------------------------------
 
-    def record(self, message: str, author: str | None = None,
-               author_time: int | None = None) -> str:
+    def record(self, message: str, author: str | None = None, author_time: int | None = None) -> str:
         """Record the current working state as a new revision; return its id."""
         if not message.strip():
             raise ValueError("a revision message is required")
@@ -126,8 +126,9 @@ class ExperimentVersionControl:
             message=message,
         )
         new_oid = self.repo.write_commit(commit)
-        self.repo.refs.update_ref(branch_ref, new_oid, expected_old=head_oid,
-                                  op="record", message=message.splitlines()[0])
+        self.repo.refs.update_ref(
+            branch_ref, new_oid, expected_old=head_oid, op="record", message=message.splitlines()[0]
+        )
         return new_oid
 
     # -- access -------------------------------------------------------------
@@ -198,14 +199,20 @@ class ExperimentVersionControl:
             )
             safety_oid = self.repo.write_commit(safety)
             self.repo.refs.append_journal(
-                ref="(dangling)", old=head_oid or "0" * 64, new=safety_oid,
-                op="safety-snapshot", message="working state preserved before restore",
+                ref="(dangling)",
+                old=head_oid or "0" * 64,
+                new=safety_oid,
+                op="safety-snapshot",
+                message="working state preserved before restore",
             )
 
         self.worktree.materialize(target_tree)
         self.repo.refs.append_journal(
-            ref=self.repo.refs.read_head_ref(), old=head_oid or "0" * 64, new=target_oid,
-            op="restore", message=f"working state set to {target_oid[:12]} (ref not moved)",
+            ref=self.repo.refs.read_head_ref(),
+            old=head_oid or "0" * 64,
+            new=target_oid,
+            op="restore",
+            message=f"working state set to {target_oid[:12]} (ref not moved)",
         )
         return RestoreResult(restored=target_oid, safety_snapshot=safety_oid)
 
@@ -236,10 +243,11 @@ class ExperimentVersionControl:
             entry_text = previous + "\n" + entry_text
         notes[target_oid] = self.repo.write_blob(entry_text.encode())
 
-        tree = Tree(entries=tuple(
-            TreeEntry(mode=MODE_FILE, type="blob", oid=blob_oid, name=name)
-            for name, blob_oid in notes.items()
-        ))
+        tree = Tree(
+            entries=tuple(
+                TreeEntry(mode=MODE_FILE, type="blob", oid=blob_oid, name=name) for name, blob_oid in notes.items()
+            )
+        )
         notes_commit = Commit(
             tree=self.repo.write_tree(tree),
             parents=(notes_head,) if notes_head else (),
@@ -249,8 +257,9 @@ class ExperimentVersionControl:
             message=f"comment on {target_oid[:12]}",
         )
         new_notes_oid = self.repo.write_commit(notes_commit)
-        self.repo.refs.update_ref(NOTES_REF, new_notes_oid, expected_old=notes_head,
-                                  op="comment", message=f"comment on {target_oid[:12]}")
+        self.repo.refs.update_ref(
+            NOTES_REF, new_notes_oid, expected_old=notes_head, op="comment", message=f"comment on {target_oid[:12]}"
+        )
         return new_notes_oid
 
     def comments(self, revish: str) -> str | None:
@@ -282,6 +291,11 @@ class ExperimentVersionControl:
         if with_files:
             files = tuple(sorted(self.repo.flatten_tree(commit.tree)))
         return RevisionInfo(
-            oid=oid, tree=commit.tree, parents=commit.parents, author=commit.author,
-            author_time=commit.author_time, message=commit.message, files=files,
+            oid=oid,
+            tree=commit.tree,
+            parents=commit.parents,
+            author=commit.author,
+            author_time=commit.author_time,
+            message=commit.message,
+            files=files,
         )

@@ -59,7 +59,7 @@ For **ephys + miniscope** runs, your managers should agree on:
 2. **Sync events** — `get_sync_timestamps` should return times of **pulses that correspond to frames** (or your documented convention), so gap detection and index mapping stay meaningful.
 3. **Frame rate in metadata** — Supply **`frameRate`** where possible so TTL gap thresholds stay **rate-adaptive** rather than assuming a fixed Hz.
 
-Details and defaults are documented under [TTL synchronization and gap detection](multimodal.md#ttl-synchronization-and-gap-detection).
+Details and defaults are documented under [Multimodal pipeline steps](multimodal.md#pipeline-steps).
 
 ---
 

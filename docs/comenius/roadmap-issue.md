@@ -100,23 +100,23 @@ Feature issues capture all concrete behaviors discussed and the essential extens
 
 All feature issues are planning drafts with human decision gates. Claim work in its issue before implementation.
 
-- [ ] [F01 — Create and reopen projects and experiments through GUI and CLI](https://github.com/emelon8/experiment_analysis/issues/70). Completion blockers: None.
-- [ ] [F02 — Import recordings with explainable format detection and human confirmation](https://github.com/emelon8/experiment_analysis/issues/71). Completion blockers: F01.
-- [ ] [F03 — Edit experiment and pipeline settings in the GUI with a migration path](https://github.com/emelon8/experiment_analysis/issues/72). Completion blockers: F01, F02.
-- [ ] [F04 — Preflight a run and approve its exact inputs and settings](https://github.com/emelon8/experiment_analysis/issues/73). Completion blockers: F02, F03.
-- [ ] [F05 — Run miniscope processing with progress, cancellation, and durable outcomes](https://github.com/emelon8/experiment_analysis/issues/74). Completion blockers: F04.
-- [ ] [F06 — Browse experiment results with provenance and a shareable export](https://github.com/emelon8/experiment_analysis/issues/75). Completion blockers: F05.
-- [ ] [F07 — Compare experiment revisions and restore settings without losing history](https://github.com/emelon8/experiment_analysis/issues/76). Completion blockers: F03, F06.
-- [ ] [F08 — Choose processing modules and review contextual workflow suggestions](https://github.com/emelon8/experiment_analysis/issues/77). Completion blockers: F02, F03.
-- [ ] [F09 — Guide first-time users through setup and a representative example](https://github.com/emelon8/experiment_analysis/issues/78). Completion blockers: F01, F02, F03.
-- [ ] [F10 — Integrate existing scientific curation with recorded decisions and preserved estimates](https://github.com/emelon8/experiment_analysis/issues/79). Completion blockers: F05, F06.
-- [ ] [F11 — Configure and run an ephys experiment through the shared workflow](https://github.com/emelon8/experiment_analysis/issues/80). Completion blockers: F02, F03, F04, F05, F06.
-- [ ] [F12 — Align paired calcium and ephys recordings with visible synchronization review](https://github.com/emelon8/experiment_analysis/issues/81). Completion blockers: F10, F11.
-- [ ] [F13 — Run opt-in post-processing analyses and inspect traceable figures and tables](https://github.com/emelon8/experiment_analysis/issues/82). Completion blockers: F06, F08, F12.
-- [ ] [F14 — Add a community reader or analysis module through a documented extension contract](https://github.com/emelon8/experiment_analysis/issues/83). Completion blockers: F08, F13.
-- [ ] [F15 — Document contribution, issue ownership, and human review workflows](https://github.com/emelon8/experiment_analysis/issues/84). Completion blockers: None.
-- [ ] [F16 — Configure optional storage integrations with explicit transfer review](https://github.com/emelon8/experiment_analysis/issues/85). Completion blockers: F02, F06, F09.
-- [ ] [F17 — Publish a tested workflow guide and poster-ready demonstration package](https://github.com/emelon8/experiment_analysis/issues/86). Completion blockers: F05, F06, F07, F09.
+- [F01 — Create and reopen projects and experiments through GUI and CLI](https://github.com/emelon8/experiment_analysis/issues/70). Completion blockers: None.
+- [F02 — Import recordings with explainable format detection and human confirmation](https://github.com/emelon8/experiment_analysis/issues/71). Completion blockers: F01.
+- [F03 — Edit experiment and pipeline settings in the GUI with a migration path](https://github.com/emelon8/experiment_analysis/issues/72). Completion blockers: F01, F02.
+- [F04 — Preflight a run and approve its exact inputs and settings](https://github.com/emelon8/experiment_analysis/issues/73). Completion blockers: F02, F03.
+- [F05 — Run miniscope processing with progress, cancellation, and durable outcomes](https://github.com/emelon8/experiment_analysis/issues/74). Completion blockers: F04.
+- [F06 — Browse experiment results with provenance and a shareable export](https://github.com/emelon8/experiment_analysis/issues/75). Completion blockers: F05.
+- [F07 — Compare experiment revisions and restore settings without losing history](https://github.com/emelon8/experiment_analysis/issues/76). Completion blockers: F03, F06.
+- [F08 — Choose processing modules and review contextual workflow suggestions](https://github.com/emelon8/experiment_analysis/issues/77). Completion blockers: F02, F03.
+- [F09 — Guide first-time users through setup and a representative example](https://github.com/emelon8/experiment_analysis/issues/78). Completion blockers: F01, F02, F03.
+- [F10 — Integrate existing scientific curation with recorded decisions and preserved estimates](https://github.com/emelon8/experiment_analysis/issues/79). Completion blockers: F05, F06.
+- [F11 — Configure and run an ephys experiment through the shared workflow](https://github.com/emelon8/experiment_analysis/issues/80). Completion blockers: F02, F03, F04, F05, F06.
+- [F12 — Align paired calcium and ephys recordings with visible synchronization review](https://github.com/emelon8/experiment_analysis/issues/81). Completion blockers: F10, F11.
+- [F13 — Run opt-in post-processing analyses and inspect traceable figures and tables](https://github.com/emelon8/experiment_analysis/issues/82). Completion blockers: F06, F08, F12.
+- [F14 — Add a community reader or analysis module through a documented extension contract](https://github.com/emelon8/experiment_analysis/issues/83). Completion blockers: F08, F13.
+- [F15 — Document contribution, issue ownership, and human review workflows](https://github.com/emelon8/experiment_analysis/issues/84). Completion blockers: None.
+- [F16 — Configure optional storage integrations with explicit transfer review](https://github.com/emelon8/experiment_analysis/issues/85). Completion blockers: F02, F06, F09.
+- [F17 — Publish a tested workflow guide and poster-ready demonstration package](https://github.com/emelon8/experiment_analysis/issues/86). Completion blockers: F05, F06, F07, F09.
 
 ## Open decision map
 

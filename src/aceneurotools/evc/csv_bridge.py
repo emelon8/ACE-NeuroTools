@@ -82,16 +82,18 @@ EXPERIMENT_FIELDS: tuple[tuple[str, str, str], ...] = (
 #: Columns of analysis_parameters.csv owned by the *experiment* document (or
 #: identity duplicates); they pass through analysis-document writeback
 #: verbatim. Both historical Box-column spellings are covered.
-_ANALYSIS_IDENTITY_COLUMNS = frozenset({
-    "line number",
-    "id",
-    "date (YYMMDD)",
-    "Box calcium folder ID",
-    "Box Calcium Folder ID",
-    "calcium imaging directory",
-    "Box ephys folder ID",
-    "ephys directory",
-})
+_ANALYSIS_IDENTITY_COLUMNS = frozenset(
+    {
+        "line number",
+        "id",
+        "date (YYMMDD)",
+        "Box calcium folder ID",
+        "Box Calcium Folder ID",
+        "calcium imaging directory",
+        "Box ephys folder ID",
+        "ephys directory",
+    }
+)
 
 
 # -- schema loading and validation -------------------------------------------
@@ -200,10 +202,7 @@ def _find_row(header: list[str], data: list[list[str]], line_num: int, csv_path:
     if "line number" not in header:
         raise CSVBridgeError(f"{csv_path} has no 'line number' column")
     column = header.index("line number")
-    matches = [
-        index for index, row in enumerate(data)
-        if row and any(row) and row[column].strip() == str(line_num)
-    ]
+    matches = [index for index, row in enumerate(data) if row and any(row) and row[column].strip() == str(line_num)]
     if not matches:
         raise CSVBridgeError(f"line {line_num} not found in {csv_path}")
     if len(matches) > 1:
@@ -285,9 +284,7 @@ def _build_analysis_doc(header: list[str], row: list[str]) -> dict:
 def _write_document(path: Path, doc: dict, schema_name: str) -> None:
     errors = validate_document(doc, load_schema(schema_name))
     if errors:
-        raise CSVBridgeError(
-            f"extracted document {path.name} fails its schema: " + "; ".join(errors)
-        )
+        raise CSVBridgeError(f"extracted document {path.name} fails its schema: " + "; ".join(errors))
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n")
 
@@ -306,9 +303,7 @@ def extract(
     directory, provisional until D06). Returns ``{document name: path}``.
     """
     project_path = Path(project_path)
-    workspace = ExperimentWorkspace(
-        Path(experiment_dir) if experiment_dir is not None else project_path
-    )
+    workspace = ExperimentWorkspace(Path(experiment_dir) if experiment_dir is not None else project_path)
     written: dict[str, Path] = {}
 
     header, data = _read_rows(project_path / EXPERIMENTS_CSV)
@@ -363,9 +358,7 @@ def _write_row_back(csv_path: Path, doc: dict) -> None:
     known = doc["_csv"]["raw"]
     vanished = [column for column in doc["_csv"]["columns"] if column not in header]
     if vanished:
-        raise CSVBridgeError(
-            f"{csv_path} no longer has column(s) {vanished}; re-extract before writeback"
-        )
+        raise CSVBridgeError(f"{csv_path} no longer has column(s) {vanished}; re-extract before writeback")
     target = _find_row(header, data, doc["line_number"], csv_path)
 
     new_row: list[str] = []
@@ -462,6 +455,4 @@ def import_experiment(
         revision = evc.repo.refs.head_oid()
         assert revision is not None
         was_unborn = False
-    return ImportResult(
-        revision=revision, documents=tuple(sorted(written)), root=was_unborn
-    )
+    return ImportResult(revision=revision, documents=tuple(sorted(written)), root=was_unborn)

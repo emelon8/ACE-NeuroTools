@@ -110,12 +110,8 @@ def test_multi_condition_pipeline_writes_labeled_all_drugs_summary(
     )
 
     assert received_keys == ["drug-a", "drug-b"]
-    assert (
-        output_dir / "scatter_correlation/population_all_drugs_summary_CBvsPCEEG.png"
-    ).is_file()
-    assert (
-        output_dir / "scatter_correlation/population_all_drugs_summary_CBvsPCEEG.pdf"
-    ).is_file()
+    assert (output_dir / "scatter_correlation/population_all_drugs_summary_CBvsPCEEG.png").is_file()
+    assert (output_dir / "scatter_correlation/population_all_drugs_summary_CBvsPCEEG.pdf").is_file()
 
 
 def test_all_drugs_summary_failure_is_recorded_separately_from_subjects(

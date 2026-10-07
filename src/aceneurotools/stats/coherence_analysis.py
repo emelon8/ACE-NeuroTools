@@ -20,7 +20,7 @@ from aceneurotools.stats.signal_utils import (
 
 # Optional coherogram dependency
 try:
-    import xarray as xr
+    import xarray as xr  # noqa: F401 — availability check for the optional plotting stack
     from xrscipy.signal.spectral import coherogram as _xrs_coherogram
 
     _HAS_XRSCIPY = True
@@ -34,9 +34,9 @@ class SubjectCoherenceResult:
 
     line_num: int
     drug: str
-    control_stats:   list[float] = field(default_factory=list)
+    control_stats: list[float] = field(default_factory=list)
     treatment_stats: list[float] = field(default_factory=list)
-    ratios:          list[float] = field(default_factory=list)
+    ratios: list[float] = field(default_factory=list)
 
     #: Canonical measurement names (same order as stat lists above).
     #: Derived from signal_1_label / signal_2_label passed to run_subject.
@@ -49,11 +49,11 @@ class SubjectCoherenceResult:
         """Return a long-format DataFrame row for this subject."""
         return pd.DataFrame(
             {
-                "line_num":    [self.line_num]  * len(self.METRIC_NAMES),
+                "line_num": [self.line_num] * len(self.METRIC_NAMES),
                 "Measurement": self.METRIC_NAMES,
-                "Control":     self.control_stats,
-                "Treatment":   self.treatment_stats,
-                "Ratio":       self.ratios,
+                "Control": self.control_stats,
+                "Treatment": self.treatment_stats,
+                "Ratio": self.ratios,
             }
         )
 
@@ -88,6 +88,7 @@ class CoherenceAnalysis:
 
         if self.config.headless:
             from aceneurotools.shared.plotting import set_backend
+
             set_backend(headless=True)
 
         # optional overview plots
@@ -100,41 +101,47 @@ class CoherenceAnalysis:
             self._plot_spectrogram(signal_2, fr, line_num, drug, selections, signal_2_label, output_dir)
 
         if plot_coherogram:
-            self._plot_coherogram(signal_1, signal_2, fr, line_num, drug, selections, output_dir,
-                                  signal_1_label, signal_2_label)
+            self._plot_coherogram(
+                signal_1, signal_2, fr, line_num, drug, selections, output_dir, signal_1_label, signal_2_label
+            )
 
         # -- segment and filter --
         ctrl_1, treat_1 = slice_signal(signal_1, selections, line_num, fr)
         ctrl_2, treat_2 = slice_signal(signal_2, selections, line_num, fr)
 
-        filt_ctrl_1,  filt_ctrl_2  = filter_signals(ctrl_1,  ctrl_2,  fr, freq_range, self.config.filter_order)
+        filt_ctrl_1, filt_ctrl_2 = filter_signals(ctrl_1, ctrl_2, fr, freq_range, self.config.filter_order)
         filt_treat_1, filt_treat_2 = filter_signals(treat_1, treat_2, fr, freq_range, self.config.filter_order)
 
         # statistics
-        ctrl_stats  = compute_signal_stats(
-            filt_ctrl_1,  filt_ctrl_2,  fr, freq_range,
+        ctrl_stats = compute_signal_stats(
+            filt_ctrl_1,
+            filt_ctrl_2,
+            fr,
+            freq_range,
             self.config.spectrogram_window_length,
             self.config.spectrogram_window_step,
             self.config.spectrogram_time_bandwidth,
             self.config.coherence_nperseg_seconds,
         )
         treat_stats = compute_signal_stats(
-            filt_treat_1, filt_treat_2, fr, freq_range,
+            filt_treat_1,
+            filt_treat_2,
+            fr,
+            freq_range,
             self.config.spectrogram_window_length,
             self.config.spectrogram_window_step,
             self.config.spectrogram_time_bandwidth,
             self.config.coherence_nperseg_seconds,
         )
 
-        ratios = [
-            (t / c) if abs(c) >= 1e-10 else float("nan")
-            for c, t in zip(ctrl_stats, treat_stats)
-        ]
+        ratios = [(t / c) if abs(c) >= 1e-10 else float("nan") for c, t in zip(ctrl_stats, treat_stats)]
 
         metric_names = [
             f"{signal_1_label} Power",
             f"{signal_2_label} Power",
-            "Coherence", "XC", "Lag",
+            "Coherence",
+            "XC",
+            "Lag",
         ]
         return SubjectCoherenceResult(
             line_num=line_num,
@@ -168,9 +175,9 @@ class CoherenceAnalysis:
         for drug, rows in drug_rows.items():
             if not rows:
                 continue
-            raw_df  = pd.concat(rows, ignore_index=True)
-            avg_df  = self._compute_mean_std(raw_df)
-            avg_df  = self._add_p_values(raw_df, avg_df)
+            raw_df = pd.concat(rows, ignore_index=True)
+            avg_df = self._compute_mean_std(raw_df)
+            avg_df = self._add_p_values(raw_df, avg_df)
             summary[drug] = avg_df
             self.save_results(raw_df, avg_df, output_dir, drug, channel_label)
 
@@ -185,9 +192,9 @@ class CoherenceAnalysis:
         channel_label: str = "channel",
     ) -> None:
         """Write raw and averaged DataFrames to CSV files."""
-        safe_drug    = _sanitise(drug_name)
+        safe_drug = _sanitise(drug_name)
         safe_channel = _sanitise(channel_label)
-        out          = Path(output_dir)
+        out = Path(output_dir)
 
         if raw_df is not None and not raw_df.empty:
             path = out / f"{safe_drug}_{safe_channel}_data.csv"
@@ -220,7 +227,7 @@ class CoherenceAnalysis:
             if str(measurement).lower() == "lag":
                 p_map[measurement] = float("nan")
                 continue
-            ctrl  = group["Control"].values
+            ctrl = group["Control"].values
             treat = group["Treatment"].values
             valid = ~(np.isnan(ctrl) | np.isnan(treat))
             ctrl, treat = ctrl[valid], treat[valid]
@@ -257,32 +264,34 @@ class CoherenceAnalysis:
         samples_per_min = fr * 60.0
         time_full = np.arange(len(signal)) / samples_per_min
 
-        ctrl_start_min  = windows[0][0]
-        ctrl_end_min    = windows[0][1]
+        ctrl_start_min = windows[0][0]
+        ctrl_end_min = windows[0][1]
         treat_start_min = windows[1][0]
-        treat_end_min   = windows[1][1]
+        treat_end_min = windows[1][1]
 
-        time_ctrl  = np.arange(int(ctrl_start_min  * samples_per_min),
-                               int(ctrl_end_min    * samples_per_min)) / samples_per_min
-        time_treat = np.arange(int(treat_start_min * samples_per_min),
-                               int(treat_end_min   * samples_per_min)) / samples_per_min
+        time_ctrl = (
+            np.arange(int(ctrl_start_min * samples_per_min), int(ctrl_end_min * samples_per_min)) / samples_per_min
+        )
+        time_treat = (
+            np.arange(int(treat_start_min * samples_per_min), int(treat_end_min * samples_per_min)) / samples_per_min
+        )
 
         # Clamp to signal length
-        time_ctrl  = time_ctrl[:len(ctrl_seg)]
-        time_treat = time_treat[:len(treat_seg)]
+        time_ctrl = time_ctrl[: len(ctrl_seg)]
+        time_treat = time_treat[: len(treat_seg)]
 
         fig, ax = plt.subplots(figsize=(12, 4))
         ax.plot(time_full, signal, color="gray", alpha=0.5, linewidth=0.5)
-        ax.plot(time_ctrl,  ctrl_seg,  color="blue",   linewidth=1.5, label="Control")
-        ax.plot(time_treat, treat_seg, color="red",    linewidth=1.5, label="Treatment")
+        ax.plot(time_ctrl, ctrl_seg, color="blue", linewidth=1.5, label="Control")
+        ax.plot(time_treat, treat_seg, color="red", linewidth=1.5, label="Treatment")
         ax.set_xlabel("Time (minutes)", fontsize=12)
-        ax.set_ylabel("Amplitude",      fontsize=12)
+        ax.set_ylabel("Amplitude", fontsize=12)
         ax.legend()
         ax.grid(True, alpha=0.3)
         plt.tight_layout()
 
         safe_title = _sanitise(title)
-        safe_drug  = _sanitise(drug)
+        safe_drug = _sanitise(drug)
         for fmt in self.config.plot_formats:
             path = output_dir / f"signal_{safe_title}_{safe_drug}_line{line_num}.{fmt}"
             _save_figure(fig, path, self.config.color_dpi)
@@ -350,7 +359,7 @@ class CoherenceAnalysis:
         plt.tight_layout()
 
         safe_title = _sanitise(title)
-        safe_drug  = _sanitise(drug)
+        safe_drug = _sanitise(drug)
         for fmt in self.config.plot_formats:
             path = output_dir / f"spectrogram_{safe_title}_{safe_drug}_line{line_num}.{fmt}"
             _save_figure(fig, path, self.config.color_dpi)
@@ -374,15 +383,14 @@ class CoherenceAnalysis:
         """Plot time-frequency coherogram (requires ``xrscipy``)."""
         if not _HAS_XRSCIPY:
             warnings.warn(
-                "xrscipy is not installed — coherogram plot skipped.  "
-                "Install with: pip install xrscipy",
+                "xrscipy is not installed — coherogram plot skipped.  Install with: pip install xrscipy",
                 stacklevel=2,
             )
             return
 
-        import xarray as xr
+        import xarray as xr  # noqa: F401 — availability check for the optional plotting stack
 
-        wl   = self.config.coherogram_window_length
+        wl = self.config.coherogram_window_length
         step = self.config.coherogram_window_step
         overlap_ratio = 1.0 - (step / wl)
         times_min = np.arange(len(signal_1)) / (fr * 60.0)
@@ -392,7 +400,10 @@ class CoherenceAnalysis:
 
         try:
             coh = _xrs_coherogram(
-                da1, da2, fs=fr, seglen=wl,
+                da1,
+                da2,
+                fs=fr,
+                seglen=wl,
                 overlap_ratio=overlap_ratio,
                 nrolling=self.config.coherogram_nrolling,
                 window="hann",
@@ -403,11 +414,9 @@ class CoherenceAnalysis:
             return
 
         coh_sq = abs(coh) ** 2
-        im = coh_sq.plot.imshow(
-            cmap="viridis", robust=False, vmin=0, vmax=0.7, figsize=(10, 6)
-        )
+        coh_sq.plot.imshow(cmap="viridis", robust=False, vmin=0, vmax=0.7, figsize=(10, 6))
         fig = plt.gcf()
-        ax  = plt.gca()
+        ax = plt.gca()
 
         windows = selections.get(line_num)
         if windows:
@@ -421,8 +430,8 @@ class CoherenceAnalysis:
         )
         plt.tight_layout()
 
-        safe_s1   = _sanitise(signal_1_label)
-        safe_s2   = _sanitise(signal_2_label)
+        safe_s1 = _sanitise(signal_1_label)
+        safe_s2 = _sanitise(signal_2_label)
         safe_drug = _sanitise(drug)
         for fmt in self.config.plot_formats:
             path = output_dir / f"coherogram_{safe_s1}_vs_{safe_s2}_{safe_drug}_line{line_num}.{fmt}"
@@ -434,6 +443,7 @@ class CoherenceAnalysis:
 
 
 # Module-level helpers
+
 
 def _sanitise(name: str) -> str:
     """Replace filesystem-unsafe characters with underscores."""
@@ -457,11 +467,11 @@ def _save_figure(fig: plt.Figure, path: Path, dpi: int) -> None:
 def _mark_windows(ax: plt.Axes, windows: list[list[float]]) -> None:
     """Add vertical lines marking control (red dashed) and treatment (orange dashed)."""
     w = 0.5
-    ctrl_color  = "red"
+    ctrl_color = "red"
     treat_color = "orange"
     for start, end in [windows[0]]:
-        ax.axvline(x=start, color=ctrl_color,  linestyle="--", linewidth=w)
-        ax.axvline(x=end,   color=ctrl_color,  linestyle="--", linewidth=w)
+        ax.axvline(x=start, color=ctrl_color, linestyle="--", linewidth=w)
+        ax.axvline(x=end, color=ctrl_color, linestyle="--", linewidth=w)
     for start, end in [windows[1]]:
         ax.axvline(x=start, color=treat_color, linestyle="--", linewidth=w)
-        ax.axvline(x=end,   color=treat_color, linestyle="--", linewidth=w)
+        ax.axvline(x=end, color=treat_color, linestyle="--", linewidth=w)

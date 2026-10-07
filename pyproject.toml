@@ -1,20 +1,20 @@
 [build-system]
-requires = ["setuptools>=77.0", "setuptools-scm>=8.0"]
+requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 
 [project]
 name = "aceneurotools"
 version = "0.1.0"
-description = "Analysis of Calcium Imaging and Electrophysiology — integrated pipelines for calcium imaging, electrophysical, and multimodal alignment."
+description = "Analysis of calcium imaging and electrophysiology with multimodal alignment."
 readme = "README.md"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [
     { name = "Reed Pennock" },
+    { name = "Luke Richards" },
     { name = "Eric Melonakos" },
-    { name = "Elijah Keldsen" },
 ]
 keywords = [
     "neuroscience",
@@ -49,7 +49,6 @@ dependencies = [
     "neo>=0.12",
     "quantities>=0.14",
     "joblib>=1.2",
-    "caiman>=1.11",
     "freesimplegui>=5.0",
     "Pillow>=9.0",
     "rich>=13",
@@ -69,11 +68,14 @@ coherence = [
     "xrscipy>=2.2",
 ]
 dev = [
+    "build>=1.2",
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "ruff>=0.4",
     "pyrefly",
     "hypothesis>=6.0",
+
+    "twine>=5.0",
 ]
 # Keep in sync with docs/requirements.txt (used by Read the Docs).
 docs = [
@@ -89,7 +91,7 @@ all = [
 
 [project.urls]
 Homepage = "https://github.com/emelon8/experiment_analysis"
-Documentation = "https://aceneurotools.readthedocs.io/en/latest/"
+Documentation = "https://github.com/emelon8/experiment_analysis/tree/proj-comenius/docs"
 Repository = "https://github.com/emelon8/experiment_analysis"
 "Bug Tracker" = "https://github.com/emelon8/experiment_analysis/issues"
 

@@ -12,7 +12,7 @@ Usage:
        to ``src/aceneurotools/shared/box_credentials.py`` and filled in your Box
        client_id / client_secret / user_id (or dev_token).
     2. Edit the four constants under ``--- EDIT THESE ---`` below.
-    3. Activate the conda env (e.g. ``conda activate caiman``) and run:
+    3. Activate the environment (``micromamba activate aceneurotools``) and run:
 
            python examples/single_avi_smoke_test.py
 
@@ -179,8 +179,8 @@ def step_2_run_pipeline() -> None:
         _fail(
             "pipeline import",
             f"could not import MiniscopePipeline: {e!r}",
-            "This is usually a CaImAn / Tk / PySimpleGUI install problem. "
-            "Re-create the conda env from linux_environment.yml or windows.yml.",
+            "This is usually a CaImAn / Tk / FreeSimpleGUI install problem. "
+            "Re-create the environment from environment.yml.",
         )
 
     api = MiniscopePipeline()
@@ -190,13 +190,11 @@ def step_2_run_pipeline() -> None:
             project_path=PROJECT_PATH,
             data_path=DATA_PATH,
             filenames=[AVI_FILENAME],
-
             # Preprocessing: trust crop_coords from analysis_parameters.csv if
             # present; otherwise the GUI will pop up so she can draw a box.
             crop=True,
             detrend_method="median",
             df_over_f=False,
-
             # Processing: this is the bit that actually writes estimates.hdf5.
             parallel=False,
             apply_motion_correction=False,
@@ -206,7 +204,6 @@ def step_2_run_pipeline() -> None:
             save_estimates=True,
             save_CNMFE_estimates_filename="estimates.hdf5",
             save_CNMFE_params=False,
-
             # Postprocessing: open the GUI so she can click neurons to reject.
             # The downstream phase / filter / spectrogram steps add failure
             # modes that don't matter for a one-AVI smoke test, so disable them.
@@ -215,7 +212,6 @@ def step_2_run_pipeline() -> None:
             compute_miniscope_phase=False,
             filter_miniscope_data=False,
             compute_miniscope_spectrogram=False,
-
             headless=False,
         )
     except Exception as e:
@@ -224,7 +220,7 @@ def step_2_run_pipeline() -> None:
             "pipeline run",
             f"MiniscopePipeline.run raised: {e!r}",
             "Check the traceback above; common culprits are missing crop_coords / gSig / "
-            "min_corr / min_pnr in analysis_parameters.csv, or PySimpleGUI being uninstalled.",
+            "min_corr / min_pnr in analysis_parameters.csv, or FreeSimpleGUI being unavailable.",
         )
 
 

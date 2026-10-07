@@ -44,8 +44,10 @@ def main():
             if missing:
                 raise ValueError(f"Selected ephys files are missing on the cluster: {sorted(missing)}")
             ephys_files = [item for item in ephys_files if item["path"] in config["ephys_selected_files"]]
-        if not any(Path(item["path"]).suffix.lower() in {".ncs", ".rhs", ".rhd", ".dat", ".bin", ".raw"}
-                   for item in ephys_files):
+        if not any(
+            Path(item["path"]).suffix.lower() in {".ncs", ".rhs", ".rhd", ".dat", ".bin", ".raw"}
+            for item in ephys_files
+        ):
             raise ValueError("No electrophysiology recording files were found for this analysis.")
     params = config["parameters"]
     if config["kind"] in {"miniscope", "preprocess", "multimodal"}:

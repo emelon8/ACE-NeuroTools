@@ -83,14 +83,11 @@ def test_history_errors_are_headless_safe(exp, capsys):
     assert "error:" in capsys.readouterr().err
 
 
-def test_experiment_flag_resolves_via_experiment_data_manager(
-    exp, monkeypatch, capsys
-):
+def test_experiment_flag_resolves_via_experiment_data_manager(exp, monkeypatch, capsys):
     import aceneurotools.shared.experiment_data_manager as edm_mod
 
     class FakeEDM:
-        def __init__(self, line_num, project_path=None, data_path=None,
-                     auto_import_analysis_params=True):
+        def __init__(self, line_num, project_path=None, data_path=None, auto_import_analysis_params=True):
             self.line_num = line_num
             self.metadata = {"calcium imaging directory": exp}
 

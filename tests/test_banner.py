@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import os
 from io import StringIO
-
-import pytest
 
 from aceneurotools.shared.banner import (
     LONG_LOGO,
@@ -18,7 +15,6 @@ from aceneurotools.shared.banner import (
     render_tips,
     welcome,
 )
-
 
 # ---------------------------------------------------------------------------
 # Logo dimensions / selection
@@ -33,6 +29,7 @@ def test_logos_have_six_rows():
 def test_long_logo_widest_tiny_narrowest():
     def w(s: str) -> int:
         return max(len(line) for line in s.splitlines())
+
     assert w(LONG_LOGO) > w(SHORT_LOGO) > w(TINY_LOGO)
 
 
@@ -138,6 +135,7 @@ def test_render_tips_plain_writes_numbered_tips(monkeypatch, capsys):
 def test_render_banner_color_mode_uses_rich(monkeypatch):
     """In color mode, banner is routed through Rich Console."""
     from rich.console import Console
+
     monkeypatch.delenv("NO_COLOR", raising=False)
     monkeypatch.setattr("sys.stdout.isatty", lambda: True)
     buf = StringIO()
@@ -153,7 +151,9 @@ def test_render_banner_color_mode_uses_rich(monkeypatch):
 def test_tagline_uses_gradient_start_color(monkeypatch):
     """Tagline must match the bright top-of-gradient color (calcium green)."""
     from rich.console import Console
+
     from aceneurotools.shared.banner import _GRADIENT_START
+
     monkeypatch.delenv("NO_COLOR", raising=False)
     monkeypatch.setattr("sys.stdout.isatty", lambda: True)
     buf = StringIO()
@@ -167,7 +167,7 @@ def test_tagline_uses_gradient_start_color(monkeypatch):
     tagline_idx = captured.find("Analysis of Calcium Imaging")
     assert tagline_idx != -1, "tagline missing from rendered output"
     # Look back for the bright-green escape in the preceding 200 bytes.
-    preceding = captured[max(0, tagline_idx - 200): tagline_idx]
+    preceding = captured[max(0, tagline_idx - 200) : tagline_idx]
     assert expected_escape in preceding
 
 

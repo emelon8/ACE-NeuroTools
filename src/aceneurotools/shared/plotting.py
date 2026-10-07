@@ -63,10 +63,10 @@ def set_backend(headless: bool) -> None:
 
 
 def prep_axes(
-    title: str | list[str] = '',
-    xLabel: str | list[str] = '',
-    yLabel: str | list[str] = '',
-    subPlots: list[int] | None = None
+    title: str | list[str] = "",
+    xLabel: str | list[str] = "",
+    yLabel: str | list[str] = "",
+    subPlots: list[int] | None = None,
 ) -> tuple[plt.Figure, plt.Axes | list[plt.Axes]]:
     """
     Prepare figure and axis/axes for plotting. Returns the figure handle and either the axis handle or a list of axes handles.
@@ -81,19 +81,19 @@ def prep_axes(
     if isinstance(xLabel, list) and isinstance(yLabel, list):
         if len(xLabel) > len(yLabel):
             while len(xLabel) != len(yLabel):
-                yLabel.append('')
+                yLabel.append("")
         if len(yLabel) > len(xLabel):
             while len(xLabel) != len(yLabel):
-                xLabel.append('')
+                xLabel.append("")
     elif isinstance(xLabel, list) and isinstance(yLabel, str):
         yLabel_list: list[str] = [yLabel]
         while len(xLabel) != len(yLabel_list):
-            yLabel_list.append('')
+            yLabel_list.append("")
         yLabel = yLabel_list
     elif isinstance(xLabel, str) and isinstance(yLabel, list):
         xLabel_list: list[str] = [xLabel]
         while len(xLabel_list) != len(yLabel):
-            xLabel_list.append('')
+            xLabel_list.append("")
         xLabel = xLabel_list
 
     h: plt.Figure = plt.figure()
@@ -119,7 +119,7 @@ def prep_axes(
                 axes_list[k].set_xlabel(final_xlabels[k])
             if k < len(final_ylabels):
                 axes_list[k].set_ylabel(final_ylabels[k])
-        h.tight_layout() # incompatible with the 'constrained' layout engine
+        h.tight_layout()  # incompatible with the 'constrained' layout engine
         return h, axes_list
     h.tight_layout()
     return h, ax
@@ -129,10 +129,10 @@ def plot_spectrogram(
     tVec: np.ndarray,
     freqVec: np.ndarray,
     specData: np.ndarray,
-    cBarPercentLims: list[float] = [5., 95.],
-    xLabel: str = 'Time (s)',
-    yLabel: str = 'Frequency (Hz)',
-    cLabel: str = 'Power (dB)'
+    cBarPercentLims: list[float] = [5.0, 95.0],
+    xLabel: str = "Time (s)",
+    yLabel: str = "Frequency (Hz)",
+    cLabel: str = "Power (dB)",
 ) -> tuple[plt.Figure, plt.Axes]:
     """
     Plots a spectrogram that has already been computed.
@@ -147,8 +147,15 @@ def plot_spectrogram(
 
     cBarMin = np.percentile(specData, cBarPercentLims[0])
     cBarMax = np.percentile(specData, cBarPercentLims[1])
-    spectrogramPlot = ax.imshow(specData, interpolation='none', extent=(tVec[0], tVec[-1], freqVec[0], freqVec[-1]),
-                                aspect='auto', vmin=cBarMin, vmax=cBarMax, origin='lower')
+    spectrogramPlot = ax.imshow(
+        specData,
+        interpolation="none",
+        extent=(tVec[0], tVec[-1], freqVec[0], freqVec[-1]),
+        aspect="auto",
+        vmin=cBarMin,
+        vmax=cBarMax,
+        origin="lower",
+    )
     cbar = h.colorbar(spectrogramPlot, ax=ax)
     cbar.set_label(cLabel)
     return h, ax
@@ -171,5 +178,5 @@ def mark_events(axisHandle: plt.Axes, eventTimes: float | list[float] | np.ndarr
     else:
         eventPoints = eventTimes
 
-    axisHandle.eventplot(eventPoints, lineoffsets=float(lineOffset), linelengths=float(lineLength), colors='k')
+    axisHandle.eventplot(eventPoints, lineoffsets=float(lineOffset), linelengths=float(lineLength), colors="k")
     axisHandle.axis((xLimits[0], xLimits[1], yLimits[0], yLimits[1]))

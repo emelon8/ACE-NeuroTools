@@ -74,17 +74,13 @@ def crop_modules() -> Iterator[tuple[types.ModuleType, types.ModuleType, types.M
 
     fake_sg = types.ModuleType("FreeSimpleGUI")
     fake_sg.WINDOW_CLOSED = "__WINDOW_CLOSED__"
-    fake_sg.Text = fake_sg.Graph = fake_sg.Combo = fake_sg.Button = (
-        lambda *args, **kwargs: _FakeElement()
-    )
+    fake_sg.Text = fake_sg.Graph = fake_sg.Combo = fake_sg.Button = lambda *args, **kwargs: _FakeElement()
     fake_sg.Window = lambda *args, **kwargs: _FakeWindow([])
     sys.modules["FreeSimpleGUI"] = fake_sg
 
     try:
         gui_utils = importlib.import_module("aceneurotools.miniscope.gui_utils")
-        preprocessor = importlib.import_module(
-            "aceneurotools.miniscope.miniscope_preprocessor"
-        )
+        preprocessor = importlib.import_module("aceneurotools.miniscope.miniscope_preprocessor")
         gui_utils._update_image = lambda *args, **kwargs: None
         yield gui_utils, preprocessor, fake_sg
     finally:
@@ -131,9 +127,7 @@ def test_submit_returns_the_accepted_coordinates(crop_modules):
 
 
 @pytest.mark.parametrize("event", ["-CANCEL-", "__WINDOW_CLOSED__"])
-def test_preprocessor_skips_crop_after_dialog_cancellation(
-    crop_modules, monkeypatch, event
-):
+def test_preprocessor_skips_crop_after_dialog_cancellation(crop_modules, monkeypatch, event):
     _, preprocessor_module, fake_sg = crop_modules
     fake_sg.Window = lambda *args, **kwargs: _FakeWindow([(event, {})])
 

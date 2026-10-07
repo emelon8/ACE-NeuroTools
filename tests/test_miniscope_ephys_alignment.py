@@ -10,7 +10,6 @@ gap-free monotonic data, where the two must agree exactly.
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from aceneurotools.ephys.channel import Channel
 from aceneurotools.multimodal.alignment import (
@@ -32,7 +31,7 @@ def _old_all_ttl_loop(tCaIm, time_vector, sampling_rate, frame_rate) -> np.ndarr
         if k == 0 or len(time_vector[last_index:]) - end_point < 0:
             out[k] = np.abs(time_vector[last_index:] - ev).argmin() + last_index
         else:
-            out[k] = np.abs(time_vector[last_index:last_index + end_point] - ev).argmin() + last_index
+            out[k] = np.abs(time_vector[last_index : last_index + end_point] - ev).argmin() + last_index
         last_index = out[k]
     return out
 
@@ -94,9 +93,7 @@ def test_ca_events_branch_matches_brute():
         7: np.array([10, 250, 900]),
     }
 
-    _, ca_res = find_ephys_idx_of_TTL_events(
-        tCaIm, ch, fr, ca_events_idx=ca_events_idx, all_TTL_events=False
-    )
+    _, ca_res = find_ephys_idx_of_TTL_events(tCaIm, ch, fr, ca_events_idx=ca_events_idx, all_TTL_events=False)
 
     assert set(ca_res.keys()) == {0, 7}
     for unit, idx in ca_events_idx.items():
@@ -106,8 +103,6 @@ def test_ca_events_branch_matches_brute():
 def test_all_ttl_disabled_returns_none():
     time_vector = np.arange(0, 10, 0.001)
     ch = _make_channel(time_vector, 1000.0)
-    all_idx, ca_res = find_ephys_idx_of_TTL_events(
-        np.array([1.0, 2.0]), ch, 30.0, all_TTL_events=False
-    )
+    all_idx, ca_res = find_ephys_idx_of_TTL_events(np.array([1.0, 2.0]), ch, 30.0, all_TTL_events=False)
     assert all_idx is None
     assert ca_res is None

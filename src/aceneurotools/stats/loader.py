@@ -87,8 +87,7 @@ def load_for_stats(
         manager used for TTL sync, and *fr* is the miniscope frame rate (Hz).
 
     Raises:
-        :class:`~aceneurotools.shared.exceptions.PipelineExecutionError` on any
-        loading or synchronisation failure.
+        PipelineExecutionError: If loading or synchronisation fails.
     """
     if freq_range is None:
         freq_range = [0.5, 4.0]

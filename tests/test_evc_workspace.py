@@ -83,7 +83,7 @@ def test_init_writes_default_ignore_file(tmp_path):
 def test_init_never_overwrites_an_edited_ignore_file(tmp_path):
     exp_dir = tmp_path / "exp"
     (exp_dir / ".evc").mkdir(parents=True)
-    custom = (exp_dir / ".evc" / IGNORE_FILE)
+    custom = exp_dir / ".evc" / IGNORE_FILE
     custom.write_text("*.custom\n")
     write_default_ignore(exp_dir / ".evc")
     assert custom.read_text() == "*.custom\n"
@@ -132,9 +132,7 @@ def test_snapshot_excludes_neuralynx_recordings_by_default(exp):
     assert "events.nev" not in evc.show(oid).files
 
 
-def test_oversized_unignored_file_is_rejected_before_objects_are_written(
-    exp, monkeypatch
-):
+def test_oversized_unignored_file_is_rejected_before_objects_are_written(exp, monkeypatch):
     exp_dir, evc = exp
     monkeypatch.setattr(worktree_module, "MAX_SNAPSHOT_BLOB_BYTES", 32)
     payload = exp_dir / "legacy" / "stack.tiff"

@@ -14,8 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from aceneurotools.shared.csv_worker import CSVWorker
-from aceneurotools.shared.csv_worker import append_row_csv, update_csv_cell
+from aceneurotools.shared.csv_worker import CSVWorker, append_row_csv, update_csv_cell
 from gui.fields import describe, validate
 
 
@@ -141,7 +140,8 @@ class Project:
                 settings = json.loads(defaults_path.read_text(encoding="utf-8"))
                 default_experiment = settings.get("default_experiment")
                 if default_experiment is not None and (
-                    not isinstance(default_experiment, str) or default_experiment not in parameters
+                    not isinstance(default_experiment, str)
+                    or default_experiment not in parameters
                     or default_experiment not in experiments
                 ):
                     warnings.append("The saved default experiment no longer has analysis settings.")
@@ -160,7 +160,17 @@ class Project:
                 )
             if extra:
                 warnings.append(f"Parameter records have no matching experiment: {', '.join(extra)}.")
-        return cls(path, columns, experiments, parameter_columns, parameters, digests, warnings, parameter_error, default_experiment)
+        return cls(
+            path,
+            columns,
+            experiments,
+            parameter_columns,
+            parameters,
+            digests,
+            warnings,
+            parameter_error,
+            default_experiment,
+        )
 
     @property
     def id(self) -> str:
@@ -314,8 +324,10 @@ class Project:
         if not isinstance(metadata, dict) or not isinstance(parameters, dict):
             raise ProjectError("Enter valid experiment details and analysis settings.")
         for values, columns in ((metadata, self.metadata_columns), (parameters, self.settings_columns())):
-            if any(not isinstance(key, str) or not isinstance(value, str) or key not in columns or key == "line number"
-                   for key, value in values.items()):
+            if any(
+                not isinstance(key, str) or not isinstance(value, str) or key not in columns or key == "line number"
+                for key, value in values.items()
+            ):
                 raise ProjectError("Experiment fields must match this project's CSV columns.")
             for key, value in values.items():
                 validate(key, value)
@@ -348,7 +360,8 @@ class Project:
             raise ProjectChangedError("This experiment was saved elsewhere. Reload before saving your changes.")
         if (
             (number not in self.experiments and not (section == "metadata" and create and allow_new_metadata))
-            or not isinstance(section, str) or section not in {"metadata", "parameters"}
+            or not isinstance(section, str)
+            or section not in {"metadata", "parameters"}
         ):
             raise ProjectError("Choose an existing experiment and a valid section to save.")
         if not isinstance(changes, dict) or any(

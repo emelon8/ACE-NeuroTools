@@ -16,25 +16,29 @@ import pandas as pd
 # Extend via the ``extra_string_columns`` parameter to :meth:`CSVWorker.convert_data_types`
 # rather than by modifying this set — that keeps schema evolution localised
 # to the call site without touching shared code.
-STRING_COLUMNS: frozenset = frozenset({
-    'id',
-    'calcium imaging directory',
-    'ephys directory',
-    'method_deconvolution',
-    'method_init',
-    'border_nan',
-    'comments',
-})
+STRING_COLUMNS: frozenset = frozenset(
+    {
+        "id",
+        "calcium imaging directory",
+        "ephys directory",
+        "method_deconvolution",
+        "method_init",
+        "border_nan",
+        "comments",
+    }
+)
 
 # Columns whose string value should be split on ';' to produce a list.
-SEMICOLON_LIST_COLUMNS: frozenset = frozenset({
-    'LFP and EEG CSCs',
-})
+SEMICOLON_LIST_COLUMNS: frozenset = frozenset(
+    {
+        "LFP and EEG CSCs",
+    }
+)
 
 
 class CSVWorker:
     """Utility class for reading and parsing experiment CSV files.
-    
+
     Provides static methods to load rows from CSV files and convert
     string values to appropriate Python data types.
     """
@@ -42,14 +46,14 @@ class CSVWorker:
     @staticmethod
     def csv_row_to_dict(csv_file: str | Path, line_num: int | str) -> dict[str, Any] | None:
         """Load a single row from a CSV file as a dictionary.
-        
+
         Args:
             csv_file: Path to the CSV file.
             line_num: Line number to extract (matched against 'line number' column).
-            
+
         Returns:
             Dict mapping column names to cell values, or None on error.
-        
+
         Raises:
             ValueError: If the CSV is malformed or the line number is not found.
         """
@@ -83,14 +87,14 @@ class CSVWorker:
                     f"{len(data_row)} fields but the header has {len(header)} columns. "
                     f"This usually means there is a trailing comma or an unquoted "
                     f"comma inside a value (e.g., coordinate tuples must be "
-                    f"quoted: \"(x0, y0, x1, y1)\")."
+                    f'quoted: "(x0, y0, x1, y1)").'
                 )
 
         try:
             df = pd.read_csv(io.StringIO(text))
 
             # Check for the required 'line number' column before querying.
-            if 'line number' not in df.columns:
+            if "line number" not in df.columns:
                 available = list(df.columns)
                 raise ValueError(
                     f"Required column 'line number' not found in {csv_file}.\n"
@@ -102,7 +106,7 @@ class CSVWorker:
                 )
 
             line_num_str = str(line_num)
-            row = df.loc[df['line number'].astype(str) == line_num_str]
+            row = df.loc[df["line number"].astype(str) == line_num_str]
             if row.empty:
                 raise ValueError(
                     f"Subject line number {line_num} not found in {csv_file}.\n"
@@ -110,13 +114,12 @@ class CSVWorker:
                     "and that there are no leading/trailing spaces."
                 )
             res = row.squeeze()
-            if hasattr(res, 'to_dict'):
+            if hasattr(res, "to_dict"):
                 return cast(dict[str, Any], res.to_dict())
             return None
         except (pd.errors.EmptyDataError, pd.errors.ParserError) as e:
             print(f"Error parsing CSV {csv_file}: {e}")
             return None
-
 
     @staticmethod
     def convert_data_types(
@@ -184,7 +187,7 @@ class CSVWorker:
                 return raw_value
 
         # Date conversion
-        if key == 'date (YYMMDD)':
+        if key == "date (YYMMDD)":
             return CSVWorker._convert_date(raw_value)
 
         # Ensure raw_value is a string for further processing
@@ -194,7 +197,7 @@ class CSVWorker:
         # NEW: Preprocess tuple-like strings for JSON
         processed_value = raw_value.strip().replace(" ", "")
         if processed_value.startswith("(") and processed_value.endswith(")"):
-            processed_value = f'[{processed_value[1:-1]}]'
+            processed_value = f"[{processed_value[1:-1]}]"
 
         # Attempt JSON parsing
         try:
@@ -210,13 +213,13 @@ class CSVWorker:
 
         # Check for boolean strings
         lower_val = raw_value.lower()
-        if lower_val == 'true':
+        if lower_val == "true":
             return True
-        elif lower_val == 'false':
+        elif lower_val == "false":
             return False
 
         # Check for None/empty
-        elif lower_val == 'none' or raw_value.strip() == '':
+        elif lower_val == "none" or raw_value.strip() == "":
             return None
 
         # Attempt float conversion
@@ -225,15 +228,14 @@ class CSVWorker:
         except ValueError:
             return raw_value
 
-
     @staticmethod
     def _convert_date(date_str: Any) -> datetime | Any:
         """
         Converts a date string in the format YYMMDD to a datetime object.
-        
+
         Args:
             date_str: The date string or float to be converted.
-        
+
         Returns:
             datetime: The converted datetime object, or the original value if conversion fails.
         """
@@ -242,14 +244,14 @@ class CSVWorker:
                 date_str = str(int(date_str))
             if not isinstance(date_str, str):
                 date_str = str(date_str)
-            return datetime.strptime(date_str, '%y%m%d')
+            return datetime.strptime(date_str, "%y%m%d")
         except ValueError:
             return date_str
 
 
 def update_csv_cell(data: Any, columnTitle: str, lineNum: int, csvFile: str | Path) -> None:
     """Update a single cell in a CSV file.
-    
+
     Args:
         data: New value to write.
         columnTitle: Column header name.
@@ -264,12 +266,12 @@ def update_csv_cell(data: Any, columnTitle: str, lineNum: int, csvFile: str | Pa
         if reader.fieldnames is not None:
             fieldnames = list(reader.fieldnames)
         for row in reader:
-            if row.get('line number') == str(lineNum):
+            if row.get("line number") == str(lineNum):
                 row[columnTitle] = str(data)
             csvData.append(row)
 
     if fieldnames:
-        with open(csvFile, 'w', newline='') as writeFile:
+        with open(csvFile, "w", newline="") as writeFile:
             writer = csv.DictWriter(writeFile, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(csvData)
@@ -282,7 +284,7 @@ def append_row_csv(data: dict[str, Any], filename: str | Path) -> None:
         filename: Name of the CSV file to write to.
     """
     file_exists = os.path.exists(filename)
-    with open(filename, 'a', newline='') as file:
+    with open(filename, "a", newline="") as file:
         writer = csv.DictWriter(file, fieldnames=list(data.keys()))
         if not file_exists:
             writer.writeheader()

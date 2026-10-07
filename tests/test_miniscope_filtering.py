@@ -30,9 +30,7 @@ def _bandpass_test_signal(fs: float = 30.0, n: int = 600) -> np.ndarray:
 
 def test_filter_miniscope_data_populates_filtered_data():
     sig = _bandpass_test_signal()
-    fobj = FilterMiniscopeData(
-        _projections_with_time(sig), frame_rate=30.0, cut=[0.1, 1.5], btype="bandpass"
-    )
+    fobj = FilterMiniscopeData(_projections_with_time(sig), frame_rate=30.0, cut=[0.1, 1.5], btype="bandpass")
     assert fobj.filtered_data == []  # not filtered yet
 
     fobj.filter_miniscope_data()

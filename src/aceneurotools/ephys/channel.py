@@ -5,10 +5,10 @@ import numpy as np
 
 class Channel:
     """Represents a single electrophysiology recording channel.
-    
+
     Stores signal data, timing information, and associated events for one
     channel of an ephys recording.
-    
+
     Attributes:
         name: Channel identifier (e.g., "PFCLFPvsCBEEG").
         signal: Raw signal data as numpy array.
@@ -27,9 +27,11 @@ class Channel:
     signal_filtered: np.ndarray | None
     phases: np.ndarray | None
 
-    def __init__(self, name: str, signal: np.ndarray, sampling_rate: float, time_vector: np.ndarray, events: dict[str, Any]):
+    def __init__(
+        self, name: str, signal: np.ndarray, sampling_rate: float, time_vector: np.ndarray, events: dict[str, Any]
+    ):
         """Initialize a Channel with signal data and metadata.
-        
+
         Args:
             name: Channel identifier string.
             signal: 1D numpy array of signal values.

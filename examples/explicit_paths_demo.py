@@ -3,16 +3,16 @@
 
 Replace the placeholder paths with your ``project_path`` (directory containing
 ``experiments.csv`` and ``analysis_parameters.csv``) and ``data_path`` (raw
-recordings root). See the user guide: https://aceneurotools.readthedocs.io/en/latest/getting_started/
+recordings root). See the user guide: https://github.com/emelon8/experiment_analysis/blob/proj-comenius/docs/getting_started.md
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from aceneurotools.pipelines.ephys import EphysPipeline
-from aceneurotools.pipelines.miniscope import MiniscopePipeline
-from aceneurotools.pipelines.multimodal import MultimodalPipeline
+from aceneurotools.pipelines.ephys import EphysPipeline  # noqa: F401 — used by the editable examples below
+from aceneurotools.pipelines.miniscope import MiniscopePipeline  # noqa: F401 — used by the editable examples below
+from aceneurotools.pipelines.multimodal import MultimodalPipeline  # noqa: F401 — used by the editable examples below
 
 # --- edit these ---
 PROJECT = Path("/path/to/project")
@@ -42,10 +42,7 @@ def main() -> None:
     #     data_path=DATA,
     #     headless=True,
     # )
-    print(
-        "Uncomment the pipeline(s) you want to run and set PROJECT / DATA. "
-        "See docstring at top of this file."
-    )
+    print("Uncomment the pipeline(s) you want to run and set PROJECT / DATA. See docstring at top of this file.")
 
 
 if __name__ == "__main__":

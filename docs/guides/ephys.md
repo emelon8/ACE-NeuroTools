@@ -10,21 +10,16 @@ analysis and saves an explicit output inventory.
 
 ### Prerequisites
 
-1. Ensure your project directory has:
-   - `experiments.csv` with experiment metadata
-   - `analysis_parameters.csv` with pipeline parameters
+1. Ensure your project directory has `experiments.csv` with an ephys directory and a matching `line number` value. `analysis_parameters.csv` is optional for the runtime and can supply per-experiment settings.
+2. Point `--data-path` at the root containing the recording paths listed in `experiments.csv`.
 
 ### Command Line
 
 ```bash
-# Run with explicit project path
-python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /my/project
-
-# Run with explicit project and data paths
 python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /my/project --data-path /my/raw_data
 
 # Run in headless mode
-python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /my/project --headless
+python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /my/project --data-path /my/raw_data --headless
 ```
 
 ### Python API
@@ -34,7 +29,7 @@ from aceneurotools.pipelines.ephys import EphysPipeline
 
 api = EphysPipeline()
 api.run(
-    line_num=96, 
+    line_num=96,
     project_path="/my/project",
     data_path="/my/raw_data",
     channel_name="PFCLFPvsCBEEG",
@@ -59,8 +54,8 @@ spectrogram plots unless `--headless` suppresses them. See the
 
 ## Pipeline Steps
 
-1. **Channel Loading**: Reads Neuralynx `.ncs` files and organizes by channel name
-2. **Artifact Removal**: Optional removal of electrical artifacts
+1. **Channel loading**: Reads the selected channel from the supported Neuralynx, RHS2116, or ONIX recording format.
+2. **Artifact removal**: Optional where the selected backend supports it; RHS2116 currently ignores `remove_artifacts`.
 3. **Filtering**: When `filter_type` is set, bandpass-filter the requested channel
    with the selected filter family and `filter_range` cutoffs
 4. **Phase Analysis**: When `compute_phases=True`, compute the Hilbert phase of
@@ -79,7 +74,7 @@ which controls replacement of the temporal movie projection.
 
 | Parameter | Description | Example |
 |-----------|-------------|---------|
-| `channel_name` | Neuralynx channel to analyze | `PFCLFPvsCBEEG` |
+| `channel_name` | Recording channel to analyze | `PFCLFPvsCBEEG` |
 | `filter_type` | Filter family; blank/None skips filtering | `butter` |
 | `filter_range` | Filter frequency range [low, high] | `[0.5, 4]` |
 | `compute_phases` | Compute Hilbert phase from `channel.signal` | `True` |

@@ -179,8 +179,10 @@ def test_real_compute_rerun_preserves_results_and_original_csvs(recording):
     assert (root / "raw" / "0.avi").read_bytes() == raw
     assert len(Runs().listing(project, "1")["runs"]) == 2
     assert first["output_inventory"]["kind"] == "compute"
-    assert any(item["name"] == "mean_fluorescence" and item["status"] == "exported"
-               for item in first["output_inventory"]["outputs"])
+    assert any(
+        item["name"] == "mean_fluorescence" and item["status"] == "exported"
+        for item in first["output_inventory"]["outputs"]
+    )
 
 
 def test_real_cropped_movie_uses_core_preprocessor(recording):

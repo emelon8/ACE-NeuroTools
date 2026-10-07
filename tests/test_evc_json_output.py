@@ -105,9 +105,7 @@ def test_errors_stay_on_stderr_not_json(exp, capsys):
     assert "error:" in captured.err
 
 
-def test_record_explains_why_an_oversized_file_is_refused(
-    exp, capsys, monkeypatch
-):
+def test_record_explains_why_an_oversized_file_is_refused(exp, capsys, monkeypatch):
     monkeypatch.setattr(worktree_module, "MAX_SNAPSHOT_BLOB_BYTES", 16)
     payload = exp / "legacy-recording.tiff"
     payload.write_bytes(b"x" * 17)

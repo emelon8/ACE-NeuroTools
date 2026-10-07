@@ -79,9 +79,7 @@ class RunRecorder:
 
     # -- lifecycle ----------------------------------------------------------
 
-    def on_run_approved(
-        self, params: dict, config_paths: Sequence[str | Path] = ()
-    ) -> str:
+    def on_run_approved(self, params: dict, config_paths: Sequence[str | Path] = ()) -> str:
         """Serialize the effective parameters; record the pre-run revision.
 
         ``params`` must be the post-precedence dict the pipeline will actually
@@ -97,9 +95,7 @@ class RunRecorder:
             "params": params,
             "config_paths": [str(p) for p in config_paths],
         }
-        params_path.write_text(
-            json.dumps(payload, indent=2, sort_keys=True, default=str) + "\n"
-        )
+        params_path.write_text(json.dumps(payload, indent=2, sort_keys=True, default=str) + "\n")
         self.pre_revision = self._record(f"run approved: {self._label()}")
         return self.pre_revision
 
@@ -130,9 +126,7 @@ class RunRecorder:
         )
         if run_log is not None and self.pre_revision is not None:
             self._link_run_log(Path(run_log), {PRE_REVISION_KEY: self.pre_revision})
-        self.post_revision = self._record(
-            f"run completed: {self._label()} (run {run_id})"
-        )
+        self.post_revision = self._record(f"run completed: {self._label()} (run {run_id})")
         if run_log is not None:
             self._link_run_log(Path(run_log), {POST_REVISION_KEY: self.post_revision})
         return self.post_revision
@@ -153,9 +147,7 @@ class RunRecorder:
 
     @staticmethod
     def _link_run_log(run_log_path: Path, keys: dict[str, str]) -> None:
-        payload = (
-            json.loads(run_log_path.read_text()) if run_log_path.is_file() else {}
-        )
+        payload = json.loads(run_log_path.read_text()) if run_log_path.is_file() else {}
         payload.update(keys)
         run_log_path.parent.mkdir(parents=True, exist_ok=True)
         run_log_path.write_text(json.dumps(payload, indent=2))

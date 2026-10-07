@@ -106,7 +106,8 @@ def test_restore_clean_worktree(exp):
     result = evc.restore(first)
     assert result.safety_snapshot is None
     assert json.loads((exp_dir / "params.json").read_text()) == {
-        "gSig": 3, "min_corr": 0.8,
+        "gSig": 3,
+        "min_corr": 0.8,
     }
     # the ref did not move: HEAD still names the second revision
     assert evc.history()[0].message == "wild parameters"
@@ -123,7 +124,8 @@ def test_restore_dirty_state_is_preserved_and_recoverable(exp):
     assert "safety-snapshot" in ops
     evc.restore(result.safety_snapshot)
     assert json.loads((exp_dir / "params.json").read_text()) == {
-        "gSig": 7, "min_corr": 0.99,
+        "gSig": 7,
+        "min_corr": 0.99,
     }
 
 
@@ -206,7 +208,8 @@ def test_cli_init_record_log_roundtrip(tmp_path):
     def run(*args):
         return subprocess.run(
             [sys.executable, "-m", "aceneurotools.evc", "--dir", str(exp_dir), *args],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
 
     assert run("init").returncode == 0

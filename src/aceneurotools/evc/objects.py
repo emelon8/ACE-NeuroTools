@@ -145,9 +145,7 @@ class Commit:
 
     def __post_init__(self) -> None:
         if "\n" in self.author or "<" not in self.author:
-            raise InvalidObjectError(
-                f"author must be single-line 'Name <email>', got {self.author!r}"
-            )
+            raise InvalidObjectError(f"author must be single-line 'Name <email>', got {self.author!r}")
         if not self.committer:
             object.__setattr__(self, "committer", self.author)
             object.__setattr__(self, "committer_time", self.author_time)

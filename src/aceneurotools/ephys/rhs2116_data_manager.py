@@ -3,6 +3,7 @@ RHS2116 Ephys Data Manager
 
 Manages the import of RHS2116 .raw ephys data (AC/DC/Clock) using neo.rawio.
 """
+
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -15,6 +16,7 @@ from aceneurotools.ephys.ephys_data_manager import EphysDataManager
 
 if TYPE_CHECKING:
     pass
+
 
 class RHS2116DataManager(EphysDataManager):
     """
@@ -43,36 +45,38 @@ class RHS2116DataManager(EphysDataManager):
         dir_path = Path(directory)
         if not dir_path.exists():
             return False
-        return len(list(dir_path.glob('*.raw'))) > 0 or len(list(dir_path.glob('rhs2116*.raw'))) > 0
+        return len(list(dir_path.glob("*.raw"))) > 0 or len(list(dir_path.glob("rhs2116*.raw"))) > 0
 
     def import_ephys_block(self, ephys_directory: str | Path) -> None:
         """Prepare raw RHS2116 data streams."""
-        print('Importing RHS2116 ephys data headers...')
+        print("Importing RHS2116 ephys data headers...")
         self.data_directory = Path(ephys_directory)
 
         # Find suffix from start-time CSV
-        start_time_files = list(self.data_directory.glob('start-time_*.csv'))
+        start_time_files = list(self.data_directory.glob("start-time_*.csv"))
         # Exclude miniscope metadata files if they matched
-        start_time_files = [f for f in start_time_files if 'miniscope' not in f.name]
+        start_time_files = [f for f in start_time_files if "miniscope" not in f.name]
 
         if not start_time_files:
-             raise FileNotFoundError(f"No start-time CSV found in {self.data_directory}")
+            raise FileNotFoundError(f"No start-time CSV found in {self.data_directory}")
 
         start_time_path = start_time_files[0]
-        self.suffix = start_time_path.stem.split('_')[-1]
+        self.suffix = start_time_path.stem.split("_")[-1]
 
-        dt = {'names': ('time', 'acq_clk_hz', 'block_read_sz', 'block_write_sz'),
-              'formats': ('datetime64[us]', 'u4', 'u4', 'u4')}
-        self.meta = np.genfromtxt(start_time_path, delimiter=',', dtype=dt, skip_header=0)
+        dt = {
+            "names": ("time", "acq_clk_hz", "block_read_sz", "block_write_sz"),
+            "formats": ("datetime64[us]", "u4", "u4", "u4"),
+        }
+        self.meta = np.genfromtxt(start_time_path, delimiter=",", dtype=dt, skip_header=0)
 
         self.logger.critical(f"Recording was started at {self.meta['time']} GMT")
-        self.logger.critical(f'Acquisition clock rate was {self.meta["acq_clk_hz"] / 1e6 } MHz')
-        self.sampling_rate = float(self.meta['acq_clk_hz'])
+        self.logger.critical(f"Acquisition clock rate was {self.meta['acq_clk_hz'] / 1e6} MHz")
+        self.sampling_rate = float(self.meta["acq_clk_hz"])
 
         # Validate files
-        self.clock_path = self.data_directory / f'rhs2116pair-clock_{self.suffix}.raw'
-        self.ac_path = self.data_directory / f'rhs2116pair-ac_{self.suffix}.raw'
-        self.dc_path = self.data_directory / f'rhs2116pair-dc_{self.suffix}.raw'
+        self.clock_path = self.data_directory / f"rhs2116pair-clock_{self.suffix}.raw"
+        self.ac_path = self.data_directory / f"rhs2116pair-ac_{self.suffix}.raw"
+        self.dc_path = self.data_directory / f"rhs2116pair-dc_{self.suffix}.raw"
 
         for p in [self.clock_path, self.ac_path, self.dc_path]:
             if not p.exists():
@@ -80,13 +84,10 @@ class RHS2116DataManager(EphysDataManager):
 
         # The actual loading of signals is done in process_ephys_block_to_channels
         # to match the block_processing chunking paradigm and save memory dynamically.
-        self.ephys_block = "RHS2116_RawBinarySignalRawIO_Ready" # Placeholder to indicate import succeeds
+        self.ephys_block = "RHS2116_RawBinarySignalRawIO_Ready"  # Placeholder to indicate import succeeds
 
     def process_ephys_block_to_channels(
-        self,
-        channels: list[str] | None = None,
-        remove_artifacts: bool = False,
-        max_samples: int | None = None
+        self, channels: list[str] | None = None, remove_artifacts: bool = False, max_samples: int | None = None
     ) -> None:
         """Process RawBinarySignalRawIO data into Channel objects natively.
 
@@ -110,12 +111,12 @@ class RHS2116DataManager(EphysDataManager):
 
         reader = RawBinarySignalRawIO(
             filename=str(self.ac_path),
-            dtype='uint16',
+            dtype="uint16",
             sampling_rate=self.sampling_rate,
             nb_channel=self.NUM_CHANNELS,
             bytesoffset=0,
             signal_gain=self.AC_UV_MULTIPLIER,
-            signal_offset=offset
+            signal_offset=offset,
         )
         reader.parse_header()
 
@@ -136,27 +137,19 @@ class RHS2116DataManager(EphysDataManager):
             i_stop = max_samples
 
         print("Fetching analog signal chunk...")
-        ac_data = reader.get_analogsignal_chunk(
-            block_index=0,
-            seg_index=0,
-            i_start=0,
-            i_stop=i_stop,
-            stream_index=0
-        )
+        ac_data = reader.get_analogsignal_chunk(block_index=0, seg_index=0, i_start=0, i_stop=i_stop, stream_index=0)
         print("Rescaling chunk...")
-        ac_data_float = reader.rescale_signal_raw_to_float(
-            ac_data,
-            dtype='float32',
-            stream_index=0
-        )
+        ac_data_float = reader.rescale_signal_raw_to_float(ac_data, dtype="float32", stream_index=0)
 
         # Calculate effective sampling rate so analysis features (like spectrograms) don't crash trying to allocate 250M samples/sec
         # During verification, `time_vector` can be massive, stalling `np.diff`. calculating on the first thousands elements is sufficient
         subset_size = min(10000, len(time_vector))
-        effective_sampling_rate = float(1.0 / np.median(np.diff(time_vector[:subset_size]))) if subset_size > 1 else self.sampling_rate
+        effective_sampling_rate = (
+            float(1.0 / np.median(np.diff(time_vector[:subset_size]))) if subset_size > 1 else self.sampling_rate
+        )
 
         # Trim the time vector down to the loaded signal chunk size
-        time_vector = time_vector[:ac_data_float.shape[0]]
+        time_vector = time_vector[: ac_data_float.shape[0]]
 
         # Create Channel objects compatible with downstream processing
         for i in range(self.NUM_CHANNELS):
@@ -166,14 +159,14 @@ class RHS2116DataManager(EphysDataManager):
                 continue
 
             signal = ac_data_float[:, i]
-            events = {'labels': [], 'timestamps': []}
+            events = {"labels": [], "timestamps": []}
 
             chan = Channel(channel_name, signal, effective_sampling_rate, time_vector, events)
             self.channels[channel_name] = chan
 
     def get_sync_timestamps(self, channel_name: str | None = None) -> np.ndarray:
         """
-        RHS2116 (ONIX) uses an absolute hardware clock that inherently synchronizes 
+        RHS2116 (ONIX) uses an absolute hardware clock that inherently synchronizes
         with the ONIX miniscope clock, rather than external TTL pulses.
         """
         return np.array([])

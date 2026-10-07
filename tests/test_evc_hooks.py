@@ -118,12 +118,8 @@ def _run_stats(project, monkeypatch, engine, recorder=None):
     import aceneurotools.pipelines.stats as stats_mod
 
     channel = SimpleNamespace(signal=np.linspace(0.0, 1.0, 600))
-    monkeypatch.setattr(
-        stats_mod, "load_for_stats", lambda **kwargs: (channel, None, 10.0)
-    )
-    monkeypatch.setattr(
-        stats_mod, "load_calcium_signal", lambda dm, d, n: np.ones(600)
-    )
+    monkeypatch.setattr(stats_mod, "load_for_stats", lambda **kwargs: (channel, None, 10.0))
+    monkeypatch.setattr(stats_mod, "load_calcium_signal", lambda dm, d, n: np.ones(600))
     monkeypatch.setattr(stats_mod, "ScatterAnalysis", engine)
 
     meta = StudyMetadata(
@@ -213,8 +209,14 @@ def test_recorder_none_is_a_true_no_op(tmp_path, monkeypatch):
     assert not (project / "parameters").exists()
     assert "evc_pre_revision" not in log and "evc_post_revision" not in log
     assert set(log) == {
-        "run_timestamp", "analyses_requested", "subjects_requested",
-        "lab_config_path", "stats_config_path", "params", "completed", "skipped",
+        "run_timestamp",
+        "analyses_requested",
+        "subjects_requested",
+        "lab_config_path",
+        "stats_config_path",
+        "params",
+        "completed",
+        "skipped",
         "output_failures",
     }
     assert log["completed"] == [{"line_num": 97, "analysis": "scatter_correlation"}]

@@ -88,7 +88,8 @@ def test_detect_finds_known_bursts():
     fs = 1000.0
     sig = _signal_with_bursts(fs=fs, burst_times=(2.0, 5.0, 8.0))
     result = detect_oscillatory_events(
-        sig, fs=fs,
+        sig,
+        fs=fs,
         frequency_band=(40.0, 60.0),
         threshold_band=(1.0, np.inf),
         duration_band=(0.05, 1.0),
@@ -107,7 +108,8 @@ def test_detect_returns_consistent_array_lengths():
     fs = 500.0
     sig = _signal_with_bursts(fs=fs, burst_times=(1.0, 3.0))
     result = detect_oscillatory_events(
-        sig, fs=fs,
+        sig,
+        fs=fs,
         frequency_band=(40.0, 60.0),
         threshold_band=(1.0, np.inf),
         duration_band=(0.05, 1.0),
@@ -124,7 +126,8 @@ def test_detect_drops_too_short_events():
     # broadens the burst by ~50 ms, but not enough to clear 500 ms.
     sig = _signal_with_bursts(fs=fs, burst_times=(2.0, 5.0), burst_duration=0.05)
     result = detect_oscillatory_events(
-        sig, fs=fs,
+        sig,
+        fs=fs,
         frequency_band=(40.0, 60.0),
         threshold_band=(1.0, np.inf),
         duration_band=(0.5, 2.0),
@@ -138,9 +141,10 @@ def test_detect_returns_empty_for_pure_noise():
     rng = np.random.default_rng(42)
     sig = 0.1 * rng.standard_normal(5000)
     result = detect_oscillatory_events(
-        sig, fs=1000.0,
+        sig,
+        fs=1000.0,
         frequency_band=(40.0, 60.0),
-        threshold_band=(5.0, np.inf),   # very high threshold
+        threshold_band=(5.0, np.inf),  # very high threshold
         duration_band=(0.1, 1.0),
         min_interval=0.05,
     )
@@ -153,7 +157,8 @@ def test_detect_validates_inputs():
     sig = rng.standard_normal(2000)
     with pytest.raises(ValueError, match="signal must be 1D"):
         detect_oscillatory_events(
-            sig.reshape(-1, 1), fs=1000.0,
+            sig.reshape(-1, 1),
+            fs=1000.0,
             frequency_band=(40.0, 60.0),
             threshold_band=(1.0, np.inf),
             duration_band=(0.05, 1.0),
@@ -161,7 +166,8 @@ def test_detect_validates_inputs():
         )
     with pytest.raises(ValueError, match="frequency_band"):
         detect_oscillatory_events(
-            sig, fs=1000.0,
+            sig,
+            fs=1000.0,
             frequency_band=(60.0, 40.0),
             threshold_band=(1.0, np.inf),
             duration_band=(0.05, 1.0),
@@ -169,7 +175,8 @@ def test_detect_validates_inputs():
         )
     with pytest.raises(ValueError, match="threshold_band"):
         detect_oscillatory_events(
-            sig, fs=1000.0,
+            sig,
+            fs=1000.0,
             frequency_band=(40.0, 60.0),
             threshold_band=(2.0, 1.0),
             duration_band=(0.05, 1.0),
@@ -177,7 +184,8 @@ def test_detect_validates_inputs():
         )
     with pytest.raises(ValueError, match="duration_band"):
         detect_oscillatory_events(
-            sig, fs=1000.0,
+            sig,
+            fs=1000.0,
             frequency_band=(40.0, 60.0),
             threshold_band=(1.0, np.inf),
             duration_band=(1.0, 0.5),
@@ -188,7 +196,8 @@ def test_detect_validates_inputs():
 def test_detect_returns_empty_for_zero_variance_signal():
     sig = np.ones(2000)
     result = detect_oscillatory_events(
-        sig, fs=1000.0,
+        sig,
+        fs=1000.0,
         frequency_band=(40.0, 60.0),
         threshold_band=(1.0, np.inf),
         duration_band=(0.05, 1.0),
@@ -201,7 +210,8 @@ def test_detect_respects_t_start_offset():
     fs = 1000.0
     sig = _signal_with_bursts(fs=fs, burst_times=(2.0,))
     result = detect_oscillatory_events(
-        sig, fs=fs,
+        sig,
+        fs=fs,
         frequency_band=(40.0, 60.0),
         threshold_band=(1.0, np.inf),
         duration_band=(0.05, 1.0),

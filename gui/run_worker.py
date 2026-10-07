@@ -15,8 +15,7 @@ from gui.runs import atomic_json
 
 
 def execute(manifest):
-    from aceneurotools.shared.csv_worker import CSVWorker
-    from aceneurotools.shared.csv_worker import update_csv_cell
+    from aceneurotools.shared.csv_worker import CSVWorker, update_csv_cell
 
     root = Path(manifest["directory"])
     caiman_temp = root / ".caiman-temp"

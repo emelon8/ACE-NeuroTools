@@ -69,8 +69,6 @@ def diff_trees(repo: ExperimentRepository, tree_a: str, tree_b: str) -> list[Fil
         else:
             params: tuple[ParamChange, ...] = ()
             if path.endswith(".json"):
-                params = _json_changes(
-                    repo.read_blob(oid_a).data, repo.read_blob(oid_b).data
-                )
+                params = _json_changes(repo.read_blob(oid_a).data, repo.read_blob(oid_b).data)
             diffs.append(FileDiff(path=path, status="modified", param_changes=params))
     return diffs
