@@ -109,6 +109,7 @@ class Runs:
         if not isinstance(base, str):
             raise ProjectError("Choose a local data base folder.")
         records, raw = [], None
+        ephys_records, ephys_raw = [], None
         try:
             raw = recording_path(project, detail["metadata"], base, column)
             records = apply_scope(raw, inventory(raw))
@@ -118,6 +119,15 @@ class Runs:
                 blockers.append("No AVI movies were found in this recording folder.")
         except ProjectError as exc:
             blockers.append(str(exc))
+        if kind == "multimodal":
+            try:
+                ephys_raw = recording_path(project, detail["metadata"], base, "ephys directory")
+                ephys_records = apply_scope(ephys_raw, inventory(ephys_raw))
+                if not any(Path(item["path"]).suffix.lower() in {".ncs", ".rhs", ".rhd", ".dat", ".bin", ".raw"}
+                           for item in ephys_records):
+                    blockers.append("No electrophysiology recording files were found in the ephys folder.")
+            except ProjectError as exc:
+                blockers.append(str(exc))
         if kind != "ephys":
             coords = params.get("crop_coords")
             if params.get("crop", True) and not coords:
@@ -132,13 +142,14 @@ class Runs:
                 or coords[1] >= coords[3]
             ):
                 blockers.append("Crop coordinates must be four ordered, non-negative pixel integers.")
-        if kind in {"miniscope", "preprocess"}:
-            names = params.get("filenames", [])
+        if kind in {"miniscope", "preprocess", "multimodal"}:
+            names_key = "miniscope_filenames" if kind == "multimodal" else "filenames"
+            names = params.get(names_key, [])
             if isinstance(names, str):
                 names = [names]
-                params["filenames"] = names
+                params[names_key] = names
             if names is None:
-                params["filenames"] = names = []
+                params[names_key] = names = []
             if not isinstance(names, list) or any(
                 not isinstance(name, str) or Path(name).name != name or "\\" in name for name in names
             ):
@@ -158,7 +169,7 @@ class Runs:
             ):
                 blockers.append("The estimates filename must be a filename, without a directory path.")
             elif (
-                kind == "miniscope"
+                kind in {"miniscope", "multimodal"}
                 and params.get("run_CNMFE")
                 and params.get("save_estimates")
                 and not estimate.endswith(".hdf5")
@@ -176,9 +187,9 @@ class Runs:
                 if not item["path"].lower().endswith(".avi"):
                     continue
                 if (
-                    kind in {"miniscope", "preprocess"}
-                    and params.get("filenames")
-                    and Path(item["path"]).name not in params["filenames"]
+                    kind in {"miniscope", "preprocess", "multimodal"}
+                    and params.get("miniscope_filenames" if kind == "multimodal" else "filenames")
+                    and Path(item["path"]).name not in params["miniscope_filenames" if kind == "multimodal" else "filenames"]
                 ):
                     continue
                 cap = cv2.VideoCapture(str(raw / item["path"]))
@@ -200,11 +211,11 @@ class Runs:
                     "The selected movies have different image dimensions. Choose a consistent recording or movie subset before running."
                 )
         root = project.path / ".ace-runs"
-        if raw and (root.is_relative_to(raw) or raw.is_relative_to(root)):
+        if any(root.is_relative_to(path) or path.is_relative_to(root) for path in [raw, ephys_raw] if path):
             blockers.append(
                 "Recording folders must be outside this project's .ace-runs result folder. Open the folder containing this project's CSVs."
             )
-        size = sum(item["size"] for item in records)
+        size = sum(item["size"] for item in [*records, *ephys_records])
         if shutil.disk_usage(project.path).free < size:
             blockers.append("Not enough free disk space to preserve a private copy of this recording for the run.")
         run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S") + "-" + uuid.uuid4().hex[:8]
@@ -216,7 +227,7 @@ class Runs:
             "Output inventory": str(directory / "output-inventory.json"),
             "Diagnostics summary": str(directory / "diagnostics.json"),
         }
-        if kind == "miniscope":
+        if kind in {"miniscope", "multimodal"}:
             destinations["Signals, component IDs, and postprocessing"] = str(directory / "postprocessing.npz")
             destinations["Spatial footprints (when extracted)"] = str(directory / "components.npz")
             if params.get("find_calcium_events"):
@@ -231,12 +242,17 @@ class Runs:
                 )
             if params.get("save_CNMFE_params"):
                 destinations["CaImAn parameters"] = str(directory / "recording" / "saved_movies" / "opts_caiman.json")
+        if kind == "multimodal":
+            destinations["Electrophysiology data"] = str(directory / "ephys.npz")
+            destinations["Electrophysiology events"] = str(directory / "ephys-events.json")
+            destinations["Aligned timing and phases"] = str(directory / "alignment.npz")
+            destinations["Event alignment (when requested)"] = str(directory / "ephys_idx_ca_events.json")
         elif kind == "compute":
             destinations["Mean fluorescence"] = str(directory / "calcium_signals" / f"meanFluorescence_{number}.npz")
         elif kind == "preprocess":
             destinations["Preprocessed movies"] = str(directory / "recording" / "saved_movies")
             destinations["Projection and timing arrays"] = str(directory / "preprocessing.npz")
-        else:
+        elif kind == "ephys":
             destinations["Electrophysiology data"] = str(directory / "ephys.npz")
             destinations["Electrophysiology events"] = str(directory / "ephys-events.json")
         value = {
@@ -254,6 +270,8 @@ class Runs:
             "recording_path": str(raw) if raw else "",
             "recording_column": column,
             "files": records,
+            "ephys_recording_path": str(ephys_raw) if ephys_raw else "",
+            "ephys_files": ephys_records,
             "input_bytes": size,
             "output_root": str(root),
             "run_id": run_id,
@@ -287,6 +305,10 @@ class Runs:
                 raise ProjectError("Parameters changed after review. Review them again before running.")
             if apply_scope(Path(value["recording_path"]), inventory(Path(value["recording_path"]))) != value["files"]:
                 raise ProjectError("Recording files changed after review. Review the experiment again.")
+            if value["kind"] == "multimodal" and apply_scope(
+                Path(value["ephys_recording_path"]), inventory(Path(value["ephys_recording_path"]))
+            ) != value["ephys_files"]:
+                raise ProjectError("Electrophysiology files changed after review. Review the experiment again.")
             if any(process.poll() is None for process in self.processes.values()):
                 raise ProjectError(
                     "An analysis is already running. Wait for it to finish or stop it before starting another."
@@ -376,7 +398,7 @@ class Runs:
                 if (
                     item.is_file()
                     and not any(part.startswith(".") for part in rel.parts)
-                    and (rel.parts[0] != "recording" or "saved_movies" in rel.parts)
+                    and (rel.parts[0] not in {"recording", "recording-ephys"} or "saved_movies" in rel.parts)
                 ):
                     outputs.append({"name": str(rel), "size": item.stat().st_size})
             log = directory / "run.log"

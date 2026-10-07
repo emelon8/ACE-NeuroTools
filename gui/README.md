@@ -79,6 +79,16 @@ is required only when there is no usable shared connection.
    pending changes stay in memory. The application warns before leaving with unsaved
    changes; **Discard changes** discards only the current section's draft.
 
+Each project has a **Default parameters from** selector. Choose an experiment with
+saved analysis settings; the choice is stored in `.ace-gui-project.json` in that
+project folder. Its current analysis settings provide the project's defaults. In
+**Analysis settings**, choose an open project under **Populate analysis settings
+from**, apply its default experiment's values, review them, then save. The copy
+includes matching analysis columns and skips the source experiment number, subject,
+date, and recording locations. **New experiment** creates an experiment number,
+subject, and date and can copy settings from any open project's default experiment.
+Open the new experiment to fill its remaining details.
+
 The experiment number remains fixed so the CSV join stays intact. Duplicate subject,
 location, and date columns in the settings file are separate fields under **Recording
 details in settings**; they are not automatically synchronized with metadata.
@@ -90,9 +100,10 @@ details in settings**; they are not automatically synchronized with metadata.
   the project lists to affected experiments.
 - For a missing settings row, **Add settings for this experiment** prepares a draft;
   saving appends that row. If the file is absent, its columns come from the existing
-  parameter template. No example experiment or default values are copied. Blank
-  fields remain blank. A malformed settings file must be repaired before writing
-  settings; metadata can still be edited without replacing that file.
+  parameter template. The project's chosen default can be applied explicitly.
+  Blank fields remain blank until populated. A malformed settings file must be
+  repaired before writing settings; metadata can still be edited without replacing
+  that file.
 - Errors persist and name the affected file or field. Validation checks edited
   numbers, dates, boolean choices, numeric Box IDs, and known list/tuple shapes.
   Unchanged legacy values and missing-value markers are preserved.
@@ -119,9 +130,9 @@ format; run records and optional Box user settings are separate additive files.
 
 The server binds to `127.0.0.1`, rejects foreign hosts/origins, and serves only its
 own assets and project endpoints. CSV text is inserted as text, never as HTML.
-Scientific version control, statistics/multimodal workflows,
+Scientific version control, statistics workflows,
 and environment installation are not connected yet. The History section says so
-explicitly. Embedded neuron curation and the four supported run modes are documented below. See [source findings](../docs/design/csv-viewer-findings.md) for
+explicitly. Embedded neuron curation and the five supported run modes are documented below. See [source findings](../docs/design/csv-viewer-findings.md) for
 backend issues recorded without source fixes.
 
 ## Supercomputer job scripts
@@ -132,6 +143,8 @@ on the cluster, CPU count, memory in GB, and time limit. Slurm account and parti
 are optional. Use `python` from an activated ACE environment or enter its absolute
 interpreter path. These are cluster locations; local recording availability and
 Box authentication are not required to generate scripts.
+Multimodal jobs also require the ephys recording folder on the cluster. Both
+recordings are copied into separate folders in the exported run.
 
 **Generate scripts** previews the Slurm file and effective settings. **Download job
 ZIP** includes `run_job.py`, `submit.slurm`, `job.json`, the selected experiment's
@@ -157,6 +170,46 @@ the recording. Real cluster execution still requires appropriate files, an insta
 analysis environment, and valid account/partition limits.
 
 ## Validation
+
+### Analysis parity
+
+Run the strict differential suite in the existing CaImAn environment:
+
+```bash
+PYTHONPATH=.:src python -m pytest tests/test_gui_parity.py tests/test_gui_run_outputs.py
+```
+
+The tests use temporary lossless movies and synthetic RHS2116 recordings. They
+exercise real GUI HTTP settings/save/review/run endpoints, the existing CLI entry
+points, direct Python calls, structured miniscope configs, and extracted cluster
+job bundles.
+Scientific pipelines are not mocked. The CLI parameter checks observe its public
+`run()` boundary; output checks allow the CLI to finish the actual analysis.
+The comparisons use the same effective scientific settings in each entry point;
+direct Python calls have different defaults and therefore receive explicit options.
+
+| Workflow | Compared results |
+| --- | --- |
+| Mean fluorescence | Cropped and full-frame signals against Python, native compute CLI, GUI, exported Python, and the Slurm shell script |
+| Preprocessing | Decoded saved movie pixels, projections, frame numbers, frame rate, and timestamps, with and without DF/F normalization |
+| Electrophysiology | Raw/filtered signals, sampling rate, timing, and phases against Python, CLI, GUI, and exported jobs |
+| CNMF-E | Actual neuron traces and spatial footprints, events, filters, phases, spectra, saved HDF5 estimates, and deconvolution diagnostics across Python, structured configs, CLI, GUI, and exported jobs, with one and two workers |
+| Saved settings | Defaults, CSV overrides, missing-value markers, legacy crop coordinates, canonical flags, aliases, and headless policy against the actual CLI |
+
+The CNMF-E fixture must extract at least two neurons and produce calcium events;
+empty outputs cannot pass. Deterministic fluorescence, preprocessing, and ephys
+outputs must match exactly. CNMF-E floating-point comparisons use `rtol=1e-5` and
+`atol=1e-6`; event indices must match exactly. GUI runs must retain the original CSVs
+and raw movie. All archives are read without pickle.
+
+These tests protect parity for the covered workflows and settings. Multimodal
+parameter matching, two-recording staging, exports, and worker execution have
+separate checks in `tests/test_gui_multimodal.py`. Standalone preprocessing has
+no separate module CLI.
+The tests do not establish parity for every possible dataset, motion-correction
+configuration, or cluster installation. The Slurm shell script runs locally; a real
+scheduler submission is not exercised. The suite is included in the existing CI
+`tests/` discovery, without skips or expected-failure exemptions.
 
 ```bash
 PYTHONPATH=.:src python -m pytest tests/test_gui_job_scripts.py tests/test_gui_csv_projects.py tests/test_gui_server.py tests/test_gui_box_setup.py tests/test_gui_analysis.py tests/test_gui_recordings.py tests/test_gui_neurons.py tests/test_gui_launcher.py tests/test_gui_native_dialogs.py tests/test_csv_worker.py
@@ -369,7 +422,7 @@ installs no partial export; the original estimates and review journal are retain
 
 Completed run outputs remain tied to their original estimates. This action writes
 new calcium events in the curation folder; ephys, movie projection analyses, and
-multimodal products require separate runs. The full extraction pipeline still
+multimodal products require a new run. The full extraction pipeline still
 runs its configured postprocessing before embedded review; this export provides
 the explicit event recomputation path from curated estimates.
 No Git/EVC history support is implied by the review journals or curation folders.
@@ -407,7 +460,7 @@ automatically. Detached launches can recover the current user's Wayland display.
 With no desktop available, use the embedded browser. Folder opening uses the
 system file manager (`xdg-open` on Linux).
 
-The Analysis menu connects four existing workflows:
+The Analysis menu connects five existing workflows:
 
 | GUI mode | Existing code called | Preserved results |
 | --- | --- | --- |
@@ -415,6 +468,7 @@ The Analysis menu connects four existing workflows:
 | Crop & preprocess movie | `MiniscopeDataManager.create` + `MiniscopePreprocessor.preprocess_calcium_movie` | `recording/saved_movies/preprocessed*.avi` |
 | Calcium imaging / CNMF-E | `MiniscopePipeline.run` | Cropped/preprocessed movies, configured estimates/params, events with IDs, component traces/footprints, raw/filtered projections, spectra, phases, available quality metrics |
 | Electrophysiology | `EphysPipeline.run` | `ephys.npz` with signal, time, sampling rate, filtered signal/phases when requested, plus event JSON |
+| Calcium + electrophysiology alignment | `MultimodalPipeline.run` | Both sub-pipeline results, aligned times, TTL mappings, event phases, and phase histograms when requested |
 
 Every new completed run writes `output-inventory.json` and `diagnostics.json`.
 **Results → Output inventory** lists each result's status and its exact file/key,
@@ -461,7 +515,7 @@ values versus saved CSV values. Headless policy uses the existing helper. Separa
 windows and the pipeline's original neuron-selection dialog are disabled. Review
 saved estimates in the embedded **Neurons** section after extraction. Finish review
 can recompute calcium events from curated estimates into a separate curation
-folder, using the settings shown there. Multimodal products require separate runs.
+folder, using the settings shown there. Multimodal products require a new run.
 Cropping is controlled explicitly: save
 a crop or set **Apply crop = No** to process the full frame.
 

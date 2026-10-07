@@ -47,9 +47,10 @@ def generate(project, body):
     if not isinstance(options, dict):
         raise ProjectError("Enter the cluster paths and job resources.")
     source = absolute_path(options.get("recording_path"), "Recording folder")
+    ephys_source = absolute_path(options.get("ephys_recording_path"), "Ephys recording folder") if kind == "multimodal" else None
     output = absolute_path(options.get("output_path"), "Output folder")
-    if PurePosixPath(output).is_relative_to(PurePosixPath(source)):
-        raise ProjectError("Choose an output folder outside the recording folder.")
+    if any(PurePosixPath(output).is_relative_to(PurePosixPath(path)) for path in [source, ephys_source] if path):
+        raise ProjectError("Choose an output folder outside the recording folders.")
     python = options.get("python", "python")
     if python != "python":
         python = absolute_path(python, "Python interpreter")
@@ -72,8 +73,9 @@ def generate(project, body):
             or coords[0] >= coords[2] or coords[1] >= coords[3]
         ):
             raise ProjectError("Crop coordinates must be four ordered, non-negative pixel integers.")
-    if kind in {"miniscope", "preprocess"}:
-        names = params.get("filenames") or []
+    if kind in {"miniscope", "preprocess", "multimodal"}:
+        names_key = "miniscope_filenames" if kind == "multimodal" else "filenames"
+        names = params.get(names_key) or []
         if isinstance(names, str):
             names = [names]
         if not isinstance(names, (list, tuple)) or any(
@@ -81,13 +83,13 @@ def generate(project, body):
             or name in {"", ".", ".."} for name in names
         ):
             raise ProjectError("Movie filenames must be filenames within the recording, or [] for all movies.")
-        params["filenames"] = list(names)
+        params[names_key] = list(names)
         estimate = params.get("save_CNMFE_estimates_filename", "estimates.hdf5")
         if not isinstance(estimate, str) or PurePosixPath(estimate).name != estimate or "\\" in estimate or estimate in {"", ".", ".."}:
             raise ProjectError("Estimates filename must be a filename without a directory path.")
-        if kind == "miniscope" and params.get("run_CNMFE") and params.get("save_estimates") and not estimate.endswith(".hdf5"):
+        if kind in {"miniscope", "multimodal"} and params.get("run_CNMFE") and params.get("save_estimates") and not estimate.endswith(".hdf5"):
             raise ProjectError("CNMF-E estimates filenames must end in .hdf5.")
-    if kind == "miniscope":
+    if kind in {"miniscope", "multimodal"}:
         params.update(n_processes=cpus, parallel=cpus > 1)
     column = "ephys directory" if kind == "ephys" else "calcium imaging directory"
     # Preserve a previously confirmed Box subset without downloading/listing data.
@@ -101,10 +103,19 @@ def generate(project, body):
         if (local_path / ".ace-box.json").exists():
             apply_scope(local_path, [])  # Reuse receipt validation before reading the selection.
             selected = json.loads((local_path / ".ace-box.json").read_text()).get("selection")
+    ephys_selected = None
+    if kind == "multimodal":
+        ephys_local = detail["metadata"].get("ephys directory", "").strip()
+        if ephys_local:
+            ephys_local_path = Path(body.get("data_path") or str(project.path)) / ephys_local
+            if (ephys_local_path / ".ace-box.json").exists():
+                apply_scope(ephys_local_path, [])
+                ephys_selected = json.loads((ephys_local_path / ".ace-box.json").read_text()).get("selection")
     config = {
         "number": number, "kind": kind, "parameters": params, "cpus": cpus,
         "recording_path": source, "recording_column": column, "output_path": output,
         "selected_files": selected,
+        "ephys_recording_path": ephys_source, "ephys_selected_files": ephys_selected,
     }
     name = f"ace-{number}-{kind}"
     directives = [f"#SBATCH --job-name={name}", "#SBATCH --nodes=1", "#SBATCH --ntasks=1",
@@ -136,6 +147,7 @@ def generate(project, body):
 
 Copy this ZIP to the cluster and extract it. The recording must already be at:
 {source}
+{f'Electrophysiology recording: {ephys_source}' if ephys_source else ''}
 Activate an environment with ACE-NeuroTools (the same version as this GUI), CaImAn,
 and its scientific dependencies installed. If your cluster needs module loads,
 add those to submit.slurm before its Python command.

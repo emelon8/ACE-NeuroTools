@@ -157,3 +157,17 @@ def test_worker_does_not_silently_drop_unserializable_numeric_output(worker_case
     dm.PSD_spect = {"unexpected": np.ones(3)}
     with pytest.raises(ValueError, match="PSD_spect"):
         execute(manifest)
+
+
+def test_numeric_object_diagnostics_are_exported_without_pickle(tmp_path):
+    # CaImAn's deconvolution diagnostics use object arrays of NumPy scalars.
+    report = OutputInventory(tmp_path, "miniscope", {})
+    report.array("neurons_sn", np.array([np.float32(119.5), np.float32(116.25)], dtype=object), "diagnostics.npz")
+    autoregression = np.empty(2, dtype=object)
+    autoregression[:] = [np.array([0.8]), np.array([0.9])]
+    report.array("g", autoregression, "diagnostics.npz")
+    report.finish()
+    with np.load(tmp_path / "diagnostics.npz", allow_pickle=False) as saved:
+        np.testing.assert_array_equal(saved["neurons_sn"], [119.5, 116.25])
+        assert saved["neurons_sn"].dtype.kind == "f"
+        np.testing.assert_array_equal(saved["g"], [[0.8], [0.9]])

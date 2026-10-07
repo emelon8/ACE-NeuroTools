@@ -17,6 +17,13 @@ label { display: block; margin-bottom: 6px; } .check { display: flex; align-item
 .project-folder { margin: 18px 0; border-top: 2px solid #4f6448; border-bottom: 2px solid #4f6448; }
 .project-heading { cursor: pointer; padding: 14px 8px; font-size: 22px; } .project-heading .folder-count { font: 13px "Liberation Sans", Arial, sans-serif; float: right; margin-top: 5px; }
 .project-location { font-size: 12px; overflow-wrap: anywhere; margin: 0 8px 10px; display: flex; justify-content: space-between; gap: 12px; align-items: baseline; } .project-location button { flex-shrink: 0; }
+.project-actions, .copy-settings { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 8px; padding: 10px 0; }
+.project-actions label, .copy-settings label { margin: 0; }
+.project-actions select, .copy-settings select { margin-left: 8px; max-width: 320px; }
+.copy-settings { border-top: 1px solid #a1ac95; border-bottom: 1px solid #a1ac95; margin: 14px 0; }
+.copy-settings small { flex-basis: 100%; color: #4c5d44; }
+#new-experiment { margin: 20px 0; padding: 16px; }
+#new-experiment input, #new-experiment select { display: block; width: min(100%, 420px); margin-bottom: 12px; }
 .project-notice, .notice { border-left: 4px solid #a0702a; background: #efe4cb; padding: 9px 12px; margin: 8px; }
 .project-notice strong { font-weight: normal; } .missing-links { display: flex; gap: 6px 16px; flex-wrap: wrap; margin-top: 7px; } .text-action { min-height: 24px; border: 0; padding: 0; background: transparent; text-align: left; text-decoration: underline; color: #345739; }
 .orphan-note { font-size: 12px; padding: 0 8px; overflow-wrap: anywhere; }

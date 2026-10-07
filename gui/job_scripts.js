@@ -5,7 +5,10 @@ function clearJobScripts() {
 }
 function renderJobScripts() {
   const selection = `${project.id}/${experiment.number}`;
-  if (selection !== jobSelection) { $("job-recording").value = ""; jobSelection = selection; }
+  if (selection !== jobSelection) { $("job-recording").value = ""; $("job-ephys-recording").value = ""; jobSelection = selection; }
+  const multimodal = $("run-kind").value === "multimodal";
+  $("job-ephys-field").hidden = !multimodal;
+  $("job-ephys-recording").required = multimodal;
   $("job-panel").hidden = workspaceView !== "job";
   clearJobScripts();
 }

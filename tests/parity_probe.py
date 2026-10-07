@@ -34,6 +34,12 @@ def save_miniscope(pipeline, output):
     if estimates.A is not None:
         values["A_dense"] = estimates.A.toarray()
     np.savez(output, **{key: value for key, value in values.items() if value is not None})
+    diagnostics = {}
+    for name in ["neurons_sn", "g", "bl", "c1"]:
+        value = getattr(estimates, name, None)
+        if value is not None:
+            diagnostics[name] = np.asarray(value.tolist() if isinstance(value, np.ndarray) else value, dtype=float)
+    np.savez(Path(output).with_suffix(".diagnostics.npz"), **diagnostics)
     Path(output).with_suffix(".events.json").write_text(json.dumps(
         {str(key): np.asarray(value).tolist() for key, value in (dm.ca_events_idx or {}).items()}))
 
@@ -130,7 +136,7 @@ def main():
 
         pipeline = MiniscopePipeline()
         if mode == "configs":
-            from aceneurotools.miniscope.pipeline_results import PreprocessConfig, ProcessConfig, PostprocessConfig
+            from aceneurotools.miniscope.pipeline_results import PostprocessConfig, PreprocessConfig, ProcessConfig
 
             common = {key: options[key] for key in ["line_num", "project_path", "data_path", "filenames", "headless"]}
             configs = {name: cls(**{key: value for key, value in options.items() if key in inspect.signature(cls).parameters})

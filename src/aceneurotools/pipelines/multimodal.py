@@ -182,6 +182,7 @@ class MultimodalPipeline:
                 remove_artifacts=remove_artifacts,
                 filter_type=filter_type,
                 filter_range=filter_range,
+                compute_phases=ca_events,
                 plot_channel=plot_channel,
                 plot_spectrogram=plot_spectrogram,
                 plot_phases=plot_phases,

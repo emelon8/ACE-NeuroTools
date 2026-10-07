@@ -5,8 +5,8 @@ let downloadPlan = null, downloadSelection = new Set(), downloadChoice = null, a
 class RecordingCancelled extends Error {}
 let analysisSelection = "", runReview = null, runSettings = null, runSettingDraft = {}, cropPreview = null, cropCoords = null, cropSaved = null, cropDirty = false;
 let cropImage = null, cropPixels = null, cropDrag = null, selectedRun = null, runPoll = null, runListRequest = 0;
-const runNames = {crop: "Apply crop", crop_coords: "Crop coordinates (x0, y0, x1, y1)", filenames: "Movie filenames ([] = all)", run_CNMFE: "Extract neurons with CNMF-E", parallel: "Use parallel processing", n_processes: "Worker processes", apply_motion_correction: "Apply motion correction", save_estimates: "Save CNMF-E estimates", save_CNMFE_estimates_filename: "Estimates filename", save_CNMFE_params: "Save CaImAn parameters", detrend_method: "Detrending method", df_over_f: "Normalize fluorescence", secs_window: "Baseline window (s)", quantile_min: "Baseline percentile", channel_name: "Channel name", filter_type: "Filter type", filter_range: "Filter frequencies (Hz)", remove_artifacts: "Remove artifacts", compute_phases: "Compute phases"};
-const windowFlags = new Set(["inspect_motion_correction", "remove_components_with_gui", "plot_params", "inline", "plot_channel", "plot_spectrogram", "plot_phases"]);
+const runNames = {crop: "Apply crop", crop_coords: "Crop coordinates (x0, y0, x1, y1)", filenames: "Movie filenames ([] = all)", miniscope_filenames: "Movie filenames ([] = all)", run_CNMFE: "Extract neurons with CNMF-E", parallel: "Use parallel processing", n_processes: "Worker processes", apply_motion_correction: "Apply motion correction", save_estimates: "Save CNMF-E estimates", save_CNMFE_estimates_filename: "Estimates filename", save_CNMFE_params: "Save CaImAn parameters", detrend_method: "Detrending method", df_over_f: "Normalize fluorescence", secs_window: "Baseline window (s)", quantile_min: "Baseline percentile", channel_name: "Channel name", filter_type: "Filter type", filter_range: "Filter frequencies (Hz)", remove_artifacts: "Remove artifacts", compute_phases: "Compute phases", delete_TTLs: "Delete dropped-frame TTLs", fix_TTL_gaps: "Fill missing TTL pulses", only_experiment_events: "Keep experiment events only", all_TTL_events: "Map every frame TTL", ca_events: "Align calcium events", time_range: "Analysis time range (s)"};
+const windowFlags = new Set(["inspect_motion_correction", "remove_components_with_gui", "plot_params", "plot_channel", "plot_spectrogram", "plot_phases"]);
 const paramLabel = key => runNames[key] || key.replaceAll("_", " ").replace(/^./, letter => letter.toUpperCase());
 const displayParam = value => value === null ? "None" : typeof value === "object" ? JSON.stringify(value) : String(value);
 const extraUnsaved = () => cropDirty || Object.keys(runSettingDraft).length > 0;
@@ -91,7 +91,7 @@ async function prepareRecording(kind, choose = false) {
   boxStatus = await request("/api/box/status"); renderBoxStatus();
   return result;
 }
-$("choose-recording-files").onclick = () => { if (mustSaveFirst()) analysisAction("Reading the Box file list…", async () => { await prepareRecording($("run-kind").value, true); runReview = null; cropPreview = null; $("crop-workspace").hidden = true; $("analysis-status").textContent = preparedSubset ? "Selected files are ready. Crop and analysis use only this selection; the remaining Box files will not download automatically." : "Recording files are ready."; }); };
+$("choose-recording-files").onclick = () => { if (mustSaveFirst()) analysisAction("Reading the Box file list…", async () => { const kind = $("run-kind").value; await prepareRecording(kind, true); if (kind === "multimodal") { const calciumSubset = preparedSubset; await prepareRecording("ephys", true); preparedSubset ||= calciumSubset; } runReview = null; cropPreview = null; $("crop-workspace").hidden = true; $("analysis-status").textContent = preparedSubset ? "Selected files are ready. Crop and analysis use only this selection; the remaining Box files will not download automatically." : "Recording files are ready."; }); };
 function renderAnalysis() {
   const selection = `${project.id}/${experiment.number}`;
   if (analysisSelection !== selection) {
@@ -99,7 +99,7 @@ function renderAnalysis() {
     preparedBase = null; preparedSubset = false; analysisSelection = selection; runReview = null; runSettingDraft = {}; cropPreview = null; cropDirty = false; selectedRun = null;
     clearTimeout(runPoll); runPoll = null;
     const row = project.experiments.find(item => item.number === experiment.number);
-    $("run-kind").value = row.miniscope ? "compute" : row.ephys ? "ephys" : "compute";
+    $("run-kind").value = row.miniscope && row.ephys ? "multimodal" : row.miniscope ? "compute" : row.ephys ? "ephys" : "compute";
     $("analysis-status").textContent = "";
   }
   for (const [id, view] of [["run-settings-panel", "run-settings"], ["review-panel", "review"], ["crop-panel", "crop"], ["results-panel", "results"]]) $(id).hidden = workspaceView !== view;
@@ -135,10 +135,10 @@ async function openRunSettings() {
       control.disabled = windowFlags.has(key);
       control.oninput = () => { if (control.value === initial) delete runSettingDraft[key]; else runSettingDraft[key] = control.value; $("save-run-settings").disabled = Object.keys(runSettingDraft).length === 0; };
       field.append(label, control, element("small", windowFlags.has(key) ? "Disabled: separate-window actions use the embedded Crop/Neurons workflows." : key === "save_CNMFE_estimates_filename" ? "Filename only. The review shows its full output location." : result.sources[key]));
-      if (key === "filenames") { const choose = element("button", "Choose movies"); choose.type = "button"; choose.onclick = () => chooseRunMovies(control); field.append(choose); }
+      if (key === "filenames" || key === "miniscope_filenames") { const choose = element("button", "Choose movies"); choose.type = "button"; choose.onclick = () => chooseRunMovies(control); field.append(choose); }
       return field;
     }));
-    $("save-run-settings").disabled = true; $("run-settings-help").hidden = runSettings.kind !== "miniscope"; workspaceView = "run-settings"; renderWorkspace(); $("analysis-status").textContent = "";
+    $("save-run-settings").disabled = true; $("run-settings-help").hidden = !["miniscope", "multimodal"].includes(runSettings.kind); workspaceView = "run-settings"; renderWorkspace(); $("analysis-status").textContent = "";
   });
 }
 $("run-settings-button").onclick = openRunSettings;
@@ -172,13 +172,15 @@ $("choose-data-base").onclick = () => { if (mustSaveFirst()) browse(dataBase(), 
 $("review-run").onclick = () => {
   if (!mustSaveFirst()) return;
   analysisAction("Preparing experiment review…", async () => {
-    await prepareRecording($("run-kind").value);
+    const kind = $("run-kind").value;
+    await prepareRecording(kind);
+    if (kind === "multimodal") { const calciumSubset = preparedSubset; await prepareRecording("ephys"); preparedSubset ||= calciumSubset; }
     runReview = await post("/api/run/review", analysisPayload({kind: $("run-kind").value}));
-    $("review-file-list").replaceChildren(...runReview.files.map(item => element("li", `${item.path} · ${formatSize(item.size)}`)));
-    const facts = [["Recording scope", preparedSubset ? "Selected files only (test subset)" : "Local recording files"], ["Project", project.name], ["Subject", runReview.metadata.id || "Not set"], ["Experiment", experiment.number], ["Recorded", friendlyDate(runReview.metadata["date (YYMMDD)"])], ["Analysis", runReview.label], ["Recording folder", runReview.recording_path || runReview.metadata[runReview.recording_column]], ["Input copy", `${runReview.files.length} files · ${formatSize(runReview.input_bytes)}`]];
+    $("review-file-list").replaceChildren(...runReview.files.map(item => element("li", `${runReview.kind === "multimodal" ? "Calcium: " : ""}${item.path} · ${formatSize(item.size)}`)), ...runReview.ephys_files.map(item => element("li", `Ephys: ${item.path} · ${formatSize(item.size)}`)));
+    const facts = [["Recording scope", preparedSubset ? "Selected files only (test subset)" : "Local recording files"], ["Project", project.name], ["Subject", runReview.metadata.id || "Not set"], ["Experiment", experiment.number], ["Recorded", friendlyDate(runReview.metadata["date (YYMMDD)"])], ["Analysis", runReview.label], [runReview.kind === "ephys" ? "Ephys recording" : "Calcium recording", runReview.recording_path || runReview.metadata[runReview.recording_column]], ...(runReview.kind === "multimodal" ? [["Ephys recording", runReview.ephys_recording_path]] : []), ["Input copy", `${runReview.files.length + runReview.ephys_files.length} files · ${formatSize(runReview.input_bytes)}`]];
     $("review-details").replaceChildren(...facts.flatMap(([label, value]) => [element("dt", label), element("dd", value)]));
     $("review-outputs").replaceChildren(...Object.entries(runReview.destinations).flatMap(([label,value]) => [element("dt",label),element("dd",value)]));
-    const noExtraction = runReview.kind === "miniscope" && !runReview.parameters.run_CNMFE, noEstimates = runReview.kind === "miniscope" && !runReview.parameters.save_estimates;
+    const noExtraction = ["miniscope", "multimodal"].includes(runReview.kind) && !runReview.parameters.run_CNMFE, noEstimates = ["miniscope", "multimodal"].includes(runReview.kind) && !runReview.parameters.save_estimates;
     $("review-cnmfe-warning").hidden = !noExtraction && !noEstimates;
     $("review-cnmfe-warning").textContent = noExtraction ? "CNMF-E extraction is turned off. This run will not extract neurons. Enable Extract neurons with CNMF-E in Run settings to extract them." : noEstimates ? "Save CNMF-E estimates is turned off. This run will not save an estimates file for neuron review. Enable it in Run settings to save one." : "";
     $("review-blockers").hidden = !runReview.blockers.length;
@@ -219,7 +221,7 @@ function showRun(run) {
   $("run-output-state").textContent = `${run.state}${run.error ? ` · ${run.error}` : ""}${run.state === "untracked" ? " · The GUI server restarted. Use Refresh runs to check completion; the log and outputs are retained." : ""}`;
   $("run-output-location").textContent = run.directory; $("run-output-location").dataset.path = run.directory; $("stop-run").hidden = run.state !== "running";
   const estimates = run.files.find(file => /\.(hdf5|h5)$/i.test(file.name));
-  $("review-run-neurons").hidden = run.kind !== "miniscope" || run.state !== "completed" || !estimates;
+  $("review-run-neurons").hidden = !["miniscope", "multimodal"].includes(run.kind) || run.state !== "completed" || !estimates;
   $("review-run-neurons").onclick = () => { setWorkspace("neurons"); chooseNeuronSource(run.directory + "/" + estimates.name); $("neuron-load").click(); };
   $("run-log").textContent = run.log; $("run-used-parameters").textContent = JSON.stringify(run.parameters, null, 2);
   const inventory = run.output_inventory;

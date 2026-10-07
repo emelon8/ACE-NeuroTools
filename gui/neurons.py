@@ -68,6 +68,20 @@ def png(values, cmap):
     return base64.b64encode(output.getvalue()).decode()
 
 
+def footprint_outline(values):
+    """Highlight the component's spatial support above 20% of its peak weight."""
+    peak = float(np.max(values))
+    mask = values >= peak * 0.2 if peak > 0 else np.zeros(values.shape, dtype=bool)
+    interior = np.zeros_like(mask)
+    interior[1:-1, 1:-1] = mask[1:-1, 1:-1] & mask[:-2, 1:-1] & mask[2:, 1:-1] & mask[1:-1, :-2] & mask[1:-1, 2:]
+    overlay = np.zeros((*values.shape, 4), dtype=np.uint8)
+    overlay[mask] = (255, 207, 48, 50)
+    overlay[mask & ~interior] = (255, 232, 79, 255)
+    output = io.BytesIO()
+    Image.fromarray(overlay).save(output, format="PNG")
+    return base64.b64encode(output.getvalue()).decode()
+
+
 def trace_points(values, fr, start=0, end=None, limit=1800):
     """Min/max envelope retains narrow peaks while bounding browser payloads."""
     end = len(values) if end is None else end
@@ -123,7 +137,7 @@ class Neurons:
         except (ProjectError, OSError):
             pass
         for run in (runs or {}).get("runs", []):
-            if run["kind"] == "miniscope" and run["state"] == "completed":
+            if run["kind"] in {"miniscope", "multimodal"} and run["state"] == "completed":
                 for item in run["files"]:
                     add(Path(run["directory"]) / item["name"], "Completed CNMF-E run")
         sources = sorted(paths.values(), key=lambda item: (-item["modified"], item["path"]))
@@ -323,6 +337,7 @@ class Neurons:
             return self._summary(session) | {
                 "index": index,
                 "footprint": png(footprint, "hot"),
+                "outline": footprint_outline(footprint),
                 "peak_pixel": [int(x), int(y)],
                 "trace": trace_points(trace, fr, left, right),
                 "overview": trace_points(trace, fr, limit=600),

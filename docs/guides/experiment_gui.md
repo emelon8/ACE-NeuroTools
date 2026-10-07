@@ -61,11 +61,18 @@ The Analysis menu supports these workflows:
 | Crop & preprocess movie | Processed movie and projection/timing arrays |
 | Calcium imaging / CNMF-E | Estimates, component signals and footprints, events, projections, and available diagnostics |
 | Electrophysiology | Signal, timing, filtered signal, phases, and events when available |
+| Calcium + electrophysiology alignment | Both pipelines' outputs, synchronized frame times, TTL mappings, and event-phase results when requested |
 
 For extraction, choose **Set up CNMF-E** in Overview, or select calcium imaging
 in Analysis. In **Run settings**, enable **Extract neurons with CNMF-E** and
 **Save CNMF-E estimates**. Scientific detection and motion parameters remain in
 **Data & settings**. Save changes, then choose **Review & run**.
+
+For multimodal analysis, set both the calcium and ephys recording folders in
+**Data & settings**. The GUI checks both folders, shows both file lists in the
+review, and copies each into the run folder. Choose **Calcium + electrophysiology
+alignment** and review its TTL, event, movie, and channel settings. If either
+recording is on Box, **Choose recording files** reviews its download separately.
 
 Review the input files, copy size, output paths, and every effective parameter.
 The **From** column distinguishes saved CSV values from inherited defaults and
@@ -134,8 +141,9 @@ partial curation folder.
 Saving curated estimates alone does not update computed results. Curated event
 export creates a new event file; earlier run products remain tied to their
 original estimates. Ephys, movie projections, phases, spectra, and multimodal
-products are not recomputed by this action. The GUI has no full multimodal
-continuation from curated estimates; see the [multimodal guide](multimodal.md).
+products are not recomputed by this action. Run a new multimodal analysis to
+update aligned results; it uses the recording and saved run settings rather than
+the curated estimates.
 
 ## Output inventory
 
@@ -153,6 +161,11 @@ files without one.
 | `components.npz` | Sparse spatial footprints in CSC form |
 | `diagnostics.npz` | Available component quality metrics, automatic accepted/rejected indices, and fitted component parameters |
 | `diagnostics.json` | Settings, neuron count, filtering behavior, phase/spectral input semantics, and unavailable outputs |
+
+Multimodal runs also save `ephys.npz`, `ephys-events.json`, `alignment.npz`
+(aligned frame times, TTL indices, confidence periods, and phase histograms),
+and separate JSON files for per-neuron event indices and phases when computed.
+The inventory names every available array and identifies disabled outputs.
 
 Estimates and CaImAn settings normally reside in
 `recording/saved_movies/estimates.hdf5` and `opts_caiman.json` when their save

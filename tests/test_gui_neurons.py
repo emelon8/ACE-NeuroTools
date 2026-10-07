@@ -1,5 +1,7 @@
 """Real CaImAn load/select/save parity, provenance, resumable decisions and traces."""
 
+import base64
+import io
 import json
 import time
 from pathlib import Path
@@ -8,6 +10,7 @@ import numpy as np
 import pytest
 from gui.csv_projects import Project, ProjectError
 from gui.neurons import Neurons, load_estimates, trace_points
+from PIL import Image
 from scipy.sparse import csc_matrix
 
 
@@ -84,6 +87,81 @@ def test_load_footprints_traces_peak_window_and_frame_override(estimates):
     assert edge["footprint"]
 
 
+def test_footprint_images_match_script_sum_and_fortran_reshape(estimates):
+    from matplotlib import colormaps
+
+    project, path, A, C = estimates
+    service = Neurons()
+    session = service.open(project, body(project, path=str(path)))
+    detail = service.component(project, body(project, session=session["session"], index=2))
+
+    def decoded(encoded):
+        return np.asarray(Image.open(io.BytesIO(base64.b64decode(encoded))))
+
+    summed = A.toarray().sum(axis=1).reshape((24, 32), order="F")
+    selected = A.toarray()[:, 2].reshape((24, 32), order="F")
+    expected_bg = (colormaps["inferno"](summed / (summed.max() + 1e-9)) * 255).astype(np.uint8)
+    expected_fp = (colormaps["hot"](selected / (selected.max() + 1e-9)) * 255).astype(np.uint8)
+    np.testing.assert_array_equal(decoded(session["background"]), expected_bg)
+    np.testing.assert_array_equal(decoded(detail["footprint"]), expected_fp)
+    outline = decoded(detail["outline"])
+    support = selected >= selected.max() * 0.2
+    np.testing.assert_array_equal(outline[:, :, 3] > 0, support)
+    assert np.any(outline[:, :, 3] == 255)
+    assert np.any(outline[:, :, 3] == 50)
+    assert detail["peak_pixel"] == [25, 18]
+
+
+@pytest.mark.parametrize(
+    "index,window,expected",
+    [(0, 10, (0, 10)), (1, 10, (25, 35)), (2, 30, (29.9, 59.9))],
+)
+def test_peak_window_extends_at_both_edges(estimates, index, window, expected):
+    project, path, A, C = estimates
+    service = Neurons()
+    session = service.open(project, body(project, path=str(path)))
+    detail = service.component(project, body(project, session=session["session"], index=index, window=window))
+    assert (detail["start"], detail["end"]) == pytest.approx(expected)
+    assert detail["peak_s"] == pytest.approx([1, 30, 58][index])
+    assert [detail["peak_s"], float(C[index].max())] in detail["trace"]
+
+
+def test_trace_pan_full_view_and_frame_rate_use_unmodified_c(estimates):
+    project, path, A, C = estimates
+    service = Neurons()
+    session = service.open(project, body(project, path=str(path), window=10))
+    request = body(project, session=session["session"], index=1, fr=20, window=10)
+    moved = service.component(project, request | {"start": 999})
+    assert (moved["start"], moved["end"]) == pytest.approx((19.95, 29.95))
+    assert [15, 20] not in moved["trace"]
+    peak = service.component(project, request)
+    assert (peak["start"], peak["end"]) == pytest.approx((10, 20))
+    assert [15, 20] in peak["trace"]
+    full = service.component(project, request | {"full": True})
+    assert (full["start"], full["end"], full["window"]) == pytest.approx((0, 29.95, 10))
+    assert full["trace"] == [[i / 20, float(value)] for i, value in enumerate(C[1])]
+    assert service.open(project, body(project, path=str(path)))["fr"] == 20
+
+
+def test_keep_reject_navigation_bulk_and_resume_preserve_explicit_choices(estimates):
+    project, path, A, C = estimates
+    service = Neurons()
+    session = service.open(project, body(project, path=str(path)))
+    kept = decide(service, project, session, 0, True)
+    assert kept["current"] == 1 and (kept["kept"], kept["undecided"]) == (1, 2)
+    rejected = decide(service, project, kept, 2, False)
+    assert rejected["current"] == 2 and rejected["decisions"] == [True, None, False]
+    filled = service.decide(project, body(
+        project, session=session["session"], revision=rejected["revision"], bulk="reject",
+    ))
+    assert filled["decisions"] == [True, False, False]
+    assert (filled["kept"], filled["rejected"], filled["undecided"]) == (1, 2, 0)
+    resumed = Neurons().open(project, body(project, path=str(path)))
+    assert resumed["decisions"] == filled["decisions"] and resumed["current"] == 2
+    restored = decide(service, project, filled, 2, None)
+    assert restored["decisions"] == [True, False, None]
+
+
 def test_decisions_resume_clear_and_reject_stale_tabs(estimates):
     project, path, A, C = estimates
     service = Neurons()
@@ -128,6 +206,7 @@ def test_done_requires_explicit_undecided_choice_and_exports_original_ids(estima
     np.testing.assert_allclose(curated.estimates.A.toarray(), A.toarray()[:, [0, 2]])
     with np.load(folder / "C_curated.npz") as data:
         assert data["neuron_ids"].tolist() == [0, 2]
+        assert data["fr"].item() == 10
         np.testing.assert_array_equal(data["C"], C[[0, 2]])
         np.testing.assert_allclose(data["A_dense"], A.toarray()[:, [0, 2]])
     assert path.read_bytes() == original

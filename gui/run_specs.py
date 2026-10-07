@@ -16,6 +16,7 @@ PIPELINES = {
     "preprocess": "Crop and preprocess movie",
     "miniscope": "Calcium imaging (preprocessing and CNMF-E)",
     "ephys": "Electrophysiology",
+    "multimodal": "Calcium imaging + electrophysiology alignment",
 }
 
 
@@ -99,7 +100,7 @@ def effective_parameters(kind, raw):
 
 
 def settings_keys():
-    return {"crop_coords", *specification("miniscope")[1], *specification("ephys")[1]}
+    return {"crop_coords", *specification("miniscope")[1], *specification("ephys")[1], *specification("multimodal")[1]}
 
 
 def validate_settings(kind, changes):
@@ -109,6 +110,13 @@ def validate_settings(kind, changes):
     for key, value in converted.items():
         if value is None:
             continue
+        if key == "time_range":
+            import math
+
+            if (not isinstance(value, (list, tuple)) or len(value) != 2
+                or any(isinstance(item, bool) or not isinstance(item, (int, float)) or not math.isfinite(item)
+                       for item in value) or value[0] >= value[1]):
+                raise ValueError("time_range: enter [start, end] in seconds, with end after start.")
         default = defaults.get(key)
         if isinstance(default, bool) and not isinstance(value, bool):
             raise ValueError(f"{key}: choose Yes or No.")

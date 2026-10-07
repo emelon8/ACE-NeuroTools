@@ -1,9 +1,9 @@
 """Differential tests against real CLI/Python entry points, never GUI-derived oracles."""
 
-import csv
 import base64
-import io
+import csv
 import inspect
+import io
 import json
 import os
 import shutil
@@ -18,13 +18,12 @@ from urllib.request import Request, urlopen
 import cv2
 import numpy as np
 import pytest
-
+from gui.box_setup import BoxSetup
 from gui.csv_projects import Project
 from gui.run_specs import effective_parameters
-from gui.box_setup import BoxSetup
 from gui.server import ProjectServer
-from aceneurotools.shared import config_utils
 
+from aceneurotools.shared import config_utils
 from tests.test_gui_analysis import make_recording
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -58,10 +57,14 @@ def gui_parameters(root, kind):
         from aceneurotools.pipelines.miniscope import MiniscopePipeline
 
         method = MiniscopePipeline.run
-    else:
+    elif kind == "ephys":
         from aceneurotools.pipelines.ephys import EphysPipeline
 
         method = EphysPipeline.run
+    else:
+        from aceneurotools.pipelines.multimodal import MultimodalPipeline
+
+        method = MultimodalPipeline.run
     raw = Project.open(root).inspect("1")["parameters"]
     options, _ = effective_parameters(kind, raw)
     bound = inspect.signature(method).bind_partial(None, **options, line_num=1,
@@ -77,7 +80,7 @@ def project_folder(tmp_path):
 
 
 @pytest.mark.parametrize("kind,settings", [
-    ("miniscope", {}), ("ephys", {}),
+    ("miniscope", {}), ("ephys", {}), ("multimodal", {}),
     ("miniscope", {"n_processes": "3", "filenames": "['0.avi', '2.avi']", "df_over_f": "True",
         "secs_window": "7.5", "quantile_min": "12", "method": "delta_f_over_f", "detrend_method": "linear",
         "run_CNMFE": "False", "parallel": "False", "apply_motion_correction": "False",
@@ -91,6 +94,10 @@ def project_folder(tmp_path):
         "filter_range": "[0.5, 4]", "compute_phases": "True", "plot_channel": "True",
         "plot_spectrogram": "True", "plot_phases": "True", "logging_level": "WARNING",
         "crop_coords": "(2,3,20,15)", "unknown_lab_column": "keep"}),
+    ("multimodal", {"channel_name": "RHS2116_AC_0", "miniscope_filenames": "['0.avi']",
+        "crop": "False", "run_CNMFE": "False", "delete_TTLs": "False", "fix_TTL_gaps": "False",
+        "only_experiment_events": "True", "all_TTL_events": "False", "ca_events": "False",
+        "time_range": "[1.0, 5.0]", "filter_range": "[0.5, 4]"}),
     ("miniscope", {"n_processes": "", "filenames": "", "cut": "None", "inline": "nan", "crop_coords": "",
                    "window_step": "NA", "event_height": "NULL", "btype": "N/A"}),
 ])
@@ -146,6 +153,34 @@ def open_experiment(base, root):
     return {"project": project["id"], "number": "1", "versions": detail["versions"], "data_path": str(root)}
 
 
+@pytest.mark.parametrize("kind,changes", [
+    ("miniscope", {"n_processes": "2", "inline": "False", "run_CNMFE": "True"}),
+    ("ephys", {"channel_name": "RHS2116_AC_0", "filter_range": "[0.5, 4]", "compute_phases": "True"}),
+])
+def test_gui_http_saved_settings_match_real_cli(app, kind, changes):
+    root, base = app
+    (root / "experiments.csv").write_text("line number,id\n1,Parity subject\n")
+    write_settings(root, {})
+    payload = open_experiment(base, root)
+    saved = http(base, "/api/run/settings/save", {**payload, "kind": kind, "changes": changes})
+    shown = http(base, f"/api/run/settings?project={payload['project']}&number=1&kind={kind}")
+    assert {key: saved["experiment"]["parameters"][key] for key in changes} == changes
+    assert all(shown["sources"][key] == "Saved CSV" for key in changes)
+    if kind == "miniscope":
+        from aceneurotools.pipelines.miniscope import MiniscopePipeline
+
+        method = MiniscopePipeline.run
+    else:
+        from aceneurotools.pipelines.ephys import EphysPipeline
+
+        method = EphysPipeline.run
+    bound = inspect.signature(method).bind_partial(None, **shown["parameters"], line_num=1,
+        project_path=str(root), data_path=str(root), headless=True)
+    bound.apply_defaults()
+    actual = json.loads(json.dumps({key: value for key, value in bound.arguments.items() if key != "self"}))
+    assert actual == cli_parameters(root, kind)
+
+
 def gui_run(base, payload, kind):
     review = http(base, "/api/run/review", {**payload, "kind": kind})
     assert review["blockers"] == []
@@ -161,18 +196,18 @@ def gui_run(base, payload, kind):
     pytest.fail("Parity fixture analysis exceeded 90 seconds.")
 
 
-def cluster_run(base, payload, kind, root, folder, *, slurm=False):
+def cluster_run(base, payload, kind, root, folder, *, slurm=False, cpus=1):
     folder.mkdir()
     output = folder / "outputs"
     result = http(base, "/api/job/scripts", {**payload, "kind": kind, "cluster": {
         "recording_path": str(root / "raw"), "output_path": str(output), "python": sys.executable,
-        "cpus": "1", "memory_gb": "1", "time": "00:05:00"}})
+        "cpus": str(cpus), "memory_gb": "1", "time": "00:05:00"}})
     with zipfile.ZipFile(io.BytesIO(base64.b64decode(result["archive"]))) as archive:
         archive.extractall(folder)
     # PYTHONPATH contains only core src: the GUI worker must come from the ZIP.
     command = ["bash", "submit.slurm"] if slurm else [sys.executable, "run_job.py"]
     subprocess_ok(command, cwd=folder,
-        extra_env={"SLURM_SUBMIT_DIR": str(folder), "SLURM_CPUS_PER_TASK": "1"} if slurm else {})
+        extra_env={"SLURM_SUBMIT_DIR": str(folder), "SLURM_CPUS_PER_TASK": str(cpus)} if slurm else {})
     runs = list(output.iterdir())
     assert len(runs) == 1 and json.loads((runs[0] / "outcome.json").read_text())["success"] is True
     return runs[0]
@@ -290,7 +325,7 @@ def test_real_preprocessing_pixels_projections_and_timestamps_match_python_gui_a
             np.testing.assert_allclose(actual[key], reference[key], rtol=0, atol=0, err_msg=key)
 
 
-def make_cnmfe_recording(root):
+def make_cnmfe_recording(root, workers=1):
     raw = root / "raw"
     raw.mkdir()
     size, count, rate = 40, 200, 10
@@ -313,7 +348,7 @@ def make_cnmfe_recording(root):
         "line number,id,date (YYMMDD),calcium imaging directory,Box Calcium Folder ID,ephys directory,Box ephys folder ID\n"
         "1,Parity cells,261005,raw,,,\n")
     options = {"filenames": ["0.avi"], "crop": True, "crop_coords": [0, 0, size, size],
-        "detrend_method": None, "df_over_f": False, "parallel": False, "n_processes": 1,
+        "detrend_method": None, "df_over_f": False, "parallel": workers > 1, "n_processes": workers,
         "apply_motion_correction": False, "inspect_motion_correction": False, "plot_params": False,
         "run_CNMFE": True, "save_estimates": True, "save_CNMFE_params": True,
         "remove_components_with_gui": False, "find_calcium_events": True, "derivative_for_estimates": "zeroth",
@@ -323,14 +358,16 @@ def make_cnmfe_recording(root):
     caiman = {"method_init": "corr_pnr", "gSig": [2, 2], "gSiz": [7, 7], "min_corr": 0.5,
         "min_pnr": 3, "rf": None, "stride": 6, "nb": 0, "nb_patch": 0, "p": 1,
         "ring_size_factor": 1.5, "use_cnn": False, "normalize_init": False, "center_psf": True}
+    caiman.update(ssub=1, tsub=1)
     write_settings(root, {key: str(value) for key, value in {**options, **caiman}.items()})
     (root / "api-options.json").write_text(json.dumps(options))
 
 
 @pytest.mark.integration
-def test_real_cnmfe_traces_footprints_events_filters_and_spectra_match_all_entry_points(app, tmp_path):
+@pytest.mark.parametrize("workers", [1, 2])
+def test_real_cnmfe_traces_footprints_events_filters_and_spectra_match_all_entry_points(app, tmp_path, workers):
     root, base = app
-    make_cnmfe_recording(root)
+    make_cnmfe_recording(root, workers)
     originals = {name: (root / name).read_bytes() for name in ["experiments.csv", "analysis_parameters.csv", "raw/0.avi"]}
     # Separate input copies keep direct API/CLI crop writeback from altering the
     # GUI's inputs or letting one route reuse another route's scientific outputs.
@@ -342,6 +379,7 @@ def test_real_cnmfe_traces_footprints_events_filters_and_spectra_match_all_entry
         subprocess_ok([sys.executable, str(PROBE), mode, "miniscope", str(project), str(output)])
         references.append(output)
     expected = arrays(references[0])
+    expected_diagnostics = arrays(references[0].with_suffix(".diagnostics.npz"))
     assert expected["C"].shape[0] >= 2 and expected["C"].shape[1] == 200
     assert expected["A_dense"].shape == (1600, expected["C"].shape[0])
     assert np.isfinite(expected["PSD_spect"]).all()
@@ -355,7 +393,8 @@ def test_real_cnmfe_traces_footprints_events_filters_and_spectra_match_all_entry
         assert json.loads(path.with_suffix(".events.json").read_text()) == events
     payload = open_experiment(base, root)
     local = gui_run(base, payload, "miniscope")
-    cluster = cluster_run(base, payload, "miniscope", root, tmp_path / "cluster")
+    cluster = cluster_run(base, payload, "miniscope", root, tmp_path / "cluster", cpus=workers)
+    from caiman.source_extraction.cnmf.cnmf import load_CNMF
     from scipy.sparse import csc_matrix
 
     for folder in [local, cluster]:
@@ -367,5 +406,10 @@ def test_real_cnmfe_traces_footprints_events_filters_and_spectra_match_all_entry
                            shape=tuple(components["A_shape"]))
         np.testing.assert_allclose(matrix.toarray(), expected["A_dense"], rtol=1e-5, atol=1e-6)
         assert json.loads((folder / "calcium-events.json").read_text())["ca_events_idx"] == events
-        assert (folder / "recording/saved_movies/estimates.hdf5").is_file()
+        saved = load_CNMF(str(folder / "recording/saved_movies/estimates.hdf5")).estimates
+        np.testing.assert_allclose(saved.C, expected["C"], rtol=1e-5, atol=1e-6)
+        np.testing.assert_allclose(saved.A.toarray(), expected["A_dense"], rtol=1e-5, atol=1e-6)
+        diagnostics = arrays(folder / "diagnostics.npz")
+        for key, value in expected_diagnostics.items():
+            np.testing.assert_allclose(diagnostics[key], value, rtol=1e-5, atol=1e-6, err_msg=key)
     assert all((root / name).read_bytes() == value for name, value in originals.items())

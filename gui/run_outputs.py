@@ -32,6 +32,10 @@ class OutputInventory:
             return
         try:
             array = np.asarray(value)
+            if array.dtype.kind == "O":
+                # CaImAn diagnostics can wrap numeric scalars or vectors in an
+                # object array. Infer their numeric shape/dtype without pickle.
+                array = np.asarray(array.tolist())
         except (TypeError, ValueError) as exc:
             raise ValueError(f"{name}: could not serialize the computed numeric output.") from exc
         if array.dtype.kind not in "biufc":
@@ -190,3 +194,16 @@ def ephys_outputs(report, channel):
         report.array(name, value, "ephys.npz", flag)
     report.events("ephys_events", channel.events, "ephys-events.json")
     report.diagnostics["channel_name"] = channel.name
+
+
+def multimodal_outputs(report, pipeline):
+    """Preserve both sub-pipelines and every retained alignment result."""
+    miniscope_outputs(report, pipeline.miniscope_pipeline.miniscope_data_manager)
+    channel = pipeline.ephys_pipeline.ephys_data_manager.get_channel(report.parameters["channel_name"])
+    ephys_outputs(report, channel)
+    for name in ["t_ca_im", "low_confidence_periods", "ephys_idx_all_TTL_events",
+                 "ca_frame_num_of_ephys_idx", "phase_hist_ephys", "phase_bin_edges_ephys",
+                 "phase_hist_miniscope", "phase_bin_edges_miniscope"]:
+        report.array(name, getattr(pipeline, name, None), "alignment.npz")
+    for name in ["ephys_idx_ca_events", "ca_events_phases_ephys", "ca_events_phases_miniscope"]:
+        report.events(name, getattr(pipeline, name, None), f"{name}.json", flag="ca_events")

@@ -82,11 +82,14 @@ async function showNeuron(index, start = null, full = false) {
   neuronSession = {...neuronSession, ...result}; neuronDetail = result; neuronIndex = index;
   renderNeuronDecisions(); $("neuron-start").value = result.start.toFixed(3);
   $("neuron-footprint-label").textContent = `Neuron ${index+1} footprint`;
+  $("neuron-trace-label").textContent = `Neuron ${index+1} fluorescence trace · raw C values`;
   $("neuron-footprint").src = "data:image/png;base64," + result.footprint;
   const background = new Image(); background.src = "data:image/png;base64," + neuronSession.background; await background.decode();
+  const outline = new Image(); outline.src = "data:image/png;base64," + result.outline; await outline.decode();
   const canvas = $("neuron-background"), scale = Math.max(1, Math.min(640 / neuronSession.dims[1], 640 / neuronSession.dims[0]));
   canvas.width = Math.round(neuronSession.dims[1] * scale); canvas.height = Math.round(neuronSession.dims[0] * scale);
   const ctx = canvas.getContext("2d"); ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
+  ctx.imageSmoothingEnabled = false; ctx.drawImage(outline, 0, 0, canvas.width, canvas.height);
   const [x,y] = result.peak_pixel.map(value => (value + 0.5) * scale);
   const radius = Math.max(2, canvas.width / 90);
   ctx.strokeStyle = "#ffffff"; ctx.lineWidth = Math.max(2, canvas.width / 200);

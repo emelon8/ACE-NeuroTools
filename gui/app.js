@@ -3,6 +3,7 @@ const $ = id => document.getElementById(id);
 let projects = [], project = null, experiment = null, activeTab = "metadata", workspaceView = "overview";
 let drafts = {metadata: {}, parameters: {}}, creating = false, busy = false, selectionRequest = 0;
 let folder = null, folderTarget = null, expanded = new Set(), editorExpanded = new Set(), savedMessage = "", lastBackup = "";
+let newProject = null;
 const element = (tag, text, className) => {
   const node = document.createElement(tag);
   if (text !== undefined) node.textContent = text;
@@ -63,6 +64,28 @@ function renderProjects() {
     const location = element("div", undefined, "project-location"), reload = element("button", "Reload project", "text-action");
     reload.onclick = () => reloadProject(item.id); location.append(element("span", item.path), reload);
     group.append(heading, location);
+    const actions = element("div", undefined, "project-actions");
+    const defaultLabel = element("label", "Default parameters from");
+    const defaultSelect = element("select"); defaultSelect.setAttribute("aria-label", `Default experiment for ${item.name}`);
+    const empty = element("option", "Choose an experiment"); empty.value = ""; defaultSelect.append(empty);
+    for (const row of item.experiments.filter(row => row.has_parameters)) {
+      const option = element("option", `${rowName(row)} · #${row.number}`); option.value = row.number; defaultSelect.append(option);
+    }
+    defaultSelect.value = item.default_experiment || "";
+    defaultSelect.onchange = async () => {
+      const previous = item.default_experiment || ""; defaultSelect.disabled = true; clearError();
+      try {
+        const result = await post("/api/projects/default", {project: item.id, number: defaultSelect.value || null, versions: item.versions});
+        replaceProject(result.project);
+        if (project?.id === item.id) { project = result.project; if (experiment) experiment.versions = result.project.versions; }
+        if (newProject?.id === item.id) newProject = result.project;
+        renderProjects();
+      }
+      catch (error) { defaultSelect.value = previous; defaultSelect.disabled = false; showError(error); }
+    };
+    defaultLabel.append(defaultSelect);
+    const add = element("button", "New experiment"); add.type = "button"; add.onclick = () => showNewExperiment(item.id);
+    actions.append(defaultLabel, add); group.append(actions);
     if (item.parameter_error) {
       const notice = element("div", undefined, "project-notice");
       notice.append(element("strong", "Analysis settings could not be read."), element("p", item.parameter_error)); group.append(notice);
@@ -106,7 +129,7 @@ async function openProject(path) {
   clearError(); busy = true; $("use-folder").disabled = true;
   try {
     const next = await post("/api/projects/open", {path}); replaceProject(next); expanded.add(next.id);
-    resetEditor(); $("folders").hidden = true; $("detail").hidden = true; $("home").hidden = false; renderProjects();
+    resetEditor(); $("new-experiment").hidden = true; newProject = null; $("folders").hidden = true; $("detail").hidden = true; $("home").hidden = false; renderProjects();
     $("search").focus();
   } catch (error) { showError(error); }
   finally { busy = false; if (folder) $("use-folder").disabled = !folder.has_experiments; }
@@ -124,9 +147,34 @@ async function reloadProject(id) {
   finally { busy = false; }
 }
 function resetEditor() { if (typeof resetAnalysisDrafts === "function") resetAnalysisDrafts(); selectionRequest++; experiment = null; drafts = {metadata: {}, parameters: {}}; creating = false; savedMessage = ""; lastBackup = ""; }
+function sourceOptions(select, destinationId) {
+  const previous = select.value;
+  select.replaceChildren();
+  const blank = element("option", "Blank settings"); blank.value = ""; select.append(blank);
+  for (const item of projects.filter(item => item.default_experiment && !item.parameter_error)) {
+    const option = element("option", `${item.name} · experiment ${item.default_experiment}${item.id === destinationId ? " (this project)" : ""}`);
+    option.value = item.id; select.append(option);
+  }
+  select.value = [...select.options].some(option => option.value === previous) ? previous : (projects.find(item => item.id === destinationId)?.default_experiment ? destinationId : "");
+}
+async function sourceSettings(sourceId, destinationColumns) {
+  if (!sourceId) return {};
+  const source = projects.find(item => item.id === sourceId);
+  if (!source?.default_experiment) throw new Error("Choose a project with a default experiment.");
+  const detail = await request(`/api/experiment?project=${encodeURIComponent(sourceId)}&number=${encodeURIComponent(source.default_experiment)}`);
+  return Object.fromEntries(Object.entries(detail.parameters || {}).filter(([key]) =>
+    key !== "line number" && destinationColumns.includes(key) &&
+    !["Recording details in settings", "Experiment"].includes(detail.fields.parameters.find(field => field.key === key)?.group)
+  ));
+}
+function showNewExperiment(id) {
+  newProject = projects.find(item => item.id === id); $("new-experiment").hidden = false;
+  $("new-experiment-form").reset(); sourceOptions($("new-source"), id);
+  $("new-experiment").scrollIntoView({block: "start"}); $("new-number").focus();
+}
 async function selectExperiment(projectId, number, tab = null) {
   if (!canLeave()) return;
-  clearError(); resetEditor(); const revision = ++selectionRequest;
+  clearError(); $("new-experiment").hidden = true; newProject = null; resetEditor(); const revision = ++selectionRequest;
   project = projects.find(item => item.id === projectId); activeTab = tab || "metadata"; workspaceView = tab ? "editor" : "overview"; $("field-search").value = "";
   $("home").hidden = true; $("detail").hidden = false; $("detail-loading").hidden = false; $("detail-content").hidden = true;
   const row = project.experiments.find(item => item.number === number);
@@ -197,6 +245,8 @@ function renderEditor() {
   const settings = activeTab === "parameters", missing = settings && experiment.parameters === null;
   $("metadata-tab").setAttribute("aria-current", settings ? "false" : "page"); $("parameters-tab").setAttribute("aria-current", settings ? "page" : "false");
   $("settings-message").hidden = !missing;
+  $("copy-settings").hidden = !settings || Boolean(experiment.parameter_error);
+  if (settings) sourceOptions($("copy-source"), project.id);
   $("settings-text").textContent = experiment.parameter_error || (creating ? "Add the settings you want to store for this experiment. Blank fields stay blank." : `Experiment ${experiment.number} has no saved analysis settings.`);
   $("add-settings").hidden = creating || Boolean(experiment.parameter_error);
   $("editor-form").hidden = missing && !creating; $("editor-toolbar").hidden = missing && !creating;
@@ -315,6 +365,36 @@ $("error-reload").onclick = () => reloadProject(project.id);
 $("metadata-tab").onclick = () => { if (!busy) { activeTab = "metadata"; $("field-search").value = ""; savedMessage = ""; renderEditor(); } };
 $("parameters-tab").onclick = () => { if (!busy) { activeTab = "parameters"; $("field-search").value = ""; savedMessage = ""; renderEditor(); } };
 $("add-settings").onclick = () => { creating = true; renderEditor(); };
+$("apply-source").onclick = async () => {
+  if (!experiment || !$("copy-source").value) return;
+  if (dirty("parameters") && !window.confirm("Replace unsaved analysis settings with values from the selected project?")) return;
+  clearError(); busy = true; $("apply-source").disabled = true;
+  try {
+    const values = await sourceSettings($("copy-source").value, experiment.fields.parameters.map(field => field.key));
+    drafts.parameters = {};
+    for (const [key, value] of Object.entries(values)) if (value !== (experiment.parameters?.[key] || "")) drafts.parameters[key] = value;
+    if (experiment.parameters === null) creating = true;
+    savedMessage = "Settings populated. Review and save them."; renderEditor();
+  } catch (error) { showError(error); }
+  finally { busy = false; $("apply-source").disabled = false; updateSaveBar(); }
+};
+$("cancel-new").onclick = () => { $("new-experiment").hidden = true; newProject = null; };
+$("new-experiment-form").onsubmit = async event => {
+  event.preventDefault(); if (!newProject || busy) return;
+  clearError(); busy = true;
+  try {
+    const metadata = {};
+    if (newProject.metadata_columns.includes("id")) metadata.id = $("new-subject").value;
+    if (newProject.metadata_columns.includes("date (YYMMDD)") && $("new-date").value)
+      metadata["date (YYMMDD)"] = $("new-date").value.slice(2).replaceAll("-", "");
+    const parameters = await sourceSettings($("new-source").value, newProject.parameter_columns);
+    const result = await post("/api/experiment/create", {project: newProject.id, number: $("new-number").value.trim(), metadata, parameters, versions: newProject.versions});
+    replaceProject(result.project); expanded.add(newProject.id); $("new-experiment").hidden = true;
+    const id = newProject.id, number = result.experiment.number; newProject = null; renderProjects();
+    busy = false; await selectExperiment(id, number);
+  } catch (error) { showError(error); }
+  finally { busy = false; }
+};
 $("field-search").oninput = renderEditor; $("editor-form").onsubmit = saveChanges;
 $("discard").onclick = () => { if (!busy && window.confirm("Discard the unsaved changes in this section?")) { drafts[activeTab] = {}; if (activeTab === "parameters") creating = false; savedMessage = ""; renderEditor(); } };
 window.addEventListener("beforeunload", event => { if (anyDirty()) { event.preventDefault(); event.returnValue = ""; } });

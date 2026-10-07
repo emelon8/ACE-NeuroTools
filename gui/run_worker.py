@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import sys
 import traceback
 from pathlib import Path
 
 from gui.csv_projects import Project
-from gui.run_outputs import OutputInventory, ephys_outputs, miniscope_outputs
+from gui.run_outputs import OutputInventory, ephys_outputs, miniscope_outputs, multimodal_outputs
 from gui.runs import atomic_json
 
 
@@ -18,25 +19,33 @@ def execute(manifest):
     from aceneurotools.shared.misc_functions import update_csv_cell
 
     root = Path(manifest["directory"])
-    source, destination = Path(manifest["recording_path"]), root / "recording"
-    print(f"Preserving {len(manifest['files'])} recording files in {destination}", flush=True)
-    destination.mkdir()
-    for item in manifest["files"]:
-        origin, target = source / item["path"], destination / item["path"]
-        before = origin.stat()
-        if before.st_size != item["size"] or before.st_mtime_ns != item["mtime"]:
-            raise ValueError(f"Recording file changed since review: {item['path']}")
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(origin, target)
-        after = origin.stat()
-        if after.st_size != before.st_size or after.st_mtime_ns != before.st_mtime_ns:
-            raise ValueError(f"Recording file changed during copying: {item['path']}")
+    caiman_temp = root / ".caiman-temp"
+    caiman_temp.mkdir(exist_ok=True)
+    os.environ.setdefault("CAIMAN_TEMP", str(caiman_temp))
+    copies = [(Path(manifest["recording_path"]), root / "recording", manifest["files"])]
+    if manifest["kind"] == "multimodal":
+        copies.append((Path(manifest["ephys_recording_path"]), root / "recording-ephys", manifest["ephys_files"]))
+    for source, destination, files in copies:
+        print(f"Preserving {len(files)} recording files in {destination}", flush=True)
+        destination.mkdir()
+        for item in files:
+            origin, target = source / item["path"], destination / item["path"]
+            before = origin.stat()
+            if before.st_size != item["size"] or before.st_mtime_ns != item["mtime"]:
+                raise ValueError(f"Recording file changed since review: {item['path']}")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(origin, target)
+            after = origin.stat()
+            if after.st_size != before.st_size or after.st_mtime_ns != before.st_mtime_ns:
+                raise ValueError(f"Recording file changed during copying: {item['path']}")
     # The original CSV copies remain frozen. Only the execution copies receive run-local paths.
     execution = root / "execution"
     execution.mkdir()
     for name in ["experiments.csv", "analysis_parameters.csv"]:
         shutil.copy2(root / name, execution / name)
     update_csv_cell("recording", manifest["recording_column"], manifest["number"], execution / "experiments.csv")
+    if manifest["kind"] == "multimodal":
+        update_csv_cell("recording-ephys", "ephys directory", manifest["number"], execution / "experiments.csv")
     params = {
         **manifest["parameters"],
         "line_num": int(manifest["number"]),
@@ -46,7 +55,7 @@ def execute(manifest):
     }
     atomic_json(root / "effective-parameters.json", params)
     report = OutputInventory(root, manifest["kind"], params)
-    if manifest["kind"] in {"compute", "miniscope", "preprocess"}:
+    if manifest["kind"] in {"compute", "miniscope", "preprocess", "multimodal"}:
         # The factory registry intentionally uses explicit imports in this wrapper.
         from aceneurotools.miniscope import onix_miniscope_data_manager, ucla_data_manager  # noqa: F401
 
@@ -125,6 +134,12 @@ def execute(manifest):
         pipeline = MiniscopePipeline()
         pipeline.run(**params)
         miniscope_outputs(report, pipeline.miniscope_data_manager)
+    elif manifest["kind"] == "multimodal":
+        from aceneurotools.pipelines.multimodal import MultimodalPipeline
+
+        pipeline = MultimodalPipeline()
+        pipeline.run(**params)
+        multimodal_outputs(report, pipeline)
     else:
         from aceneurotools.pipelines.ephys import EphysPipeline
 

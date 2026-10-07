@@ -49,6 +49,28 @@ def test_load_and_inspect_actual_csvs(viewer):
     assert listing["has_experiments"] and listing["has_parameters"]
 
 
+def test_default_selection_and_new_experiment_over_http(viewer):
+    base, folder = viewer
+    project = request(base, "/api/projects")[1]["projects"][0]
+    status, selected = request(base, "/api/projects/default", {
+        "project": project["id"], "number": "1", "versions": project["versions"]
+    })
+    assert status == 200
+    assert selected["project"]["default_experiment"] == "1"
+    status, created = request(base, "/api/experiment/create", {
+        "project": project["id"], "number": "2", "metadata": {"id": "R2"},
+        "parameters": {"crop": "False"}, "versions": selected["project"]["versions"]
+    })
+    assert status == 200
+    assert created["experiment"]["metadata"]["id"] == "R2"
+    assert created["experiment"]["parameters"]["crop"] == "False"
+    assert request(base, "/api/projects")[1]["projects"][0]["default_experiment"] == "1"
+    assert request(base, "/api/experiment/create", {
+        "project": project["id"], "number": "2", "metadata": {}, "parameters": {},
+        "versions": created["project"]["versions"]
+    })[0] == 400
+
+
 def test_generate_job_without_local_recordings(viewer):
     base, folder = viewer
     project = request(base, "/api/projects")[1]["projects"][0]

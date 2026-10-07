@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import io
+import json
 import os
 import tempfile
 import uuid
@@ -98,6 +99,7 @@ class Project:
     digests: dict[str, str | None]
     warnings: list[str]
     parameter_error: str | None = None
+    default_experiment: str | None = None
 
     @classmethod
     def open(cls, location: str | Path) -> Project:
@@ -132,6 +134,23 @@ class Project:
                 "analysis_parameters.csv is absent. No per-experiment settings are available in this project."
             )
         parameters = {row["line number"]: row for row in parameter_rows}
+        defaults_path = path / ".ace-gui-project.json"
+        default_experiment = None
+        if defaults_path.exists():
+            try:
+                settings = json.loads(defaults_path.read_text(encoding="utf-8"))
+                default_experiment = settings.get("default_experiment")
+                if default_experiment is not None and (
+                    not isinstance(default_experiment, str) or default_experiment not in parameters
+                    or default_experiment not in experiments
+                ):
+                    warnings.append("The saved default experiment no longer has analysis settings.")
+                    default_experiment = None
+            except (OSError, ValueError, AttributeError):
+                warnings.append("Project defaults could not be read.")
+        digests[defaults_path.name] = (
+            hashlib.sha256(defaults_path.read_bytes()).hexdigest() if defaults_path.exists() else None
+        )
         if not parameter_error and parameter_path.exists():
             missing = [key for key in experiments if key not in parameters]
             extra = [key for key in parameters if key not in experiments]
@@ -141,7 +160,7 @@ class Project:
                 )
             if extra:
                 warnings.append(f"Parameter records have no matching experiment: {', '.join(extra)}.")
-        return cls(path, columns, experiments, parameter_columns, parameters, digests, warnings, parameter_error)
+        return cls(path, columns, experiments, parameter_columns, parameters, digests, warnings, parameter_error, default_experiment)
 
     @property
     def id(self) -> str:
@@ -172,6 +191,10 @@ class Project:
             "missing_parameters": [number for number in self.experiments if number not in self.parameters],
             "orphan_parameters": [number for number in self.parameters if number not in self.experiments],
             "parameter_error": self.parameter_error,
+            "default_experiment": self.default_experiment,
+            "versions": self.digests,
+            "metadata_columns": self.metadata_columns,
+            "parameter_columns": self.settings_columns(),
             "experiments": [
                 {
                     "number": number,
@@ -259,6 +282,55 @@ class Project:
         with template.open(encoding="utf-8-sig", newline="") as handle:
             return next(csv.reader(handle))
 
+    def set_default_experiment(self, number: str | None, versions: dict) -> Project:
+        self.ensure_current()
+        if versions != self.digests:
+            raise ProjectChangedError("This project changed. Reload before changing its default experiment.")
+        if number is not None and (number not in self.experiments or number not in self.parameters):
+            raise ProjectError("Choose an experiment with saved analysis settings as the default.")
+        path = self.path / ".ace-gui-project.json"
+        if path.is_symlink():
+            raise ProjectError("Project defaults cannot be saved through a linked file.")
+        descriptor, name = tempfile.mkstemp(prefix=".ace-default-", suffix=".json", dir=self.path)
+        staged = Path(name)
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+                json.dump({"default_experiment": number}, handle)
+                handle.write("\n")
+            self.ensure_current()
+            os.replace(staged, path)
+        finally:
+            staged.unlink(missing_ok=True)
+        return Project.open(self.path)
+
+    def create_experiment(
+        self, number: str, metadata: dict[str, str], parameters: dict[str, str], versions: dict
+    ) -> tuple[Project, str | None]:
+        self.ensure_current()
+        if versions != self.digests:
+            raise ProjectChangedError("This project changed. Reload before creating the experiment.")
+        if not isinstance(number, str) or not number or number != number.strip() or number in self.experiments:
+            raise ProjectError("Enter a new, unique experiment number.")
+        if not isinstance(metadata, dict) or not isinstance(parameters, dict):
+            raise ProjectError("Enter valid experiment details and analysis settings.")
+        for values, columns in ((metadata, self.metadata_columns), (parameters, self.settings_columns())):
+            if any(not isinstance(key, str) or not isinstance(value, str) or key not in columns or key == "line number"
+                   for key, value in values.items()):
+                raise ProjectError("Experiment fields must match this project's CSV columns.")
+            for key, value in values.items():
+                validate(key, value)
+        # The metadata writer already stages the CSV and makes a backup. If the
+        # second write fails, restore the original metadata before returning.
+        saved, backup = self.save(number, "metadata", metadata, versions, create=True, allow_new_metadata=True)
+        try:
+            if parameters:
+                saved, _ = saved.save(number, "parameters", parameters, saved.digests, create=True)
+        except Exception:
+            if backup:
+                os.replace(backup, self.path / "experiments.csv")
+            raise
+        return saved, backup
+
     def save(
         self,
         number: str,
@@ -268,12 +340,16 @@ class Project:
         create: bool = False,
         *,
         new_columns: tuple[str, ...] = (),
+        allow_new_metadata: bool = False,
     ) -> tuple[Project, str | None]:
         """Save one selected record/file. Stage existing utilities, back up, then replace."""
         self.ensure_current()
         if versions != self.digests:
             raise ProjectChangedError("This experiment was saved elsewhere. Reload before saving your changes.")
-        if number not in self.experiments or not isinstance(section, str) or section not in {"metadata", "parameters"}:
+        if (
+            (number not in self.experiments and not (section == "metadata" and create and allow_new_metadata))
+            or not isinstance(section, str) or section not in {"metadata", "parameters"}
+        ):
             raise ProjectError("Choose an existing experiment and a valid section to save.")
         if not isinstance(changes, dict) or any(
             not isinstance(key, str) or not isinstance(value, str) for key, value in changes.items()

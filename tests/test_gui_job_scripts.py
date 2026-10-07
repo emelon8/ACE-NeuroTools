@@ -11,7 +11,6 @@ import zipfile
 from pathlib import Path
 
 import pytest
-
 from gui.csv_projects import Project, ProjectChangedError, ProjectError
 from gui.job_scripts import generate
 
@@ -36,20 +35,25 @@ def unpack(result):
     return zipfile.ZipFile(io.BytesIO(base64.b64decode(result["archive"])))
 
 
-@pytest.mark.parametrize("kind", ["compute", "preprocess", "miniscope", "ephys"])
+@pytest.mark.parametrize("kind", ["compute", "preprocess", "miniscope", "ephys", "multimodal"])
 def test_exports_saved_parameters_and_only_selected_rows(job, kind):
     project, body = job
     body["kind"] = kind
-    before = {name: (project.path / name).read_bytes() for name in project.digests}
+    if kind == "multimodal":
+        body["cluster"]["ephys_recording_path"] = "/scratch/ephys/rat one"
+    before = {name: (project.path / name).read_bytes() if (project.path / name).exists() else None
+              for name in project.digests}
     result = generate(project, body)
     assert result["config"]["recording_path"] == "/scratch/rat one"
     assert result["config"]["parameters"].get("crop_coords") == ([1, 2, 30, 40] if kind != "ephys" else None)
-    if kind == "miniscope":
+    if kind in {"miniscope", "multimodal"}:
         assert result["config"]["parameters"]["n_processes"] == 8
         assert result["config"]["parameters"]["parallel"] is True
         assert result["config"]["parameters"]["remove_components_with_gui"] is False
+    if kind == "multimodal":
+        assert result["config"]["ephys_recording_path"] == "/scratch/ephys/rat one"
     with unpack(result) as archive:
-        for name in before:
+        for name in ["experiments.csv", "analysis_parameters.csv"]:
             rows = list(csv.DictReader(io.StringIO(archive.read(name).decode())))
             assert len(rows) == 1 and rows[0]["line number"] == "1"
             assert (project.path / name).read_bytes() == before[name]
@@ -61,6 +65,8 @@ def test_exports_saved_parameters_and_only_selected_rows(job, kind):
     assert "#SBATCH --mem=150G" in result["slurm"]
     checked = subprocess.run(["bash", "-n"], input=result["slurm"], text=True, capture_output=True)
     assert checked.returncode == 0, checked.stderr
+    assert {name: (project.path / name).read_bytes() if (project.path / name).exists() else None
+            for name in before} == before
 
 
 @pytest.mark.parametrize("key,value", [
@@ -129,3 +135,34 @@ runpy.run_path('run_job.py', run_name='__main__')
     assert len(runs) == 2
     assert all(json.loads((root / "outcome.json").read_text())["success"] for root in runs)
     assert (source / "0.avi").read_bytes() == b"recording"
+
+
+def test_multimodal_export_stages_both_cluster_recordings(job, tmp_path):
+    project, body = job
+    calcium, ephys, output, bundle = [tmp_path / name for name in ("calcium", "ephys", "results", "bundle")]
+    calcium.mkdir()
+    ephys.mkdir()
+    (calcium / "0.avi").write_bytes(b"movie")
+    (ephys / "signal.raw").write_bytes(b"electrical")
+    body["kind"] = "multimodal"
+    body["cluster"].update(recording_path=str(calcium), ephys_recording_path=str(ephys), output_path=str(output))
+    with unpack(generate(project, body)) as archive:
+        archive.extractall(bundle)
+    probe = '''import json, runpy
+from pathlib import Path
+import gui.run_worker
+def execute(manifest):
+    root = Path(manifest['directory'])
+    assert [item['path'] for item in manifest['files']] == ['0.avi']
+    assert [item['path'] for item in manifest['ephys_files']] == ['signal.raw']
+    assert manifest['parameters']['parallel'] is True
+    (root / 'called.json').write_text(json.dumps(manifest))
+gui.run_worker.execute = execute
+runpy.run_path('run_job.py', run_name='__main__')
+'''
+    env = {**os.environ, "PYTHONPATH": str(bundle) + os.pathsep + str(Path(__file__).resolve().parents[1] / "src")}
+    result = subprocess.run([sys.executable, "-c", probe], cwd=bundle, env=env, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    runs = list(output.iterdir())
+    assert len(runs) == 1
+    assert json.loads((runs[0] / "outcome.json").read_text())["success"] is True

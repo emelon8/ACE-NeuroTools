@@ -231,6 +231,8 @@ class Handler(BaseHTTPRequestHandler):
         }
         if route not in {
             "/api/projects/open",
+            "/api/projects/default",
+            "/api/experiment/create",
             "/api/system/pick",
             "/api/system/open-folder",
             *experiment_routes,
@@ -255,6 +257,22 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if route in box_routes:
                 self._json(box_routes[route](body))
+                return
+            if route in {"/api/projects/default", "/api/experiment/create"}:
+                with self.server.lock:
+                    project = self.server.projects.get(body.get("project"))
+                    if project is None:
+                        raise ProjectError("Open this project first.")
+                    if route == "/api/projects/default":
+                        saved = project.set_default_experiment(body.get("number"), body.get("versions"))
+                        self.server.projects[saved.id] = saved
+                        self._json({"project": saved.summary()})
+                    else:
+                        saved, backup = project.create_experiment(
+                            body.get("number"), body.get("metadata"), body.get("parameters"), body.get("versions")
+                        )
+                        self.server.projects[saved.id] = saved
+                        self._json({"project": saved.summary(), "experiment": saved.inspect(body["number"]), "backup": backup})
                 return
             if route in experiment_routes:
                 if (

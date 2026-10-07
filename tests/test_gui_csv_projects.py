@@ -50,6 +50,31 @@ def test_whole_project_preserves_values_and_joins_by_number(project_folder):
     assert {path.name: path.read_bytes() for path in project_folder.iterdir()} == before
 
 
+def test_default_experiment_persists_and_rejects_stale_changes(project_folder):
+    project = Project.open(project_folder)
+    updated = project.set_default_experiment("2", project.digests.copy())
+    assert updated.summary()["default_experiment"] == "2"
+    assert Project.open(project_folder).default_experiment == "2"
+    with pytest.raises(ProjectChangedError, match="changed"):
+        project.set_default_experiment("1", project.digests)
+    with pytest.raises(ProjectError, match="saved analysis settings"):
+        updated.set_default_experiment("99", updated.digests)
+
+
+def test_new_experiment_uses_selected_parameters_without_source_identity(project_folder):
+    project = Project.open(project_folder)
+    source = project.parameters["2"]
+    copied = {key: value for key, value in source.items() if key != "line number"}
+    updated, backup = project.create_experiment(
+        "3", {"id": "R3", "date (YYMMDD)": "241003"}, copied, project.digests.copy()
+    )
+    assert updated.experiments["3"]["id"] == "R3"
+    assert updated.parameters["3"] == {"line number": "3", **copied}
+    assert Path(backup).exists()
+    with pytest.raises(ProjectError, match="unique"):
+        updated.create_experiment("3", {}, {}, updated.digests)
+
+
 def test_missing_settings_are_explicit(project_folder):
     (project_folder / "analysis_parameters.csv").unlink()
     project = Project.open(project_folder)
