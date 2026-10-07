@@ -42,7 +42,7 @@ def _morlet(
     x = np.linspace(-precision, precision, M)
     return (
         ((np.pi * gaussian_width) ** (-0.25))
-        * np.exp(-(x ** 2) / gaussian_width)
+        * np.exp(-(x**2) / gaussian_width)
         * np.exp(1j * 2 * np.pi * window_length * x)
     )
 
@@ -94,12 +94,8 @@ def generate_morlet_filterbank(
         raise ValueError("precision must be a positive int.")
 
     cutoff = 8
-    mother = np.conj(
-        _morlet(int(2 ** precision),
-                gaussian_width=gaussian_width,
-                window_length=window_length)
-    )
-    x = np.linspace(-cutoff, cutoff, int(2 ** precision))
+    mother = np.conj(_morlet(int(2**precision), gaussian_width=gaussian_width, window_length=window_length))
+    x = np.linspace(-cutoff, cutoff, int(2**precision))
 
     kernels: list[np.ndarray] = []
     max_len = -1
@@ -185,9 +181,7 @@ def compute_wavelet_transform(
     if norm not in ("l1", "l2", None):
         raise ValueError("norm must be 'l1', 'l2', or None.")
 
-    filters, _ = generate_morlet_filterbank(
-        freqs, fs, gaussian_width, window_length, precision
-    )
+    filters, _ = generate_morlet_filterbank(freqs, fs, gaussian_width, window_length, precision)
 
     n_samples = signal.size
     kernel_len = filters.shape[1]
@@ -202,7 +196,7 @@ def compute_wavelet_transform(
     full = ifft(filters_fft * signal_fft[None, :], axis=1)
     # scipy's "same" mode keeps the central n_samples of the full convolution.
     start = (kernel_len - 1) // 2
-    cwt = np.ascontiguousarray(full[:, start:start + n_samples])
+    cwt = np.ascontiguousarray(full[:, start : start + n_samples])
 
     freqs_arr = np.asarray(freqs, dtype=np.float64)
     if norm == "l1":

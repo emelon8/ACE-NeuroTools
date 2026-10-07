@@ -51,6 +51,7 @@ _W = 80  # banner / divider width
 # Interactive UI helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _divider(title: str = "") -> str:
     """Return a horizontal divider, optionally with a centred title."""
     if not title:
@@ -86,10 +87,7 @@ def _confirm_paths(lab_config: LabConfig) -> bool:
     display_subjects = (run.line_nums if run and run.line_nums else None) or all_subjects
     print(f"  Subjects ({len(display_subjects)}):        {display_subjects}")
     print(f"  Channel:             {lab_config.primary_channel}")
-    print(
-        f"  Frequency range:     "
-        f"{lab_config.freq_range[0]} – {lab_config.freq_range[1]} Hz"
-    )
+    print(f"  Frequency range:     {lab_config.freq_range[0]} – {lab_config.freq_range[1]} Hz")
     if run and run.analyses:
         print(f"  Analyses:            {', '.join(run.analyses)}")
     print()
@@ -147,6 +145,7 @@ def _select_mode(lab_config: LabConfig) -> str | None:
 # First-time setup wizard + data-path tutorial
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _tutorial(project_path: Path) -> None:
     """Walk the user through every data path they need to fill in.
 
@@ -173,101 +172,104 @@ def _tutorial(project_path: Path) -> None:
             console.print(f"      {line}")
 
     _section("Guided tutorial: data paths")
-    console.print(
-        "  ACE-NeuroTools needs to know where your data lives.  There are "
-        "four directories"
-    )
-    console.print(
-        "  in lab_config.json (project-wide) and two columns in "
-        "experiments.csv (per-subject)."
-    )
+    console.print("  ACE-NeuroTools needs to know where your data lives.  There are four directories")
+    console.print("  in lab_config.json (project-wide) and two columns in experiments.csv (per-subject).")
 
     # ── lab_config.json paths ────────────────────────────────────────────────
     _section("lab_config.json  →  paths")
 
-    _field("project_path", [
-        "What:   The directory that contains lab_config.json and experiments.csv.",
-        "Why:    All other lab_config paths are resolved relative to this if",
-        "        left as null.  It is also the default output location.",
-        f"Example: {project_path}",
-        "Gotcha: Use forward slashes on Windows (C:/Users/...) — JSON treats",
-        "        backslashes as escape characters.",
-    ])
+    _field(
+        "project_path",
+        [
+            "What:   The directory that contains lab_config.json and experiments.csv.",
+            "Why:    All other lab_config paths are resolved relative to this if",
+            "        left as null.  It is also the default output location.",
+            f"Example: {project_path}",
+            "Gotcha: Use forward slashes on Windows (C:/Users/...) — JSON treats",
+            "        backslashes as escape characters.",
+        ],
+    )
 
-    _field("data_path", [
-        "What:   Base directory containing the raw experimental data — both",
-        "        the Neuralynx .ncs files and the Miniscope recordings.",
-        "Why:    Per-subject 'ephys directory' and 'calcium imaging directory'",
-        "        entries in experiments.csv are resolved relative to this.",
-        "        Set to null to resolve them relative to project_path instead.",
-        "Example: /Volumes/lab-nas/raw_recordings",
-        "Gotcha: Must be readable from wherever you run ace-neuro.  On an HPC",
-        "        cluster, that means the shared filesystem path, not your laptop.",
-    ])
+    _field(
+        "data_path",
+        [
+            "What:   Base directory containing the raw experimental data — both",
+            "        the Neuralynx .ncs files and the Miniscope recordings.",
+            "Why:    Per-subject 'ephys directory' and 'calcium imaging directory'",
+            "        entries in experiments.csv are resolved relative to this.",
+            "        Set to null to resolve them relative to project_path instead.",
+            "Example: /Volumes/lab-nas/raw_recordings",
+            "Gotcha: Must be readable from wherever you run ace-neuro.  On an HPC",
+            "        cluster, that means the shared filesystem path, not your laptop.",
+        ],
+    )
 
-    _field("output_dir", [
-        "What:   Where statistical results (CSVs, figures, run_log.json) go.",
-        "Why:    Each pipeline run writes one subdirectory per analysis here.",
-        "Example: /path/to/project/stats_results",
-        "Gotcha: Created automatically if it does not exist.  Set to null to",
-        "        default to <project_path>/stats_results.",
-    ])
+    _field(
+        "output_dir",
+        [
+            "What:   Where statistical results (CSVs, figures, run_log.json) go.",
+            "Why:    Each pipeline run writes one subdirectory per analysis here.",
+            "Example: /path/to/project/stats_results",
+            "Gotcha: Created automatically if it does not exist.  Set to null to",
+            "        default to <project_path>/stats_results.",
+        ],
+    )
 
-    _field("calcium_signal_dir", [
-        "What:   Where meanFluorescence_<line_num>.npz files are stored.",
-        "Why:    Mode 'compute' WRITES these files; mode 'stats' READS them.",
-        "        If you only ever run mode 'all', this is the bridge between",
-        "        the two halves of the pipeline.",
-        "Example: /path/to/project/calcium_signals",
-        "Gotcha: Set to null to default to <project_path>/calcium_signals.",
-        "        Stats mode will error if the .npz file for a subject is missing.",
-    ])
+    _field(
+        "calcium_signal_dir",
+        [
+            "What:   Where meanFluorescence_<line_num>.npz files are stored.",
+            "Why:    Mode 'compute' WRITES these files; mode 'stats' READS them.",
+            "        If you only ever run mode 'all', this is the bridge between",
+            "        the two halves of the pipeline.",
+            "Example: /path/to/project/calcium_signals",
+            "Gotcha: Set to null to default to <project_path>/calcium_signals.",
+            "        Stats mode will error if the .npz file for a subject is missing.",
+        ],
+    )
 
     # ── experiments.csv per-subject paths ────────────────────────────────────
     _section("experiments.csv  →  per-subject paths")
 
-    _field("ephys directory", [
-        "What:   Path to the Neuralynx folder for ONE subject.  Contains the",
-        "        per-channel .ncs files (e.g. CBvsPCEEG.ncs) and the Events.nev.",
-        "Why:    Drives every ephys load: filtering, TTL-event sync, coherence.",
-        "Example: ExampleRat/2024-01-01_12-00-00",
-        "Gotcha: Relative path — resolved against data_path (or project_path",
-        "        if data_path is null).  Match the exact case of the folder name.",
-    ])
+    _field(
+        "ephys directory",
+        [
+            "What:   Path to the Neuralynx folder for ONE subject.  Contains the",
+            "        per-channel .ncs files (e.g. CBvsPCEEG.ncs) and the Events.nev.",
+            "Why:    Drives every ephys load: filtering, TTL-event sync, coherence.",
+            "Example: ExampleRat/2024-01-01_12-00-00",
+            "Gotcha: Relative path — resolved against data_path (or project_path",
+            "        if data_path is null).  Match the exact case of the folder name.",
+        ],
+    )
 
-    _field("calcium imaging directory", [
-        "What:   Path to the Miniscope recording folder for ONE subject.",
-        "        Contains the .avi movies and timeStamps.csv (UCLA V3) or .raw",
-        "        timestamp files (ONIX V4).",
-        "Why:    Drives calcium loading, preprocessing, and TTL alignment.",
-        "Example: ExampleRat/2024_01_01/12_00_00",
-        "Gotcha: Same as ephys directory — relative to data_path/project_path.",
-        "        For ONIX recordings, point at the directory containing the",
-        "        timestamp .raw files, not the .avi files themselves.",
-    ])
+    _field(
+        "calcium imaging directory",
+        [
+            "What:   Path to the Miniscope recording folder for ONE subject.",
+            "        Contains the .avi movies and timeStamps.csv (UCLA V3) or .raw",
+            "        timestamp files (ONIX V4).",
+            "Why:    Drives calcium loading, preprocessing, and TTL alignment.",
+            "Example: ExampleRat/2024_01_01/12_00_00",
+            "Gotcha: Same as ephys directory — relative to data_path/project_path.",
+            "        For ONIX recordings, point at the directory containing the",
+            "        timestamp .raw files, not the .avi files themselves.",
+        ],
+    )
 
     # ── Pipeline structure (compute vs stats) ────────────────────────────────
     _section("Pipeline structure: compute vs stats")
+    console.print("  ACE-NeuroTools has two halves and they run independently:")
+    console.print()
+    console.print("    [bold green]compute[/bold green]  →  reads raw .avi / .ncs, writes meanFluorescence_<N>.npz")
     console.print(
-        "  ACE-NeuroTools has two halves and they run independently:"
+        "    [bold green]stats[/bold green]    →  reads those .npz files, "
+        "produces coherence / scatter results + figures"
     )
     console.print()
-    console.print("    [bold green]compute[/bold green]  →  reads raw .avi / .ncs, "
-                  "writes meanFluorescence_<N>.npz")
-    console.print("    [bold green]stats[/bold green]    →  reads those .npz files, "
-                  "produces coherence / scatter results + figures")
-    console.print()
-    console.print(
-        "  Stats is a [bold]modular opt-in[/bold] — running ace-neuro defaults to "
-        "compute only."
-    )
-    console.print(
-        "  When compute finishes you'll be asked whether to run stats on "
-        "the results."
-    )
-    console.print(
-        "  You can also choose 'compute + stats' in the menu, or set run.mode = 'all' "
-    )
+    console.print("  Stats is a [bold]modular opt-in[/bold] — running ace-neuro defaults to compute only.")
+    console.print("  When compute finishes you'll be asked whether to run stats on the results.")
+    console.print("  You can also choose 'compute + stats' in the menu, or set run.mode = 'all' ")
     console.print("  in lab_config.json to skip the prompt.")
 
     # ── Sanity check + next step ─────────────────────────────────────────────
@@ -300,7 +302,7 @@ def _setup_wizard() -> int:
     # ── Step 1: choose project path ──────────────────────────────────────────
     _step(1, "Choose a project directory")
     cwd = Path.cwd()
-    console.print(f"  Where would you like the configuration files to live?")
+    console.print("  Where would you like the configuration files to live?")
     console.print(f"  Press Enter to use the current directory: [dim]{cwd}[/dim]")
     try:
         answer = input("  Project path: ").strip()
@@ -313,8 +315,7 @@ def _setup_wizard() -> int:
     # ── Step 2: handle existing files ────────────────────────────────────────
     _step(2, "Generate template files")
     existing = [
-        f for f in ("lab_config.json", "stats_config.json", "experiments_template.csv")
-        if (project_path / f).exists()
+        f for f in ("lab_config.json", "stats_config.json", "experiments_template.csv") if (project_path / f).exists()
     ]
     force = False
     if existing:
@@ -344,21 +345,17 @@ def _setup_wizard() -> int:
         with contextlib.redirect_stdout(buf):
             rc = init_main(argv)
         if rc != 0:
-            console.print(
-                Text("  Template generation failed; aborting.", style="bold red")
-            )
+            console.print(Text("  Template generation failed; aborting.", style="bold red"))
             console.print(buf.getvalue())
             return rc
         for line in buf.getvalue().splitlines():
             stripped = line.lstrip()
             if stripped.startswith("Created:"):
-                console.print(f"  ✓ {stripped[len('Created:'):].strip()}")
+                console.print(f"  ✓ {stripped[len('Created:') :].strip()}")
 
     # ── Step 3: offer the in-depth path tutorial ─────────────────────────────
     _step(3, "Optional: guided tutorial")
-    console.print(
-        "  Would you like a guided tour of every data path you need to fill in?"
-    )
+    console.print("  Would you like a guided tour of every data path you need to fill in?")
     console.print("  (4 lab_config keys + 2 experiments.csv columns, with examples)")
     try:
         ans = input("  Show tutorial? [Y/n]: ").strip().lower()
@@ -387,6 +384,7 @@ def _setup_wizard() -> int:
 # Argument parser
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="ace-neuro",
@@ -414,10 +412,7 @@ First-time setup:
     parser.add_argument(
         "--config",
         metavar="PATH",
-        help=(
-            "Path to lab_config.json.  "
-            "Defaults to lab_config.json in the current working directory."
-        ),
+        help=("Path to lab_config.json.  Defaults to lab_config.json in the current working directory."),
     )
     parser.add_argument(
         "--mode",
@@ -468,6 +463,7 @@ First-time setup:
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def main(argv: list[str] | None = None) -> int:
     """Entry point for the ``ace-neuro`` command."""
     parser = _build_parser()
@@ -475,6 +471,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # ── Print banner ──────────────────────────────────────────────────────────
     from aceneurotools.shared.banner import welcome
+
     welcome()
 
     # ── Locate lab_config.json ────────────────────────────────────────────────
@@ -516,27 +513,19 @@ def main(argv: list[str] | None = None) -> int:
             print("  Using built-in algorithm defaults.\n")
 
     # ── Resolve effective run settings (CLI overrides lab_config) ─────────────
-    effective_headless: bool = args.headless or (
-        lab_config.run.headless if lab_config.run else False
-    )
-    effective_verbose: bool = args.verbose or (
-        lab_config.run.verbose if lab_config.run else False
-    )
-    effective_line_nums: list[int] | None = args.line_nums or (
-        lab_config.run.line_nums if lab_config.run else None
-    )
+    effective_headless: bool = args.headless or (lab_config.run.headless if lab_config.run else False)
+    effective_verbose: bool = args.verbose or (lab_config.run.verbose if lab_config.run else False)
+    effective_line_nums: list[int] | None = args.line_nums or (lab_config.run.line_nums if lab_config.run else None)
 
     if effective_headless:
         from aceneurotools.shared.plotting import set_backend
+
         set_backend(headless=True)
 
     # ── Path confirmation (skip when headless or --yes) ───────────────────────
     if not args.yes and not effective_headless:
         if not _confirm_paths(lab_config):
-            print(
-                "\n  Edit the 'paths' section in lab_config.json and re-run "
-                "ace-neuro.\n"
-            )
+            print("\n  Edit the 'paths' section in lab_config.json and re-run ace-neuro.\n")
             return 0
 
     # ── Mode selection ────────────────────────────────────────────────────────
@@ -556,26 +545,10 @@ def main(argv: list[str] | None = None) -> int:
 
     # ── Resolve paths ─────────────────────────────────────────────────────────
     paths = lab_config.paths
-    project_path = (
-        Path(paths.project_path)
-        if paths and paths.project_path
-        else config_path.parent
-    )
-    data_path = (
-        Path(paths.data_path)
-        if paths and paths.data_path
-        else None
-    )
-    output_dir = (
-        Path(paths.output_dir)
-        if paths and paths.output_dir
-        else project_path / "stats_results"
-    )
-    calcium_signal_dir = (
-        Path(paths.calcium_signal_dir)
-        if paths and paths.calcium_signal_dir
-        else None
-    )
+    project_path = Path(paths.project_path) if paths and paths.project_path else config_path.parent
+    data_path = Path(paths.data_path) if paths and paths.data_path else None
+    output_dir = Path(paths.output_dir) if paths and paths.output_dir else project_path / "stats_results"
+    calcium_signal_dir = Path(paths.calcium_signal_dir) if paths and paths.calcium_signal_dir else None
 
     # ── compute mode ──────────────────────────────────────────────────────────
     if mode in ("compute", "all"):
@@ -606,11 +579,7 @@ def main(argv: list[str] | None = None) -> int:
     # config), we ask whether they want to run statistical analyses now on the
     # freshly-produced .npz files. Promotes 'compute' to 'all' on yes; otherwise
     # the run ends here. Skip the prompt for headless / --yes / explicit modes.
-    if (
-        mode == "compute"
-        and not effective_headless
-        and not args.yes
-    ):
+    if mode == "compute" and not effective_headless and not args.yes:
         print()
         print(_divider("Compute complete"))
         print()

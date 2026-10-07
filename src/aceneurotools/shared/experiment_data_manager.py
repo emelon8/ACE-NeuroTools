@@ -16,22 +16,22 @@ from aceneurotools.shared.paths import PROJECT_ROOT
 
 class ExperimentDataManager:
     """Manages experiment metadata and analysis parameters.
-    
+
     This class loads data from two CSV files in the project repository:
     - experiments.csv: Experiment metadata (subject, date, directories, etc.)
     - analysis_parameters.csv: Processing settings for each experiment
-    
+
     Both ``project_path`` and ``data_path`` should be supplied explicitly —
     either directly or via CLI flags / notebook variables. The optional
     ``ACE_NEUROTOOLS_DATA`` environment variable is honored as a last-resort
     default (see :mod:`aceneurotools.shared.paths`); there is no ``.env``
     file lookup.
-    
+
     Attributes:
         line_num: The experiment line number.
         metadata: Dict of experiment metadata from experiments.csv.
         analysis_params: Dict of analysis parameters from analysis_parameters.csv.
-    
+
     Example:
         >>> edm = ExperimentDataManager(
         ...     96,
@@ -49,10 +49,10 @@ class ExperimentDataManager:
         data_path: str | Path | None = None,
         auto_import_metadata: bool = True,
         auto_import_analysis_params: bool = True,
-        logging_level: str | int = logging.CRITICAL
+        logging_level: str | int = logging.CRITICAL,
     ) -> None:
         """Initialize the data manager for a specific experiment.
-        
+
         Args:
             line_num: Experiment line number (matches 'line number' column in CSVs).
             project_path: Path to project directory containing metadata CSVs.
@@ -88,7 +88,7 @@ class ExperimentDataManager:
 
     def import_metadata(self) -> None:
         """Load experiment metadata from project_path/experiments.csv.
-        
+
         Populates self.metadata with converted data types. Directory paths
         are resolved relative to self.data_path.
         """
@@ -110,14 +110,16 @@ class ExperimentDataManager:
         self.metadata = metadata_converted
 
         # Resolve directory paths
-        if self.metadata.get('ephys directory'):
-            self.metadata['ephys directory'] = self.data_path / Path(str(self.metadata['ephys directory']))
-        if self.metadata.get('calcium imaging directory'):
-            self.metadata['calcium imaging directory'] = self.data_path / Path(str(self.metadata['calcium imaging directory']))
+        if self.metadata.get("ephys directory"):
+            self.metadata["ephys directory"] = self.data_path / Path(str(self.metadata["ephys directory"]))
+        if self.metadata.get("calcium imaging directory"):
+            self.metadata["calcium imaging directory"] = self.data_path / Path(
+                str(self.metadata["calcium imaging directory"])
+            )
 
     def import_analysis_parameters(self) -> None:
         """Load analysis parameters from project_path/analysis_parameters.csv.
-        
+
         Populates self.analysis_params. If the file doesn't exist or the line
         number isn't found, sets analysis_params to an empty dict (allowing
         pipeline defaults to be used).
@@ -136,10 +138,7 @@ class ExperimentDataManager:
 
         analysis_params_unconverted = CSVWorker.csv_row_to_dict(analysis_params_csv, self.line_num)
         if analysis_params_unconverted is None:
-            self.logger.info(
-                f"Line {self.line_num} not found in {analysis_params_csv}. "
-                f"Using pipeline defaults."
-            )
+            self.logger.info(f"Line {self.line_num} not found in {analysis_params_csv}. Using pipeline defaults.")
             self.analysis_params = {}
             return
 
@@ -148,26 +147,27 @@ class ExperimentDataManager:
 
     def get_pipeline_params(self) -> dict[str, Any]:
         """Return analysis parameters formatted for pipeline.run().
-        
+
         Converts the raw analysis_params dict to kwargs compatible with
         MiniscopePipeline.run() and EphysPipeline.run().
-        
+
         Returns:
             Dict of kwargs to pass to pipeline.run()
         """
         from aceneurotools.shared.config_utils import parse_analysis_params
+
         return parse_analysis_params(self.analysis_params or {})
 
     def get_ephys_directory(self) -> Path | None:
         """Return the ephys directory path from metadata."""
         if self.metadata:
-            val = self.metadata.get('ephys directory')
+            val = self.metadata.get("ephys directory")
             return Path(val) if val else None
         return None
 
     def get_miniscope_directory(self) -> Path | None:
         """Return the miniscope/calcium imaging directory path from metadata."""
         if self.metadata:
-            val = self.metadata.get('calcium imaging directory')
+            val = self.metadata.get("calcium imaging directory")
             return Path(val) if val else None
         return None

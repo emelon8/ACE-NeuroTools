@@ -36,12 +36,12 @@ Pick a folder you're happy keeping code in (e.g. `~/code/`):
 
 ```bash
 cd ~/code
-git clone https://github.com/emelon8/experiment_analysis.git
-cd experiment_analysis
+git clone https://github.com/emelon8/ACE-NeuroTools.git
+cd ACE-NeuroTools
 ```
 
 From here, all paths in this doc are **relative to** that
-`experiment_analysis/` folder unless they start with `/`.
+`ACE-NeuroTools/` folder unless they start with `/`.
 
 ---
 
@@ -240,9 +240,9 @@ the top:
 
 ```python
 PROJECT_PATH = Path("/home/<you>/lab/correlation_project")
-DATA_PATH    = Path("/home/<you>/lab/raw_data")
-LINE_NUM     = 96             # the row you set up in step 6
-AVI_FILENAME = "0.avi"        # start with the first AVI of the session
+DATA_PATH = Path("/home/<you>/lab/raw_data")
+LINE_NUM = 96  # the row you set up in step 6
+AVI_FILENAME = "0.avi"  # start with the first AVI of the session
 ```
 
 On Windows, use forward slashes or raw strings:

@@ -14,8 +14,8 @@ Combine with :func:`apply_to_group` to operate on per-unit event dicts.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 import numpy as np
 

@@ -14,11 +14,12 @@ from aceneurotools.shared.path_finder import PathFinder
 
 T = TypeVar("T", bound="MiniscopeDataManager")
 
+
 class MiniscopeDataManager(ExperimentDataManager, ABC):
     """Manages raw Miniscope data import and storage.
-    
+
     Abstract Base Class for Miniscope data managers.
-    
+
     Attributes:
         line_num: Experiment line number in experiments.csv.
         time_stamps: Array of frame timestamps in seconds.
@@ -29,7 +30,7 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
         fr: Frame rate from metadata.
     """
 
-    _registry: list[type['MiniscopeDataManager']] = []
+    _registry: list[type["MiniscopeDataManager"]] = []
 
     # --- Loading-only attributes (part of the declared interface) ---
     line_num: int
@@ -66,10 +67,10 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
         line_num: int,
         project_path: str | Path | None = None,
         data_path: str | Path | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> T:
         """Factory method to select the correct subclass for the directory.
-        
+
         Args:
             line_num: Experiment line number.
             project_path: Optional explicit project repository path.
@@ -81,21 +82,16 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
             project_path=project_path,
             data_path=data_path,
             auto_import_metadata=True,
-            auto_import_analysis_params=False
+            auto_import_analysis_params=False,
         )
         directory = temp_edm.get_miniscope_directory()
 
         if directory is None:
-             raise ValueError(f"No miniscope directory set in metadata for line {line_num}")
+            raise ValueError(f"No miniscope directory set in metadata for line {line_num}")
 
         for subclass in cls._registry:
             if subclass.can_handle(directory):
-                return cast(T, subclass(
-                    line_num=line_num,
-                    project_path=project_path,
-                    data_path=data_path,
-                    **kwargs
-                ))
+                return cast(T, subclass(line_num=line_num, project_path=project_path, data_path=data_path, **kwargs))
 
         raise ValueError(f"No MiniscopeDataManager subclass found that can handle directory: {directory}")
 
@@ -111,10 +107,10 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
         project_path: str | Path | None = None,
         data_path: str | Path | None = None,
         filenames: list[str] = [],
-        auto_import_data: bool = True
+        auto_import_data: bool = True,
     ) -> None:
         """Initialize data manager and optionally load movie data.
-        
+
         Args:
             line_num: Row number in experiments.csv to load.
             project_path: Optional explicit project repository path.
@@ -129,23 +125,23 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
 
         experiments_csv = self.project_path / "experiments.csv"
         file_downloader.verify_file_by_line(
-            line_num,
-            experiments_csv,
-            "miniscope",
-            filenames,
-            base_file_path=self.data_path
+            line_num, experiments_csv, "miniscope", filenames, base_file_path=self.data_path
         )
         self.all_movie_filepaths = cast(list[Path | str], self._find_movie_file_paths())
         self.chosen_movie_filepaths = self._get_specific_filepaths(filenames)
 
-        if (auto_import_data):
-            self.load_attributes(self.chosen_movie_filepaths if self.chosen_movie_filepaths else self.all_movie_filepaths)
+        if auto_import_data:
+            self.load_attributes(
+                self.chosen_movie_filepaths if self.chosen_movie_filepaths else self.all_movie_filepaths
+            )
 
-        #Attributes below are filled in automatically during the miniscope_pipeline pipeline: preprocessing->processing->postprocessing
+        # Attributes below are filled in automatically during the miniscope_pipeline pipeline: preprocessing->processing->postprocessing
 
         self.projections = None
-        self.preprocessed_movie_filepath = None #Your preprocessed movie must be saved to disk and its filepath stored here before processing
-        self.coords = None #contains the coordinates/shape of your cropped movie
+        self.preprocessed_movie_filepath = (
+            None  # Your preprocessed movie must be saved to disk and its filepath stored here before processing
+        )
+        self.coords = None  # contains the coordinates/shape of your cropped movie
         self.motion_corrected_movie_filepath = None
         self.CNMFE_obj = None
         self.estimates_filepath = None
@@ -159,39 +155,35 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
         self.miniscope_phases = None
         self.filter_object = None
 
-
     def load_attributes(self, filepaths: list[str | Path]) -> None:
         """Load movie data and metadata from disk.
-        
+
         Populates metadata, timestamps, movie array, events, and frame rate.
-        
+
         Args:
             filepaths: List of movie file paths to load.
         """
         if self.metadata is None:
             self.metadata = {}
-        self.metadata.update(self._get_miniscope_metadata()) # add miniscope metadata to overall metadata
+        self.metadata.update(self._get_miniscope_metadata())  # add miniscope metadata to overall metadata
         ts, fn = self._get_timestamps()
         self.time_stamps = np.array(ts) if ts is not None else None
         self.frame_numbers = np.array(fn) if fn is not None else None
         self.movie = self._get_movies(filepaths)  # import calcium imaging data
         self.miniscope_events = self._get_miniscope_events()
-        self.fr = float(self.metadata['frameRate']) if self.metadata else 30.0
+        self.fr = float(self.metadata["frameRate"]) if self.metadata else 30.0
 
     @abstractmethod
     def sync_timestamps(
-        self,
-        ephys_dm: Any | None = None,
-        channel_name: str | None = None,
-        **kwargs: Any
+        self, ephys_dm: Any | None = None, channel_name: str | None = None, **kwargs: Any
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Synchronize miniscope frame timestamps to ephys time.
-        
+
         Args:
             ephys_dm: Optional EphysDataManager to sync against.
             channel_name: Optional channel name for the ephys_dm.
-            
+
         Returns:
             Tuple containing:
             - tCaIm (np.ndarray): The aligned miniscope frame timestamps in ephys time.
@@ -202,17 +194,17 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
     def convert_ca_movies(
         self,
         filenames: list[str] | None = None,
-        new_file_type: str = '.tif',
+        new_file_type: str = ".tif",
         join_movies: bool = False,
-        metadata_convert: bool = True
+        metadata_convert: bool = True,
     ) -> None:
         """
         Convert calcium movies from one type to another. File types must be supported by CaImAn.
-        
+
         The new filename(s) is based on the first filename in 'filenames', with new_file_type appended.
         'join_movies' determines whether all movie files in 'filenames' are combined into a single movie,
         or whether each file is converted separately.
-        
+
         If 'filenames' is None, the method will attempt to load filenames from self.movieFilePaths.
         """
         print("Converting movies...")
@@ -231,7 +223,7 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
         base_new_filename = os.path.splitext(filenames_list[0])[0]
 
         # If self.movie exists and no filenames were explicitly provided, use the existing movie.
-        if hasattr(self, 'movie') and original_filenames is None:
+        if hasattr(self, "movie") and original_filenames is None:
             new_filename = f"{base_new_filename}{new_file_type}"
             self.movie.save(new_filename, compress=0)
         else:
@@ -250,7 +242,11 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
                     try:
                         # If the file doesn't exist, assume it might be in a default Miniscope directory.
                         if not os.path.isfile(filename):
-                            default_dir = os.path.join(self.metadata.get('calcium imaging directory', ''), 'Miniscope') if self.metadata else ''
+                            default_dir = (
+                                os.path.join(self.metadata.get("calcium imaging directory", ""), "Miniscope")
+                                if self.metadata
+                                else ""
+                            )
                             filename = os.path.join(default_dir, str(filename))
                         movie = cm.load(filename)
                         new_filename = f"{os.path.splitext(filename)[0]}{new_file_type}"
@@ -266,10 +262,9 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
             print(f"ERRORS with: {error_videos}")
             print("Consider investigating")
 
-
     def _meta_data_converter(self) -> None:
         """Convert and merge metadata from multiple JSON files.
-        
+
         Creates a unified metaDataTif.json file combining animal ID, frame rate,
         date, and original metadata from multiple source files.
         """
@@ -277,34 +272,32 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
         for fileExt in fileExts:
             with open(fileExt) as f:
                 data = json.loads(f.read())
-                if 'animalID' in data:
-                    ext = fileExt.replace('\\metaData.json', '\\Miniscope\\metaData.json')
-                    animalID = data['animalID']
-                    timeStamp = data['recordingStartTime']
-                    year = str(timeStamp['year'])
-                    month = str('%02d' % timeStamp['month'])
-                    day = str('%02d' % timeStamp['day'])
-                    second = str('%02d' % timeStamp['second'])
-                    minute = str('%02d' % timeStamp['minute'])
-                    hour = str('%02d' % timeStamp['hr'])
-                    date = year + month + day + '_' + hour + minute + second
+                if "animalID" in data:
+                    ext = fileExt.replace("\\metaData.json", "\\Miniscope\\metaData.json")
+                    animalID = data["animalID"]
+                    timeStamp = data["recordingStartTime"]
+                    year = str(timeStamp["year"])
+                    month = f"{timeStamp['month']:02d}"
+                    day = f"{timeStamp['day']:02d}"
+                    second = f"{timeStamp['second']:02d}"
+                    minute = f"{timeStamp['minute']:02d}"
+                    hour = f"{timeStamp['hr']:02d}"
+                    date = year + month + day + "_" + hour + minute + second
                     with open(ext) as d:
                         data2 = json.loads(d.read())
-                        if 'frameRate' in data2:
+                        if "frameRate" in data2:
                             try:
-                                frameRate = float(data2['frameRate'])
+                                frameRate = float(data2["frameRate"])
                             except (ValueError, KeyError):
                                 frameRate = 30.0
                         else:
                             frameRate = 30.0
-                        jdict = {'origin': animalID, 'fps': frameRate, 'date': date,
-                                    'orig_meta': [data, data2]}
+                        jdict = {"origin": animalID, "fps": frameRate, "date": date, "orig_meta": [data, data2]}
                         jsonFile = json.dumps(jdict, indent=4)
-                        newFileName = ext.replace('\\metaData.json', '\\metaDataTif.json')
-                        n = open(newFileName, 'w')
+                        newFileName = ext.replace("\\metaData.json", "\\metaDataTif.json")
+                        n = open(newFileName, "w")
                         n.write(jsonFile)
                         n.close()
-
 
     @abstractmethod
     def _get_miniscope_metadata(self) -> dict[str, Any]:
@@ -316,8 +309,8 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
 
     def _get_movies(self, filenames: str | Path | list[str | Path] | None = None) -> movie:
         """Import calcium imaging data. Not necessary if using processCaMovies().
-        FILENAMES can be a single movie file or a list of movie files (in the order that you want them). 
-        If FILENAMES doesn't point to a file (either absolute or relative path from the PWD), 
+        FILENAMES can be a single movie file or a list of movie files (in the order that you want them).
+        If FILENAMES doesn't point to a file (either absolute or relative path from the PWD),
         it will append the path to the calcium imaging directory to the front of the filename."""
 
         print(f"Converting these filepaths into caiman movies: {filenames}")
@@ -337,10 +330,10 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
 
     def _get_specific_filepaths(self, filenames: list[str]) -> list[str | Path] | None:
         """Filter movie paths to only those matching provided filenames.
-        
+
         Args:
             filenames: List of basenames to match (e.g., ['0.avi', '1.avi']).
-            
+
         Returns:
             List of full paths matching the specified filenames, or None.
         """
@@ -355,7 +348,6 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
                 matched_paths.append(path)
         return matched_paths
 
-
     @abstractmethod
     def _get_miniscope_events(self) -> Any:
         pass
@@ -363,13 +355,13 @@ class MiniscopeDataManager(ExperimentDataManager, ABC):
     @property
     def _calcium_imaging_directory(self) -> str:
         """Returns the directory where calcium imaging data is stored."""
-        return str(self.metadata['calcium imaging directory']) if self.metadata else ""
+        return str(self.metadata["calcium imaging directory"]) if self.metadata else ""
 
     def _find_file_paths(self, suffix: str, prefix: str = "") -> str | list[str]:
         """Generalized helper to find files with the given suffix and prefix."""
         filepaths = PathFinder.find(directory=self._calcium_imaging_directory, suffix=suffix, prefix=prefix)
 
-        #handle the case where filepaths is a list with only one item
+        # handle the case where filepaths is a list with only one item
         if isinstance(filepaths, list) and len(filepaths) == 1:
             return str(filepaths[0])
         elif isinstance(filepaths, list):

@@ -87,10 +87,10 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/emelon8/experiment_analysis"
-Documentation = "https://aceneurotools.readthedocs.io/en/latest/"
-Repository = "https://github.com/emelon8/experiment_analysis"
-"Bug Tracker" = "https://github.com/emelon8/experiment_analysis/issues"
+Homepage = "https://github.com/emelon8/ACE-NeuroTools"
+Documentation = "https://github.com/emelon8/ACE-NeuroTools/tree/main/docs"
+Repository = "https://github.com/emelon8/ACE-NeuroTools"
+"Bug Tracker" = "https://github.com/emelon8/ACE-NeuroTools/issues"
 
 
 # Setuptools

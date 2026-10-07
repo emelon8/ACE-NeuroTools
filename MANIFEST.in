@@ -2,6 +2,7 @@ include AUTHORS.md
 include CHANGELOG.md
 include CITATION.cff
 include CODE_OF_CONDUCT.md
+include CONTRIBUTING.md
 include environment.yml
 include conda-lock.yml
 prune data

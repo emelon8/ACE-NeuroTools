@@ -105,10 +105,7 @@ def filter_signal(
             plt.semilogx(w_b, phase)
 
     else:
-        raise ValueError(
-            f"Unknown filter type: {ftype!r}.  "
-            "Supported values: 'fir', 'butter', 'butterworth'."
-        )
+        raise ValueError(f"Unknown filter type: {ftype!r}.  Supported values: 'fir', 'butter', 'butterworth'.")
 
     return filtered_data
 

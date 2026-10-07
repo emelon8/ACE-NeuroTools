@@ -7,14 +7,13 @@ import pytest
 
 from aceneurotools.multimodal.surrogate import (  # noqa: F401
     PermutationTestResult,
-    permutation_test,
     apply_to_group,
     jitter_event_times,
+    permutation_test,
     resample_event_times,
     shift_event_times,
     shuffle_event_intervals,
 )
-
 
 # ---------------------------------------------------------------------------
 # jitter_event_times
@@ -40,18 +39,14 @@ def test_jitter_bounded_by_max_jitter():
     e = np.linspace(0.0, 10.0, 500)
     max_j = 0.1
     out = jitter_event_times(e, max_jitter=max_j, rng=rng)
-    # After sorting, the rank-matched offsets shouldn't drift more than max_jitter
-    # but element-wise comparison after sort is messy. Test the unsorted property:
-    # mean absolute jitter should be ~max_j/2
-    pre_sort = e + rng.uniform(-max_j, max_j, e.size)  # independent draw
-    assert np.abs(pre_sort - e).max() <= max_j + 1e-9
+    # Sorting preserves the bound for rank-matched ordered event times.
+    assert np.abs(out - e).max() <= max_j + 1e-9
 
 
 def test_jitter_clip_to_support():
     rng = np.random.default_rng(3)
     e = np.array([0.0, 0.05, 9.95, 10.0])
-    out = jitter_event_times(e, max_jitter=0.5, t_start=0.0, t_end=10.0,
-                              clip_to_support=True, rng=rng)
+    out = jitter_event_times(e, max_jitter=0.5, t_start=0.0, t_end=10.0, clip_to_support=True, rng=rng)
     assert (out >= 0.0).all()
     assert (out <= 10.0).all()
 
@@ -76,8 +71,7 @@ def test_jitter_deterministic_with_same_seed():
 def test_shift_drop_mode_keeps_in_support():
     rng = np.random.default_rng(10)
     e = np.linspace(1.0, 9.0, 50)
-    out = shift_event_times(e, t_start=0.0, t_end=10.0, min_shift=0.5, max_shift=0.5,
-                             mode="drop", rng=rng)
+    out = shift_event_times(e, t_start=0.0, t_end=10.0, min_shift=0.5, max_shift=0.5, mode="drop", rng=rng)
     assert (out >= 0.0).all()
     assert (out <= 10.0).all()
 
@@ -85,8 +79,7 @@ def test_shift_drop_mode_keeps_in_support():
 def test_shift_wrap_mode_preserves_count():
     rng = np.random.default_rng(11)
     e = np.linspace(1.0, 9.0, 50)
-    out = shift_event_times(e, t_start=0.0, t_end=10.0, min_shift=5.0, max_shift=5.0,
-                             mode="wrap", rng=rng)
+    out = shift_event_times(e, t_start=0.0, t_end=10.0, min_shift=5.0, max_shift=5.0, mode="wrap", rng=rng)
     assert out.size == e.size
     assert (out >= 0.0).all()
     assert (out <= 10.0).all()
@@ -95,9 +88,9 @@ def test_shift_wrap_mode_preserves_count():
 def test_shift_wrap_circular():
     """With fixed shift = period, wrapped times equal originals modulo period."""
     e = np.array([0.5, 1.5, 9.5])
-    out = shift_event_times(e, t_start=0.0, t_end=10.0, min_shift=10.0,
-                             max_shift=10.0, mode="wrap",
-                             rng=np.random.default_rng(0))
+    out = shift_event_times(
+        e, t_start=0.0, t_end=10.0, min_shift=10.0, max_shift=10.0, mode="wrap", rng=np.random.default_rng(0)
+    )
     np.testing.assert_allclose(np.sort(out), np.sort(e))
 
 

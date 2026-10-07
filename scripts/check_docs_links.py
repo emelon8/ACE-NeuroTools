@@ -8,7 +8,6 @@ import sys
 from pathlib import Path
 from urllib.parse import unquote
 
-
 ROOT = Path(__file__).resolve().parents[1]
 LINKS = re.compile(r"\]\(([^)]+)\)")
 HEADINGS = re.compile(r"^#{1,6}\s+(.+)$", re.MULTILINE)
@@ -30,8 +29,7 @@ def heading_anchors(path: Path) -> set[str]:
 
 def markdown_files() -> list[Path]:
     return [
-        ROOT / "README.md",
-        ROOT / "DOCS_AUDIT.md",
+        *sorted(ROOT.glob("*.md")),
         *sorted((ROOT / "docs").rglob("*.md")),
         *sorted((ROOT / "examples").rglob("*.md")),
         *sorted((ROOT / "src/aceneurotools").rglob("README.md")),
@@ -55,7 +53,9 @@ def check_links() -> list[str]:
                 if not path.exists():
                     errors.append(f"{source.relative_to(ROOT)}:{line_number}: missing {target}")
                 elif anchor and path.suffix == ".md" and anchor not in heading_anchors(path):
-                    errors.append(f"{source.relative_to(ROOT)}:{line_number}: missing #{anchor} in {path.relative_to(ROOT)}")
+                    errors.append(
+                        f"{source.relative_to(ROOT)}:{line_number}: missing #{anchor} in {path.relative_to(ROOT)}"
+                    )
     return errors
 
 

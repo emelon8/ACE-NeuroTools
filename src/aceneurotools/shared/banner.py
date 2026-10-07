@@ -50,14 +50,16 @@ TINY_LOGO = r"""███╗   ██╗
 # four points read as rounded. Index "A" sits in the top-left and
 # bottom-right corners as on a real playing card. Exactly 6 rows tall to
 # align with the title. Skipped in tiny mode.
-LOGO_ICON = "\n".join([
-    "╔════════╗",
-    "║A  ▟▙   ║",
-    "║  ▟██▙  ║", 
-    "║  ▜██▛  ║",
-    "║   ▜▛  A║",
-    "╚════════╝",
-])
+LOGO_ICON = "\n".join(
+    [
+        "╔════════╗",
+        "║A  ▟▙   ║",
+        "║  ▟██▙  ║",
+        "║  ▜██▛  ║",
+        "║   ▜▛  A║",
+        "╚════════╝",
+    ]
+)
 
 # Back-compat alias for any external code that imported the previous name.
 TERMINAL_ICON = LOGO_ICON
@@ -69,12 +71,12 @@ _ICON_GUTTER = "     "  # 5 spaces
 
 # Width thresholds (columns) for picking which variant to render.
 # Each accounts for icon (when present) + logo + a small safety gutter.
-_LONG_MIN_COLS = _ICON_WIDTH + len(_ICON_GUTTER) + 87 + 1   # 103
+_LONG_MIN_COLS = _ICON_WIDTH + len(_ICON_GUTTER) + 87 + 1  # 103
 _SHORT_MIN_COLS = _ICON_WIDTH + len(_ICON_GUTTER) + 44 + 1  # 60
 
 # Calcium-green → instrument-cyan vertical gradient endpoints.
-_GRADIENT_START = (0x00, 0xff, 0x88)  # bright GCaMP green
-_GRADIENT_END = (0x00, 0xb4, 0xd8)    # deep cyan
+_GRADIENT_START = (0x00, 0xFF, 0x88)  # bright GCaMP green
+_GRADIENT_END = (0x00, 0xB4, 0xD8)  # deep cyan
 
 # Tagline shown under the logo.
 _TAGLINE = "Analysis of Calcium Imaging & Electrophysiology"
@@ -83,6 +85,7 @@ _TAGLINE = "Analysis of Calcium Imaging & Electrophysiology"
 # ─────────────────────────────────────────────────────────────────────────────
 # Logo selection
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def _terminal_width() -> int:
     try:
@@ -105,6 +108,7 @@ def _pick_logo(width: int | None = None) -> str:
 # Color handling
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _should_use_color() -> bool:
     # https://no-color.org/
     if os.environ.get("NO_COLOR"):
@@ -126,6 +130,7 @@ def _interp(a: tuple[int, int, int], b: tuple[int, int, int], t: float) -> tuple
 # Rendering
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def render_banner(width: int | None = None, console=None) -> None:
     """Print the banner. Picks long/short/tiny by terminal width.
 
@@ -145,10 +150,7 @@ def render_banner(width: int | None = None, console=None) -> None:
     show_icon = logo is not TINY_LOGO
     if show_icon:
         icon_lines = LOGO_ICON.splitlines()
-        lines = [
-            icon + _ICON_GUTTER + body
-            for icon, body in zip(icon_lines, logo_lines, strict=True)
-        ]
+        lines = [icon + _ICON_GUTTER + body for icon, body in zip(icon_lines, logo_lines, strict=True)]
     else:
         lines = logo_lines
 
@@ -181,9 +183,7 @@ def render_banner(width: int | None = None, console=None) -> None:
     if show_tagline:
         gr, gg, gb = _GRADIENT_START
         console.print()
-        console.print(
-            Text(_TAGLINE.center(art_width), style=f"bold rgb({gr},{gg},{gb})")
-        )
+        console.print(Text(_TAGLINE.center(art_width), style=f"bold rgb({gr},{gg},{gb})"))
 
 
 def render_tips(width: int | None = None, console=None) -> None:
@@ -198,10 +198,10 @@ def render_tips(width: int | None = None, console=None) -> None:
     use_color = _should_use_color()
 
     tips = [
-        ("First-time setup:",      "ace-neuro --setup"),
-        ("Edit",                   "lab_config.json to point at your data"),
+        ("First-time setup:", "ace-neuro --setup"),
+        ("Edit", "lab_config.json to point at your data"),
         ("Run the full pipeline:", "ace-neuro"),
-        ("Get help anywhere:",     "ace-neuro --help"),
+        ("Get help anywhere:", "ace-neuro --help"),
     ]
 
     if not use_color:

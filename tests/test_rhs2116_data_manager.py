@@ -25,9 +25,7 @@ NUM_CHANNELS = 32
 def rhs2116_dir(tmp_path: Path) -> Path:
     """Build a minimal synthetic RHS2116 recording (clock + ac + dc + start-time)."""
     suffix = "0"
-    (tmp_path / f"start-time_{suffix}.csv").write_text(
-        f"2024-01-01T00:00:00,{ACQ_CLK_HZ},1024,1024\n"
-    )
+    (tmp_path / f"start-time_{suffix}.csv").write_text(f"2024-01-01T00:00:00,{ACQ_CLK_HZ},1024,1024\n")
     # Clock ticks increment by acq/target so the effective rate resolves to TARGET_FS.
     clock = np.arange(N_SAMPLES, dtype=np.uint64) * (ACQ_CLK_HZ // TARGET_FS)
     clock.tofile(tmp_path / f"rhs2116pair-clock_{suffix}.raw")

@@ -51,10 +51,6 @@ from aceneurotools.multimodal.signal_utils import (
     trim_filter_edges,
 )
 from aceneurotools.multimodal.stats_config import StatsConfig, StudyMetadata
-from aceneurotools.multimodal.wavelets import (
-    compute_wavelet_transform,
-    generate_morlet_filterbank,
-)
 from aceneurotools.multimodal.surrogate import (
     PermutationTestResult,
     apply_to_group,
@@ -63,6 +59,10 @@ from aceneurotools.multimodal.surrogate import (
     resample_event_times,
     shift_event_times,
     shuffle_event_intervals,
+)
+from aceneurotools.multimodal.wavelets import (
+    compute_wavelet_transform,
+    generate_morlet_filterbank,
 )
 
 __all__ = [

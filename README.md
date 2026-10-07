@@ -2,29 +2,50 @@
 
 **Tools for turning miniscope videos and brain-signal recordings into analysis results.**
 
-A miniscope records video of activity in groups of cells. Electrophysiology records electrical signals from named channels. ACE-NeuroTools reads these recordings, processes each type, and can align their times when they were recorded together. It needs an experiment list (`experiments.csv`) and the raw files from your lab. Start with the [Getting Started guide](docs/getting_started.md) for a recording-to-result walkthrough. Until the companion paper is available, cite the archived software release as described in [`CITATION.cff`](CITATION.cff).
+A miniscope records video of activity in groups of cells. Electrophysiology records electrical signals from named channels. ACE-NeuroTools reads these recordings, processes each type, and can align their times when they were recorded together. It needs an experiment list (`experiments.csv`) and the raw files from your lab. Start with the [Getting Started guide](docs/getting_started.md) for a recording-to-result walkthrough. For citation metadata, see [`CITATION.cff`](CITATION.cff). Include the version or commit used in your analysis; the companion paper and an archived release DOI have not yet been added.
 
 The [plain-language terms](docs/glossary.md) page defines the recording and processing terms used throughout the guides.
 
-## Key Features
+## What it does
 
-*   **Miniscope Processing:** End-to-end pipeline for 1-photon calcium imaging data, incorporating:
-    *   Preprocessing: Cropping, detrending, and $\Delta F/F$ normalization.
-    *   Motion Correction: Rigid and non-rigid registration.
-    *   Source Extraction: Implementation of Constrained Nonnegative Matrix Factorization for micro-Endoscopic data (CNMF-E).
-    *   Event Detection: Robust inference of calcium events from temporal traces.
-*   **Electrophysiology Analysis:** Tools for importing and cleaning Neuralynx data, including artifact removal, filtering, phase computation, and spectral analysis.
-*   **Multimodal Integration:** Seamless alignment of independent Miniscope and Ephys timestamps, enabling cross-modal analysis such as phase-locking of calcium events to channel-specific oscillations.
-*   **Data Management:** Integrated utilities for managing large experiment cohorts with explicit path management and automated cloud storage (Box) interaction.
-*   **Project Infrastructure:** A documentation site, type annotations across much of the public API, and automated testing.
+| Workflow | Inputs | Processing and results |
+| --- | --- | --- |
+| Calcium imaging | Miniscope movies, metadata, and timestamps | Crop and normalize movies, correct motion, extract cell signals with CaImAn CNMF-E, and infer calcium events. |
+| Electrophysiology | Neuralynx or RHS2116/ONIX recordings | Import channels, remove artifacts where supported, filter signals, and compute phase or spectral summaries. |
+| Multimodal analysis | Paired imaging and electrical recordings with synchronization information | Align timestamps using TTL pulses or the shared ONIX clock, then compare calcium events with electrical activity. |
+
+Processing steps depend on the selected options and recording format. See the
+[output map](docs/getting_started.md) and modality guides for what each run saves.
+Experiment metadata lives in CSV files; Box downloads are optional.
+
+```mermaid
+flowchart LR
+    A[Raw recordings + experiment CSV] --> B[Calcium imaging pipeline]
+    A --> C[Electrophysiology pipeline]
+    B --> D[Timestamp alignment]
+    C --> D
+    D --> E[Multimodal analysis and plots]
+```
+
+## Project status
+
+ACE-NeuroTools is research software in **alpha**. The automated suite uses
+synthetic inputs and component tests; a complete analysis of a real recording
+is not part of CI. The locked environment covers Linux and Windows. macOS
+has not been locked or QA-tested. Validate your recording format and results
+before using them in a scientific report.
+
+Start with [Getting started](docs/getting_started.md), explore the
+[examples](docs/examples.md), or read the
+[contributor guide](CONTRIBUTING.md) to develop the package.
 
 ## Installation
 
 1. **Prerequisites**: micromamba or mamba. The full application depends on the neuroscience CaImAn package from conda-forge; the similarly named project on PyPI is unrelated.
 2. **Clone & Install**:
    ```bash
-   git clone https://github.com/emelon8/experiment_analysis.git
-   cd experiment_analysis
+   git clone https://github.com/emelon8/ACE-NeuroTools.git
+   cd ACE-NeuroTools
    micromamba create -n aceneurotools -f conda-lock.yml  # Linux or Windows
    micromamba activate aceneurotools
    pip install --no-deps -e .
@@ -49,7 +70,7 @@ api.run(
 )
 ```
 
-For more details on directory structure and cloud integration, see the **[Getting Started guide on Read the Docs](https://aceneurotools.readthedocs.io/en/latest/getting_started/)** (source: [`docs/getting_started.md`](docs/getting_started.md)).
+For directory structure and cloud integration, see the [Getting started guide](docs/getting_started.md).
 
 ## Usage
 
@@ -84,12 +105,14 @@ python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /path/to/pr
 python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /path/to/project --data-path /path/to/raw_data
 ```
 
-For detailed documentation, see the user guides: [Miniscope](docs/guides/miniscope.md), [Ephys](docs/guides/ephys.md), and [Multimodal](docs/guides/multimodal.md) (also published on [Read the Docs](https://aceneurotools.readthedocs.io/en/latest/)).
+For detailed documentation, see the user guides: [Miniscope](docs/guides/miniscope.md), [Ephys](docs/guides/ephys.md), and [Multimodal](docs/guides/multimodal.md).
 
 ## Documentation
 
-A comprehensive documentation site, including full API references and guides, is available at:
-**[https://aceneurotools.readthedocs.io/en/latest/](https://aceneurotools.readthedocs.io/en/latest/)**
+The [documentation index](docs/index.md) links to setup instructions, modality
+guides, tutorials, and API reference sources. The previously advertised Read
+the Docs address is unavailable; use the repository documentation until a
+hosted site is configured and verified.
 
 To preview the documentation locally, follow the complete [documentation preview instructions](docs/deployment.md). They install the documentation dependencies and copy tutorial notebooks into the docs tree before starting MkDocs.
 
@@ -102,8 +125,10 @@ Check the `examples/` directory for demonstration scripts:
 
 ### Test fixtures
 
-- **`tests/data/sample_recording/`** — No such recording tree is committed in the current clone. Most tests generate synthetic inputs.
-- **Fixture generation** — [`scripts/create_test_data.py`](scripts/create_test_data.py) is a placeholder that raises `NotImplementedError`; it cannot currently rebuild recording fixtures.
+Most tests generate small synthetic inputs; no raw recording dataset is bundled.
+[`scripts/create_test_data.py`](scripts/create_test_data.py) is an unimplemented
+fixture-generation hook. See the [contributor guide](CONTRIBUTING.md) for checks
+and guidance on adding recording fixtures.
 
 ### Running tests
 
@@ -115,7 +140,7 @@ pip install --no-deps -e .
 pytest tests/ -m "not slow"
 ```
 
-CI runs this test selection, lint/format checks, a strict documentation build, and distribution validation on every push or pull request. A real-recording CNMF-E end-to-end test is not currently included; validate a representative recording locally before a scientific release.
+CI requires this test selection, lint and format checks, a strict documentation build, and distribution validation on pushes and pull requests targeting `main`. A real-recording CNMF-E end-to-end test is not currently included; validate a representative recording locally before a scientific release.
 
 ### Reproducible environments
 

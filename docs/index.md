@@ -6,7 +6,7 @@ Start with your raw recording files and an `experiments.csv` spreadsheet that sa
 
 See the [plain-language terms](glossary.md) page when a recording or processing term is unfamiliar.
 
-The [system architecture diagram in the GitHub README](https://github.com/emelon8/experiment_analysis/blob/main/README.md#system-architecture) is for readers extending the Python code.
+The [system architecture diagram in the GitHub README](https://github.com/emelon8/ACE-NeuroTools/blob/main/README.md#system-architecture) is for readers extending the Python code.
 
 ---
 
@@ -37,8 +37,8 @@ The [system architecture diagram in the GitHub README](https://github.com/emelon
 Create the supported CaImAn environment, then install ACE-NeuroTools in editable mode:
 
 ```bash
-git clone https://github.com/emelon8/experiment_analysis.git
-cd experiment_analysis
+git clone https://github.com/emelon8/ACE-NeuroTools.git
+cd ACE-NeuroTools
 micromamba create -n aceneurotools -f conda-lock.yml  # Linux or Windows
 micromamba activate aceneurotools
 pip install --no-deps -e .

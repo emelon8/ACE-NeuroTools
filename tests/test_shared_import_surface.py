@@ -32,8 +32,6 @@ def test_importing_shared_does_not_load_cv2_or_misc_functions():
         "'misc_functions was imported'; "
         "print('ok')"
     )
-    result = subprocess.run(
-        [sys.executable, "-c", code], capture_output=True, text=True
-    )
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
     assert "ok" in result.stdout

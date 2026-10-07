@@ -190,13 +190,11 @@ def step_2_run_pipeline() -> None:
             project_path=PROJECT_PATH,
             data_path=DATA_PATH,
             filenames=[AVI_FILENAME],
-
             # Preprocessing: trust crop_coords from analysis_parameters.csv if
             # present; otherwise the GUI will pop up so she can draw a box.
             crop=True,
             detrend_method="median",
             df_over_f=False,
-
             # Processing: this is the bit that actually writes estimates.hdf5.
             parallel=False,
             apply_motion_correction=False,
@@ -206,7 +204,6 @@ def step_2_run_pipeline() -> None:
             save_estimates=True,
             save_CNMFE_estimates_filename="estimates.hdf5",
             save_CNMFE_params=False,
-
             # Postprocessing: open the GUI so she can click neurons to reject.
             # The downstream phase / filter / spectrogram steps add failure
             # modes that don't matter for a one-AVI smoke test, so disable them.
@@ -215,7 +212,6 @@ def step_2_run_pipeline() -> None:
             compute_miniscope_phase=False,
             filter_miniscope_data=False,
             compute_miniscope_spectrogram=False,
-
             headless=False,
         )
     except Exception as e:

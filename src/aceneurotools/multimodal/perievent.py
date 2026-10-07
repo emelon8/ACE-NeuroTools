@@ -84,10 +84,12 @@ def compute_perievent(
 
     events = np.asarray(event_times, dtype=np.float64).ravel()
     if events.size == 0:
-        return {"time": time_axis,
-                "matrix": np.zeros((0, n_window), dtype=np.float64),
-                "event_times": np.array([], dtype=np.float64),
-                "n_events": 0}
+        return {
+            "time": time_axis,
+            "matrix": np.zeros((0, n_window), dtype=np.float64),
+            "event_times": np.array([], dtype=np.float64),
+            "n_events": 0,
+        }
 
     sample_idx = np.round((events - t_start) * fs).astype(np.int64)
     n_samples = signal.size
@@ -99,7 +101,7 @@ def compute_perievent(
         kept_idx = sample_idx[kept_mask]
         matrix = np.empty((kept_idx.size, n_window), dtype=np.float64)
         for k, idx in enumerate(kept_idx):
-            matrix[k] = signal[idx - n_before: idx + n_after + 1]
+            matrix[k] = signal[idx - n_before : idx + n_after + 1]
     else:
         kept_events = events
         matrix = np.full((events.size, n_window), np.nan, dtype=np.float64)
@@ -113,10 +115,7 @@ def compute_perievent(
             if slice_hi > slice_lo:
                 matrix[k, out_lo:out_hi] = signal[slice_lo:slice_hi]
 
-    return {"time": time_axis,
-            "matrix": matrix,
-            "event_times": kept_events,
-            "n_events": int(matrix.shape[0])}
+    return {"time": time_axis, "matrix": matrix, "event_times": kept_events, "n_events": int(matrix.shape[0])}
 
 
 def compute_event_triggered_average(
@@ -164,8 +163,7 @@ def compute_event_triggered_average(
     n_window = per["time"].size
     if matrix.shape[0] == 0:
         empty = np.zeros(n_window, dtype=np.float64)
-        return {"time": per["time"], "mean": empty, "sem": empty, "std": empty,
-                "matrix": matrix, "n_events": 0}
+        return {"time": per["time"], "mean": empty, "sem": empty, "std": empty, "matrix": matrix, "n_events": 0}
 
     if drop_boundary_events:
         mean = matrix.mean(axis=0)
@@ -177,18 +175,12 @@ def compute_event_triggered_average(
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=RuntimeWarning)
             mean = np.nanmean(matrix, axis=0)
-            std = (np.nanstd(matrix, axis=0, ddof=1)
-                   if matrix.shape[0] > 1 else np.zeros_like(mean))
+            std = np.nanstd(matrix, axis=0, ddof=1) if matrix.shape[0] > 1 else np.zeros_like(mean)
 
     n = matrix.shape[0]
     sem = std / np.sqrt(n) if n > 0 else np.zeros_like(mean)
 
-    return {"time": per["time"],
-            "mean": mean,
-            "sem": sem,
-            "std": std,
-            "matrix": matrix,
-            "n_events": n}
+    return {"time": per["time"], "mean": mean, "sem": sem, "std": std, "matrix": matrix, "n_events": n}
 
 
 def compute_spike_triggered_average(

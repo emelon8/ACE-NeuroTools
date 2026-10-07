@@ -1,5 +1,6 @@
 """Check the two authentication choices in the copyable Box template."""
 
+import re
 import runpy
 import sys
 from pathlib import Path
@@ -25,10 +26,7 @@ def test_box_template_selects_ccg_or_developer_token(monkeypatch, tmp_path):
     sdk.BoxDeveloperTokenAuth = BoxDeveloperTokenAuth
     monkeypatch.setitem(sys.modules, "box_sdk_gen", sdk)
 
-    source = (
-        Path(__file__).resolve().parents[1]
-        / "src/aceneurotools/shared/BLANK_box_credentials.py"
-    ).read_text()
+    source = (Path(__file__).resolve().parents[1] / "src/aceneurotools/shared/BLANK_box_credentials.py").read_text()
 
     credentials_file = tmp_path / "box_credentials.py"
     credentials_file.write_text(source)
@@ -36,9 +34,12 @@ def test_box_template_selects_ccg_or_developer_token(monkeypatch, tmp_path):
     assert isinstance(ccg_auth, BoxCCGAuth)
 
     credentials_file.write_text(
-        source.replace(
-            "dev_token = 'PUT_YOUR_BOX_DEVELOPER_TOKEN_HERE'",
-            "dev_token = 'temporary-test-token'",
+        re.sub(
+            r"^dev_token = .*$",
+            'dev_token = "temporary-test-token"',
+            source,
+            count=1,
+            flags=re.MULTILINE,
         )
     )
     token_auth = runpy.run_path(str(credentials_file))["auth"]

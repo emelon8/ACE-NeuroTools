@@ -158,8 +158,7 @@ def detect_oscillatory_events(
         raise ValueError("signal must be 1D.")
     if np.var(signal) == 0:
         empty = np.array([], dtype=np.float64)
-        return {"start": empty, "end": empty, "power_db": empty,
-                "amplitude": empty, "peak_time": empty}
+        return {"start": empty, "end": empty, "power_db": empty, "amplitude": empty, "peak_time": empty}
     if frequency_band[0] >= frequency_band[1]:
         raise ValueError("frequency_band must be (low, high) with low < high.")
     if threshold_band[0] >= threshold_band[1]:
@@ -188,8 +187,7 @@ def detect_oscillatory_events(
     if std == 0:
         # Degenerate input — nothing to detect.
         empty = np.array([], dtype=np.float64)
-        return {"start": empty, "end": empty, "power_db": empty,
-                "amplitude": empty, "peak_time": empty}
+        return {"start": empty, "end": empty, "power_db": empty, "amplitude": empty, "peak_time": empty}
     zscored = (smoothed - mean) / std
 
     # 5. Threshold.
@@ -205,8 +203,7 @@ def detect_oscillatory_events(
 
     if intervals.size == 0:
         empty = np.array([], dtype=np.float64)
-        return {"start": empty, "end": empty, "power_db": empty,
-                "amplitude": empty, "peak_time": empty}
+        return {"start": empty, "end": empty, "power_db": empty, "amplitude": empty, "peak_time": empty}
 
     # 8. Per-event metadata: power_dB, amplitude, peak_time.
     powers = np.empty(intervals.shape[0], dtype=np.float64)
@@ -221,7 +218,7 @@ def detect_oscillatory_events(
             amps[k] = np.nan
             peaks[k] = np.nan
             continue
-        p = float(np.mean(seg ** 2))
+        p = float(np.mean(seg**2))
         powers[k] = 10.0 * np.log10(p) if p > 0 else np.nan
         peak_idx = int(np.argmax(seg))
         amps[k] = float(seg[peak_idx])

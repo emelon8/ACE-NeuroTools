@@ -63,7 +63,7 @@ def _cross_correlogram(
             C += np.histogram(t2[lo:hi], edges)[0]
 
     if nt1 > 0:
-        C /= (nt1 * binsize)
+        C /= nt1 * binsize
 
     B = -w + binsize / 2 + np.arange(nbins) * binsize
     return C, B
@@ -323,7 +323,11 @@ def compute_isi_distribution(
     if np.ndim(bins) == 0:
         if int(bins) < 1:
             raise ValueError("bins must be positive when an integer.")
-        all_isis = np.concatenate([v for v in isis.values() if v.size > 0]) if any(v.size for v in isis.values()) else np.array([0.0, 1.0])
+        all_isis = (
+            np.concatenate([v for v in isis.values() if v.size > 0])
+            if any(v.size for v in isis.values())
+            else np.array([0.0, 1.0])
+        )
         bin_edges = np.linspace(all_isis.min(), all_isis.max(), int(bins) + 1)
     else:
         bin_edges = np.asarray(bins, dtype=np.float64)

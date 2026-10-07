@@ -15,8 +15,8 @@ CaImAn, the neuroscience package used for cell extraction, is installed by the e
 Paste these commands in your terminal. `pip install --no-deps -e .` registers this local checkout so its commands work while you edit the project:
 
 ```bash
-git clone https://github.com/emelon8/experiment_analysis.git
-cd experiment_analysis
+git clone https://github.com/emelon8/ACE-NeuroTools.git
+cd ACE-NeuroTools
 micromamba create -n aceneurotools -f conda-lock.yml  # Linux or Windows
 micromamba activate aceneurotools
 pip install --no-deps -e .
@@ -44,7 +44,7 @@ For a UCLA V3 miniscope recording under `/path/to/raw_data/Rat01/session1`, set 
 
 | Column | Example value | Meaning |
 | --- | --- | --- |
-| `line number` | `96` | The ID used with `--line-num 96` |
+| `line number` | `https://youtu.be/uTkOj6J2co096` | The ID used with `--line-num 96` |
 | `calcium imaging directory` | `Rat01/session1` | Folder under the raw-data root containing the recording |
 | `Box Calcium Folder ID` | blank | Leave blank when the files are already on your computer |
 

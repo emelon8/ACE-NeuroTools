@@ -10,19 +10,10 @@ authors:
   # Order matches `pyproject.toml [project.authors]`. Update both together.
   - given-names: Reed
     family-names: Pennock
-    # email: TODO(humans)
-    # orcid: TODO(humans)
-    # affiliation: TODO(humans)
   - given-names: Luke
     family-names: Richards
-    # email: TODO(humans)
-    # orcid: TODO(humans)
-    # affiliation: TODO(humans)
   - given-names: Eric
     family-names: Melonakos
-    # email: TODO(humans)
-    # orcid: TODO(humans)
-    # affiliation: TODO(humans)
 abstract: >-
   ACE-NeuroTools (Analysis of Calcium Imaging and Electrophysiology) is an
   open-source Python package providing integrated pipelines for one-photon
@@ -41,8 +32,8 @@ keywords:
   - signal-processing
   - data-analysis
 license: GPL-3.0-or-later
-repository-code: 'https://github.com/emelon8/experiment_analysis'
-url: 'https://aceneurotools.readthedocs.io/en/latest/'  # TODO(humans): confirm RTD subdomain
+repository-code: 'https://github.com/emelon8/ACE-NeuroTools'
+url: 'https://github.com/emelon8/ACE-NeuroTools'
 version: 0.1.0
 # Add the Zenodo version DOI after the first archived GitHub release. Add a
 # preferred-citation article only after the companion paper has bibliographic

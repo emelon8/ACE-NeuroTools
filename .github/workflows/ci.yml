@@ -40,11 +40,8 @@ jobs:
           mkdocs build --strict
 
   lint:
-    name: Lint (advisory)
+    name: Lint and formatting
     runs-on: ubuntu-latest
-    # Keep visibility on the inherited lint backlog without blocking packaging
-    # work. Remove this after the dedicated formatting/cleanup change lands.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/ruff-action@v3
