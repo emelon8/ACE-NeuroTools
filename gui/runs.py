@@ -383,20 +383,24 @@ class Runs:
             raise ProjectError("This run could not be found.")
         return directory
 
+    def _resolve(self, directory, value):
+        """Settle a recorded running state that this server is not running; the caller holds the lock."""
+        if value["state"] == "running" and str(directory) not in self.processes:
+            outcome = directory / "outcome.json"
+            if outcome.is_file():
+                result = json.loads(outcome.read_text())
+                value["state"] = "completed" if result.get("success") else "failed"
+                value["error"] = result.get("error")
+                value["finished"] = datetime.fromtimestamp(outcome.stat().st_mtime, timezone.utc).isoformat()
+                atomic_json(directory / "run.json", value)
+            else:
+                value["state"] = "untracked"
+        return value
+
     def inspect(self, project, run_id):
         directory = self.directory(project, run_id)
         with self.lock:
-            value = json.loads((directory / "run.json").read_text())
-            if value["state"] == "running" and str(directory) not in self.processes:
-                outcome = directory / "outcome.json"
-                if outcome.is_file():
-                    result = json.loads(outcome.read_text())
-                    value["state"] = "completed" if result.get("success") else "failed"
-                    value["error"] = result.get("error")
-                    value["finished"] = datetime.fromtimestamp(outcome.stat().st_mtime, timezone.utc).isoformat()
-                    atomic_json(directory / "run.json", value)
-                else:
-                    value["state"] = "untracked"
+            value = self._resolve(directory, json.loads((directory / "run.json").read_text()))
             outputs = []
             for item in sorted(directory.rglob("*")):
                 rel = item.relative_to(directory)
