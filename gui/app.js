@@ -767,17 +767,22 @@ function renderWorkspace() {
   $("unconnected-edit").hidden = workspaceView === "history";
   const row = project.experiments.find(item => item.number === experiment.number);
   const facts = [["Subject", row.subject || "Not set"], ["Recorded", friendlyDate(row.date)], ["Experiment number", experiment.number], ["Analysis settings", experiment.parameter_error ? "File needs attention" : experiment.parameters ? "Available" : "Missing"]];
-  $("experiment-overview").replaceChildren(...facts.flatMap(([label, value]) => [element("dt", label), element("dd", value)]));
+  $("experiment-overview").replaceChildren(...facts.flatMap(([label, value]) => {
+    const dd = element("dd");
+    dd.append(label === "Analysis settings" ? element("span", value, `status status-${value === "Available" ? "ok" : value === "Missing" ? "warn" : "bad"}`) : value);
+    return [element("dt", label), dd];
+  }));
   $("experiment-attention").replaceChildren(element("p", experiment.parameter_error || (experiment.parameters ? "Experiment details and analysis settings are ready to edit." : `Experiment ${experiment.number} has no analysis settings. Add them in Data & settings.`)));
   if (typeof renderAnalysis === "function") renderAnalysis();
   if (typeof renderJobScripts === "function") renderJobScripts();
   if (typeof renderNeurons === "function") renderNeurons();
   $("recording-overview").replaceChildren(...experiment.recordings.map(recording => {
-    const section = element("section", undefined, "recording-summary"); section.append(element("h4", recording.name));
-    section.append(element("p", recording.directory || "Local folder not set", "recording-path"));
-    if (recording.box_url) { const link = element("a", `Open Box folder ${recording.box_id}`); link.href = recording.box_url; link.target = "_blank"; link.rel = "noopener noreferrer"; section.append(link); }
-    else section.append(element("p", "Box folder not set"));
-    return section;
+    const kind = /electro/i.test(recording.name) ? "ep" : "ca", item = element("div", undefined, "recording-item"), body = element("div", undefined, "recording-body");
+    body.append(element("h3", recording.name), element("p", recording.directory || "Local folder not set", recording.directory ? "path" : "muted"));
+    if (recording.box_url) { const link = element("a", `Open Box folder ${recording.box_id}`, "link-button"); link.href = recording.box_url; link.target = "_blank"; link.rel = "noopener noreferrer"; body.append(link); }
+    else body.append(element("p", "Box folder not set", "muted"));
+    item.append(element("span", kind === "ep" ? "EP" : "CA", `avatar avatar-${kind}`), body);
+    return item;
   }));
 }
 for (const button of $("workspace-tabs").querySelectorAll("button")) button.onclick = () => setWorkspace(button.dataset.view);
