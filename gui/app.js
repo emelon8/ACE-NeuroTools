@@ -64,6 +64,174 @@ function actionableRow(tr, action) {
     if (event.target === tr && ["Enter", " "].includes(event.key)) { event.preventDefault(); action(); }
   };
 }
+// Last few folders of a long path; the full path stays in the tooltip and sidebar.
+const shortPath = (path, keep = 3) => { const parts = path.split(/[\\/]/).filter(Boolean); return parts.length > keep ? `…/${parts.slice(-keep).join("/")}` : path; };
+const modality = row => row.miniscope && row.ephys ? "mm" : row.miniscope ? "ca" : row.ephys ? "ep" : "none";
+function recordingTags(row) {
+  const tags = [row.miniscope && element("span", "Calcium", "tag tag-ca"), row.ephys && element("span", "Ephys", "tag tag-ep")].filter(Boolean);
+  return tags.length ? tags : [element("span", "Not set", "muted")];
+}
+function settingsStatus(row) {
+  const [text, kind] = row.parameter_error ? ["File needs attention", "bad"] : row.has_parameters ? ["Available", "ok"] : ["No settings", "warn"];
+  return element("span", text, `status status-${kind}`);
+}
+function projectStatus(item) {
+  const missing = item.missing_parameters.length;
+  const [text, kind] = item.parameter_error ? ["File needs attention", "bad"] : missing ? [`${missing} without settings`, "warn"] : ["All experiments have settings", "ok"];
+  return element("span", text, `status status-${kind}`);
+}
+// Latest run per experiment and saved preview images, fetched per project for the list and grid.
+const activity = new Map(), activityRequests = new Set();
+let viewMode = (() => { try { return localStorage.getItem("ace-gui-view") === "grid" ? "grid" : "list"; } catch { return "list"; } })();
+function loadActivity(projectId) {
+  if (activity.has(projectId) || activityRequests.has(projectId)) return;
+  activityRequests.add(projectId);
+  request(`/api/project/activity?project=${encodeURIComponent(projectId)}`)
+    .then(result => activity.set(projectId, result), () => activity.set(projectId, {latest_runs: {}, previews: {}}))
+    .finally(() => { activityRequests.delete(projectId); if (!$("home").hidden) renderProjects(); });
+}
+const latestRun = (projectId, number) => activity.get(projectId)?.latest_runs?.[number] || null;
+const previewVersion = (projectId, number) => activity.get(projectId)?.previews?.[number];
+function timeAgo(iso) {
+  const seconds = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (!Number.isFinite(seconds)) return "";
+  if (seconds < 60) return "just now";
+  for (const [limit, size, unit] of [[3600, 60, "min"], [86400, 3600, "h"], [2592000, 86400, "d"]]) if (seconds < limit) return `${Math.floor(seconds / size)} ${unit} ago`;
+  return new Date(iso).toLocaleDateString(undefined, {day: "numeric", month: "short", year: "numeric"});
+}
+function runPill(run) {
+  const pill = element("span", run.state, `pill pill-${run.state}`);
+  pill.title = `${run.label} · started ${new Date(run.started).toLocaleString()}`; return pill;
+}
+function lastRun(run) {
+  const wrap = element("span", undefined, "last-run");
+  wrap.append(...(run ? [runPill(run), element("span", timeAgo(run.started), "row-meta")] : [element("span", "No runs", "muted")]));
+  return wrap;
+}
+
+// "More options" menus for rows and cards; right-click or the context-menu key opens the same menu.
+let openMenuState = null;
+function closeMenu(restoreFocus = false) {
+  if (!openMenuState) return;
+  const {node, trigger} = openMenuState; openMenuState = null; node.remove();
+  if (restoreFocus && trigger?.isConnected) trigger.focus();
+}
+function showMenu(items, anchor, trigger) {
+  closeMenu();
+  const node = element("div", undefined, "menu"); node.setAttribute("role", "menu");
+  for (const item of items) {
+    if (item === "separator") { const line = element("div", undefined, "menu-separator"); line.setAttribute("role", "separator"); node.append(line); continue; }
+    const entry = element(item.href ? "a" : "button", undefined, "menu-item");
+    entry.setAttribute("role", "menuitem"); entry.tabIndex = -1; entry.append(icon(item.icon), element("span", item.label));
+    if (item.href) { entry.href = item.href; entry.target = "_blank"; entry.rel = "noopener noreferrer"; } else entry.type = "button";
+    if (item.disabled) { entry.disabled = true; entry.setAttribute("aria-disabled", "true"); }
+    entry.onclick = () => { closeMenu(); item.action?.(); };
+    node.append(entry);
+  }
+  document.body.append(node);
+  const box = anchor instanceof Element ? anchor.getBoundingClientRect() : {left: anchor.x, right: anchor.x, top: anchor.y, bottom: anchor.y};
+  const left = anchor instanceof Element ? box.right - node.offsetWidth : box.left;
+  const top = box.bottom + 4 + node.offsetHeight > innerHeight - 8 ? Math.max(8, box.top - node.offsetHeight - 4) : box.bottom + 4;
+  node.style.left = `${Math.max(8, Math.min(left, innerWidth - node.offsetWidth - 8))}px`; node.style.top = `${top}px`;
+  openMenuState = {node, trigger};
+  const entries = () => [...node.querySelectorAll(".menu-item:not([aria-disabled='true'])")];
+  node.onkeydown = event => {
+    const list = entries(), index = list.indexOf(document.activeElement), down = event.key === "ArrowDown";
+    if (down || event.key === "ArrowUp") {
+      event.preventDefault();
+      list[index < 0 ? (down ? 0 : list.length - 1) : (index + (down ? 1 : list.length - 1)) % list.length]?.focus();
+    } else if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); closeMenu(true); }
+    else if (event.key === "Tab") closeMenu();
+  };
+  entries()[0]?.focus({preventScroll: true});
+}
+document.addEventListener("pointerdown", event => {
+  if (openMenuState && !openMenuState.node.contains(event.target) && !openMenuState.trigger?.contains(event.target)) closeMenu();
+}, true);
+document.addEventListener("scroll", event => { if (openMenuState && !openMenuState.node.contains(event.target)) closeMenu(); }, true);
+window.addEventListener("resize", () => closeMenu());
+async function reviewAndRun(projectId, number) {
+  await selectExperiment(projectId, number);
+  if (project?.id === projectId && experiment?.number === number) $("review-run").click();
+}
+const boxFolderLinks = row => (row.box_folders || []).map(folder => ({label: `Open ${folder.name.toLowerCase()} Box folder`, icon: "i-external", href: `https://app.box.com/folder/${folder.id}`}));
+function experimentMenu(item, row) {
+  const links = boxFolderLinks(row);
+  return [
+    {label: "Open", icon: "i-chevron-right", action: () => selectExperiment(item.id, row.number)},
+    {label: row.has_parameters ? "Edit analysis settings" : "Add analysis settings", icon: "i-sliders", action: () => selectExperiment(item.id, row.number, "parameters")},
+    {label: "Review & run", icon: "i-play", action: () => reviewAndRun(item.id, row.number)},
+    "separator",
+    ...(links.length ? links : [{label: "No Box folder set", icon: "i-cloud", disabled: true}]),
+  ];
+}
+function projectMenu(item) {
+  return [
+    {label: "Open", icon: "i-chevron-right", action: () => showHome(item.id)},
+    {label: "New experiment", icon: "i-plus", action: () => showNewExperiment(item.id)},
+    {label: "Reload CSV files", icon: "i-refresh", action: () => reloadProject(item.id)},
+  ];
+}
+function moreButton(label, menu, select) {
+  const button = element("button", undefined, "icon-button row-action"); button.type = "button";
+  button.setAttribute("aria-label", label); button.setAttribute("aria-haspopup", "menu"); button.title = "More options"; button.append(icon("i-more"));
+  // Kept from the row's click handler, which would otherwise close the menu it opens.
+  button.onclick = event => { event.stopPropagation(); select(); if (openMenuState?.trigger === button) closeMenu(); else showMenu(menu(), button, button); };
+  return button;
+}
+// Box-style rows and cards: a click selects the item for the details sidebar; double-click,
+// Enter, or the name opens it. Arrow keys move the selection.
+function bindRow(node, open, select, menu) {
+  node.tabIndex = 0;
+  const ignore = event => event.target.closest("button, a, input, select") && event.target !== node;
+  node.onclick = event => { closeMenu(); if (!ignore(event)) select(); };
+  node.ondblclick = event => { if (!ignore(event)) open(); };
+  node.oncontextmenu = event => { if (ignore(event)) return; event.preventDefault(); select(); showMenu(menu(), {x: event.clientX, y: event.clientY}, node); };
+  node.onkeydown = event => {
+    if (event.target !== node) return;
+    const steps = node.classList.contains("grid-card") ? {ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1} : {ArrowDown: 1, ArrowUp: -1};
+    if (event.key === "Enter") { event.preventDefault(); open(); }
+    else if (event.key === " ") { event.preventDefault(); select(); }
+    else if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) { event.preventDefault(); select(); showMenu(menu(), node, node); }
+    else if (steps[event.key]) {
+      const next = steps[event.key] > 0 ? node.nextElementSibling : node.previousElementSibling;
+      if (next) { event.preventDefault(); next.focus(); next.click(); }
+    }
+  };
+}
+function selectItem(projectId, number = null) {
+  selectedItem = {project: projectId, number};
+  for (const node of $("projects").querySelectorAll("[data-project]")) {
+    const match = node.dataset.project === projectId && (node.dataset.number || null) === number;
+    node.classList.toggle("is-selected", match); node.setAttribute("aria-selected", match ? "true" : "false");
+  }
+  renderHomeSidebar();
+}
+function sortHeader(label, key, className) {
+  const th = element("th", undefined, className), button = element("button", label, "sort-button"), active = sortState.key === key;
+  button.type = "button";
+  if (active) { button.append(icon("i-sort", `icon sort-icon${sortState.dir < 0 ? " is-desc" : ""}`)); th.setAttribute("aria-sort", sortState.dir > 0 ? "ascending" : "descending"); }
+  // Third click returns to the CSV order.
+  button.onclick = () => { sortState = !active ? {key, dir: 1} : sortState.dir > 0 ? {key, dir: -1} : {key: "number", dir: 1}; renderProjects(); };
+  th.append(button); return th;
+}
+function sortEntries(entries) {
+  if (sortState.key === "number") return entries;
+  const value = ({row}) => sortState.key === "name" ? rowName(row).toLowerCase() : isoDate(row.date);
+  return [...entries].sort((a, b) => {
+    const left = value(a), right = value(b);
+    if (!left || !right) return left ? -1 : right ? 1 : 0;
+    return sortState.dir * left.localeCompare(right, undefined, {numeric: true});
+  });
+}
+function selectedRowClass(node, projectId, number = null) {
+  if (selectedItem?.project === projectId && (selectedItem.number || null) === number) { node.classList.add("is-selected"); node.setAttribute("aria-selected", "true"); }
+}
+function setViewMode(mode) {
+  viewMode = mode;
+  try { localStorage.setItem("ace-gui-view", mode); } catch { /* storage unavailable */ }
+  renderProjects();
+}
 function renderProjects() {
   const term = $("search").value.trim().toLowerCase(), missingOnly = $("missing-only").checked;
   $("start-message").hidden = projects.length !== 0;
