@@ -1,140 +1,381 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>ACE · Experiments</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script><script src="/box.js" defer></script><script src="/analysis.js" defer></script><script src="/neurons.js" defer></script><script src="/job_scripts.js" defer></script></head>
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ACE NeuroTools · Experiments</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23222'/%3E%3Cpath d='M5 21h5l2.5-13c2.5 0 4 12 14.5 12.2' fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<script src="/theme.js"></script>
+<link rel="stylesheet" href="/style.css">
+<script src="/app.js" defer></script><script src="/box.js" defer></script><script src="/analysis.js" defer></script><script src="/neurons.js" defer></script><script src="/job_scripts.js" defer></script><script src="/shell.js" defer></script>
+</head>
 <body>
-<header><h1>ACE <span>/ Experiments</span></h1><div class="header-actions"><span id="box-indicator">Box not connected</span><button id="box-setup-button">Box settings</button><button id="open-project">Open project</button></div></header>
-<p id="picker-status" role="status" hidden></p><main id="main-content">
-  <section id="box-setup" hidden aria-label="Box setup">
-    <div class="section-line"><h2>Box settings</h2><button id="close-box">Return to experiments</button></div>
-    <p id="box-status" role="status"></p>
-    <div id="box-saved-actions" hidden><button id="box-reconnect">Use saved connection</button><button id="box-forget">Forget saved connection</button></div>
-    <button id="box-disconnect" hidden>Disconnect this session</button>
-    <button id="box-change-account" hidden>Change account</button>
-    <ol id="box-steps" class="setup-steps"><li id="box-step-label-1">1. Connect</li><li id="box-step-label-2" hidden>Recording folder</li><li id="box-step-label-3">2. Local location</li></ol>
-    <div id="box-error" role="alert" tabindex="-1" hidden><strong>Box setup could not continue</strong><p id="box-error-text"></p></div>
-    <section id="box-step-1">
-      <h3>Connect to Box</h3>
-      <label for="box-method">Connection type</label><select id="box-method"><option value="ccg">Lab connection (Client Credentials Grant)</option><option value="token">Temporary developer token</option></select>
-      <details class="setup-help"><summary>Set up a Box app for the first time</summary>
-        <ol><li>Open the <a href="https://app.box.com/developers/console" target="_blank" rel="noopener noreferrer">Box Developer Console</a>. Create a Server app using Client Credentials Grant.</li><li>Ask your Box administrator to authorize the app. For an existing Box user, enable App + Enterprise Access and Generate User Access Tokens, then authorize the updated app.</li><li>Copy the Client ID and Client secret from the app's Configuration page. Enter the numeric Box user ID below. For a service account, use the enterprise ID and share your recording folder with that account.</li></ol>
-        <a href="https://developer.box.com/guides/authentication/client-credentials/client-credentials-setup" target="_blank" rel="noopener noreferrer">Box's setup instructions</a>
-        <p>No Python files need to be opened or edited.</p>
-      </details>
-      <form id="box-connect-form">
-        <div id="box-ccg-fields" class="fields-grid">
-          <div class="field"><label for="box-client-id">Client ID</label><input id="box-client-id" autocomplete="off" required></div>
-          <div class="field"><label for="box-client-secret">Client secret</label><input id="box-client-secret" type="password" autocomplete="off" required></div>
-          <div class="field"><label for="box-subject-type">Connect as</label><select id="box-subject-type"><option value="user">Box user</option><option value="enterprise">App service account</option></select></div>
-          <div class="field"><label id="box-subject-label" for="box-subject-id">Box user ID</label><input id="box-subject-id" inputmode="numeric" autocomplete="off" required></div>
+<svg class="icon-sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6.5h16M4 12h16M4 17.5h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-collapse" viewBox="0 0 24 24"><path d="M11.5 7l-5 5 5 5M18 7l-5 5 5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M20 20l-4.2-4.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-flask" viewBox="0 0 24 24"><path d="M9 3.5h6M10 3.5v5.8l-5.2 8.9A1.9 1.9 0 0 0 6.4 21h11.2a1.9 1.9 0 0 0 1.6-2.8L14 9.3V3.5M7.4 15h9.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7.2 18.5a4.2 4.2 0 0 1-.6-8.4 5.6 5.6 0 0 1 10.8-1.4 4.9 4.9 0 0 1 .3 9.8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-folder-open" viewBox="0 0 24 24"><path d="M3.5 9V6.5a2 2 0 0 1 2-2h3.6l2 2h6.4a2 2 0 0 1 2 2V9M3.5 9h17l-1.6 8.3a2 2 0 0 1-2 1.7H5.5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-folder-line" viewBox="0 0 24 24"><path d="M3.5 7a2 2 0 0 1 2-2h3.6l2 2h7.4a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 19.5V5.5a2 2 0 0 1 2-2h12v14H7a2 2 0 0 0-2 2zm0 0a2 2 0 0 0 2 2h12v-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-sidebar" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M14.5 4.5v15" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4.6h-4.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5l11 6.5-11 6.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="M8.5 8l-4 4 4 4M15.5 8l4 4-4 4M13.3 5.5l-2.6 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3.5H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5zM14 3.5v5h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4l9 15.5H3zM12 10v4.2M12 16.9v.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-sort" viewBox="0 0 24 24"><path d="M12 5.5v13M7.5 14l4.5 4.5 4.5-4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-exp-ca" viewBox="0 0 32 32"><path d="M8 3.5h11.5l6.5 6.5v17.5a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-23a1 1 0 0 1 1-1z"/><path d="M19.5 3.5v5.5a1 1 0 0 0 1 1H26" fill="currentColor"/><rect x="3" y="15.5" width="19" height="9" rx="1.5" fill="#0e8f7e" stroke="none"/><text x="12.5" y="22.3" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="6.8" font-weight="700" fill="#fff" stroke="none">CA</text></symbol>
+    <symbol id="i-exp-ep" viewBox="0 0 32 32"><path d="M8 3.5h11.5l6.5 6.5v17.5a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-23a1 1 0 0 1 1-1z"/><path d="M19.5 3.5v5.5a1 1 0 0 0 1 1H26" fill="currentColor"/><rect x="3" y="15.5" width="19" height="9" rx="1.5" fill="#2d63c8" stroke="none"/><text x="12.5" y="22.3" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="6.8" font-weight="700" fill="#fff" stroke="none">EP</text></symbol>
+    <symbol id="i-exp-mm" viewBox="0 0 32 32"><path d="M8 3.5h11.5l6.5 6.5v17.5a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-23a1 1 0 0 1 1-1z"/><path d="M19.5 3.5v5.5a1 1 0 0 0 1 1H26" fill="currentColor"/><rect x="3" y="15.5" width="19" height="9" rx="1.5" fill="#6b46c1" stroke="none"/><text x="12.5" y="22.3" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="6.2" font-weight="700" fill="#fff" stroke="none">C+E</text></symbol>
+    <symbol id="i-exp-none" viewBox="0 0 32 32"><path d="M8 3.5h11.5l6.5 6.5v17.5a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-23a1 1 0 0 1 1-1z"/><path d="M19.5 3.5v5.5a1 1 0 0 0 1 1H26" fill="currentColor"/><rect x="3" y="15.5" width="19" height="9" rx="1.5" fill="#8d8d8d" stroke="none"/><text x="12.5" y="22.3" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="6.8" font-weight="700" fill="#fff" stroke="none">—</text></symbol>
+    <symbol id="i-folder" viewBox="0 0 32 32"><path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h6.4l2.6 2.6h12A2.5 2.5 0 0 1 29 11.1V24a2.5 2.5 0 0 1-2.5 2.5h-21A2.5 2.5 0 0 1 3 24z" fill="#9aaec6" stroke="none"/><path d="M3 12.6a2 2 0 0 1 2-2h22a2 2 0 0 1 2 2V24a2.5 2.5 0 0 1-2.5 2.5h-21A2.5 2.5 0 0 1 3 24z" fill="#b6c7da" stroke="none"/></symbol>
+    <!-- ACE mark: a calcium transient (fast rise, slow decay). Replace this symbol to use a lab logo. -->
+    <symbol id="i-ace-mark" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="currentColor" stroke="none"/><path d="M5 21h5l2.5-13c2.5 0 4 12 14.5 12.2" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="18.5" cy="12" r="1.7" fill="currentColor"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6.5h11M9 12h11M9 17.5h11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="4.75" cy="6.5" r="1.2" fill="currentColor"/><circle cx="4.75" cy="12" r="1.2" fill="currentColor"/><circle cx="4.75" cy="17.5" r="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></g></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.8v2.1M12 19.1v2.1M2.8 12h2.1M19.1 12h2.1M5.5 5.5l1.5 1.5M17 17l1.5 1.5M5.5 18.5L7 17M17 7l1.5-1.5"/></g></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M19.5 14.6A7.8 7.8 0 1 1 9.4 4.5a6.2 6.2 0 0 0 10.1 10.1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4.5h5.5V10M19.5 4.5L11 13M17.5 14v4.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1H10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4.5 7h8M17.5 7h2M4.5 17h2M11.5 17h8"/><circle cx="15" cy="7" r="2.3"/><circle cx="9" cy="17" r="2.3"/></g></symbol>
+  </defs>
+</svg>
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<div class="app-shell">
+  <nav class="leftnav" aria-label="Primary">
+    <div class="leftnav-header">
+      <a class="brand" href="/" aria-label="ACE NeuroTools home"><svg class="brand-mark" aria-hidden="true"><use href="#i-ace-mark"/></svg><span class="brand-name"><strong>ACE</strong> NeuroTools</span></a>
+      <button class="icon-button leftnav-collapse" id="nav-collapse" type="button" aria-label="Collapse navigation" aria-expanded="true"><svg class="icon"><use href="#i-collapse"/></svg></button>
+    </div>
+    <div class="leftnav-scroll">
+      <button class="nav-item" id="nav-experiments" type="button" aria-current="page"><svg class="icon"><use href="#i-flask"/></svg><span>Experiments</span></button>
+      <button class="nav-item" id="box-setup-button" type="button"><svg class="icon"><use href="#i-cloud"/></svg><span>Box connection</span></button>
+      <hr class="nav-divider">
+      <p class="nav-section-label">Projects</p>
+      <div id="nav-projects" class="nav-projects"></div>
+      <button class="nav-item nav-item-quiet" id="nav-open-project" type="button"><svg class="icon"><use href="#i-plus"/></svg><span>Open project</span></button>
+    </div>
+    <div class="leftnav-footer">
+      <a class="nav-item nav-item-quiet" href="https://github.com/emelon8/ACE-NeuroTools/blob/proj-comenius/docs/guides/experiment_gui.md" target="_blank" rel="noopener noreferrer"><svg class="icon"><use href="#i-book"/></svg><span>Experiment guide</span></a>
+      <button class="nav-item nav-item-quiet switch-item" id="theme-switch" type="button" role="switch" aria-checked="false"><svg class="icon"><use href="#i-moon"/></svg><span>Dark mode</span><span class="switch" aria-hidden="true"></span></button>
+      <div class="connection-status" id="connection-status"><span class="status-dot" id="box-dot" aria-hidden="true"></span><span id="box-indicator">Box not connected</span></div>
+    </div>
+  </nav>
+
+  <div class="main-column">
+    <header class="topbar">
+      <button class="icon-button topbar-menu" id="nav-toggle" type="button" aria-label="Show navigation"><svg class="icon"><use href="#i-menu"/></svg></button>
+      <div class="topbar-search">
+        <svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>
+        <label class="visually-hidden" for="search">Search experiments</label>
+        <input id="search" type="search" placeholder="Search experiments by subject, date, or number" autocomplete="off">
+        <kbd class="search-hint" aria-hidden="true">/</kbd>
+      </div>
+      <div class="topbar-actions">
+        <button id="open-project" class="btn-primary" type="button"><svg class="icon"><use href="#i-folder-open"/></svg>Open project</button>
+        <button class="icon-button" id="theme-toggle" type="button" aria-label="Dark mode" aria-pressed="false" title="Switch to dark mode"><svg class="icon theme-icon-light"><use href="#i-moon"/></svg><svg class="icon theme-icon-dark"><use href="#i-sun"/></svg></button>
+        <span class="avatar avatar-account" id="box-avatar" title="Box not connected" aria-hidden="true" hidden></span>
+      </div>
+    </header>
+    <p id="picker-status" class="toast toast-bottom" role="status" hidden></p>
+
+    <main id="main-content" class="content">
+      <div id="error" class="toast toast-error" role="alert" tabindex="-1" hidden>
+        <svg class="icon toast-icon" aria-hidden="true"><use href="#i-alert"/></svg>
+        <div class="toast-body"><strong id="error-heading">Could not complete this action</strong><p id="error-text"></p><button id="error-reload" hidden>Reload project</button></div>
+        <button class="icon-button" id="error-close" type="button" aria-label="Dismiss message"><svg class="icon"><use href="#i-close"/></svg></button>
+      </div>
+
+      <!-- Box connection page -->
+      <section id="box-setup" class="page" hidden aria-label="Box setup">
+        <div class="actionbar">
+          <div class="actionbar-title"><p class="eyebrow">Settings</p><h1>Box connection</h1></div>
+          <div class="actionbar-actions"><button id="close-box" type="button">Return to experiments</button></div>
         </div>
-        <div id="box-token-field" class="field" hidden><label for="box-token">Developer token</label><input id="box-token" type="password" autocomplete="off"><p>Temporary access expires. It will not be saved.</p></div>
-        <div class="wizard-actions"><button id="box-check" type="submit">Check connection</button><span id="box-account" role="status"></span><button id="box-next-1" type="button" disabled>Choose local location</button></div>
-      </form>
-    </section>
-    <section id="box-step-2" hidden>
-      <h3>Choose a recording folder</h3><p>Choose the recording folder for this experiment. Its saved Box folder ID is opened automatically. Using a folder saves that ID to experiments.csv.</p>
-      <form id="box-folder-form" class="open-line"><label for="box-folder-link">Folder link or ID</label><input id="box-folder-link" placeholder="https://app.box.com/folder/…"><button>Open folder</button></form>
-      <nav id="box-breadcrumbs" class="browser-toolbar" aria-label="Box folder location"></nav>
-      <div class="folder-scroll"><table><thead><tr><th>Name</th><th>Type</th></tr></thead><tbody id="box-folder-list"></tbody></table><p id="box-folder-empty" hidden>This Box folder has no items.</p></div>
-      <button id="box-more" hidden>Show more items</button>
-      <div class="wizard-actions"><button id="box-back-2">Back</button><span id="box-folder-name"></span><button id="box-next-2" disabled>Use this folder</button></div>
-    </section>
-    <section id="box-step-3" hidden>
-      <h3>Choose a local location</h3><p>This location is shared by all projects. Relative recording paths in experiments.csv are placed under this folder; absolute paths keep their specified location. An explicitly chosen data base folder takes priority.</p>
-      <label for="box-download-path">Local download folder</label><div class="open-line"><input id="box-download-path" readonly placeholder="Choose a folder on this computer"><button id="box-choose-local">Choose folder</button></div>
-      <p id="box-summary"></p><label id="box-remember-label" class="check"><input id="box-remember" type="checkbox" checked>Remember this lab connection on this computer</label><p id="box-storage-note">Saved credentials are stored in your private user settings, outside projects and CSV files.</p>
-      <div class="wizard-actions"><button id="box-back-3">Back</button><button id="box-finish">Finish setup</button></div>
-    </section>
-  </section>
-  <section id="folders" hidden aria-label="Choose a folder">
-    <div class="section-line"><h2 id="folder-title">Open a project</h2><button id="close-folders">Cancel</button></div>
-    <div class="browser-toolbar"><button id="home-folder">Home</button><button id="root-folder">Computer</button><button id="parent-folder">Up one folder</button><nav id="breadcrumbs" aria-label="Folder location"></nav></div>
-    <div class="folder-scroll"><table><thead><tr><th>Name</th><th>Contents</th></tr></thead><tbody id="folder-list"></tbody></table><p id="folder-empty" hidden>No folders or CSV files in this location.</p></div>
-    <div class="section-line browser-bottom"><p id="folder-description"></p><button id="use-folder">Open this project</button></div>
-    <details class="location-entry"><summary>Enter a folder location</summary><form id="folder-form"><label for="folder-path">Folder location</label><div class="open-line"><input id="folder-path"><button>Go</button></div></form></details>
-  </section>
-  <div id="error" role="alert" tabindex="-1" hidden><strong id="error-heading">Could not complete this action</strong><p id="error-text"></p><button id="error-reload" hidden>Reload project</button></div>
-  <section id="home">
-    <div class="section-line"><h2>Projects</h2><div class="search-controls"><label for="search">Find an experiment</label><input id="search" type="search" placeholder="Subject, date, or experiment number"><label class="check"><input id="missing-only" type="checkbox"> Missing settings only</label></div></div>
-    <div id="projects"></div><p id="start-message" hidden>Choose Open project, then select the folder containing your experiments.csv.</p>
-    <section id="new-experiment" class="project-notice" hidden><h3>New experiment</h3><form id="new-experiment-form"><label for="new-number">Experiment number</label><input id="new-number" required><label for="new-subject">Subject</label><input id="new-subject"><label for="new-date">Recording date</label><input id="new-date" type="date"><label for="new-source">Start analysis settings from</label><select id="new-source"></select><p>Recording folders and dates are never copied from the source project.</p><div class="wizard-actions"><button type="submit">Create experiment</button><button id="cancel-new" type="button">Cancel</button></div></form></section>
-  </section>
-  <section id="detail" hidden aria-label="Experiment">
-    <div class="section-line"><button id="back-projects">Back to projects</button><span id="detail-project"></span></div>
-    <div class="section-line"><h2 id="detail-title"></h2><div class="run-action"><button id="output-script">Output script</button><button id="review-run">Review &amp; run</button></div></div><p id="detail-subtitle"></p><p id="detail-loading" role="status" hidden>Opening experiment…</p>
-    <section id="download-review" hidden aria-label="Review recording download">
-      <h3>Review recording download</h3><p id="download-context"></p><dl id="download-details"></dl>
-      <p>Choose only the files you need. Metadata and timestamps may be needed for analysis. Nothing downloads until you confirm.</p>
-      <div class="download-tools"><button id="download-one">One movie + metadata</button><button id="download-all">Select all</button><button id="download-none">Clear selection</button><label for="download-search">Find a file</label><input id="download-search" type="search" placeholder="Filename or folder"></div>
-      <div class="download-file-scroll"><table><thead><tr><th>Select</th><th>File</th><th>Size</th><th>Local copy</th></tr></thead><tbody id="download-files"></tbody></table></div>
-      <p id="download-selection" role="status"></p><div class="wizard-actions"><button id="download-confirm" disabled>Confirm &amp; download selected files</button><button id="download-dismiss">Cancel</button></div>
-    </section>
-    <section id="download-progress" hidden aria-label="Recording download"><h3>Downloading recording files</h3><p id="download-progress-text" role="status"></p><progress id="download-meter" max="1" value="0"></progress><button id="download-cancel">Cancel download</button></section>
-    <div id="detail-content" hidden>
-      <div class="analysis-toolbar"><label for="run-kind">Analysis</label><select id="run-kind"><option value="compute">Mean fluorescence</option><option value="preprocess">Crop &amp; preprocess movie</option><option value="miniscope">Calcium imaging / CNMF-E</option><option value="ephys">Electrophysiology</option><option value="multimodal">Calcium + electrophysiology alignment</option></select><button id="run-settings-button">Run settings</button><button id="choose-recording-files">Choose recording files</button><button id="choose-data-base">Choose data base folder</button><span id="data-base-label"></span></div>
-      <p id="analysis-status" role="status"></p>
-      <nav id="workspace-tabs" class="tabs" aria-label="Experiment workspace">
-        <button data-view="overview" aria-current="page">Overview</button><button data-view="editor">Data &amp; settings</button><button data-view="crop">Crop</button><button data-view="neurons">Neurons</button><button data-view="results">Results</button><button data-view="history">History</button>
-      </nav>
-      <section id="overview-panel"><div class="overview-grid"><div><section class="overview-section"><h3>Continue this experiment</h3><div id="experiment-attention"></div><button id="overview-edit">Edit data &amp; settings</button><button id="overview-box">Box settings</button></section><section class="overview-section"><h3>Recordings</h3><div id="recording-overview"></div></section></div><div><section class="overview-section"><h3>Experiment details</h3><dl id="experiment-overview"></dl></section><section class="overview-section"><h3>Run CNMF-E</h3><p>Choose a crop in Crop, or turn Apply crop off to use the full frame. Set up CNMF-E, review the experiment and parameters, then confirm the run. Review extracted neurons in Neurons when it finishes.</p><button id="overview-cnmfe">Set up CNMF-E</button><h4>Output location</h4><p id="overview-output-path" class="recording-path"></p><p>Each run gets a separate folder here. Results shows its files and opens the folder in your file manager.</p></section></div></div></section>
-      <section id="job-panel" hidden aria-label="Generate supercomputer job scripts">
-        <h3>Output a supercomputer job script</h3><p id="job-context"></p>
-        <p>Export this analysis with its saved settings and crop. Enter locations on the cluster; recordings do not need to be available on this computer.</p>
-        <form id="job-form"><div class="fields-grid">
-          <div class="field"><label for="job-recording">Recording folder on cluster</label><input id="job-recording" name="recording_path" placeholder="/scratch/lab/recordings/rat01" required><small>The folder containing this experiment's recording files.</small></div>
-          <div class="field" id="job-ephys-field" hidden><label for="job-ephys-recording">Ephys folder on cluster</label><input id="job-ephys-recording" name="ephys_recording_path" placeholder="/scratch/lab/ephys/rat01"><small>The electrophysiology recording for this experiment.</small></div>
-          <div class="field"><label for="job-output">Output base folder on cluster</label><input id="job-output" name="output_path" placeholder="/scratch/lab/analysis" required><small>Each job creates a new folder and copies its inputs here. Allow space for the recording copy and results.</small></div>
-          <div class="field"><label for="job-cpus">CPUs</label><input id="job-cpus" name="cpus" type="number" min="1" step="1" value="6" required><small>CNMF-E worker processes match this allocation.</small></div>
-          <div class="field"><label for="job-memory">Memory (GB)</label><input id="job-memory" name="memory_gb" type="number" min="1" step="1" placeholder="Choose for your recording" required><small>Set from previous runs and your cluster limits.</small></div>
-          <div class="field"><label for="job-time">Time limit</label><input id="job-time" name="time" value="12:00:00" required><small>HH:MM:SS, or D-HH:MM:SS for multiple days.</small></div>
-          <div class="field"><label for="job-python">Python on cluster</label><input id="job-python" name="python" value="python" required><small>Use python from your activated ACE environment, or its absolute interpreter path.</small></div>
-          <div class="field"><label for="job-account">Slurm account (optional)</label><input id="job-account" name="account"></div>
-          <div class="field"><label for="job-partition">Slurm partition (optional)</label><input id="job-partition" name="partition"></div>
-        </div><div class="wizard-actions"><button type="submit">Generate scripts</button><button id="job-back" type="button">Back to overview</button></div></form>
-        <section id="job-preview" hidden><h3>Review generated scripts</h3><p>The ZIP contains run_job.py, submit.slurm, saved CSV rows, and the existing analysis worker. It needs an installed ACE-NeuroTools analysis environment on the cluster. Add any required module loads to submit.slurm.</p>
-          <details class="file-details" open><summary>Slurm submission script</summary><pre id="job-slurm-preview"></pre></details>
-          <details class="file-details"><summary>Python entry point</summary><pre id="job-python-preview"></pre></details>
-          <details class="file-details" open><summary>Exported analysis settings and paths</summary><pre id="job-parameters-preview"></pre></details>
-          <button id="job-download">Download job ZIP</button><p>Copy the ZIP to the cluster, extract it, enter the extracted folder, and run <code>sbatch submit.slurm</code>. The Python script also runs directly with <code>python run_job.py</code>. Job logs show the new output folder. Transfer results back to review neurons in the GUI.</p>
+        <div class="page-body narrow">
+          <section class="card box-status-card">
+            <div class="card-row"><span class="avatar avatar-cloud" aria-hidden="true"><svg class="icon"><use href="#i-cloud"/></svg></span><p id="box-status" role="status"></p></div>
+            <div class="card-actions">
+              <div id="box-saved-actions" hidden><button id="box-reconnect">Use saved connection</button><button id="box-forget" class="btn-danger-text">Forget saved connection</button></div>
+              <button id="box-disconnect" hidden>Disconnect this session</button>
+              <button id="box-change-account" hidden>Change account</button>
+            </div>
+          </section>
+          <ol id="box-steps" class="stepper"><li id="box-step-label-1">Connect</li><li id="box-step-label-2" hidden>Recording folder</li><li id="box-step-label-3">Local location</li></ol>
+          <div id="box-error" class="notice notice-error" role="alert" tabindex="-1" hidden><strong>Box setup could not continue</strong><p id="box-error-text"></p></div>
+          <section id="box-step-1" class="card">
+            <h2 class="card-title">Connect to Box</h2>
+            <div class="field"><label for="box-method">Connection type</label><select id="box-method"><option value="ccg">Lab connection (Client Credentials Grant)</option><option value="token">Temporary developer token</option></select></div>
+            <details class="setup-help"><summary>Set up a Box app for the first time</summary>
+              <ol><li>Open the <a href="https://app.box.com/developers/console" target="_blank" rel="noopener noreferrer">Box Developer Console</a>. Create a Server app using Client Credentials Grant.</li><li>Ask your Box administrator to authorize the app. For an existing Box user, enable App + Enterprise Access and Generate User Access Tokens, then authorize the updated app.</li><li>Copy the Client ID and Client secret from the app's Configuration page. Enter the numeric Box user ID below. For a service account, use the enterprise ID and share your recording folder with that account.</li></ol>
+              <a href="https://developer.box.com/guides/authentication/client-credentials/client-credentials-setup" target="_blank" rel="noopener noreferrer">Box's setup instructions</a>
+              <p>No Python files need to be opened or edited.</p>
+            </details>
+            <form id="box-connect-form">
+              <div id="box-ccg-fields" class="fields-grid">
+                <div class="field"><label for="box-client-id">Client ID</label><input id="box-client-id" autocomplete="off" required></div>
+                <div class="field"><label for="box-client-secret">Client secret</label><input id="box-client-secret" type="password" autocomplete="off" required></div>
+                <div class="field"><label for="box-subject-type">Connect as</label><select id="box-subject-type"><option value="user">Box user</option><option value="enterprise">App service account</option></select></div>
+                <div class="field"><label id="box-subject-label" for="box-subject-id">Box user ID</label><input id="box-subject-id" inputmode="numeric" autocomplete="off" required></div>
+              </div>
+              <div id="box-token-field" class="field" hidden><label for="box-token">Developer token</label><input id="box-token" type="password" autocomplete="off"><small>Temporary access expires. It will not be saved.</small></div>
+              <div class="form-footer"><button id="box-check" type="submit">Check connection</button><span id="box-account" role="status"></span><button id="box-next-1" class="btn-primary" type="button" disabled>Choose local location</button></div>
+            </form>
+          </section>
+          <section id="box-step-2" class="card" hidden>
+            <h2 class="card-title">Choose a recording folder</h2><p class="muted">Choose the recording folder for this experiment. Its saved Box folder ID is opened automatically. Using a folder saves that ID to experiments.csv.</p>
+            <form id="box-folder-form" class="inline-form"><label for="box-folder-link">Folder link or ID</label><input id="box-folder-link" placeholder="https://app.box.com/folder/…"><button>Open folder</button></form>
+            <nav id="box-breadcrumbs" class="path-crumbs" aria-label="Box folder location"></nav>
+            <div class="list-frame"><table class="file-table"><thead><tr><th>Name</th><th>Type</th></tr></thead><tbody id="box-folder-list"></tbody></table><p id="box-folder-empty" class="empty-row" hidden>This Box folder has no items.</p></div>
+            <button id="box-more" hidden>Show more items</button>
+            <div class="form-footer"><button id="box-back-2">Back</button><span id="box-folder-name"></span><button id="box-next-2" class="btn-primary" disabled>Use this folder</button></div>
+          </section>
+          <section id="box-step-3" class="card" hidden>
+            <h2 class="card-title">Choose a local location</h2><p class="muted">This location is shared by all projects. Relative recording paths in experiments.csv are placed under this folder; absolute paths keep their specified location. An explicitly chosen data base folder takes priority.</p>
+            <div class="field"><label for="box-download-path">Local download folder</label><div class="input-row"><input id="box-download-path" readonly placeholder="Choose a folder on this computer"><button id="box-choose-local">Choose folder</button></div></div>
+            <p id="box-summary"></p><label id="box-remember-label" class="check"><input id="box-remember" type="checkbox" checked>Remember this lab connection on this computer</label><p id="box-storage-note" class="muted">Saved credentials are stored in your private user settings, outside projects and CSV files.</p>
+            <div class="form-footer"><button id="box-back-3">Back</button><button id="box-finish" class="btn-primary">Finish setup</button></div>
+          </section>
+        </div>
+      </section>
+
+      <!-- Folder / file chooser (modal) -->
+      <section id="folders" class="modal" hidden aria-label="Choose a folder">
+        <div class="modal-card modal-wide" role="dialog" aria-modal="true" aria-labelledby="folder-title">
+          <div class="modal-header"><h2 id="folder-title">Open a project</h2><button id="close-folders" class="icon-button" aria-label="Cancel"><svg class="icon"><use href="#i-close"/></svg></button></div>
+          <div class="modal-toolbar"><button id="home-folder">Home</button><button id="root-folder">Computer</button><button id="parent-folder">Up one folder</button><nav id="breadcrumbs" class="path-crumbs" aria-label="Folder location"></nav></div>
+          <div class="list-frame modal-list"><table class="file-table"><thead><tr><th>Name</th><th>Contents</th></tr></thead><tbody id="folder-list"></tbody></table><p id="folder-empty" class="empty-row" hidden>No folders or CSV files in this location.</p></div>
+          <details class="location-entry"><summary>Enter a folder location</summary><form id="folder-form"><label for="folder-path" class="visually-hidden">Folder location</label><div class="input-row"><input id="folder-path"><button>Go</button></div></form></details>
+          <div class="modal-footer"><p id="folder-description"></p><button id="use-folder" class="btn-primary">Open this project</button></div>
+        </div>
+      </section>
+
+      <!-- Projects and experiments (file-browser view) -->
+      <section id="home" class="page">
+        <div class="actionbar">
+          <nav class="breadcrumb" aria-label="Breadcrumb"><ol id="home-breadcrumb"></ol></nav>
+          <div class="actionbar-actions"><div id="home-actions" class="actionbar-group"></div><button class="icon-button" type="button" data-sidebar-toggle aria-label="Toggle details sidebar" title="Toggle details sidebar"><svg class="icon"><use href="#i-sidebar"/></svg></button></div>
+        </div>
+        <div class="list-layout">
+          <div class="list-main">
+            <div id="home-notices"></div>
+            <div class="list-toolbar" id="list-toolbar">
+              <span id="list-count" class="list-count"></span>
+              <label class="chip" id="missing-only-chip"><input id="missing-only" type="checkbox"><span>Missing settings only</span></label>
+              <div class="view-toggle" role="group" aria-label="View"><button id="view-list" type="button" aria-pressed="true" aria-label="List view" title="List view"><svg class="icon"><use href="#i-list"/></svg></button><button id="view-grid" type="button" aria-pressed="false" aria-label="Grid view" title="Grid view"><svg class="icon"><use href="#i-grid"/></svg></button></div>
+            </div>
+            <div id="projects"></div>
+            <div id="start-message" class="empty-state" hidden>
+              <svg class="empty-icon" aria-hidden="true"><use href="#i-folder"/></svg>
+              <h2>Open a project to get started</h2>
+              <p>A project is a folder containing <code>experiments.csv</code>, usually with <code>analysis_parameters.csv</code> next to it.</p>
+              <button class="btn-primary" type="button" data-click="open-project">Open project</button>
+            </div>
+          </div>
+          <aside class="sidebar" id="home-sidebar" aria-label="Details"></aside>
+        </div>
+        <section id="new-experiment" class="modal" hidden aria-label="New experiment">
+          <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="new-experiment-title">
+            <div class="modal-header"><h2 id="new-experiment-title">New experiment</h2></div>
+            <form id="new-experiment-form">
+              <div class="modal-body">
+                <div class="field"><label for="new-number">Experiment number</label><input id="new-number" required></div>
+                <div class="field"><label for="new-subject">Subject</label><input id="new-subject"></div>
+                <div class="field"><label for="new-date">Recording date</label><input id="new-date" type="date"></div>
+                <div class="field"><label for="new-source">Start analysis settings from</label><select id="new-source"></select><small>Recording folders and dates are never copied from the source project.</small></div>
+              </div>
+              <div class="modal-footer"><button id="cancel-new" type="button">Cancel</button><button type="submit" class="btn-primary">Create experiment</button></div>
+            </form>
+          </div>
         </section>
       </section>
-      <section id="run-settings-panel" hidden><h3>Run settings</h3><p>These settings are stored in analysis_parameters.csv. Unset values inherit the existing command-line defaults. Separate-window interactions are disabled in the GUI.</p><p id="run-settings-help" hidden>For neuron extraction, set Extract neurons with CNMF-E and Save CNMF-E estimates to Yes. Save any changes, then choose Review &amp; run.</p><form id="run-settings-form"><div id="run-settings-fields" class="fields-grid"></div><div class="wizard-actions"><button id="save-run-settings">Save run settings</button><button id="review-settings-run" type="button">Review &amp; run</button><button id="cancel-run-settings" type="button">Back to overview</button></div></form></section>
-      <section id="review-panel" hidden><h3>Review this experiment before running</h3><p>This analysis may take a long time. Confirm the recording, crop, and parameters below. Recording files will be copied into a new run folder so existing results remain available.</p><dl id="review-details"></dl><h3 class="review-heading">Output locations</h3><dl id="review-outputs"></dl><p>New outputs are saved here after their analysis stage completes. Existing results remain available.</p><p id="review-cnmfe-warning" class="notice" hidden></p><div id="review-blockers" class="notice" hidden></div><h3 class="review-heading">Effective run parameters</h3><table><thead><tr><th>Parameter</th><th>Value</th><th>From</th></tr></thead><tbody id="review-parameters"></tbody></table><details class="file-details"><summary>Recording files included in this run</summary><ul id="review-file-list"></ul></details><details class="file-details"><summary>All saved experiment data &amp; settings</summary><pre id="review-csv"></pre></details><div class="wizard-actions"><label class="check"><input id="run-confirm" type="checkbox">I have reviewed this experiment and its parameters</label><button id="start-run" disabled>Start analysis</button><button id="cancel-review">Return to experiment</button></div></section>
-      <section id="crop-panel" hidden><div class="section-line"><h3>Crop recording</h3><button id="load-crop">Load recording preview</button></div><p id="crop-status" role="status">Load a preview of the local calcium recording to draw a crop here.</p><div id="crop-workspace" hidden><div class="crop-toolbar"><label for="crop-projection">Image</label><select id="crop-projection"><option value="mean">Mean</option><option value="max">Maximum</option><option value="std">Standard deviation</option><option value="median">Median</option><option value="min">Minimum</option><option value="range">Range</option><option value="frame">Sample frame</option></select><label for="crop-zoom">Zoom</label><select id="crop-zoom"><option value="fit">Fit</option><option value="native">100%</option><option value="double">200%</option></select><label for="crop-dark">Black level</label><input id="crop-dark" type="range" min="0" max="254" value="0"><label for="crop-light">White level</label><input id="crop-light" type="range" min="1" max="255" value="255"></div><p>Drag to draw a crop. Drag a corner to resize it, or drag inside the selection to move it. Coordinates use the pipeline's bottom-left origin.</p><div class="crop-canvas-scroll"><div id="crop-image"><canvas id="crop-canvas" aria-label="Recording image with crop selection"></canvas><svg id="crop-overlay" aria-hidden="true"></svg></div></div><div class="crop-coordinates"><div><label for="crop-x0">Left (x0)</label><input id="crop-x0" type="number" min="0" step="1"></div><div><label for="crop-y0">Bottom (y0)</label><input id="crop-y0" type="number" min="0" step="1"></div><div><label for="crop-x1">Right (x1)</label><input id="crop-x1" type="number" min="1" step="1"></div><div><label for="crop-y1">Top (y1)</label><input id="crop-y1" type="number" min="1" step="1"></div></div><p id="crop-size"></p><div class="wizard-actions"><button id="crop-full">Full frame</button><button id="crop-reset">Restore saved crop</button><button id="crop-save">Save crop</button></div></div><button id="crop-export">Review movie export</button></section>
-      <section id="results-panel" hidden><div class="section-line"><h3>Results &amp; runs</h3><button id="refresh-runs">Refresh runs</button></div><div id="run-list"></div><section id="run-output" hidden><div class="section-line"><h3 id="run-output-title"></h3><button id="stop-run" hidden>Stop this run</button></div><p id="run-output-state"></p><div class="section-line"><div><strong>Output folder</strong><p id="run-output-location" class="recording-path"></p></div><button id="open-run-folder">Open output folder</button></div><button id="review-run-neurons" hidden>Review extracted neurons</button><div id="run-output-files"></div><details class="file-details" open><summary>Output inventory</summary><div id="run-output-inventory"></div></details><details class="file-details" open><summary>Run log</summary><pre id="run-log"></pre></details><details class="file-details"><summary>Parameters used for this run</summary><pre id="run-used-parameters"></pre></details></section></section>
-      <section id="neurons-panel" hidden>
-        <div class="section-line"><h3>Review neurons</h3><button id="neuron-extract">Review neuron extraction</button></div>
-        <p>Load CNMF-E estimates from an analysis run or an existing HDF5 file. Cropping alone does not identify neurons. Decisions save automatically; exports preserve the original estimates.</p>
-        <div class="neuron-source"><label for="neuron-run-file">Estimates for this experiment</label><select id="neuron-run-file"><option value="">Choose estimates</option></select><button id="neuron-refresh">Refresh outputs</button></div>
-        <p id="neuron-source-hint" role="status"></p><label for="neuron-path">Estimates file</label><div class="open-line"><input id="neuron-path" readonly placeholder="Choose an estimates HDF5 file"><button id="neuron-choose">Choose file</button><button id="neuron-load">Load estimates</button></div>
-        <div class="neuron-options"><div><label for="neuron-fr">Frame rate (Hz)</label><input id="neuron-fr" type="number" min="0.001" step="any" placeholder="From estimates"></div><div><label for="neuron-window">Trace window (s)</label><input id="neuron-window" type="number" min="0.001" step="any" value="30"></div></div>
-        <p id="neuron-status" role="status"></p>
-        <div id="neuron-review" hidden>
-          <p id="neuron-source-label"></p><h3 id="neuron-title"></h3><p id="neuron-counts"></p>
-          <div class="neuron-nav"><button id="neuron-prev">Previous</button><button id="neuron-next">Next</button><label for="neuron-jump">Neuron</label><input id="neuron-jump" type="number" min="1" step="1"><button id="neuron-go">Go</button><button id="neuron-unreviewed">Next undecided</button><button id="neuron-undo" disabled>Undo last decision</button></div>
-          <div id="neuron-map" aria-label="Neuron decisions"></div>
-          <div class="neuron-images"><figure><figcaption>All footprints · selected footprint outlined at 20% of its peak weight</figcaption><canvas id="neuron-background" aria-label="All neuron footprints with selected footprint outlined"></canvas></figure><figure><figcaption id="neuron-footprint-label">Selected footprint</figcaption><img id="neuron-footprint" alt="Selected neuron spatial footprint"></figure></div>
-          <h4 id="neuron-trace-label">Selected neuron fluorescence trace · raw C values</h4><svg id="neuron-trace" role="img" aria-label="Selected neuron fluorescence versus time"></svg>
-          <div class="neuron-trace-controls"><label for="neuron-start">Window start (s)</label><input id="neuron-start" type="number" min="0" step="any"><button id="neuron-apply-window">Show window</button><button id="neuron-peak">Centre on peak</button><button id="neuron-full">Full trace</button></div>
-          <p>Click the overview below to move the trace window. K = keep, R = reject, arrow keys = previous/next, D or Enter = finish.</p><svg id="neuron-overview" role="img" aria-label="Full trace overview; click to select a time window"></svg>
-          <div class="wizard-actions"><button id="neuron-keep">Keep &amp; next</button><button id="neuron-reject">Reject &amp; next</button><button id="neuron-clear">Mark undecided</button><button id="neuron-done">Finish review</button></div>
-          <section id="neuron-finish" hidden><h3>Finish neuron review</h3><p id="neuron-finish-summary"></p><div id="neuron-undecided-actions"><button id="neuron-keep-rest">Keep all undecided</button><button id="neuron-reject-rest">Reject all undecided</button><button id="neuron-continue">Continue reviewing</button></div><label for="neuron-output-path">Curation output folder</label><div class="open-line"><input id="neuron-output-path" readonly><button id="neuron-output-choose">Choose folder</button></div><label for="neuron-output-name">Curated estimates filename</label><input id="neuron-output-name" value="estimates_curated.hdf5">
-            <label><input id="neuron-detect-events" type="checkbox" checked> Detect calcium events from curated estimates</label>
-            <div id="neuron-event-settings" class="neuron-options"><div><label for="neuron-event-derivative">Event detection derivative</label><select id="neuron-event-derivative"><option value="zeroth">Zeroth (raw C)</option><option value="first" selected>First</option><option value="second">Second</option></select></div><div><label for="neuron-event-height">Event height threshold</label><input id="neuron-event-height" type="number" step="any" value="5"></div></div>
-            <p>Detection settings start from this experiment's current Run settings. Events are recomputed for kept neurons when saving. Earlier run outputs remain unchanged; ephys and multimodal analysis must be rerun separately.</p>
-            <p id="neuron-export-help">A new folder holds estimates_curated.hdf5, C_curated.npz, and the decision record.</p><button id="neuron-export" disabled>Save curated copies &amp; detect events</button><button id="neuron-open-output" hidden>Open curation folder</button></section>
+
+      <!-- Experiment workspace -->
+      <section id="detail" class="page" hidden aria-label="Experiment">
+        <div class="actionbar">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><button class="crumb" id="detail-crumb-root" type="button">All projects</button></li>
+              <li><button class="crumb" id="back-projects" type="button"><span id="detail-project"></span></button></li>
+              <li class="crumb-current"><h1 id="detail-title"></h1><span id="detail-subtitle" class="crumb-meta"></span></li>
+            </ol>
+          </nav>
+          <div class="actionbar-actions">
+            <button id="output-script" type="button"><svg class="icon"><use href="#i-code"/></svg>Output script</button>
+            <div class="split-button">
+              <button id="review-run" class="btn-primary" type="button"><svg class="icon"><use href="#i-play"/></svg>Review &amp; run</button>
+              <label class="visually-hidden" for="run-kind">Analysis to review and run</label>
+              <select id="run-kind" class="split-select" title="Analysis to review and run"><option value="compute">Mean fluorescence</option><option value="preprocess">Crop &amp; preprocess movie</option><option value="miniscope">Calcium imaging / CNMF-E</option><option value="ephys">Electrophysiology</option><option value="multimodal">Calcium + electrophysiology alignment</option></select>
+            </div>
+            <button class="icon-button" type="button" data-sidebar-toggle aria-label="Toggle details sidebar" title="Toggle details sidebar"><svg class="icon"><use href="#i-sidebar"/></svg></button>
+          </div>
+        </div>
+        <p id="detail-loading" class="loading-line" role="status" hidden>Opening experiment…</p>
+        <section id="download-review" class="modal" hidden aria-label="Review recording download">
+          <div class="modal-card modal-wide" role="dialog" aria-modal="true" aria-labelledby="download-review-title">
+            <div class="modal-header"><div><h2 id="download-review-title">Review recording download</h2><p id="download-context" class="muted"></p></div></div>
+            <div class="modal-body">
+              <dl id="download-details" class="props props-inline"></dl>
+              <p class="muted">Choose only the files you need. Metadata and timestamps may be needed for analysis. Nothing downloads until you confirm.</p>
+              <div class="download-tools"><button id="download-one">One movie + metadata</button><button id="download-all">Select all</button><button id="download-none">Clear selection</button><label for="download-search" class="visually-hidden">Find a file</label><input id="download-search" type="search" placeholder="Find a file"></div>
+              <div class="list-frame download-file-scroll"><table class="file-table"><thead><tr><th class="col-check">Select</th><th>File</th><th>Size</th><th>Local copy</th></tr></thead><tbody id="download-files"></tbody></table></div>
+            </div>
+            <div class="modal-footer"><p id="download-selection" role="status"></p><button id="download-dismiss">Cancel</button><button id="download-confirm" class="btn-primary" disabled>Confirm &amp; download selected files</button></div>
+          </div>
+        </section>
+        <section id="download-progress" class="transfer-panel" hidden aria-label="Recording download">
+          <div class="transfer-header"><svg class="icon" aria-hidden="true"><use href="#i-cloud"/></svg><h2>Downloading recording files</h2></div>
+          <p id="download-progress-text" role="status"></p><progress id="download-meter" max="1" value="0"></progress>
+          <div class="transfer-actions"><button id="download-cancel">Cancel download</button></div>
+        </section>
+        <div id="detail-content" hidden>
+          <div class="tabs-row">
+            <nav id="workspace-tabs" class="tabs" aria-label="Experiment workspace">
+              <button data-view="overview" aria-current="page">Overview</button><button data-view="editor">Data &amp; settings</button><button data-view="crop">Crop</button><button data-view="neurons">Neurons</button><button data-view="results">Results</button><button data-view="history">History</button>
+            </nav>
+            <div class="tabs-actions"><button id="run-settings-button" type="button"><svg class="icon"><use href="#i-sliders"/></svg>Run settings</button><button id="choose-recording-files" type="button"><svg class="icon"><use href="#i-cloud"/></svg>Choose recording files</button></div>
+          </div>
+          <div class="detail-layout">
+            <div class="detail-main">
+              <p id="analysis-status" class="status-strip" role="status"></p>
+              <section id="overview-panel" class="panel">
+                <div id="experiment-attention" class="attention"></div>
+                <h2 class="panel-title">Workflow</h2>
+                <ol class="workflow">
+                  <li class="workflow-step"><span class="step-index">1</span><div class="step-text"><h3>Experiment details &amp; settings</h3><p>Check the subject, date, recording folders, and analysis settings stored in the project CSVs.</p></div><div class="step-actions"><button id="overview-edit">Edit data &amp; settings</button></div></li>
+                  <li class="workflow-step"><span class="step-index">2</span><div class="step-text"><h3>Recording files</h3><p>Make the recording available locally. Box recordings show a file selection before anything downloads.</p></div><div class="step-actions"><button type="button" data-click="choose-recording-files">Choose recording files</button><button id="overview-box">Box settings</button></div></li>
+                  <li class="workflow-step"><span class="step-index">3</span><div class="step-text"><h3>Crop</h3><p>Draw the field of view for calcium analysis, or turn Apply crop off in Run settings to use the full frame.</p></div><div class="step-actions"><button type="button" data-goto="crop">Open crop</button></div></li>
+                  <li class="workflow-step"><span class="step-index">4</span><div class="step-text"><h3>Review &amp; run</h3><p>Confirm the recording, crop, and every effective parameter, then start the analysis. Each run gets its own output folder.</p></div><div class="step-actions"><button id="overview-cnmfe">Set up CNMF-E</button><button type="button" data-click="review-run">Review &amp; run</button></div></li>
+                  <li class="workflow-step"><span class="step-index">5</span><div class="step-text"><h3>Review neurons</h3><p>Keep or reject extracted components, then export curated estimates and recomputed calcium events.</p></div><div class="step-actions"><button type="button" data-goto="neurons">Open neurons</button></div></li>
+                  <li class="workflow-step"><span class="step-index">6</span><div class="step-text"><h3>Results</h3><p>Run state, logs, output inventories, and exported files for every saved run.</p></div><div class="step-actions"><button type="button" data-goto="results">Open results</button></div></li>
+                </ol>
+              </section>
+              <section id="job-panel" class="panel" hidden aria-label="Generate supercomputer job scripts">
+                <div class="panel-header"><div><h2 class="panel-title">Output a supercomputer job script</h2><p id="job-context" class="muted"></p></div></div>
+                <p class="muted">Export this analysis with its saved settings and crop. Enter locations on the cluster; recordings do not need to be available on this computer.</p>
+                <form id="job-form" class="card"><div class="fields-grid">
+                  <div class="field"><label for="job-recording">Recording folder on cluster</label><input id="job-recording" name="recording_path" placeholder="/scratch/lab/recordings/rat01" required><small>The folder containing this experiment's recording files.</small></div>
+                  <div class="field" id="job-ephys-field" hidden><label for="job-ephys-recording">Ephys folder on cluster</label><input id="job-ephys-recording" name="ephys_recording_path" placeholder="/scratch/lab/ephys/rat01"><small>The electrophysiology recording for this experiment.</small></div>
+                  <div class="field"><label for="job-output">Output base folder on cluster</label><input id="job-output" name="output_path" placeholder="/scratch/lab/analysis" required><small>Each job creates a new folder and copies its inputs here. Allow space for the recording copy and results.</small></div>
+                  <div class="field"><label for="job-cpus">CPUs</label><input id="job-cpus" name="cpus" type="number" min="1" step="1" value="6" required><small>CNMF-E worker processes match this allocation.</small></div>
+                  <div class="field"><label for="job-memory">Memory (GB)</label><input id="job-memory" name="memory_gb" type="number" min="1" step="1" placeholder="Choose for your recording" required><small>Set from previous runs and your cluster limits.</small></div>
+                  <div class="field"><label for="job-time">Time limit</label><input id="job-time" name="time" value="12:00:00" required><small>HH:MM:SS, or D-HH:MM:SS for multiple days.</small></div>
+                  <div class="field"><label for="job-python">Python on cluster</label><input id="job-python" name="python" value="python" required><small>Use python from your activated ACE environment, or its absolute interpreter path.</small></div>
+                  <div class="field"><label for="job-account">Slurm account (optional)</label><input id="job-account" name="account"></div>
+                  <div class="field"><label for="job-partition">Slurm partition (optional)</label><input id="job-partition" name="partition"></div>
+                </div><div class="form-footer"><button id="job-back" type="button">Back to overview</button><button type="submit" class="btn-primary">Generate scripts</button></div></form>
+                <section id="job-preview" class="card" hidden><h3 class="card-title">Review generated scripts</h3><p class="muted">The ZIP contains run_job.py, submit.slurm, saved CSV rows, and the existing analysis worker. It needs an installed ACE-NeuroTools analysis environment on the cluster. Add any required module loads to submit.slurm.</p>
+                  <details class="code-details" open><summary>Slurm submission script</summary><pre id="job-slurm-preview"></pre></details>
+                  <details class="code-details"><summary>Python entry point</summary><pre id="job-python-preview"></pre></details>
+                  <details class="code-details" open><summary>Exported analysis settings and paths</summary><pre id="job-parameters-preview"></pre></details>
+                  <div class="form-footer"><p class="muted">Copy the ZIP to the cluster, extract it, enter the extracted folder, and run <code>sbatch submit.slurm</code>. The Python script also runs directly with <code>python run_job.py</code>. Job logs show the new output folder. Transfer results back to review neurons in the GUI.</p><button id="job-download" class="btn-primary">Download job ZIP</button></div>
+                </section>
+              </section>
+              <section id="run-settings-panel" class="panel" hidden>
+                <div class="panel-header"><div><h2 class="panel-title">Run settings</h2><p class="muted">Stored in analysis_parameters.csv. Unset values inherit the existing command-line defaults. Separate-window interactions are disabled in the GUI.</p></div></div>
+                <p id="run-settings-help" class="notice" hidden>For neuron extraction, set Extract neurons with CNMF-E and Save CNMF-E estimates to Yes. Save any changes, then choose Review &amp; run.</p>
+                <form id="run-settings-form" class="card"><div id="run-settings-fields" class="fields-grid"></div><div class="form-footer"><button id="cancel-run-settings" type="button">Back to overview</button><button id="review-settings-run" type="button">Review &amp; run</button><button id="save-run-settings" class="btn-primary">Save run settings</button></div></form>
+              </section>
+              <section id="review-panel" class="panel" hidden>
+                <div class="panel-header"><div><h2 class="panel-title">Review this experiment before running</h2><p class="muted">This analysis may take a long time. Confirm the recording, crop, and parameters below. Recording files will be copied into a new run folder so existing results remain available.</p></div></div>
+                <div class="review-grid">
+                  <section class="card"><h3 class="card-title">Experiment</h3><dl id="review-details" class="props"></dl></section>
+                  <section class="card"><h3 class="card-title">Output locations</h3><dl id="review-outputs" class="props"></dl><p class="muted">New outputs are saved here after their analysis stage completes. Existing results remain available.</p></section>
+                </div>
+                <p id="review-cnmfe-warning" class="notice" hidden></p><div id="review-blockers" class="notice notice-error" hidden></div>
+                <section class="card"><h3 class="card-title">Effective run parameters</h3><div class="list-frame"><table class="file-table params-table"><thead><tr><th>Parameter</th><th>Value</th><th>From</th></tr></thead><tbody id="review-parameters"></tbody></table></div></section>
+                <details class="code-details"><summary>Recording files included in this run</summary><ul id="review-file-list" class="file-lines"></ul></details>
+                <details class="code-details"><summary>All saved experiment data &amp; settings</summary><pre id="review-csv"></pre></details>
+                <div class="confirm-bar"><label class="check"><input id="run-confirm" type="checkbox">I have reviewed this experiment and its parameters</label><button id="cancel-review">Return to experiment</button><button id="start-run" class="btn-primary" disabled>Start analysis</button></div>
+              </section>
+              <section id="crop-panel" class="panel" hidden>
+                <div class="panel-header"><div><h2 class="panel-title">Crop recording</h2><p id="crop-status" class="muted" role="status">Load a preview of the local calcium recording to draw a crop here.</p></div><div class="panel-actions"><button id="crop-export">Review movie export</button><button id="load-crop" class="btn-primary">Load recording preview</button></div></div>
+                <div id="crop-workspace" hidden>
+                  <div class="viewer-toolbar"><label for="crop-projection">Image</label><select id="crop-projection"><option value="mean">Mean</option><option value="max">Maximum</option><option value="std">Standard deviation</option><option value="median">Median</option><option value="min">Minimum</option><option value="range">Range</option><option value="frame">Sample frame</option></select><label for="crop-zoom">Zoom</label><select id="crop-zoom"><option value="fit">Fit</option><option value="native">100%</option><option value="double">200%</option></select><label for="crop-dark">Black</label><input id="crop-dark" type="range" min="0" max="254" value="0"><label for="crop-light">White</label><input id="crop-light" type="range" min="1" max="255" value="255"></div>
+                  <div class="crop-canvas-scroll viewer"><div id="crop-image"><canvas id="crop-canvas" aria-label="Recording image with crop selection"></canvas><svg id="crop-overlay" aria-hidden="true"></svg></div></div>
+                  <p class="muted hint">Drag to draw a crop. Drag a corner to resize it, or drag inside the selection to move it. Coordinates use the pipeline's bottom-left origin.</p>
+                  <div class="crop-coordinates"><div class="field"><label for="crop-x0">Left (x0)</label><input id="crop-x0" type="number" min="0" step="1"></div><div class="field"><label for="crop-y0">Bottom (y0)</label><input id="crop-y0" type="number" min="0" step="1"></div><div class="field"><label for="crop-x1">Right (x1)</label><input id="crop-x1" type="number" min="1" step="1"></div><div class="field"><label for="crop-y1">Top (y1)</label><input id="crop-y1" type="number" min="1" step="1"></div></div>
+                  <div class="form-footer"><p id="crop-size"></p><button id="crop-full">Full frame</button><button id="crop-reset">Restore saved crop</button><button id="crop-save" class="btn-primary">Save crop</button></div>
+                </div>
+              </section>
+              <section id="results-panel" class="panel" hidden>
+                <div class="panel-header"><div><h2 class="panel-title">Results &amp; runs</h2><p class="muted">Every GUI run keeps its frozen inputs, log, and outputs in a separate folder.</p></div><div class="panel-actions"><button id="refresh-runs"><svg class="icon"><use href="#i-refresh"/></svg>Refresh runs</button></div></div>
+                <div id="run-list"></div>
+                <section id="run-output" class="card" hidden>
+                  <div class="card-header"><div><h3 id="run-output-title" class="card-title"></h3><p id="run-output-state" class="muted"></p></div><div class="panel-actions"><button id="stop-run" class="btn-danger" hidden>Stop this run</button><button id="review-run-neurons" class="btn-primary" hidden>Review extracted neurons</button></div></div>
+                  <div class="location-line"><div><span class="label">Output folder</span><p id="run-output-location" class="path"></p></div><button id="open-run-folder"><svg class="icon"><use href="#i-folder-open"/></svg>Open output folder</button></div>
+                  <div id="run-output-files" class="output-files"></div>
+                  <details class="code-details" open><summary>Output inventory</summary><div id="run-output-inventory"></div></details>
+                  <details class="code-details" open><summary>Run log</summary><pre id="run-log"></pre></details>
+                  <details class="code-details"><summary>Parameters used for this run</summary><pre id="run-used-parameters"></pre></details>
+                </section>
+              </section>
+              <section id="neurons-panel" class="panel" hidden>
+                <div class="panel-header"><div><h2 class="panel-title">Review neurons</h2><p class="muted">Load CNMF-E estimates from an analysis run or an existing HDF5 file. Cropping alone does not identify neurons. Decisions save automatically; exports preserve the original estimates.</p></div><div class="panel-actions"><button id="neuron-extract">Review neuron extraction</button></div></div>
+                <section class="card neuron-source-card">
+                  <div class="neuron-source"><label for="neuron-run-file">Estimates for this experiment</label><select id="neuron-run-file"><option value="">Choose estimates</option></select><button id="neuron-refresh"><svg class="icon"><use href="#i-refresh"/></svg>Refresh outputs</button></div>
+                  <p id="neuron-source-hint" class="muted" role="status"></p>
+                  <div class="field"><label for="neuron-path">Estimates file</label><div class="input-row"><input id="neuron-path" readonly placeholder="Choose an estimates HDF5 file"><button id="neuron-choose">Choose file</button><button id="neuron-load" class="btn-primary">Load estimates</button></div></div>
+                  <div class="neuron-options"><div class="field"><label for="neuron-fr">Frame rate (Hz)</label><input id="neuron-fr" type="number" min="0.001" step="any" placeholder="From estimates"></div><div class="field"><label for="neuron-window">Trace window (s)</label><input id="neuron-window" type="number" min="0.001" step="any" value="30"></div></div>
+                  <p id="neuron-status" role="status"></p>
+                </section>
+                <div id="neuron-review" hidden>
+                  <div class="neuron-header"><div><p id="neuron-source-label" class="path muted"></p><h3 id="neuron-title"></h3><p id="neuron-counts" class="muted"></p></div></div>
+                  <div class="neuron-nav"><button id="neuron-prev">Previous</button><button id="neuron-next">Next</button><label for="neuron-jump">Neuron</label><input id="neuron-jump" type="number" min="1" step="1"><button id="neuron-go">Go</button><button id="neuron-unreviewed">Next undecided</button><button id="neuron-undo" disabled>Undo last decision</button></div>
+                  <div id="neuron-map" aria-label="Neuron decisions"></div>
+                  <div class="neuron-images"><figure><figcaption>All footprints · selected footprint outlined at 20% of its peak weight</figcaption><canvas id="neuron-background" aria-label="All neuron footprints with selected footprint outlined"></canvas></figure><figure><figcaption id="neuron-footprint-label">Selected footprint</figcaption><img id="neuron-footprint" alt="Selected neuron spatial footprint"></figure></div>
+                  <h4 id="neuron-trace-label" class="trace-label">Selected neuron fluorescence trace · raw C values</h4><svg id="neuron-trace" class="trace" role="img" aria-label="Selected neuron fluorescence versus time"></svg>
+                  <div class="neuron-trace-controls"><label for="neuron-start">Window start (s)</label><input id="neuron-start" type="number" min="0" step="any"><button id="neuron-apply-window">Show window</button><button id="neuron-peak">Centre on peak</button><button id="neuron-full">Full trace</button></div>
+                  <p class="muted hint">Click the overview below to move the trace window. <kbd>K</kbd> keep · <kbd>R</kbd> reject · <kbd>←</kbd> <kbd>→</kbd> previous/next · <kbd>D</kbd> or <kbd>Enter</kbd> finish.</p><svg id="neuron-overview" class="trace" role="img" aria-label="Full trace overview; click to select a time window"></svg>
+                  <div class="decision-bar"><button id="neuron-clear">Mark undecided</button><button id="neuron-done">Finish review</button><span class="spacer"></span><button id="neuron-reject" class="btn-danger">Reject &amp; next</button><button id="neuron-keep" class="btn-primary">Keep &amp; next</button></div>
+                  <section id="neuron-finish" class="card" hidden><h3 class="card-title">Finish neuron review</h3><p id="neuron-finish-summary"></p><div id="neuron-undecided-actions" class="button-row"><button id="neuron-keep-rest">Keep all undecided</button><button id="neuron-reject-rest">Reject all undecided</button><button id="neuron-continue">Continue reviewing</button></div>
+                    <div class="fields-grid">
+                      <div class="field"><label for="neuron-output-path">Curation output folder</label><div class="input-row"><input id="neuron-output-path" readonly><button id="neuron-output-choose">Choose folder</button></div></div>
+                      <div class="field"><label for="neuron-output-name">Curated estimates filename</label><input id="neuron-output-name" value="estimates_curated.hdf5"></div>
+                    </div>
+                    <label class="check"><input id="neuron-detect-events" type="checkbox" checked> Detect calcium events from curated estimates</label>
+                    <div id="neuron-event-settings" class="neuron-options"><div class="field"><label for="neuron-event-derivative">Event detection derivative</label><select id="neuron-event-derivative"><option value="zeroth">Zeroth (raw C)</option><option value="first" selected>First</option><option value="second">Second</option></select></div><div class="field"><label for="neuron-event-height">Event height threshold</label><input id="neuron-event-height" type="number" step="any" value="5"></div></div>
+                    <p class="muted">Detection settings start from this experiment's current Run settings. Events are recomputed for kept neurons when saving. Earlier run outputs remain unchanged; ephys and multimodal analysis must be rerun separately.</p>
+                    <div class="form-footer"><p id="neuron-export-help" class="muted">A new folder holds estimates_curated.hdf5, C_curated.npz, and the decision record.</p><button id="neuron-open-output" hidden>Open curation folder</button><button id="neuron-export" class="btn-primary" disabled>Save curated copies &amp; detect events</button></div>
+                  </section>
+                </div>
+              </section>
+              <section id="unconnected-panel" class="panel" hidden><div class="empty-state"><svg class="empty-icon" aria-hidden="true"><use href="#i-exp-none"/></svg><h2 id="unconnected-title"></h2><p id="unconnected-text"></p><button id="unconnected-edit">View stored settings</button></div></section>
+              <section id="editor-panel" class="panel" hidden>
+                <div class="editor-head">
+                  <nav class="segmented" aria-label="Experiment sections"><button id="metadata-tab" aria-current="page">Experiment details</button><button id="parameters-tab">Analysis settings</button></nav>
+                  <div id="editor-toolbar" class="editor-toolbar"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg><label for="field-search" class="visually-hidden">Find a field</label><input id="field-search" type="search" placeholder="Find a field by name or value"></div>
+                </div>
+                <div id="settings-message" class="notice" hidden><p id="settings-text"></p><button id="add-settings" class="btn-primary">Add settings for this experiment</button></div>
+                <div id="copy-settings" class="copy-settings" hidden><label for="copy-source">Populate analysis settings from</label><select id="copy-source"></select><button id="apply-source" type="button">Apply to this experiment</button><small>Copies analysis fields from the selected project's default experiment. Review and save the changes below.</small></div>
+                <form id="editor-form"><div id="field-groups"></div><p id="no-fields" class="empty-row" hidden>No fields match this search.</p><div id="save-bar"><span id="save-status" role="status"></span><button id="discard" type="button" disabled>Discard changes</button><button id="save" class="btn-primary" type="submit" disabled>Save changes</button></div></form>
+              </section>
+            </div>
+            <aside class="sidebar" id="detail-sidebar" aria-label="Experiment details">
+              <div class="sidebar-tabs" role="tablist" aria-label="Sidebar sections"><button role="tab" type="button" data-tab="details" aria-selected="true">Details</button><button role="tab" type="button" data-tab="recordings" aria-selected="false">Recordings</button><button role="tab" type="button" data-tab="files" aria-selected="false">Files</button></div>
+              <div class="sidebar-panel" data-panel="details">
+                <section class="sidebar-section"><h2>Experiment properties</h2><dl id="experiment-overview" class="props"></dl></section>
+                <section class="sidebar-section"><h2>Data base folder</h2><p id="data-base-label" class="path"></p><p class="muted">Relative recording folders in experiments.csv are found under this folder.</p><button id="choose-data-base" type="button">Choose data base folder</button></section>
+                <section class="sidebar-section"><h2>Output location</h2><p id="overview-output-path" class="path"></p><p class="muted">Each run gets a separate folder here. Results shows its files and opens the folder in your file manager.</p></section>
+              </div>
+              <div class="sidebar-panel" data-panel="recordings" hidden>
+                <section class="sidebar-section"><h2>Recordings</h2><div id="recording-overview" class="recording-list"></div></section>
+              </div>
+              <div class="sidebar-panel" data-panel="files" hidden>
+                <section class="sidebar-section"><h2>Project files</h2><p id="file-info" class="path"></p><div id="reader-errors"></div></section>
+                <section class="sidebar-section"><details><summary>Values read by the analysis tool</summary><pre id="interpreted"></pre></details></section>
+              </div>
+            </aside>
+          </div>
         </div>
       </section>
-      <section id="unconnected-panel" hidden><h3 id="unconnected-title"></h3><p id="unconnected-text"></p><button id="unconnected-edit">View stored settings</button></section>
-      <section id="editor-panel" hidden>
-      <nav class="tabs" aria-label="Experiment sections"><button id="metadata-tab" aria-current="page">Experiment details</button><button id="parameters-tab">Analysis settings</button></nav>
-      <div id="settings-message" class="notice" hidden><p id="settings-text"></p><button id="add-settings">Add settings for this experiment</button></div>
-      <div id="copy-settings" class="copy-settings" hidden><label for="copy-source">Populate analysis settings from</label><select id="copy-source"></select><button id="apply-source" type="button">Apply to this experiment</button><small>Copies analysis fields from the selected project's default experiment. Review and save the changes below.</small></div>
-      <div id="editor-toolbar" class="editor-toolbar"><label for="field-search">Find a field</label><input id="field-search" type="search" placeholder="Name or current value"></div>
-      <form id="editor-form"><div id="field-groups"></div><p id="no-fields" hidden>No fields match this search.</p><div id="save-bar"><span id="save-status" role="status"></span><button id="discard" type="button" disabled>Discard changes</button><button id="save" type="submit" disabled>Save changes</button></div></form>
-      <details class="file-details"><summary>File details</summary><p id="file-info"></p><div id="reader-errors"></div><details><summary>Values read by the analysis tool</summary><pre id="interpreted"></pre></details></details>
-      </section>
-    </div>
-  </section>
-</main>
-</body></html>
+    </main>
+  </div>
+</div>
+</body>
+</html>
