@@ -11,6 +11,9 @@ function boxStepTo(step) {
 }
 function renderBoxStatus() {
   $("box-indicator").textContent = boxStatus.connected ? `Box: ${boxStatus.account.name}` : boxStatus.saved ? "Box connection saved" : "Box not connected";
+  const initials = boxStatus.connected ? boxStatus.account.name.split(/\s+/).filter(Boolean).map(word => word[0]).join("").slice(0, 2).toUpperCase() : "";
+  $("box-dot").className = `status-dot${boxStatus.connected ? " is-on" : boxStatus.saved ? " is-saved" : ""}`;
+  $("box-avatar").textContent = initials; $("box-avatar").title = $("box-indicator").textContent; $("box-avatar").hidden = !initials; $("box-avatar").classList.toggle("is-connected", Boolean(initials));
   $("box-saved-actions").hidden = !boxStatus.saved;
   $("box-reconnect").hidden = boxStatus.connected;
   $("box-disconnect").hidden = !boxStatus.connected;
