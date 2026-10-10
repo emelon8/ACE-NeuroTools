@@ -203,22 +203,25 @@ async function refreshRuns() {
   try {
     const result = await request(`/api/runs?project=${encodeURIComponent(project.id)}&number=${encodeURIComponent(experiment.number)}`);
     if (selection !== analysisSelection || revision !== runListRequest) return;
-    const table = element("table"), head = element("thead"), headerRow = element("tr");
+    const table = element("table", undefined, "file-table"), head = element("thead"), headerRow = element("tr");
     for (const name of ["Started", "Analysis", "State"]) headerRow.append(element("th", name)); head.append(headerRow); table.append(head);
     const body = element("tbody");
     for (const run of result.runs) {
-      const row = element("tr", undefined, "experiment-row"); row.append(element("td", new Date(run.started).toLocaleString()), element("td", run.label), element("td", run.state));
-      actionableRow(row, () => { selectedRun = run.id; showRun(run); }); body.append(row);
+      const row = element("tr", undefined, "run-row"), state = element("td"); row.dataset.run = run.id;
+      state.append(element("span", run.state, `pill pill-${run.state}`));
+      row.append(element("td", new Date(run.started).toLocaleString()), element("td", run.label), state);
+      actionableRow(row, () => { selectedRun = run.id; for (const other of body.children) other.classList.toggle("is-selected", other === row); showRun(run); }); body.append(row);
     }
     table.append(body); $("run-list").replaceChildren(result.runs.length ? table : element("p", "No GUI runs have been saved for this experiment. Choose Review & run to start one."));
     if (selectedRun) { const run = result.runs.find(item => item.id === selectedRun); if (run) showRun(run); }
     else if (result.runs.length) { selectedRun = result.runs[0].id; showRun(result.runs[0]); }
     else $("run-output").hidden = true;
+    for (const row of body.children) row.classList.toggle("is-selected", row.dataset.run === selectedRun);
   } catch (error) { if (selection === analysisSelection) showError(error); }
 }
 function showRun(run) {
   $("run-output").hidden = false; $("run-output-title").textContent = run.label;
-  $("run-output-state").textContent = `${run.state}${run.error ? ` · ${run.error}` : ""}${run.state === "untracked" ? " · The GUI server restarted. Use Refresh runs to check completion; the log and outputs are retained." : ""}`;
+  $("run-output-state").textContent = `${run.state[0].toUpperCase()}${run.state.slice(1)}${run.error ? ` · ${run.error}` : ""}${run.state === "untracked" ? " · The GUI server restarted. Use Refresh runs to check completion; the log and outputs are retained." : ""}`;
   $("run-output-location").textContent = run.directory; $("run-output-location").dataset.path = run.directory; $("stop-run").hidden = run.state !== "running";
   const estimates = run.files.find(file => /\.(hdf5|h5)$/i.test(file.name));
   $("review-run-neurons").hidden = !["miniscope", "multimodal"].includes(run.kind) || run.state !== "completed" || !estimates;
@@ -226,13 +229,14 @@ function showRun(run) {
   $("run-log").textContent = run.log; $("run-used-parameters").textContent = JSON.stringify(run.parameters, null, 2);
   const inventory = run.output_inventory;
   if (inventory) {
-    const table = element("table"), head = element("tr");
+    const table = element("table", undefined, "file-table"), head = element("tr");
     for (const label of ["Result", "Status", "Location / reason"]) head.append(element("th", label));
     table.append(head);
     for (const output of inventory.outputs) {
       const row = element("tr");
       const location = output.status === "exported" ? output.file + (output.key ? ` · ${output.key}` : "") : output.reason;
-      row.append(element("td", output.name), element("td", output.status === "exported" ? "Exported" : "Not computed / unavailable"), element("td", location));
+      const status = element("td"); status.append(element("span", output.status === "exported" ? "Exported" : "Not computed / unavailable", `status status-${output.status === "exported" ? "ok" : "none"}`));
+      row.append(element("td", output.name), status, element("td", location));
       table.append(row);
     }
     $("run-output-inventory").replaceChildren(table);
