@@ -29,15 +29,22 @@ def validate_coords(coords, width, height):
     return coords
 
 
-def grayscale_png(array):
+PREVIEW_FOLDER = ".ace-previews"
+
+
+def normalized_image(array):
     lo, hi = float(np.min(array)), float(np.max(array))
     normalized = (
         np.zeros_like(array, dtype=np.uint8)
         if hi <= lo
         else np.clip((array - lo) * (255 / (hi - lo)), 0, 255).astype(np.uint8)
     )
+    return Image.fromarray(normalized)
+
+
+def grayscale_png(array):
     buffer = io.BytesIO()
-    Image.fromarray(normalized).save(buffer, format="PNG")
+    normalized_image(array).save(buffer, format="PNG")
     return base64.b64encode(buffer.getvalue()).decode()
 
 
