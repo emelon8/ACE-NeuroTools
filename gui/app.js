@@ -4,12 +4,24 @@ let projects = [], project = null, experiment = null, activeTab = "metadata", wo
 let drafts = {metadata: {}, parameters: {}}, creating = false, busy = false, selectionRequest = 0;
 let folder = null, folderTarget = null, expanded = new Set(), editorExpanded = new Set(), savedMessage = "", lastBackup = "";
 let newProject = null;
+// File-browser state: the project whose experiments are listed (null = all projects),
+// the row shown in the details sidebar, and the list ordering.
+let currentProjectId = null, selectedItem = null, sortState = {key: "number", dir: 1};
 const element = (tag, text, className) => {
   const node = document.createElement(tag);
   if (text !== undefined) node.textContent = text;
   if (className) node.className = className;
   return node;
 };
+function icon(name, className = "icon") {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"), use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+  svg.setAttribute("class", className); svg.setAttribute("aria-hidden", "true"); use.setAttribute("href", `#${name}`); svg.append(use);
+  return svg;
+}
+function labelledButton(iconName, text, className) {
+  const button = element("button", undefined, className); button.type = "button";
+  button.append(icon(iconName), document.createTextNode(text)); return button;
+}
 const dirty = section => Object.keys(drafts[section]).length > 0 || (section === "parameters" && creating);
 const anyDirty = () => dirty("metadata") || dirty("parameters") || (typeof extraUnsaved === "function" && extraUnsaved());
 function canLeave() { return !busy && (!anyDirty() || window.confirm("Leave without saving your changes? Choose Cancel to keep editing.")); }
