@@ -41,7 +41,7 @@ function confirmRecordingDownload(plan) {
   const details = [["Box folder", plan.folder_id], ["Full recording", `${plan.files.length} files · ${formatSize(plan.total_bytes)}`], ["Destination", plan.recording_path], ["Free disk space", formatSize(plan.free_bytes)]];
   $("download-details").replaceChildren(...details.flatMap(([label, value]) => [element("dt", label), element("dd", value)]));
   $("download-search").value = ""; $("download-review").hidden = false;
-  renderDownloadFiles(); $("download-review").scrollIntoView({block: "start"}); $("download-one").focus();
+  renderDownloadFiles(); $("download-one").focus();
   return new Promise(resolve => { downloadChoice = resolve; });
 }
 $("download-one").onclick = () => {

@@ -512,7 +512,7 @@ async function sourceSettings(sourceId, destinationColumns) {
 function showNewExperiment(id) {
   newProject = projects.find(item => item.id === id); $("new-experiment").hidden = false;
   $("new-experiment-form").reset(); sourceOptions($("new-source"), id);
-  $("new-experiment").scrollIntoView({block: "start"}); $("new-number").focus();
+  $("new-number").focus();
 }
 async function selectExperiment(projectId, number, tab = null) {
   if (!canLeave()) return;
@@ -523,7 +523,7 @@ async function selectExperiment(projectId, number, tab = null) {
   const row = project.experiments.find(item => item.number === number);
   $("detail-project").textContent = project.name; $("detail-title").textContent = rowName(row);
   $("detail-subtitle").textContent = `Experiment ${number} · ${friendlyDate(row.date)}`;
-  $("detail-title").scrollIntoView({block: "start"});
+  window.scrollTo(0, 0);
   try {
     const result = await request(`/api/experiment?project=${encodeURIComponent(projectId)}&number=${encodeURIComponent(number)}`);
     if (revision !== selectionRequest) return;
@@ -687,7 +687,7 @@ async function browseFolders(path, target = null) {
     }
     $("folder-list").replaceChildren(...rows); $("folder-empty").hidden = rows.length !== 0;
     $("folder-empty").textContent = target?.kind === "neuron-estimates" ? "No folders or estimates files in this location." : target?.field?.kind === "file" || target?.onpick ? "No folders or files in this location." : "No folders or CSV files in this location.";
-    $("folders").scrollIntoView({block: "start"}); $("use-folder").focus({preventScroll: true});
+    $("use-folder").focus({preventScroll: true});
   } catch (error) { showError(error); }
 }
 $("open-project").onclick = () => browse(project?.path || projects[0]?.path);
