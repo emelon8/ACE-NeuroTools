@@ -447,6 +447,30 @@ class Runs:
                     continue
         return {"runs": items}
 
+    def latest(self, project):
+        """The newest run of each experiment, for the project's experiment list."""
+        root = project.path / ".ace-runs"
+        latest = {}
+        if root.is_dir():
+            # Run folders start with a UTC timestamp, so reverse name order is newest first.
+            for path in sorted(root.glob("*/run.json"), reverse=True):
+                try:
+                    value = json.loads(path.read_text())
+                    if value["number"] in latest:
+                        continue
+                    with self.lock:
+                        value = self._resolve(path.parent, value)
+                    latest[value["number"]] = {
+                        "id": value["id"],
+                        "label": value["label"],
+                        "state": value["state"],
+                        "started": value["started"],
+                        "finished": value.get("finished"),
+                    }
+                except (ValueError, KeyError, OSError):
+                    continue
+        return latest
+
     def stop(self, project, run_id):
         import signal
 
