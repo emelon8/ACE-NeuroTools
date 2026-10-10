@@ -7,6 +7,7 @@ import io
 import threading
 import time
 import uuid
+from pathlib import Path
 
 import numpy as np
 from PIL import Image
@@ -46,6 +47,36 @@ def grayscale_png(array):
     buffer = io.BytesIO()
     normalized_image(array).save(buffer, format="PNG")
     return base64.b64encode(buffer.getvalue()).decode()
+
+
+def preview_file(project_path: Path, number: str) -> Path:
+    """Thumbnail location for an experiment; hex names keep any experiment number filesystem-safe."""
+    return Path(project_path) / PREVIEW_FOLDER / f"{number.encode('utf-8').hex()}.png"
+
+
+def save_preview(project_path: Path, number: str, array, size: int = 320) -> Path:
+    """Store a small projection image that the experiment grid shows as a thumbnail."""
+    image = normalized_image(array)
+    image.thumbnail((size, size))
+    path = preview_file(project_path, number)
+    path.parent.mkdir(exist_ok=True)
+    partial = path.with_name(path.name + ".partial")
+    image.save(partial, format="PNG")
+    partial.replace(path)
+    return path
+
+
+def saved_previews(project_path: Path) -> dict[str, int]:
+    """Experiment numbers with a stored thumbnail, mapped to its modification time (ns)."""
+    folder = Path(project_path) / PREVIEW_FOLDER
+    found = {}
+    if folder.is_dir():
+        for item in folder.glob("*.png"):
+            try:
+                found[bytes.fromhex(item.stem).decode("utf-8")] = item.stat().st_mtime_ns
+            except (ValueError, OSError):
+                continue
+    return found
 
 
 class Cropping:
@@ -103,6 +134,10 @@ class Cropping:
             name: grayscale_png(getattr(projections, name)) for name in ["max", "min", "mean", "median", "std", "range"]
         }
         images["frame"] = grayscale_png(frames[len(frames) // 2])
+        try:
+            save_preview(project.path, detail["number"], projections.max)
+        except OSError:
+            pass  # A read-only project still previews; its grid card shows the type icon instead.
         height, width = shape
         settings = CSVWorker.convert_data_types(detail["parameters"] or {})
         coords = settings.get("crop_coords")
