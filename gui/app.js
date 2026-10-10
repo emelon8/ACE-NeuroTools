@@ -2,7 +2,7 @@
 const $ = id => document.getElementById(id);
 let projects = [], project = null, experiment = null, activeTab = "metadata", workspaceView = "overview";
 let drafts = {metadata: {}, parameters: {}}, creating = false, busy = false, selectionRequest = 0;
-let folder = null, folderTarget = null, expanded = new Set(), editorExpanded = new Set(), savedMessage = "", lastBackup = "";
+let folder = null, folderTarget = null, editorExpanded = new Set(), savedMessage = "", lastBackup = "";
 let newProject = null;
 // File-browser state: the project whose experiments are listed (null = all projects),
 // the row shown in the details sidebar, and the list ordering.
@@ -233,91 +233,253 @@ function setViewMode(mode) {
   renderProjects();
 }
 function renderProjects() {
+  if (currentProjectId && !projects.some(item => item.id === currentProjectId)) currentProjectId = null;
   const term = $("search").value.trim().toLowerCase(), missingOnly = $("missing-only").checked;
-  $("start-message").hidden = projects.length !== 0;
-  $("projects").replaceChildren(...projects.map(item => {
-    const group = element("details", undefined, "project-folder");
-    group.open = expanded.has(item.id) || Boolean(term) || missingOnly;
-    group.ontoggle = () => { if (group.open) expanded.add(item.id); else expanded.delete(item.id); };
-    const heading = element("summary", undefined, "project-heading");
-    heading.append(element("span", item.name), element("span", `${item.count} experiments`, "folder-count"));
-    const location = element("div", undefined, "project-location"), reload = element("button", "Reload project", "text-action");
-    reload.onclick = () => reloadProject(item.id); location.append(element("span", item.path), reload);
-    group.append(heading, location);
-    const actions = element("div", undefined, "project-actions");
-    const defaultLabel = element("label", "Default parameters from");
-    const defaultSelect = element("select"); defaultSelect.setAttribute("aria-label", `Default experiment for ${item.name}`);
-    const empty = element("option", "Choose an experiment"); empty.value = ""; defaultSelect.append(empty);
-    for (const row of item.experiments.filter(row => row.has_parameters)) {
-      const option = element("option", `${rowName(row)} · #${row.number}`); option.value = row.number; defaultSelect.append(option);
+  const current = projects.find(item => item.id === currentProjectId);
+  renderNavProjects(); renderHomeHeader(current, term);
+  $("start-message").hidden = projects.length !== 0; $("list-toolbar").hidden = projects.length === 0;
+  $("view-list").setAttribute("aria-pressed", viewMode === "list" ? "true" : "false"); $("view-grid").setAttribute("aria-pressed", viewMode === "grid" ? "true" : "false");
+  $("home-notices").replaceChildren();
+  if (!projects.length) $("projects").replaceChildren();
+  else if (current || term) renderExperimentList(current, term, missingOnly);
+  else renderProjectList();
+  renderHomeSidebar();
+}
+function renderHomeHeader(current, term) {
+  const crumbs = [];
+  if (current || term) {
+    const item = element("li"), root = element("button", "All projects", "crumb");
+    root.type = "button"; root.id = "crumb-root"; root.onclick = () => { $("search").value = ""; showHome(null); }; item.append(root); crumbs.push(item);
+  }
+  const last = element("li", undefined, "crumb-current");
+  last.append(element("h1", current ? current.name : term ? "Search results" : "All projects"));
+  if (current) last.append(element("span", `${current.count} ${current.count === 1 ? "experiment" : "experiments"}`, "crumb-meta"));
+  crumbs.push(last); $("home-breadcrumb").replaceChildren(...crumbs);
+  const actions = [];
+  if (current) {
+    const reload = labelledButton("i-refresh", "Reload"); reload.title = "Reload this project's CSV files"; reload.onclick = () => reloadProject(current.id);
+    const add = labelledButton("i-plus", "New experiment", "btn-primary"); add.onclick = () => showNewExperiment(current.id);
+    actions.push(reload, add);
+  }
+  $("home-actions").replaceChildren(...actions);
+}
+function gridCard(projectId, number, thumb, title, open, meta, footer) {
+  const card = element("div", undefined, "grid-card"), body = element("div", undefined, "grid-body"), foot = element("div", undefined, "grid-foot");
+  const link = element("button", title, "row-open"); link.type = "button"; link.tabIndex = -1; link.onclick = open;
+  card.dataset.project = projectId; if (number !== null) card.dataset.number = number;
+  foot.append(...footer); body.append(link, element("span", meta, "grid-meta"), foot); card.append(thumb, body);
+  return card;
+}
+function renderProjectList() {
+  $("list-count").textContent = `${projects.length} ${projects.length === 1 ? "project" : "projects"} open`;
+  $("missing-only-chip").hidden = true;
+  const handlers = item => [() => showHome(item.id), () => selectItem(item.id), () => projectMenu(item)];
+  if (viewMode === "grid") {
+    const grid = element("div", undefined, "item-grid");
+    for (const item of projects) {
+      const [open, select, menu] = handlers(item), thumb = element("div", undefined, "grid-thumb");
+      thumb.append(icon("i-folder", "type-icon"));
+      const card = gridCard(item.id, null, thumb, item.name, open, `${item.count} experiments · ${shortPath(item.path, 2)}`, [projectStatus(item)]);
+      card.append(moreButton(`More options for ${item.name}`, menu, select)); bindRow(card, open, select, menu); selectedRowClass(card, item.id); grid.append(card);
     }
-    defaultSelect.value = item.default_experiment || "";
-    defaultSelect.onchange = async () => {
-      const previous = item.default_experiment || ""; defaultSelect.disabled = true; clearError();
-      try {
-        const result = await post("/api/projects/default", {project: item.id, number: defaultSelect.value || null, versions: item.versions});
-        replaceProject(result.project);
-        if (project?.id === item.id) { project = result.project; if (experiment) experiment.versions = result.project.versions; }
-        if (newProject?.id === item.id) newProject = result.project;
-        renderProjects();
-      }
-      catch (error) { defaultSelect.value = previous; defaultSelect.disabled = false; showError(error); }
-    };
-    defaultLabel.append(defaultSelect);
-    const add = element("button", "New experiment"); add.type = "button"; add.onclick = () => showNewExperiment(item.id);
-    actions.append(defaultLabel, add); group.append(actions);
-    if (item.parameter_error) {
-      const notice = element("div", undefined, "project-notice");
-      notice.append(element("strong", "Analysis settings could not be read."), element("p", item.parameter_error)); group.append(notice);
-    } else if (item.missing_parameters.length) {
-      const notice = element("div", undefined, "project-notice"), links = element("div", undefined, "missing-links");
-      notice.append(element("strong", `${item.missing_parameters.length} experiments have no analysis settings:`));
-      for (const number of item.missing_parameters) {
-        const row = item.experiments.find(record => record.number === number);
-        const button = element("button", `${rowName(row)} · #${number}`, "text-action");
-        button.onclick = () => selectExperiment(item.id, number, "parameters"); links.append(button);
-      }
-      notice.append(links); group.append(notice);
-    }
-    if (item.orphan_parameters.length) {
-      const note = element("details", undefined, "orphan-note"); note.append(element("summary", `${item.orphan_parameters.length} unlinked settings ${item.orphan_parameters.length === 1 ? "record" : "records"}`), element("p", `Experiment numbers in the settings file: ${item.orphan_parameters.join(", ")}`)); group.append(note);
-    }
-    const matches = item.experiments.filter(row => {
-      const search = `${row.search} ${rowName(row)} ${friendlyDate(row.date)} ${isoDate(row.date)} experiment ${row.number}`.toLowerCase();
-      return term.split(/\s+/).every(word => search.includes(word)) && (!missingOnly || !row.has_parameters);
-    });
-    const table = element("table"), head = element("thead"), hr = element("tr");
-    for (const [label, cls] of [["Experiment", ""], ["Recorded", ""], ["Recordings", "recording-column"], ["Analysis settings", ""]]) hr.append(element("th", label, cls));
-    head.append(hr); table.append(head);
-    const body = element("tbody");
-    for (const row of matches) {
-      const tr = element("tr", undefined, `experiment-row${!row.has_parameters ? " missing" : ""}`);
-      tr.dataset.number = row.number; tr.dataset.project = item.id;
-      actionableRow(tr, () => selectExperiment(item.id, row.number));
-      const name = element("td"), button = element("button", rowName(row), "row-open");
-      button.tabIndex = -1; name.append(button, element("span", `Experiment ${row.number}${row.title && row.subject ? ` · ${row.subject}` : ""}`, "experiment-number"));
-      tr.append(name, element("td", friendlyDate(row.date)), element("td", [row.miniscope && "Calcium", row.ephys && "Ephys"].filter(Boolean).join(" + ") || "Not set", "recording-column"), element("td", row.parameter_error ? "File needs attention" : row.has_parameters ? "Available" : "No settings"));
-      body.append(tr);
-    }
-    table.append(body); group.append(table);
-    if (!matches.length) group.append(element("p", item.count ? "No experiments match this search." : "This project has no experiment records."));
-    return group;
+    $("projects").replaceChildren(grid); return;
+  }
+  const table = element("table", undefined, "file-table item-list"), head = element("thead"), headRow = element("tr"), body = element("tbody");
+  headRow.append(element("th", "", "col-icon"), element("th", "Name", "col-name"), element("th", "Experiments", "col-count hide-sm"), element("th", "Analysis settings", "col-status"), element("th", "Default parameters", "col-default hide-md"), element("th", "", "col-actions"));
+  for (const item of projects) {
+    const tr = element("tr", undefined, "project-row"), [open, select, menu] = handlers(item);
+    tr.dataset.project = item.id; bindRow(tr, open, select, menu);
+    const iconCell = element("td", undefined, "col-icon"), name = element("td", undefined, "col-name"), status = element("td", undefined, "col-status"), actions = element("td", undefined, "col-actions");
+    const link = element("button", item.name, "row-open"); link.type = "button"; link.tabIndex = -1; link.onclick = open;
+    const defaultRow = item.experiments.find(row => row.number === item.default_experiment);
+    const location = element("span", shortPath(item.path), "row-meta path-meta"); location.title = item.path;
+    iconCell.append(icon("i-folder", "type-icon")); name.append(link, location);
+    status.append(projectStatus(item)); actions.append(moreButton(`More options for ${item.name}`, menu, select));
+    tr.append(iconCell, name, element("td", String(item.count), "col-count hide-sm"), status, element("td", defaultRow ? `${rowName(defaultRow)} · #${defaultRow.number}` : "Not set", "col-default hide-md"), actions);
+    selectedRowClass(tr, item.id); body.append(tr);
+  }
+  head.append(headRow); table.append(head, body); $("projects").replaceChildren(table);
+}
+function experimentThumb(item, row) {
+  const thumb = element("div", undefined, "grid-thumb"), version = previewVersion(item.id, row.number), fallback = () => icon(`i-exp-${modality(row)}`, "type-icon");
+  if (version === undefined) { thumb.append(fallback()); return thumb; }
+  const image = element("img"); image.alt = `Projection preview of ${rowName(row)}`; image.loading = "lazy";
+  image.src = `/api/preview?project=${encodeURIComponent(item.id)}&number=${encodeURIComponent(row.number)}&v=${version}`;
+  image.onerror = () => image.replaceWith(fallback());
+  thumb.append(image, element("span", {ca: "CA", ep: "EP", mm: "C+E", none: "—"}[modality(row)], `grid-badge badge-${modality(row)}`));
+  return thumb;
+}
+function renderExperimentList(current, term, missingOnly) {
+  const scope = current ? [current] : projects, total = scope.reduce((sum, item) => sum + item.count, 0);
+  const missing = scope.reduce((sum, item) => sum + item.missing_parameters.length, 0);
+  for (const item of scope) loadActivity(item.id);
+  $("missing-only-chip").hidden = false; $("missing-only-chip").querySelector("span").textContent = `Missing settings only (${missing})`;
+  if (current?.parameter_error) {
+    const notice = element("div", undefined, "notice notice-error");
+    notice.append(element("strong", "Analysis settings could not be read."), element("p", current.parameter_error)); $("home-notices").append(notice);
+  }
+  const entries = sortEntries(scope.flatMap(item => item.experiments.map(row => ({item, row}))).filter(({row}) => {
+    const search = `${row.search} ${rowName(row)} ${friendlyDate(row.date)} ${isoDate(row.date)} experiment ${row.number}`.toLowerCase();
+    return term.split(/\s+/).every(word => search.includes(word)) && (!missingOnly || !row.has_parameters);
   }));
+  $("list-count").textContent = term || missingOnly ? `${entries.length} of ${total} experiments` : `${total} experiments`;
+  const empty = entries.length ? [] : [element("p", total ? "No experiments match this search." : "This project has no experiment records.", "empty-row")];
+  const handlers = (item, row) => [() => selectExperiment(item.id, row.number), () => selectItem(item.id, row.number), () => experimentMenu(item, row)];
+  if (viewMode === "grid") {
+    const grid = element("div", undefined, "item-grid");
+    for (const {item, row} of entries) {
+      const [open, select, menu] = handlers(item, row), run = latestRun(item.id, row.number);
+      const card = gridCard(item.id, row.number, experimentThumb(item, row), rowName(row), open, `Experiment ${row.number} · ${current ? friendlyDate(row.date) : item.name}`, [settingsStatus(row), ...(run ? [runPill(run)] : [])]);
+      card.append(moreButton(`More options for ${rowName(row)}`, menu, select)); bindRow(card, open, select, menu); selectedRowClass(card, item.id, row.number); grid.append(card);
+    }
+    $("projects").replaceChildren(grid, ...empty); return;
+  }
+  const table = element("table", undefined, "file-table item-list"), head = element("thead"), headRow = element("tr"), body = element("tbody");
+  headRow.append(element("th", "", "col-icon"), sortHeader("Name", "name", "col-name"));
+  if (!current) headRow.append(element("th", "Project", "col-project hide-md"));
+  headRow.append(sortHeader("Recorded", "date", "col-date"), element("th", "Recordings", "col-recordings recording-column"), element("th", "Analysis settings", "col-status"), element("th", "Last run", "col-run hide-sm"), element("th", "", "col-actions"));
+  for (const {item, row} of entries) {
+    const tr = element("tr", undefined, `experiment-row${!row.has_parameters ? " missing" : ""}`), [open, select, menu] = handlers(item, row);
+    tr.dataset.number = row.number; tr.dataset.project = item.id; bindRow(tr, open, select, menu);
+    const iconCell = element("td", undefined, "col-icon"), name = element("td", undefined, "col-name"), recordings = element("td", undefined, "col-recordings recording-column");
+    const status = element("td", undefined, "col-status"), runCell = element("td", undefined, "col-run hide-sm"), actions = element("td", undefined, "col-actions"), link = element("button", rowName(row), "row-open");
+    link.type = "button"; link.tabIndex = -1; link.onclick = open;
+    iconCell.append(icon(`i-exp-${modality(row)}`, "type-icon"));
+    name.append(link, element("span", `Experiment ${row.number}${row.title && row.subject ? ` · ${row.subject}` : ""}`, "row-meta experiment-number"));
+    recordings.append(...recordingTags(row)); status.append(settingsStatus(row)); runCell.append(lastRun(latestRun(item.id, row.number)));
+    actions.append(moreButton(`More options for ${rowName(row)}`, menu, select));
+    tr.append(iconCell, name);
+    if (!current) tr.append(element("td", item.name, "col-project hide-md"));
+    tr.append(element("td", friendlyDate(row.date), "col-date"), recordings, status, runCell, actions);
+    selectedRowClass(tr, item.id, row.number); body.append(tr);
+  }
+  head.append(headRow); table.append(head, body);
+  $("projects").replaceChildren(table, ...empty);
+}
+function renderNavProjects() {
+  $("nav-projects").replaceChildren(...projects.map(item => {
+    const button = element("button", undefined, "nav-item nav-project"); button.type = "button"; button.title = item.path;
+    button.append(icon("i-folder-line"), element("span", item.name), element("span", String(item.count), "count"));
+    if (item.id === currentProjectId) button.setAttribute("aria-current", "true");
+    button.onclick = () => showHome(item.id); return button;
+  }));
+}
+function sidebarSection(title, ...children) {
+  const section = element("section", undefined, "sidebar-section");
+  if (title) section.append(element("h2", title));
+  section.append(...children); return section;
+}
+function propertyList(pairs) {
+  const list = element("dl", undefined, "props");
+  for (const [label, value] of pairs) { const dd = element("dd"); dd.append(value); list.append(element("dt", label), dd); }
+  return list;
+}
+function sidebarHead(iconName, title, subtitle) {
+  const head = element("div", undefined, "sidebar-head"), text = element("div");
+  text.append(element("h2", title), element("p", subtitle, "muted")); head.append(icon(iconName, "type-icon"), text); return head;
+}
+function sidebarTabs(aside, tabs) {
+  const active = tabs.some(([key]) => key === aside.dataset.activeTab) ? aside.dataset.activeTab : tabs[0][0];
+  const list = element("div", undefined, "sidebar-tabs"); list.setAttribute("role", "tablist");
+  for (const [key, label] of tabs) {
+    const tab = element("button", label); tab.type = "button"; tab.dataset.tab = key;
+    tab.setAttribute("role", "tab"); tab.setAttribute("aria-selected", key === active ? "true" : "false"); list.append(tab);
+  }
+  return [list, active];
+}
+function panel(key, active, ...children) { const node = element("div", undefined, "sidebar-panel"); node.dataset.panel = key; node.hidden = key !== active; node.append(...children); return node; }
+function experimentPreview(item, row) {
+  const actions = element("div", undefined, "sidebar-actions");
+  const open = element("button", "Open experiment", "btn-primary"); open.type = "button"; open.onclick = () => selectExperiment(item.id, row.number);
+  const settings = element("button", row.has_parameters ? "Edit analysis settings" : "Add analysis settings"); settings.type = "button";
+  settings.onclick = () => selectExperiment(item.id, row.number, "parameters"); actions.append(open, settings);
+  const recordings = element("span", undefined, "tag-row"); recordings.append(...recordingTags(row));
+  const run = latestRun(item.id, row.number), runText = element("span", undefined, "last-run-inline");
+  runText.append(...(run ? [runPill(run), element("span", `${run.label} · ${timeAgo(run.started)}`, "muted")] : [element("span", "No GUI runs yet", "muted")]));
+  const links = boxFolderLinks(row).map(link => { const anchor = element("a", undefined, "link-button"); anchor.href = link.href; anchor.target = "_blank"; anchor.rel = "noopener noreferrer"; anchor.append(icon("i-external"), element("span", link.label)); return anchor; });
+  const box = links.length ? element("div", undefined, "link-stack") : element("p", "No Box folder ID is set for this experiment.", "muted"); box.append(...links);
+  return [sidebarHead(`i-exp-${modality(row)}`, rowName(row), `Experiment ${row.number}`), sidebarSection(null, actions),
+    sidebarSection("Experiment properties", propertyList([["Subject", row.subject || "Not set"], ["Recorded", friendlyDate(row.date)], ["Experiment number", row.number], ["Recordings", recordings], ["Analysis settings", settingsStatus(row)], ["Last run", runText], ["Project", item.name]])),
+    sidebarSection("Box", box)];
+}
+function projectDetails(item, aside) {
+  const missing = item.missing_parameters.length, orphans = item.orphan_parameters.length, attention = missing + orphans + (item.parameter_error ? 1 : 0);
+  const [tabs, active] = sidebarTabs(aside, [["details", "Details"], ["attention", attention ? `Needs attention (${attention})` : "Needs attention"]]);
+  const defaultSelect = element("select"); defaultSelect.setAttribute("aria-label", `Default experiment for ${item.name}`);
+  const empty = element("option", "Choose an experiment"); empty.value = ""; defaultSelect.append(empty);
+  for (const row of item.experiments.filter(row => row.has_parameters)) {
+    const option = element("option", `${rowName(row)} · #${row.number}`); option.value = row.number; defaultSelect.append(option);
+  }
+  defaultSelect.value = item.default_experiment || "";
+  defaultSelect.onchange = async () => {
+    const previous = item.default_experiment || ""; defaultSelect.disabled = true; clearError();
+    try {
+      const result = await post("/api/projects/default", {project: item.id, number: defaultSelect.value || null, versions: item.versions});
+      replaceProject(result.project);
+      if (project?.id === item.id) { project = result.project; if (experiment) experiment.versions = result.project.versions; }
+      if (newProject?.id === item.id) newProject = result.project;
+      renderProjects();
+    }
+    catch (error) { defaultSelect.value = previous; defaultSelect.disabled = false; showError(error); }
+  };
+  const defaultField = element("div", undefined, "default-field"); defaultField.append(defaultSelect, element("small", "New experiments and “Populate analysis settings” start from this experiment.", "muted"));
+  const actions = element("div", undefined, "sidebar-actions");
+  if (item.id !== currentProjectId) { const open = element("button", "Open project", "btn-primary"); open.type = "button"; open.onclick = () => showHome(item.id); actions.append(open); }
+  const add = labelledButton("i-plus", "New experiment"); add.onclick = () => showNewExperiment(item.id);
+  const reload = labelledButton("i-refresh", "Reload"); reload.onclick = () => reloadProject(item.id); actions.append(add, reload);
+  const location = element("span", item.path, "path");
+  const details = panel("details", active, sidebarSection(null, actions), sidebarSection("Project properties", propertyList([
+    ["Location", location], ["Experiments", String(item.count)], ["Analysis settings", item.parameter_error ? "Could not be read" : `${item.count - missing} of ${item.count} experiments`], ["Settings file", "analysis_parameters.csv"]])),
+    sidebarSection("Default parameters", defaultField));
+  const notes = [];
+  if (item.parameter_error) notes.push(sidebarSection("Analysis settings could not be read", element("p", item.parameter_error, "notice notice-error")));
+  if (missing) {
+    const links = element("ul", undefined, "link-list");
+    for (const number of item.missing_parameters) {
+      const row = item.experiments.find(record => record.number === number), entry = element("li"), button = element("button", `${rowName(row)} · #${number}`, "text-action");
+      button.type = "button"; button.onclick = () => selectExperiment(item.id, number, "parameters"); entry.append(button); links.append(entry);
+    }
+    notes.push(sidebarSection(`${missing} ${missing === 1 ? "experiment has" : "experiments have"} no analysis settings`, links));
+  }
+  if (orphans) notes.push(sidebarSection(`${orphans} unlinked settings ${orphans === 1 ? "record" : "records"}`, element("p", `Experiment numbers in the settings file: ${item.orphan_parameters.join(", ")}`, "muted")));
+  if (!notes.length) notes.push(sidebarSection(null, element("p", "Every experiment has analysis settings, and every settings record matches an experiment.", "muted")));
+  return [sidebarHead("i-folder", item.name, `${item.count} ${item.count === 1 ? "experiment" : "experiments"}`), tabs, details, panel("attention", active, ...notes)];
+}
+function renderHomeSidebar() {
+  const aside = $("home-sidebar"), current = projects.find(item => item.id === currentProjectId);
+  const item = selectedItem && projects.find(entry => entry.id === selectedItem.project);
+  const row = item && selectedItem.number ? item.experiments.find(record => record.number === selectedItem.number) : null;
+  if (row) aside.replaceChildren(...experimentPreview(item, row));
+  else if (item || current) aside.replaceChildren(...projectDetails(item || current, aside));
+  else if (projects.length) {
+    const total = projects.reduce((sum, entry) => sum + entry.count, 0), missing = projects.reduce((sum, entry) => sum + entry.missing_parameters.length, 0);
+    aside.replaceChildren(sidebarHead("i-folder", "All projects", `${projects.length} open`), sidebarSection("Summary", propertyList([["Projects", String(projects.length)], ["Experiments", String(total)], ["Without analysis settings", String(missing)]])),
+      sidebarSection(null, element("p", "Select a project to see its details. Double-click a project, or choose its name, to browse its experiments.", "muted")));
+  } else aside.replaceChildren(sidebarSection("Getting started", element("p", "Open a project folder to list its experiments. Opened projects appear in the navigation for this session.", "muted")));
+}
+function showHome(projectId = currentProjectId) {
+  if (busy) return;
+  if (!$("box-setup").hidden) { if (typeof closeBox === "function") closeBox(); if (!$("box-setup").hidden) return; }
+  if (!$("detail").hidden) { if (!canLeave()) return; resetEditor(); }
+  clearError(); $("folders").hidden = true; $("detail").hidden = true; $("home").hidden = false;
+  if (projectId !== currentProjectId) { selectedItem = null; sortState = {key: "number", dir: 1}; }
+  // Runs may have finished elsewhere; refresh list activity when returning to it.
+  activity.clear(); currentProjectId = projectId; renderProjects(); window.scrollTo(0, 0);
 }
 async function openProject(path) {
   if (!canLeave()) return;
   clearError(); busy = true; $("use-folder").disabled = true;
   try {
-    const next = await post("/api/projects/open", {path}); replaceProject(next); expanded.add(next.id);
-    resetEditor(); $("new-experiment").hidden = true; newProject = null; $("folders").hidden = true; $("detail").hidden = true; $("home").hidden = false; renderProjects();
-    $("search").focus();
+    const next = await post("/api/projects/open", {path}); replaceProject(next);
+    resetEditor(); $("new-experiment").hidden = true; newProject = null; $("folders").hidden = true; $("detail").hidden = true; $("home").hidden = false;
+    currentProjectId = next.id; selectedItem = null; sortState = {key: "number", dir: 1}; $("search").value = ""; renderProjects();
   } catch (error) { showError(error); }
   finally { busy = false; if (folder) $("use-folder").disabled = !folder.has_experiments; }
 }
 async function reloadProject(id) {
   if (!canLeave()) return;
   clearError(); const target = projects.find(item => item.id === id), number = project?.id === id ? experiment?.number : null;
-  busy = true;
+  busy = true; activity.delete(id);
   try {
     const next = await post("/api/projects/open", {path: target.path}); replaceProject(next); resetEditor(); renderProjects();
     busy = false;
@@ -356,6 +518,7 @@ async function selectExperiment(projectId, number, tab = null) {
   if (!canLeave()) return;
   clearError(); $("new-experiment").hidden = true; newProject = null; resetEditor(); const revision = ++selectionRequest;
   project = projects.find(item => item.id === projectId); activeTab = tab || "metadata"; workspaceView = tab ? "editor" : "overview"; $("field-search").value = "";
+  currentProjectId = projectId; selectedItem = {project: projectId, number}; renderNavProjects();
   $("home").hidden = true; $("detail").hidden = false; $("detail-loading").hidden = false; $("detail-content").hidden = true;
   const row = project.experiments.find(item => item.number === number);
   $("detail-project").textContent = project.name; $("detail-title").textContent = rowName(row);
@@ -539,8 +702,15 @@ $("use-folder").onclick = () => {
   else if (folderTarget) { const {field, section} = folderTarget; updateValue(field, folder.path, section); $("folders").hidden = true; renderEditor(); if (section === activeTab) document.querySelector(`[data-key="${CSS.escape(field.key)}"]`)?.focus(); }
   else openProject(folder.path);
 };
-$("search").oninput = renderProjects; $("missing-only").onchange = renderProjects;
-$("back-projects").onclick = () => { if (!canLeave()) return; resetEditor(); clearError(); $("folders").hidden = true; $("detail").hidden = true; $("home").hidden = false; renderProjects(); };
+// The header search lists matching experiments; typing from an experiment returns to the list.
+$("search").oninput = () => { if ($("home").hidden) showHome(currentProjectId); else renderProjects(); };
+$("missing-only").onchange = renderProjects;
+$("back-projects").onclick = () => showHome(currentProjectId);
+$("detail-crumb-root").onclick = () => showHome(null);
+$("nav-experiments").onclick = () => showHome(currentProjectId);
+$("nav-open-project").onclick = () => $("open-project").click();
+$("view-list").onclick = () => setViewMode("list");
+$("view-grid").onclick = () => setViewMode("grid");
 $("error-reload").onclick = () => reloadProject(project.id);
 $("metadata-tab").onclick = () => { if (!busy) { activeTab = "metadata"; $("field-search").value = ""; savedMessage = ""; renderEditor(); } };
 $("parameters-tab").onclick = () => { if (!busy) { activeTab = "parameters"; $("field-search").value = ""; savedMessage = ""; renderEditor(); } };
@@ -569,7 +739,7 @@ $("new-experiment-form").onsubmit = async event => {
       metadata["date (YYMMDD)"] = $("new-date").value.slice(2).replaceAll("-", "");
     const parameters = await sourceSettings($("new-source").value, newProject.parameter_columns);
     const result = await post("/api/experiment/create", {project: newProject.id, number: $("new-number").value.trim(), metadata, parameters, versions: newProject.versions});
-    replaceProject(result.project); expanded.add(newProject.id); $("new-experiment").hidden = true;
+    replaceProject(result.project); $("new-experiment").hidden = true;
     const id = newProject.id, number = result.experiment.number; newProject = null; renderProjects();
     busy = false; await selectExperiment(id, number);
   } catch (error) { showError(error); }
@@ -578,7 +748,7 @@ $("new-experiment-form").onsubmit = async event => {
 $("field-search").oninput = renderEditor; $("editor-form").onsubmit = saveChanges;
 $("discard").onclick = () => { if (!busy && window.confirm("Discard the unsaved changes in this section?")) { drafts[activeTab] = {}; if (activeTab === "parameters") creating = false; savedMessage = ""; renderEditor(); } };
 window.addEventListener("beforeunload", event => { if (anyDirty()) { event.preventDefault(); event.returnValue = ""; } });
-request("/api/projects").then(result => { projects = result.projects; if (projects.length) expanded.add(projects[0].id); renderProjects(); if (result.startup_error) showError(new Error(result.startup_error)); }).catch(showError);
+request("/api/projects").then(result => { projects = result.projects; if (projects.length === 1) currentProjectId = projects[0].id; renderProjects(); if (result.startup_error) showError(new Error(result.startup_error)); }).catch(showError);
 
 function setWorkspace(view) {
   if (busy) return;
