@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 from aceneurotools.shared.exceptions import ConfigurationError
 
 if TYPE_CHECKING:
-    from aceneurotools.multimodal.stats_config import StudyMetadata
+    from aceneurotools.config.stats_config import StudyMetadata
 
 _VALID_MODES = {"compute", "stats", "all"}
 
