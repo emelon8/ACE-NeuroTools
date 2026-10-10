@@ -22,6 +22,25 @@ from gui.run_specs import PIPELINES, effective_parameters, settings_keys, specif
 from gui.runs import Runs
 
 ASSETS = Path(__file__).parent
+# Browser files, by URL; nothing else under gui/ is served.
+STATIC = {
+    "/": "index.html",
+    **{
+        f"/{name}": name
+        for name in (
+            "index.html",
+            "style.css",
+            "theme.js",
+            "app.js",
+            "box.js",
+            "analysis.js",
+            "neurons.js",
+            "job_scripts.js",
+            "shell.js",
+        )
+    },
+    "/assets/inter-latin-wght.woff2": "assets/inter-latin-wght.woff2",
+}
 
 
 class ProjectServer(ThreadingHTTPServer):
@@ -176,21 +195,12 @@ class Handler(BaseHTTPRequestHandler):
                         ],
                     }
                 )
-            elif route.path in {
-                "/",
-                "/index.html",
-                "/style.css",
-                "/app.js",
-                "/box.js",
-                "/analysis.js",
-                "/neurons.js",
-                "/job_scripts.js",
-            }:
-                name = "index.html" if route.path == "/" else route.path[1:]
+            elif route.path in STATIC:
+                name = STATIC[route.path]
                 body = (ASSETS / name).read_bytes()
                 self.send_response(200)
                 mime = mimetypes.guess_type(name)[0] or "application/octet-stream"
-                self.send_header("Content-Type", f"{mime}; charset=utf-8")
+                self.send_header("Content-Type", mime if mime.startswith("font/") else f"{mime}; charset=utf-8")
                 self.send_header("Content-Length", str(len(body)))
                 self.send_header("Cache-Control", "no-store")
                 self.send_header("X-Content-Type-Options", "nosniff")
