@@ -57,9 +57,10 @@ MEMORY.md
 # Local agent workspace: collective memory + vision transcript (never committed)
 .comenius/
 
-# GUI CSV backups and preserved analysis runs stay in their local project.
+# GUI CSV backups, preserved analysis runs, and preview thumbnails stay in their local project.
 .ace-gui-backups/
 .ace-runs/
+.ace-previews/
 
 # Embedded neuron decisions and non-destructive curation exports.
 .ace-neuron-reviews/
