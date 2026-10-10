@@ -87,7 +87,7 @@ async function prepareRecording(kind, choose = false) {
   if (result.state === "cancelled") throw new RecordingCancelled(result.message);
   if (result.state === "failed") throw new Error(result.error);
   preparedBase = result.data_path; preparedSubset = Boolean(result.subset);
-  $("data-base-label").textContent = `Data base: ${result.data_path}${preparedSubset ? " · Selected files only" : ""}`;
+  $("data-base-label").textContent = `${result.data_path}${preparedSubset ? "\nSelected files only" : ""}`;
   boxStatus = await request("/api/box/status"); renderBoxStatus();
   return result;
 }
@@ -103,17 +103,17 @@ function renderAnalysis() {
     $("analysis-status").textContent = "";
   }
   for (const [id, view] of [["run-settings-panel", "run-settings"], ["review-panel", "review"], ["crop-panel", "crop"], ["results-panel", "results"]]) $(id).hidden = workspaceView !== view;
-  $("data-base-label").textContent = `Data base: ${dataBase()}${preparedSubset ? " · Selected files only" : ""}`;
+  $("data-base-label").textContent = `${dataBase()}${preparedSubset ? "\nSelected files only" : ""}`;
   $("overview-output-path").textContent = project.path + "/.ace-runs/";
   if (workspaceView === "results") refreshRuns();
 }
 async function analysisAction(message, action) {
   if (busy) return;
   busy = true; clearError(); $("analysis-status").textContent = message; $("detail-content").inert = true;
-  $("review-run").disabled = true;
+  $("review-run").disabled = true; $("run-kind").disabled = true;
   try { await action(); }
   catch (error) { if (error instanceof RecordingCancelled) $("analysis-status").textContent = error.message; else { showError(error); $("analysis-status").textContent = "Action failed. Your saved settings and previous results were retained."; } }
-  finally { activeDownload = null; $("download-progress").hidden = true; $("download-review").hidden = true; busy = false; $("detail-content").inert = false; $("review-run").disabled = false; if (experiment) updateSaveBar(); }
+  finally { activeDownload = null; $("download-progress").hidden = true; $("download-review").hidden = true; busy = false; $("detail-content").inert = false; $("review-run").disabled = false; $("run-kind").disabled = false; if (experiment) updateSaveBar(); }
 }
 function acceptSaved(result) {
   replaceProject(result.project); project = result.project; experiment = result.experiment;
