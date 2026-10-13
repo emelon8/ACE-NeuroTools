@@ -107,12 +107,12 @@ function plotNeuronTrace(svg, points, start, end, overview) {
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`); svg.replaceChildren();
   for (let tick = 0; tick <= 4; tick++) {
     const time = start + (end-start)*tick/4;
-    svg.append(svgNode("line", {x1:x(time),x2:x(time),y1:top,y2:height-bottom,stroke:"#ccd1bf"}), svgNode("text", {x:x(time),y:height-17,"text-anchor":"middle",fill:"#253027"}, time.toFixed(1)));
+    svg.append(svgNode("line", {x1:x(time),x2:x(time),y1:top,y2:height-bottom,class:"trace-grid"}), svgNode("text", {x:x(time),y:height-17,"text-anchor":"middle",class:"trace-tick"}, time.toFixed(1)));
   }
-  if (!overview) for (const value of [lo,(lo+hi)/2,hi]) svg.append(svgNode("text", {x:left-8,y:y(value)+4,"text-anchor":"end",fill:"#253027"},value.toPrecision(3)));
-  svg.append(svgNode("path", {d:points.map(([time,value],index) => `${index ? "L" : "M"}${x(time).toFixed(2)},${y(value).toFixed(2)}`).join(" "),fill:"none",stroke:"#31593d","stroke-width":overview ? 1 : 1.5}));
-  svg.append(svgNode("text", {x:width/2,y:height-2,"text-anchor":"middle",fill:"#253027"},"Time (s)"));
-  if (overview) svg.append(svgNode("rect",{x:x(neuronDetail.start),y:top,width:Math.max(1,x(neuronDetail.end)-x(neuronDetail.start)),height:height-top-bottom,fill:"none",stroke:"#a03121","stroke-width":2}));
+  if (!overview) for (const value of [lo,(lo+hi)/2,hi]) svg.append(svgNode("text", {x:left-8,y:y(value)+4,"text-anchor":"end",class:"trace-tick"},value.toPrecision(3)));
+  svg.append(svgNode("path", {d:points.map(([time,value],index) => `${index ? "L" : "M"}${x(time).toFixed(2)},${y(value).toFixed(2)}`).join(" "),fill:"none",class:"trace-series","stroke-width":overview ? 1 : 1.5}));
+  svg.append(svgNode("text", {x:width/2,y:height-2,"text-anchor":"middle",class:"trace-tick"},"Time (s)"));
+  if (overview) svg.append(svgNode("rect",{x:x(neuronDetail.start),y:top,width:Math.max(1,x(neuronDetail.end)-x(neuronDetail.start)),height:height-top-bottom,class:"trace-window","stroke-width":1.5}));
 }
 function navigateNeuron(index) { if (!busy && neuronSession) neuronAction("Loading neuron…", () => showNeuron(Math.max(0, Math.min(neuronSession.count-1,index)))); }
 $("neuron-prev").onclick = () => navigateNeuron(neuronIndex-1); $("neuron-next").onclick = () => navigateNeuron(neuronIndex+1);

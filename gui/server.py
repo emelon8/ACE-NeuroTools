@@ -12,7 +12,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 from gui.box_setup import BoxSetup, BoxSetupError
-from gui.cropping import Cropping
+from gui.cropping import Cropping, preview_file, saved_previews
 from gui.csv_projects import Project, ProjectChangedError, ProjectError
 from gui.job_scripts import generate as generate_job_scripts
 from gui.native_dialogs import NativeDialogs
@@ -22,6 +22,25 @@ from gui.run_specs import PIPELINES, effective_parameters, settings_keys, specif
 from gui.runs import Runs
 
 ASSETS = Path(__file__).parent
+# Browser files, by URL; nothing else under gui/ is served.
+STATIC = {
+    "/": "index.html",
+    **{
+        f"/{name}": name
+        for name in (
+            "index.html",
+            "style.css",
+            "theme.js",
+            "app.js",
+            "box.js",
+            "analysis.js",
+            "neurons.js",
+            "job_scripts.js",
+            "shell.js",
+        )
+    },
+    "/assets/inter-latin-wght.woff2": "assets/inter-latin-wght.woff2",
+}
 
 
 class ProjectServer(ThreadingHTTPServer):
@@ -99,6 +118,8 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/run/file",
                 "/api/run/settings",
                 "/api/neuron/sources",
+                "/api/project/activity",
+                "/api/preview",
             }:
                 project_id = args.get("project", [""])[0]
                 with self.server.lock:
@@ -114,6 +135,28 @@ class Handler(BaseHTTPRequestHandler):
                     )
                 elif route.path == "/api/runs":
                     self._json(self.server.runs.listing(project, number))
+                elif route.path == "/api/project/activity":
+                    previews = saved_previews(project.path)
+                    self._json(
+                        {
+                            "latest_runs": self.server.runs.latest(project),
+                            "previews": {key: value for key, value in previews.items() if key in project.experiments},
+                        }
+                    )
+                elif route.path == "/api/preview":
+                    if number not in project.experiments:
+                        raise ProjectError(f"Experiment {number} was not found in this project.")
+                    path = preview_file(project.path, number)
+                    if not path.is_file():
+                        raise ProjectError("This experiment has no saved preview image.")
+                    body = path.read_bytes()
+                    self.send_response(200)
+                    self.send_header("Content-Type", "image/png")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.send_header("Cache-Control", "no-cache")
+                    self.send_header("X-Content-Type-Options", "nosniff")
+                    self.end_headers()
+                    self.wfile.write(body)
                 elif route.path == "/api/run":
                     self._json(self.server.runs.inspect(project, args.get("run", [""])[0]))
                 elif route.path == "/api/run/settings":
@@ -176,21 +219,12 @@ class Handler(BaseHTTPRequestHandler):
                         ],
                     }
                 )
-            elif route.path in {
-                "/",
-                "/index.html",
-                "/style.css",
-                "/app.js",
-                "/box.js",
-                "/analysis.js",
-                "/neurons.js",
-                "/job_scripts.js",
-            }:
-                name = "index.html" if route.path == "/" else route.path[1:]
+            elif route.path in STATIC:
+                name = STATIC[route.path]
                 body = (ASSETS / name).read_bytes()
                 self.send_response(200)
                 mime = mimetypes.guess_type(name)[0] or "application/octet-stream"
-                self.send_header("Content-Type", f"{mime}; charset=utf-8")
+                self.send_header("Content-Type", mime if mime.startswith("font/") else f"{mime}; charset=utf-8")
                 self.send_header("Content-Length", str(len(body)))
                 self.send_header("Cache-Control", "no-store")
                 self.send_header("X-Content-Type-Options", "nosniff")

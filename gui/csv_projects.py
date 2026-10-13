@@ -216,6 +216,14 @@ class Project:
                     "box": bool(
                         row.get("Box Calcium Folder ID", "").strip() or row.get("Box ephys folder ID", "").strip()
                     ),
+                    "box_folders": [
+                        {"name": label, "id": row.get(column, "").strip()}
+                        for label, column in (
+                            ("Calcium imaging", "Box Calcium Folder ID"),
+                            ("Electrophysiology", "Box ephys folder ID"),
+                        )
+                        if row.get(column, "").strip().isascii() and row.get(column, "").strip().isdigit()
+                    ],
                     "has_parameters": number in self.parameters,
                     "parameter_error": self.parameter_error is not None,
                     "search": " ".join(row.values()).lower(),
