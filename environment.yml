@@ -7,11 +7,18 @@ dependencies:
   # pyproject.toml: the project named "caiman" on PyPI is unrelated software.
   - python=3.10
   - caiman>=1.13,<1.14
+  # CaImAn declares these in Python metadata, but its conda recipe omits them.
+  - cython
+  - moviepy
+  - numpydoc
+  - yapf
   - numpy>=1.23
   - scipy>=1.9
   - matplotlib>=3.5
   - pandas>=1.5
-  - opencv>=4.6
+  # CaImAn's AVI reader calls destroyAllWindows even without displaying a movie.
+  # Headless OpenCV builds cannot perform that cleanup.
+  - opencv>=4.6=*qt*
   - tqdm>=4.64
   - h5py>=3.7
   - colorcet>=3.0

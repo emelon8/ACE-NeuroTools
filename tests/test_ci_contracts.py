@@ -56,6 +56,18 @@ def workflow(name):
     return yaml.load((ROOT / ".github/workflows" / name).read_text(), Loader=yaml.BaseLoader)
 
 
+@pytest.mark.parametrize("platform", ["linux-64", "win-64"])
+def test_locked_environment_supports_caiman_declared_dependencies_and_movie_cleanup(platform):
+    lock = yaml.safe_load((ROOT / "conda-lock.yml").read_text())
+    packages = {package["name"]: package for package in lock["package"] if package["platform"] == platform}
+    # CaImAn's wheel metadata declares these even though its conda recipe omits them.
+    missing = {"cython", "moviepy", "numpydoc", "yapf"} - packages.keys()
+    assert not missing, f"{platform}: missing CaImAn requirements: {sorted(missing)}"
+    # CaImAn's AVI reader unconditionally calls cv2.destroyAllWindows().
+    for name in ("opencv", "libopencv", "py-opencv"):
+        assert "headless" not in packages[name]["url"], f"{platform}: {name} cannot clean up movie windows"
+
+
 def test_ci_covers_feature_branch_pull_requests_manual_runs_and_merge_queue():
     ci = workflow("ci.yml")
     assert "proj-comenius" in ci["on"]["push"]["branches"]

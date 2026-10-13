@@ -42,6 +42,14 @@ Start with the scientific environment from the [installation guide](getting_star
 The pinned conda environment contains the compiled neuroscience CaImAn package.
 The package called `caiman` on PyPI is unrelated and must not be substituted.
 
+When regenerating the lock, retain the Qt-enabled OpenCV build: CaImAn's AVI
+reader calls `destroyAllWindows` even during headless processing, and that call
+fails in headless OpenCV builds. The environment also explicitly includes
+`cython`, `moviepy`, `numpydoc`, and `yapf`, which CaImAn declares in its Python
+metadata but its conda recipe omits. The lock regression checks cover both
+supported platforms; the backend job additionally runs `pip check` against the
+installed environment.
+
 From the repository root:
 
 ```bash
