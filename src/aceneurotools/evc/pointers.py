@@ -17,10 +17,11 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import tempfile
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from aceneurotools.evc.errors import ManifestError
 
@@ -63,13 +64,31 @@ class ArtifactPointer:
 
     @classmethod
     def from_dict(cls, data: dict) -> ArtifactPointer:
+        if not isinstance(data, dict):
+            raise ManifestError("artifact pointer must be an object")
         if data.get("schema") != POINTER_SCHEMA:
             raise ManifestError(f"unsupported pointer schema: {data.get('schema')!r}")
+        digest, size, rel = data.get("sha256"), data.get("size"), data.get("relpath")
+        if not isinstance(digest, str) or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+            raise ManifestError("artifact pointer sha256 must be a 64-character hexadecimal digest")
+        if not isinstance(size, int) or isinstance(size, bool) or size < 0:
+            raise ManifestError("artifact pointer size must be a nonnegative integer")
+        if (
+            not isinstance(rel, str)
+            or not rel
+            or rel == "."
+            or "\0" in rel
+            or "\\" in rel
+            or PurePosixPath(rel).is_absolute()
+            or PureWindowsPath(rel).drive
+            or ".." in PurePosixPath(rel).parts
+        ):
+            raise ManifestError(f"artifact pointer path must stay inside its artifact root: {rel!r}")
         try:
             return cls(
-                sha256=str(data["sha256"]),
-                size=int(data["size"]),
-                relpath=str(data["relpath"]),
+                sha256=digest,
+                size=size,
+                relpath=rel,
                 created=str(data.get("created", "")),
                 producer=data.get("producer"),
             )
@@ -158,7 +177,15 @@ def write_manifest(
         "artifacts": [pointer.to_dict() for pointer in pointers],
     }
     manifest_path = manifest_dir / MANIFEST_NAME
-    manifest_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    fd, temporary = tempfile.mkstemp(dir=manifest_dir, prefix=".tmp-manifest-")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, manifest_path)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
     return manifest_path
 
 
@@ -167,14 +194,25 @@ def _load_manifest(manifest_dir: Path) -> tuple[dict, Path]:
     if not manifest_path.is_file():
         raise ManifestError(f"no {MANIFEST_NAME} in {manifest_dir}")
     try:
-        payload = json.loads(manifest_path.read_text())
-    except json.JSONDecodeError as exc:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         raise ManifestError(f"{manifest_path} is not valid JSON: {exc}") from exc
     if not isinstance(payload, dict) or payload.get("schema") != MANIFEST_SCHEMA:
         raise ManifestError(
             f"unsupported manifest schema in {manifest_path}: "
             f"{payload.get('schema') if isinstance(payload, dict) else payload!r}"
         )
+    if not isinstance(payload.get("base_dir", "."), str) or not payload.get("base_dir", "."):
+        raise ManifestError("manifest base_dir must be a non-empty path string")
+    if not isinstance(payload.get("artifacts"), list):
+        raise ManifestError("manifest artifacts must be a list")
+    seen = set()
+    for entry in payload["artifacts"]:
+        pointer = ArtifactPointer.from_dict(entry)
+        canonical = PurePosixPath(pointer.relpath).as_posix()
+        if canonical in seen:
+            raise ManifestError(f"duplicate artifact path: {pointer.relpath}")
+        seen.add(canonical)
     return payload, manifest_path
 
 
@@ -201,6 +239,8 @@ def verify_manifest(run_dir: str | Path) -> ManifestVerification:
     for entry in payload["artifacts"]:
         pointer = ArtifactPointer.from_dict(entry)
         target = base / pointer.relpath
+        if not target.resolve().is_relative_to(base.resolve()):
+            raise ManifestError(f"artifact path resolves outside its artifact root: {pointer.relpath}")
         if not target.is_file():
             missing.append(pointer.relpath)
         elif target.stat().st_size != pointer.size or hash_artifact(target) != pointer.sha256:

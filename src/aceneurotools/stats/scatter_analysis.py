@@ -201,7 +201,7 @@ def compute_statistics_robust(
         "p_value_corrected_str": "N/A",
     }
 
-    if len(xv) < 10:
+    if len(xv) < 10 or np.ptp(xv) == 0 or np.ptp(yv) == 0:
         return result
 
     r, p_value = pearsonr(xv, yv)
@@ -1020,12 +1020,13 @@ class ScatterAnalysis:
 
         try:
             # NaN handling
-            eeg_clean, _ = handle_nans(eeg_signal, fr, max_gap_seconds=0.5)
-            ca_clean, _ = handle_nans(calcium_signal, fr, max_gap_seconds=0.5)
+            eeg_clean, eeg_valid = handle_nans(eeg_signal, fr, max_gap_seconds=0.5)
+            ca_clean, ca_valid = handle_nans(calcium_signal, fr, max_gap_seconds=0.5)
 
             # Slice
             ctrl_eeg, treat_eeg = slice_signal(eeg_clean, selections, line_num, fr)
             ctrl_ca, treat_ca = slice_signal(ca_clean, selections, line_num, fr)
+            ctrl_valid, treat_valid = slice_signal(eeg_valid & ca_valid, selections, line_num, fr)
             tw_ctrl = selections[line_num][0]
             tw_treat = selections[line_num][1]
 
@@ -1038,6 +1039,15 @@ class ScatterAnalysis:
             fc_ctrl = trim_filter_edges(fc_ctrl, fr, cfg.edge_trim_seconds)
             fe_treat = trim_filter_edges(fe_treat, fr, cfg.edge_trim_seconds)
             fc_treat = trim_filter_edges(fc_treat, fr, cfg.edge_trim_seconds)
+
+            # Zero-filled gaps permit filtering, but must never count as
+            # acquired samples in normalization, regression, or uncertainty.
+            ctrl_valid = trim_filter_edges(ctrl_valid, fr, cfg.edge_trim_seconds)
+            treat_valid = trim_filter_edges(treat_valid, fr, cfg.edge_trim_seconds)
+            fe_ctrl[~ctrl_valid] = np.nan
+            fc_ctrl[~ctrl_valid] = np.nan
+            fe_treat[~treat_valid] = np.nan
+            fc_treat[~treat_valid] = np.nan
 
             # Global z-score normalisation
             ne_ctrl, ne_treat, nc_ctrl, nc_treat, _ = normalize_signals_global(fe_ctrl, fe_treat, fc_ctrl, fc_treat)

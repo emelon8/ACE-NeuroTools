@@ -38,17 +38,61 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from aceneurotools.ephys.channel import Channel
 from aceneurotools.ephys.ephys_loader import load_ephys_for_analysis
-from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
 from aceneurotools.multimodal.alignment import (
     find_ephys_idx_of_TTL_events,
     sync_neuralynx_miniscope_timestamps,
 )
 from aceneurotools.shared.exceptions import PipelineExecutionError
+
+if TYPE_CHECKING:
+    from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
+
+
+def _metadata_only_manager(**kwargs):
+    # Statistics and its CLI stay importable without the optional compiled
+    # movie stack. Load the adapter only when a recording is actually opened.
+    from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
+
+    return MiniscopeDataManager.create(**kwargs)
+
+
+def _frame_rate(miniscope_dm) -> float:
+    value = getattr(miniscope_dm, "fr", None)
+    if isinstance(value, (bool, np.bool_)):
+        raise ValueError("Frame rate must be a finite positive number.")
+    if value is None or value == 0:
+        return 30.0  # Preserve the historical fallback for missing metadata.
+    rate = float(value)
+    if not np.isfinite(rate) or rate <= 0:
+        raise ValueError("Frame rate must be a finite positive number.")
+    return rate
+
+
+def _downsample_channels(channels: list[Channel], indices: np.ndarray, fr: float) -> None:
+    """Stage aligned fields for all channels before changing any channel."""
+    reference_clock = channels[0].time_vector
+    replacements = []
+    for channel in channels:
+        if not np.array_equal(channel.time_vector, reference_clock):
+            raise ValueError("Paired channels must share the same sample timestamps.")
+        fields = {}
+        for name in ("signal", "time_vector", "signal_filtered", "phases"):
+            values = getattr(channel, name, None)
+            if values is not None:
+                if np.ndim(values) != 1 or len(values) != len(reference_clock):
+                    raise ValueError(f"Channel {channel.name}: {name} must match the sample clock.")
+                fields[name] = values[indices]
+        replacements.append(fields)
+    for channel, fields in zip(channels, replacements):
+        for name, values in fields.items():
+            setattr(channel, name, values)
+        channel.sampling_rate = fr
 
 
 def load_for_stats(
@@ -97,14 +141,14 @@ def load_for_stats(
 
     # 1. Build a metadata-only MiniscopeDataManager (no movie loading)
     try:
-        miniscope_dm = MiniscopeDataManager.create(
+        miniscope_dm = _metadata_only_manager(
             line_num=line_num,
             project_path=project_path,
             data_path=data_path,
             auto_import_data=False,
             filenames=[],
         )
-        fr: float = float(miniscope_dm.fr) if hasattr(miniscope_dm, "fr") and miniscope_dm.fr else 30.0
+        fr = _frame_rate(miniscope_dm)
     except Exception as exc:
         raise PipelineExecutionError(
             f"Failed to create MiniscopeDataManager for line {line_num}.",
@@ -165,8 +209,7 @@ def load_for_stats(
             ca_events_idx=None,
             all_TTL_events=True,
         )
-        channel_obj.signal = channel_obj.signal[ephys_idx_all_ttl]
-        channel_obj.sampling_rate = np.array(fr)
+        _downsample_channels([channel_obj], ephys_idx_all_ttl, fr)
     except Exception as exc:
         raise PipelineExecutionError(
             f"Ephys downsampling failed for line {line_num}.",
@@ -227,14 +270,14 @@ def load_for_stats_two_channels(
 
     # Metadata-only miniscope DM for frame rate + TTL sync
     try:
-        miniscope_dm = MiniscopeDataManager.create(
+        miniscope_dm = _metadata_only_manager(
             line_num=line_num,
             project_path=project_path,
             data_path=data_path,
             auto_import_data=False,
             filenames=[],
         )
-        fr = float(miniscope_dm.fr) if hasattr(miniscope_dm, "fr") and miniscope_dm.fr else 30.0
+        fr = _frame_rate(miniscope_dm)
     except Exception as exc:
         raise PipelineExecutionError(
             f"Failed to create MiniscopeDataManager for line {line_num}.",
@@ -294,10 +337,7 @@ def load_for_stats_two_channels(
             ca_events_idx=None,
             all_TTL_events=True,
         )
-        ch1.signal = ch1.signal[ephys_idx_all_ttl]
-        ch2.signal = ch2.signal[ephys_idx_all_ttl]
-        ch1.sampling_rate = np.array(fr)
-        ch2.sampling_rate = np.array(fr)
+        _downsample_channels([ch1, ch2], ephys_idx_all_ttl, fr)
     except Exception as exc:
         raise PipelineExecutionError(
             f"Ephys downsampling failed for line {line_num}.",
@@ -350,15 +390,17 @@ def load_calcium_signal(
         )
         return None
 
-    data = np.load(filepath)
-    if npz_key not in data:
-        available = list(data.keys())
-        warnings.warn(
-            f"Key '{npz_key}' not found in {filepath}.  Available keys: {available}",
-            stacklevel=2,
-        )
-        return None
-
-    signal: np.ndarray = data[npz_key]
-    miniscope_dm.mean_fluorescence_dict = data  # type: ignore[attr-defined]
+    with np.load(filepath, allow_pickle=False) as archive:
+        if npz_key not in archive:
+            available = list(archive.keys())
+            warnings.warn(
+                f"Key '{npz_key}' not found in {filepath}.  Available keys: {available}",
+                stacklevel=2,
+            )
+            return None
+        signal = archive[npz_key]
+        if signal.ndim != 1 or signal.dtype.kind not in "iuf":
+            raise ValueError(f"Calcium signal '{npz_key}' must be a one-dimensional real numeric array.")
+        data = {key: archive[key] for key in archive.files}
+    miniscope_dm.mean_fluorescence_dict = data
     return signal

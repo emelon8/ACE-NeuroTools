@@ -66,6 +66,12 @@ def _nearest_sorted_index(sorted_values: np.ndarray, queries: np.ndarray) -> np.
     """
     sorted_values = np.asarray(sorted_values)
     queries = np.asarray(queries)
+    if sorted_values.ndim != 1 or queries.ndim != 1:
+        raise ValueError("timestamps and queries must be one-dimensional.")
+    if not np.isfinite(sorted_values).all() or not np.isfinite(queries).all():
+        raise ValueError("timestamps and queries must be finite.")
+    if np.any(sorted_values[1:] < sorted_values[:-1]):
+        raise ValueError("timestamps must be sorted.")
     n = len(sorted_values)
     if n == 0:
         return np.empty(0, dtype=int)
@@ -77,7 +83,9 @@ def _nearest_sorted_index(sorted_values: np.ndarray, queries: np.ndarray) -> np.
     left = sorted_values[pos - 1]
     right = sorted_values[pos]
     choose_left = (queries - left) <= (right - queries)
-    return np.where(choose_left, pos - 1, pos).astype(int)
+    nearest = np.where(choose_left, pos - 1, pos)
+    # Match argmin's first occurrence even for queries beyond repeated samples.
+    return np.searchsorted(sorted_values, sorted_values[nearest], side="left").astype(int)
 
 
 def find_ephys_idx_of_TTL_events(
@@ -107,7 +115,12 @@ def find_ephys_idx_of_TTL_events(
         print("Finding the indices of ephys timestamps that are closest to the calcium event (Neuralynx) timestamps...")
         ephys_idx_ca_events_res = {}
         for k in list(ca_events_idx.keys()):
-            event_frame_idx = np.asarray(ca_events_idx[k], dtype=int)
+            raw = np.asarray(ca_events_idx[k])
+            if raw.size and (
+                raw.dtype.kind not in "iu" or np.any(raw < 0) or np.any(raw >= tCaIm.size) or raw.ndim != 1
+            ):
+                raise ValueError(f"calcium event frame indices for unit {k} must be integers within the movie.")
+            event_frame_idx = raw.astype(int)
             ephys_idx_ca_events_res[k] = _nearest_sorted_index(time_vector, tCaIm[event_frame_idx])
 
     return ephys_idx_all_TTL_events, ephys_idx_ca_events_res

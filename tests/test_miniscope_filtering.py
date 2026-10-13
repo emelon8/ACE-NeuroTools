@@ -41,6 +41,7 @@ def test_filter_miniscope_data_populates_filtered_data():
     assert not np.allclose(fobj.filtered_data, sig)
 
 
+@pytest.mark.requires_caiman
 def test_postprocessor_filter_branch_replaces_time_inline():
     """The post-processor's filter branch must run the filter and, inline,
     replace projections.time with a real ndarray (not the buggy empty list)."""

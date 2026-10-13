@@ -10,3 +10,11 @@ prune cache
 recursive-include docs *.md
 recursive-include examples *.md *.py
 recursive-include notebooks *.ipynb
+recursive-include ci *.json *.txt
+recursive-include tests *.py
+recursive-include .github/workflows *.yml
+include scripts/check_coverage.py
+include scripts/check_distribution.py
+include scripts/ci_environment.py
+include scripts/run_backend_checks.py
+include scripts/smoke_installed_package.py

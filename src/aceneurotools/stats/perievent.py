@@ -23,7 +23,7 @@ def _normalize_window(window: float | tuple[float, float] | list[float]) -> tupl
     return ``(before_s, after_s)`` with both positive.
     """
     if isinstance(window, (int, float)):
-        if window <= 0:
+        if not np.isfinite(window) or window <= 0:
             raise ValueError("Scalar window must be > 0.")
         return float(window), float(window)
     if isinstance(window, (tuple, list)) and len(window) == 2:
@@ -31,6 +31,8 @@ def _normalize_window(window: float | tuple[float, float] | list[float]) -> tupl
         # Allow either sign convention: (-2, 1) or (2, 1)
         before = abs(before)
         after = abs(after)
+        if not np.isfinite(before) or not np.isfinite(after):
+            raise ValueError("Window values must be finite.")
         if before == 0.0 and after == 0.0:
             raise ValueError("Window must have non-zero duration.")
         return before, after
@@ -76,6 +78,10 @@ def compute_perievent(
     """
     if signal.ndim != 1:
         raise ValueError("signal must be 1D.")
+    if not np.isfinite(fs) or fs <= 0:
+        raise ValueError("fs must be finite and > 0.")
+    if not np.isfinite(t_start):
+        raise ValueError("t_start must be finite.")
     before_s, after_s = _normalize_window(window)
     n_before = int(round(before_s * fs))
     n_after = int(round(after_s * fs))
@@ -83,6 +89,8 @@ def compute_perievent(
     time_axis = (np.arange(n_window) - n_before) / fs
 
     events = np.asarray(event_times, dtype=np.float64).ravel()
+    if not np.isfinite(events).all():
+        raise ValueError("event_times must be finite.")
     if events.size == 0:
         return {
             "time": time_axis,
@@ -91,7 +99,11 @@ def compute_perievent(
             "n_events": 0,
         }
 
-    sample_idx = np.round((events - t_start) * fs).astype(np.int64)
+    # Clip far-outside events before integer conversion so extreme timestamps
+    # cannot wrap into valid indices or raise an invalid-cast warning.
+    with np.errstate(over="ignore"):
+        offsets = np.round((events - t_start) * fs)
+    sample_idx = np.clip(offsets, -n_window, signal.size + n_window).astype(np.int64)
     n_samples = signal.size
     in_bounds = (sample_idx - n_before >= 0) & (sample_idx + n_after < n_samples)
 
@@ -176,9 +188,15 @@ def compute_event_triggered_average(
             warnings.filterwarnings("ignore", category=RuntimeWarning)
             mean = np.nanmean(matrix, axis=0)
             std = np.nanstd(matrix, axis=0, ddof=1) if matrix.shape[0] > 1 else np.zeros_like(mean)
+        counts = np.sum(~np.isnan(matrix), axis=0)
+        std = np.where(counts == 0, np.nan, std)
 
     n = matrix.shape[0]
-    sem = std / np.sqrt(n) if n > 0 else np.zeros_like(mean)
+    if drop_boundary_events:
+        sem = std / np.sqrt(n)
+    else:
+        sem = np.full_like(std, np.nan)
+        np.divide(std, np.sqrt(counts), out=sem, where=counts > 0)
 
     return {"time": per["time"], "mean": mean, "sem": sem, "std": std, "matrix": matrix, "n_events": n}
 

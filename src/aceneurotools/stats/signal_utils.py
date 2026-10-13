@@ -128,7 +128,7 @@ def normalize_signals_global(
 
     def _zscore(arr: np.ndarray, mean: float, std: float) -> np.ndarray:
         if std == 0 or np.isnan(std):
-            return np.zeros_like(arr)
+            return np.where(np.isnan(arr), np.nan, np.zeros_like(arr))
         return (arr - mean) / std
 
     params = {

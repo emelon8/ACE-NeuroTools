@@ -2,82 +2,22 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, proj-comenius]
   pull_request:
-    branches: [main]
+  merge_group:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 9 * * 1"
+
+permissions:
+  contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: Tests (fast, not slow)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash -el {0}   # login shell so the conda env stays activated
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: mamba-org/setup-micromamba@v3
-        with:
-          environment-file: conda-lock.yml
-          environment-name: aceneurotools
-          cache-environment: true
-          init-shell: bash
-
-      - name: Install package (editable)
-        run: pip install --no-deps -e .
-
-      - name: Run fast test suite
-        run: pytest tests/ -m "not slow" -p no:cacheprovider
-
-      - name: Build documentation
-        run: |
-          bash scripts/sync_notebooks_for_docs.sh
-          python scripts/check_docs_links.py
-          mkdocs build --strict
-
-  lint:
-    name: Lint and formatting
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/ruff-action@v3
-        with:
-          args: check --output-format=github
-      - uses: astral-sh/ruff-action@v3
-        with:
-          args: format --check
-
-  typecheck:
-    name: Type check (advisory)
-    runs-on: ubuntu-latest
-    # The inherited type backlog is tracked here until it can be made blocking.
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-      - run: python -m pip install pyrefly
-      - run: pyrefly check
-
-  package:
-    name: Build distribution
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-      - run: python -m pip install build twine
-      - run: python -m build
-      - run: python -m twine check dist/*
-      - run: python scripts/check_distribution.py dist/*
-      - name: Smoke-test wheel without optional CaImAn stack
-        run: |
-          python -m venv /tmp/ace-wheel-test
-          /tmp/ace-wheel-test/bin/pip install --no-deps dist/*.whl
-          /tmp/ace-wheel-test/bin/python -c "import aceneurotools; print(aceneurotools.__version__)"
+  checks:
+    uses: ./.github/workflows/checks.yml
+    with:
+      hypothesis-profile: ${{ github.event_name == 'schedule' && 'extended' || 'ci' }}

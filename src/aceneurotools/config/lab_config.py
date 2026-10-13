@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -118,6 +119,9 @@ class LabConfig:
                 "python -c \"import json; json.load(open('lab_config.json'))\"",
             ) from exc
 
+        if not isinstance(raw, dict):
+            raise ConfigurationError("lab_config.json must contain a JSON object.")
+
         # Strip documentation-only keys (those starting with '_') before parsing.
         data = {k: v for k, v in raw.items() if not k.startswith("_")}
 
@@ -196,6 +200,23 @@ def _require_str(data: dict[str, Any], key: str, errors: list[str]) -> str:
     return val.strip()
 
 
+def _finite_number(value: Any) -> float:
+    if isinstance(value, bool):
+        raise ValueError("booleans are not numeric settings")
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError("number must be finite")
+    return number
+
+
+def _subject_number(value: Any) -> int:
+    # Retain compatibility with quoted integers, but never truncate IDs or
+    # treat a JSON boolean as subject 0 or 1.
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        raise ValueError("subject number must be an integer")
+    return int(value)
+
+
 def _parse_optional_str(data: dict[str, Any], key: str, errors: list[str]) -> str | None:
     val = data.get(key)
     if val is None:
@@ -214,7 +235,7 @@ def _parse_freq_range(data: dict[str, Any], errors: list[str]) -> list[float]:
         errors.append(f"[freq_range] Must be a list of exactly two numbers, e.g. [0.5, 4.0].  Got: {val!r}")
         return default
     try:
-        low, high = float(val[0]), float(val[1])
+        low, high = _finite_number(val[0]), _finite_number(val[1])
     except (TypeError, ValueError):
         errors.append(f"[freq_range] Both values must be numbers.  Got: {val!r}")
         return default
@@ -259,7 +280,7 @@ def _parse_conditions(data: dict[str, Any], errors: list[str]) -> dict[str, Cond
         else:
             for idx, s in enumerate(subjects_raw):
                 try:
-                    subjects.append(int(s))
+                    subjects.append(_subject_number(s))
                 except (TypeError, ValueError):
                     cond_errors.append(f"[conditions.{name!r}.subjects[{idx}]] Must be an integer.  Got: {s!r}")
 
@@ -305,6 +326,10 @@ def _parse_time_windows(data: dict[str, Any], errors: list[str]) -> dict[int, li
             )
             continue
 
+        if subj in result:
+            errors.append(f"[time_windows] Subject {subj} appears more than once under equivalent keys.")
+            continue
+
         if not isinstance(windows, list) or len(windows) != 2:
             errors.append(
                 f"[time_windows.{subj}] Must be exactly two windows: "
@@ -323,7 +348,7 @@ def _parse_time_windows(data: dict[str, Any], errors: list[str]) -> dict[int, li
                 parsed_windows.append([0.0, 0.0])
                 continue
             try:
-                start, end = float(window[0]), float(window[1])
+                start, end = _finite_number(window[0]), _finite_number(window[1])
             except (TypeError, ValueError):
                 errors.append(f"[time_windows.{subj}] {label} window values must be numbers.  Got: {window!r}")
                 window_ok = False
@@ -391,7 +416,7 @@ def _parse_run(data: dict[str, Any], errors: list[str]) -> RunConfig | None:
 
     # mode
     mode_raw = raw.get("mode", "all")
-    if mode_raw not in _VALID_MODES:
+    if not isinstance(mode_raw, str) or mode_raw not in _VALID_MODES:
         errors.append(f"[run.mode] Must be one of {sorted(_VALID_MODES)}.  Got: {mode_raw!r}")
         mode = "all"
     else:
@@ -414,7 +439,7 @@ def _parse_run(data: dict[str, Any], errors: list[str]) -> RunConfig | None:
             errors.append(f"[run.line_nums] Must be a list of integers or null.  Got: {line_nums_raw!r}")
         elif line_nums_raw:
             try:
-                line_nums = [int(n) for n in line_nums_raw]
+                line_nums = [_subject_number(n) for n in line_nums_raw]
             except (TypeError, ValueError):
                 errors.append(f"[run.line_nums] All values must be integers.  Got: {line_nums_raw!r}")
 

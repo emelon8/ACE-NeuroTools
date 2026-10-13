@@ -38,6 +38,16 @@ changes and update the affected guides or examples when changing public APIs.
 Keep changes focused; describe the scientific effect of altered defaults or
 processing algorithms in the pull request.
 
+For the backend integrity gate, install the pinned test additions and run:
+
+```bash
+python -m pip install -r ci/requirements-test.txt
+python scripts/run_backend_checks.py
+```
+
+See [backend testing and audit reports](docs/backend_testing.md) for protected
+contracts, coverage floors, failure diagnosis, and required branch checks.
+
 ## Recording fixtures and scientific validation
 
 Tests currently generate synthetic inputs. A full real-recording CNMF-E run is

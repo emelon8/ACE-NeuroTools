@@ -211,7 +211,8 @@ class CoherenceAnalysis:
         try:
             grp = df.groupby("Measurement")[["Control", "Treatment", "Ratio"]].agg(["mean", "std"]).reset_index()
             # Recalculate ratio of means rather than mean of ratios
-            grp[("Ratio", "mean")] = grp[("Treatment", "mean")] / grp[("Control", "mean")]
+            control_mean = grp[("Control", "mean")]
+            grp[("Ratio", "mean")] = grp[("Treatment", "mean")] / control_mean.where(control_mean.abs() >= 1e-10)
         except Exception:
             return pd.DataFrame()
         return grp

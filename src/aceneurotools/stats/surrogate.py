@@ -95,6 +95,9 @@ def permutation_test(
         raise ValueError("alternative must be 'two-sided', 'greater', or 'less'.")
     if n_surrogates < 1:
         raise ValueError("n_surrogates must be >= 1.")
+    obs = float(observed_statistic)
+    if not np.isfinite(obs):
+        raise ValueError("observed statistic must be finite.")
 
     child_rngs = _rng(rng).spawn(n_surrogates)
 
@@ -108,7 +111,8 @@ def permutation_test(
             dtype=np.float64,
         )
 
-    obs = float(observed_statistic)
+    if not np.isfinite(null).all():
+        raise ValueError("surrogate statistics must be finite.")
     if alternative == "two-sided":
         count = int(np.sum(np.abs(null) >= abs(obs)))
     elif alternative == "greater":
@@ -121,6 +125,8 @@ def permutation_test(
 
 
 def _validate_support(t_start: float, t_end: float) -> None:
+    if not np.isfinite(t_start) or not np.isfinite(t_end):
+        raise ValueError("time support bounds must be finite.")
     if t_end <= t_start:
         raise ValueError(f"t_end ({t_end}) must be > t_start ({t_start}).")
 

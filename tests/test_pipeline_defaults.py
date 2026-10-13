@@ -12,6 +12,7 @@ import inspect
 import pytest
 
 
+@pytest.mark.requires_caiman
 def test_time_bandwidth_default_consistent_across_pipelines():
     pytest.importorskip("caiman")
     from aceneurotools.pipelines.miniscope import MiniscopePipeline

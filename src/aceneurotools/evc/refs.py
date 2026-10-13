@@ -14,6 +14,8 @@ that ever appeared in it can be restored even if no ref points to it anymore.
 
 from __future__ import annotations
 
+import os
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -43,15 +45,18 @@ class RefStore:
     # -- plain refs ---------------------------------------------------------
 
     def _ref_path(self, ref: str) -> Path:
-        if not ref.startswith("refs/") or ".." in ref.split("/"):
+        if not ref.startswith("refs/") or ".." in ref.split("/") or any(c in ref for c in ("\\", "\0", "\n", "\t")):
             raise EVCError(f"illegal ref name: {ref!r}")
-        return self.root / ref
+        path = self.root / ref
+        if not path.resolve().is_relative_to(self.root.resolve()):
+            raise EVCError(f"ref resolves outside the repository: {ref!r}")
+        return path
 
     def read_ref(self, ref: str) -> str | None:
         path = self._ref_path(ref)
         if not path.exists():
             return None
-        return path.read_text().strip() or None
+        return path.read_text(encoding="utf-8").strip() or None
 
     def update_ref(
         self,
@@ -68,22 +73,40 @@ class RefStore:
         instead of silently clobbering someone else's update.
         """
         path = self._ref_path(ref)
-        current = self.read_ref(ref)
-        if current != expected_old:
-            raise RefConflictError(f"ref {ref} is {current or 'unset'}, expected {expected_old or 'unset'}")
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(new_oid + "\n")
-        self.append_journal(ref, current or ZERO_OID, new_oid, op, message)
+        lock_path = path.with_name(path.name + ".lock")
+        try:
+            fd = os.open(lock_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError as exc:
+            raise RefConflictError(f"ref {ref} is being updated; reload and retry") from exc
+        os.close(fd)
+        staged = None
+        try:
+            current = self.read_ref(ref)
+            if current != expected_old:
+                raise RefConflictError(f"ref {ref} is {current or 'unset'}, expected {expected_old or 'unset'}")
+            temporary_fd, temporary_name = tempfile.mkstemp(dir=path.parent, prefix=".tmp-ref-")
+            staged = Path(temporary_name)
+            with os.fdopen(temporary_fd, "w", encoding="utf-8") as handle:
+                handle.write(new_oid + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(staged, path)
+            self.append_journal(ref, current or ZERO_OID, new_oid, op, message)
+        finally:
+            if staged is not None:
+                staged.unlink(missing_ok=True)
+            lock_path.unlink(missing_ok=True)
 
     def list_refs(self, prefix: str = "refs/") -> dict[str, str]:
-        base = self.root / prefix
+        base = self._ref_path(prefix)
         found: dict[str, str] = {}
         if not base.exists():
             return found
         for path in sorted(base.rglob("*")):
-            if path.is_file():
+            if path.is_file() and not path.name.endswith(".lock") and not path.name.startswith(".tmp-ref-"):
                 ref = str(path.relative_to(self.root)).replace("\\", "/")
-                value = path.read_text().strip()
+                value = path.read_text(encoding="utf-8").strip()
                 if value:
                     found[ref] = value
         return found
@@ -98,7 +121,8 @@ class RefStore:
         return text[len("ref: ") :]
 
     def write_head_ref(self, ref: str) -> None:
-        (self.root / "HEAD").write_text(f"ref: {ref}\n")
+        self._ref_path(ref)
+        (self.root / "HEAD").write_text(f"ref: {ref}\n", encoding="utf-8")
 
     def head_oid(self) -> str | None:
         return self.read_ref(self.read_head_ref())

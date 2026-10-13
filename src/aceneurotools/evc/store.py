@@ -53,6 +53,8 @@ class FileObjectStore(ObjectStore):
         self.root = Path(root)
 
     def _path(self, oid: str) -> Path:
+        if not isinstance(oid, str) or len(oid) != _OID_HEX_LEN or any(c not in "0123456789abcdef" for c in oid):
+            raise InvalidObjectError(f"not a valid full object id: {oid!r}")
         return self.root / oid[:2] / oid[2:]
 
     def write(self, obj_type: str, body: bytes) -> str:
@@ -79,8 +81,13 @@ class FileObjectStore(ObjectStore):
         path = self._path(oid)
         if not path.exists():
             raise ObjectNotFoundError(f"object {oid} not found")
-        raw = zlib.decompress(path.read_bytes())
-        header, _, body = raw.partition(b"\0")
+        try:
+            raw = zlib.decompress(path.read_bytes())
+        except zlib.error as exc:
+            raise CorruptObjectError(f"object {oid}: invalid compressed data") from exc
+        header, separator, body = raw.partition(b"\0")
+        if not separator:
+            raise CorruptObjectError(f"object {oid}: missing header separator")
         try:
             obj_type, size_text = header.decode().split(" ")
             declared_size = int(size_text)
@@ -88,6 +95,8 @@ class FileObjectStore(ObjectStore):
             raise CorruptObjectError(f"object {oid}: malformed header") from exc
         if declared_size != len(body):
             raise CorruptObjectError(f"object {oid}: size mismatch")
+        if obj_type not in OBJECT_TYPES:
+            raise CorruptObjectError(f"object {oid}: unknown type {obj_type!r}")
         if object_id(obj_type, body) != oid:
             raise CorruptObjectError(f"object {oid}: content does not match id")
         return obj_type, body
@@ -99,10 +108,14 @@ class FileObjectStore(ObjectStore):
         if not self.root.exists():
             return
         for fan_out in sorted(self.root.iterdir()):
-            if not fan_out.is_dir() or len(fan_out.name) != 2:
+            if not fan_out.is_dir() or len(fan_out.name) != 2 or any(c not in "0123456789abcdef" for c in fan_out.name):
                 continue
             for entry in sorted(fan_out.iterdir()):
-                if not entry.name.startswith(".tmp-"):
+                if (
+                    entry.is_file()
+                    and len(entry.name) == _OID_HEX_LEN - 2
+                    and all(c in "0123456789abcdef" for c in entry.name)
+                ):
                     yield fan_out.name + entry.name
 
     def resolve_prefix(self, prefix: str) -> str:

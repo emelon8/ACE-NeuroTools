@@ -126,6 +126,8 @@ def multitaper_spectrogram(
     """
 
     #  Process user input
+    if weighting not in {"unity", "eigen", "adapt"}:
+        raise ValueError("weighting must be 'unity', 'eigen', or 'adapt'.")
     [
         data,
         fs,
@@ -169,7 +171,7 @@ def multitaper_spectrogram(
 
     # pre-compute weights
     if weighting == "eigen":
-        wt = dpss_eigen / num_tapers
+        wt = dpss_eigen / np.sum(dpss_eigen)
     elif weighting == "unity":
         wt = np.ones(num_tapers) / num_tapers
         wt = np.reshape(wt, (num_tapers, 1))  # reshape as column vector
@@ -221,8 +223,8 @@ def multitaper_spectrogram(
         spect_data = nanpow2db(mt_spectrogram)
 
         # Set x and y axes
-        dx = stimes[1] - stimes[0]
-        dy = sfreqs[1] - sfreqs[0]
+        dx = stimes[1] - stimes[0] if stimes.size > 1 else winstep_samples / fs
+        dy = sfreqs[1] - sfreqs[0] if sfreqs.size > 1 else fs / nfft
         extent = (stimes[0] - dx, stimes[-1] + dx, sfreqs[-1] + dy, sfreqs[0] - dy)
 
         # Plot spectrogram
@@ -235,7 +237,9 @@ def multitaper_spectrogram(
             fig.colorbar(im, ax=ax, label="PSD (dB)", shrink=0.8)
         ax.set_xlabel("Time (HH:MM:SS)")
         ax.set_ylabel("Frequency (Hz)")
-        im.set_cmap(plt.cm.get_cmap("cet_rainbow4"))
+        from colorcet import cm
+
+        im.set_cmap(cm["rainbow4"])
         ax.invert_yaxis()
 
         # Scale colormap
@@ -300,6 +304,13 @@ def process_input(
     """
 
     # Make sure data is 1 dimensional np array
+    data = np.asarray(data)
+    if isinstance(fs, bool) or not np.isfinite(fs) or fs <= 0:
+        raise ValueError("fs must be a finite positive sampling rate.")
+    if not np.isfinite(time_bandwidth) or time_bandwidth <= 0:
+        raise ValueError("time_bandwidth must be finite and positive.")
+    if isinstance(min_nfft, bool) or not isinstance(min_nfft, (int, np.integer)) or min_nfft < 0:
+        raise ValueError("min_nfft must be a nonnegative integer.")
     if len(data.shape) != 1:
         if (len(data.shape) == 2) & (data.shape[1] == 1):  # if it's 2d, but can be transferred to 1d, do so
             data = np.ravel(data[:, 0])
@@ -315,6 +326,15 @@ def process_input(
     # Set frequency range if not provided
     if frequency_range is None:
         frequency_range = [0, fs / 2]
+    else:
+        frequency_range = list(frequency_range)
+    if (
+        len(frequency_range) != 2
+        or not np.isfinite(frequency_range).all()
+        or frequency_range[0] < 0
+        or frequency_range[0] > frequency_range[1]
+    ):
+        raise ValueError("frequency_range must contain two finite, nonnegative, ordered bounds.")
 
     # Set detrending method
     detrend_opt = detrend_opt.lower()
@@ -344,6 +364,8 @@ def process_input(
     # Set number of tapers if none provided
     if num_tapers is None:
         num_tapers = math.floor(2 * time_bandwidth) - 1
+    if isinstance(num_tapers, bool) or not isinstance(num_tapers, (int, np.integer)) or num_tapers < 1:
+        raise ValueError("num_tapers must be a positive integer.")
 
     # Warn if number of tapers is suboptimal
     if num_tapers != math.floor(2 * time_bandwidth) - 1:
@@ -354,6 +376,10 @@ def process_input(
     # If no window params provided, set to defaults
     if window_params is None:
         window_params = [5, 1]
+    if len(window_params) != 2 or not np.isfinite(window_params).all() or any(value <= 0 for value in window_params):
+        raise ValueError("window_params must contain finite positive window length and step.")
+    if round(window_params[0] * fs) < 2 or round(window_params[1] * fs) < 1:
+        raise ValueError("Window length must span at least two samples and its step at least one sample.")
 
     # Check if window size is valid, fix if not
     if window_params[0] * fs % 1 != 0:
@@ -447,6 +473,8 @@ def process_spectrogram_params(
     # Get frequencies for given frequency range
     freq_inds = (sfreqs >= frequency_range[0]) & (sfreqs <= frequency_range[1])
     sfreqs = sfreqs[freq_inds]
+    if not sfreqs.size:
+        raise ValueError("frequency_range contains no FFT bins.")
 
     # Compute times in the middle of each spectrum
     window_middle_samples = window_start + round(datawin_size / 2)
@@ -505,19 +533,11 @@ def nanpow2db(y: int | float | list[float] | np.ndarray) -> float | np.ndarray:
         ydB (float or np array): inputs converted to dB with 0s and negatives resulting in nans
     """
 
-    if isinstance(y, int) or isinstance(y, float):
-        if y == 0:
-            return np.nan
-        else:
-            ydB = 10 * np.log10(y)
-    else:
-        if isinstance(y, list):  # if list, turn into array
-            y = np.asarray(y)
-        y = y.astype(float)  # make sure it's a float array so we can put nans in it
-        y[y == 0] = np.nan
-        ydB = 10 * np.log10(y)
-
-    return ydB
+    values = np.asarray(y, dtype=float)
+    result = np.full(values.shape, np.nan)
+    np.log10(values, out=result, where=values > 0)
+    result *= 10
+    return float(result) if result.ndim == 0 else result
 
 
 # Helper #
@@ -526,8 +546,11 @@ def is_outlier(data: np.ndarray) -> np.ndarray:
 
     Returns boolean mask where True indicates an outlier (>3 SMADs from median).
     """
-    median_val = np.median(data)
-    smad = 1.4826 * np.median(np.abs(data - median_val))  # scaled median absolute deviation
+    finite = np.isfinite(data)
+    if not finite.any():
+        return ~finite
+    median_val = np.median(data[finite])
+    smad = 1.4826 * np.median(np.abs(data[finite] - median_val))  # scaled median absolute deviation
     outlier_mask = np.abs(data - median_val) > 3 * smad  # outliers are more than 3 smads away from median
     outlier_mask = outlier_mask | np.isnan(data) | np.isinf(data)
     return outlier_mask
@@ -578,7 +601,7 @@ def calc_mts_segment(
         data_segment = detrend(data_segment, type=detrend_opt)
 
     # Multiply data by dpss tapers (STEP 2)
-    tapered_data = np.multiply(np.asmatrix(data_segment).T, np.asmatrix(dpss_tapers.T))
+    tapered_data = data_segment[:, np.newaxis] * dpss_tapers.T
 
     # Compute the FFT (STEP 3)
     fft_data = np.fft.fft(tapered_data, nfft, axis=0)

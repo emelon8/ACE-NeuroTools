@@ -87,6 +87,7 @@ nav:
       - Data Management: guides/data_management.md
       - Experiment History: guides/experiment_history.md
   - For Developers:
+      - Backend Integrity Checks: backend_testing.md
       - Overview: api/index.md
       - Pipelines: api/pipelines.md
       - Miniscope Components: api/miniscope.md

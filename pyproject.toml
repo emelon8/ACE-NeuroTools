@@ -61,8 +61,9 @@ ace-neuro = "aceneurotools.cli:main"
 box = [
     "box-sdk-gen>=1.0",
 ]
-# Optional accelerated coherogram path in multimodal.coherence_analysis
-# (falls back to a pure-scipy implementation when these are absent).
+# Optional coherogram plotting stack. Welch coherence statistics use SciPy.
+# Plotting requires an xrscipy version exposing signal.spectral.coherogram;
+# versions without that API warn and omit the optional coherogram plot.
 coherence = [
     "xarray>=2023.1",
     "xrscipy>=2.2",
@@ -74,6 +75,7 @@ dev = [
     "ruff>=0.4",
     "pyrefly",
     "hypothesis>=6.0",
+    "PyYAML>=6.0",
 
     "twine>=5.0",
 ]
@@ -108,10 +110,11 @@ aceneurotools = ["py.typed", "shared/metadata_templates/*.csv", "evc/schemas/*.j
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-addopts = "-v --tb=short --strict-markers"
+addopts = "-v --tb=short --strict-markers --strict-config"
 markers = [
     "slow: full Miniscope CNMF-E pipeline on sample data (excluded from default CI)",
     "integration: heavier integration-level tests",
+    "requires_caiman: needs the compiled neuroscience CaImAn environment",
 ]
 
 # Coverage (pytest-cov / coverage.py)

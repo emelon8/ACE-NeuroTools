@@ -1,5 +1,5 @@
 """Phase 7 long-term regression net: property-based round-trips over the
-object model and store. Requires hypothesis (dev extra); skipped when absent."""
+object model and store. Hypothesis is a required testing dependency."""
 
 from __future__ import annotations
 
@@ -7,14 +7,10 @@ import string
 import tempfile
 from pathlib import Path
 
-import pytest
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
-hypothesis = pytest.importorskip("hypothesis")
-
-from hypothesis import HealthCheck, given, settings  # noqa: E402
-from hypothesis import strategies as st  # noqa: E402
-
-from aceneurotools.evc.objects import (  # noqa: E402
+from aceneurotools.evc.objects import (
     MODE_DIR,
     MODE_FILE,
     Blob,
@@ -23,10 +19,9 @@ from aceneurotools.evc.objects import (  # noqa: E402
     TreeEntry,
     object_id,
 )
-from aceneurotools.evc.store import FileObjectStore  # noqa: E402
+from aceneurotools.evc.store import FileObjectStore
 
 _settings = settings(
-    max_examples=50,
     deadline=None,
     suppress_health_check=[HealthCheck.function_scoped_fixture],
 )

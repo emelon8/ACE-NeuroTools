@@ -8,6 +8,18 @@ if TYPE_CHECKING:
     from aceneurotools.ephys.channel import Channel
 
 
+def _event_phases(phases: np.ndarray, indices: np.ndarray) -> np.ndarray:
+    phases = np.asarray(phases)
+    indices = np.asarray(indices)
+    if phases.ndim != 1:
+        raise ValueError("Calculated phases must be one-dimensional.")
+    if indices.ndim != 1 or (
+        indices.size and (indices.dtype.kind not in "iu" or np.any(indices < 0) or np.any(indices >= phases.size))
+    ):
+        raise ValueError("Event indices must be integers within the phase signal.")
+    return phases[indices.astype(int)]
+
+
 def ephys_phase_ca_events(
     ephys_idx_ca_events: dict[int, np.ndarray], channel_object: "Channel", neurons: str | list[int] = "all"
 ) -> dict[int, np.ndarray]:
@@ -27,10 +39,7 @@ def ephys_phase_ca_events(
 
     ca_events_phases_ephys: dict[int, np.ndarray] = {}
     for k in neurons_list:
-        phases_list = []
-        for j in range(len(ephys_idx_ca_events[k])):
-            phases_list.append(channel_object.phases[ephys_idx_ca_events[k][j]])
-        ca_events_phases_ephys[k] = np.array(phases_list)
+        ca_events_phases_ephys[k] = _event_phases(channel_object.phases, ephys_idx_ca_events[k])
 
     return ca_events_phases_ephys
 
@@ -53,10 +62,7 @@ def miniscope_phase_ca_events(
 
     ca_events_phases_miniscope: dict[int, np.ndarray] = {}
     for k in neurons_list:
-        phases_list = []
-        for j in range(len(ca_events_idx[k])):
-            phases_list.append(miniscope_phases[ca_events_idx[k][j]])
-        ca_events_phases_miniscope[k] = np.array(phases_list)
+        ca_events_phases_miniscope[k] = _event_phases(miniscope_phases, ca_events_idx[k])
 
     return ca_events_phases_miniscope
 
@@ -95,17 +101,22 @@ def phase_ca_events_histogram(
     else:
         neurons_list_hist = list(ca_events_phases.keys())
 
+    selected = {}
+    for neuron in neurons_list_hist:
+        values = np.asarray(ca_events_phases[neuron], dtype=float)
+        if values.ndim != 1 or not np.isfinite(values).all():
+            raise ValueError(f"Neuron {neuron} phases must be finite and one-dimensional.")
+        selected[neuron] = values
+
+    if mean_density:
+        return _mean_density_histogram(selected, neurons, bins, hist_range, plot=plot_histogram)
+
     if not plot_histogram:
         # calculates histograms but does not plot them
         hist, bin_edges = _calculate_histograms_without_plotting(
             ca_events_phases, neurons_list_hist, bins, hist_range, density, combined
         )
         return cast(Any, (hist, bin_edges))
-
-    if mean_density and neurons == "all":
-        # plot the mean of the density histogram of phases of all neurons
-        hist_tuple = _mean_density_histogram(ca_events_phases, neurons, bins, hist_range)
-        return cast(Any, hist_tuple)
 
     if combined:
         if neurons == "all":
@@ -143,7 +154,12 @@ def phase_ca_events_histogram(
 # The following helper methods are all intended to compute histograms using the parameters of the above function
 # This method directly below, in addition to computing and plotting a histogram, also computes mean vectors
 def _mean_density_histogram(
-    ca_events_phases: dict[int, np.ndarray], neurons: str | list[int] | int, bins: int, hist_range: tuple[float, float]
+    ca_events_phases: dict[int, np.ndarray],
+    neurons: str | list[int] | int,
+    bins: int,
+    hist_range: tuple[float, float],
+    *,
+    plot: bool = True,
 ) -> tuple[np.ndarray, np.ndarray, float, float]:
     """Compute mean density histogram with mean phase vectors.
 
@@ -156,6 +172,13 @@ def _mean_density_histogram(
     Returns:
         Tuple of (hist, bin_edges, mean_theta, mean_radius).
     """
+    # Empty neurons have no defined probability distribution or phase vector.
+    # Exclude them from the equal-neuron average rather than inventing zeros.
+    ca_events_phases = {neuron: values for neuron, values in ca_events_phases.items() if values.size}
+    if not ca_events_phases:
+        _, edges = np.histogram([], bins=bins, range=hist_range)
+        return np.full(bins, np.nan), edges, float("nan"), float("nan")
+
     # Mean density histogram across neurons
     ca_events_phases_hist = np.empty((0, bins))
     mean_ca_events_vectors = np.empty((0, 2))
@@ -179,6 +202,11 @@ def _mean_density_histogram(
     hist_error = np.std(ca_events_phases_hist, axis=0) / np.sqrt(
         np.shape(ca_events_phases_hist)[0]
     )  # Take the standard error of the mean at each bin.
+    mean_neuron_vector = np.mean(mean_ca_events_vectors, axis=0)
+    mean_neuron_vector_theta = np.arctan2(mean_neuron_vector[1], mean_neuron_vector[0])
+    mean_neuron_vector_radius = np.sqrt(mean_neuron_vector[0] ** 2 + mean_neuron_vector[1] ** 2)
+    if not plot:
+        return hist, bin_edges, mean_neuron_vector_theta, mean_neuron_vector_radius
     h, ax = prep_axes(xLabel="Phase (rad)", yLabel="Mean Event Probability", title="Neuron(s): " + str(neurons))
     if isinstance(ax, (list, np.ndarray)):
         ax_plot = ax[0]
@@ -191,10 +219,6 @@ def _mean_density_histogram(
     bin_midpoints = (bin_edges[1:] + bin_edges[:-1]) / 2
     ax_plot.errorbar(bin_midpoints, hist, yerr=hist_error, fmt="none", capsize=3)
     # Find the mean vector of all of the neurons
-    mean_neuron_vector = np.mean(mean_ca_events_vectors, axis=0)
-    mean_neuron_vector_theta = np.arctan2(mean_neuron_vector[1], mean_neuron_vector[0])
-    mean_neuron_vector_radius = np.sqrt(mean_neuron_vector[0] ** 2 + mean_neuron_vector[1] ** 2)
-
     return hist, bin_edges, mean_neuron_vector_theta, mean_neuron_vector_radius
 
 

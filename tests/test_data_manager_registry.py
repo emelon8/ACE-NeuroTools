@@ -11,7 +11,10 @@ from __future__ import annotations
 import subprocess
 import sys
 
+import pytest
 
+
+@pytest.mark.requires_caiman
 def test_create_registers_builtin_subclasses_in_fresh_interpreter(tmp_path):
     code = (
         "from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager\n"

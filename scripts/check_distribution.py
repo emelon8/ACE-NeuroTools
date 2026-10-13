@@ -13,6 +13,14 @@ def check_wheel(path: Path) -> None:
     with ZipFile(path) as wheel:
         names = set(wheel.namelist())
         assert "aceneurotools/py.typed" in names, "wheel lacks the typed-package marker"
+        for expected in (
+            "aceneurotools/evc/schemas/experiment.v1.schema.json",
+            "aceneurotools/evc/schemas/analysis.cnmfe.v1.schema.json",
+            "aceneurotools/shared/metadata_templates/experiments_template.csv",
+            "aceneurotools/shared/metadata_templates/analysis_parameters_template.csv",
+        ):
+            assert expected in names, f"wheel lacks backend resource {expected}"
+        assert not any(name.startswith(("data/", "gui/")) for name in names), "wheel contains lab data or GUI files"
         metadata_paths = [name for name in names if name.endswith(".dist-info/METADATA")]
         assert len(metadata_paths) == 1, "wheel must contain exactly one METADATA file"
         metadata = Parser().parsestr(wheel.read(metadata_paths[0]).decode("utf-8"))
@@ -26,7 +34,21 @@ def check_wheel(path: Path) -> None:
 def check_sdist(path: Path) -> None:
     with open_tar(path, "r:gz") as archive:
         names = {Path(name).relative_to(Path(name).parts[0]).as_posix() for name in archive.getnames()}
-        for expected in ("environment.yml", "conda-lock.yml", "CITATION.cff", "docs/releasing.md"):
+        for expected in (
+            "environment.yml",
+            "conda-lock.yml",
+            "CITATION.cff",
+            "docs/releasing.md",
+            "tests/conftest.py",
+            "tests/compiled_stack/test_miniscope_optional_params_csv.py",
+            "ci/coverage-policy.json",
+            "ci/requirements-test.txt",
+            "docs/backend_testing.md",
+            ".github/workflows/checks.yml",
+            "scripts/run_backend_checks.py",
+            "scripts/check_coverage.py",
+            "scripts/ci_environment.py",
+        ):
             assert expected in names, f"source distribution lacks {expected}"
         assert not any(name.startswith("data/") for name in names), "source distribution contains lab data"
 

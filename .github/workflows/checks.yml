@@ -1,0 +1,238 @@
+name: Reusable integrity checks
+
+on:
+  workflow_call:
+    outputs:
+      distributions-artifact:
+        description: The exact distributions built and smoke-tested by the package job
+        value: ${{ jobs.package.outputs.artifact-name }}
+    inputs:
+      hypothesis-profile:
+        type: string
+        default: ci
+
+permissions:
+  contents: read
+
+env:
+  MPLBACKEND: Agg
+  PYTHONHASHSEED: "0"
+  OMP_NUM_THREADS: "1"
+  OPENBLAS_NUM_THREADS: "1"
+  MKL_NUM_THREADS: "1"
+  HYPOTHESIS_PROFILE: ${{ inputs.hypothesis-profile }}
+
+jobs:
+  backend:
+    name: Backend (${{ matrix.os }}, locked Python 3.10)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-file: conda-lock.yml
+          environment-name: aceneurotools
+          cache-environment: true
+          init-shell: bash
+      - name: Install backend and pinned property-test tools
+        run: |
+          python -m pip install --no-deps -e .
+          python -m pip install -r ci/requirements-test.txt
+          python -m pip check
+      - name: Record environment and source revision
+        run: python scripts/ci_environment.py reports/environment.json
+      - name: Execute every backend test, including synthetic integration tests
+        run: >-
+          python -m pytest tests/ --backend-only --fail-on-skip -m "not slow"
+          --junitxml=reports/junit.xml --durations=15
+          --cov=aceneurotools --cov-branch
+          --cov-report=xml:reports/coverage.xml
+          --cov-report=json:reports/coverage.json
+          --cov-report=html:reports/coverage-html
+          --cov-report=term:skip-covered
+      - name: Enforce reviewed branch-coverage floors
+        run: python scripts/check_coverage.py reports/coverage.json
+      - name: Preserve test results, coverage, and environment on success or failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-${{ matrix.os }}-${{ github.run_attempt }}
+          path: reports/
+          retention-days: 30
+          if-no-files-found: warn
+
+  portable:
+    name: Core compatibility (Python ${{ matrix.python }}, current pip dependencies)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            ci/requirements-test.txt
+      - run: python -m pip install -e '.[dev]' PyYAML -r ci/requirements-test.txt
+      - run: python -m pip check
+      - run: python scripts/ci_environment.py reports/environment.json
+      - name: Test core contracts without CaImAn or lab services
+        run: >-
+          python -m pytest tests/ --backend-only --without-caiman --fail-on-skip
+          -m "not slow and not requires_caiman"
+          --junitxml=reports/junit.xml --durations=15
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: portable-core-${{ matrix.python }}-${{ github.run_attempt }}
+          path: reports/
+          retention-days: 30
+
+  gui-regression:
+    name: Existing GUI regression suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-file: conda-lock.yml
+          environment-name: aceneurotools
+          cache-environment: true
+          init-shell: bash
+      - run: |
+          python -m pip install --no-deps -e .
+          python -m pip install -r ci/requirements-test.txt
+      - run: >-
+          python -m pytest tests/test_gui_*.py tests/test_crop_gui.py
+          --fail-on-skip -m "not slow" --junitxml=reports/junit.xml --durations=10
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: existing-gui-regressions-${{ github.run_attempt }}
+          path: reports/
+          retention-days: 30
+
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-file: conda-lock.yml
+          environment-name: aceneurotools
+          cache-environment: true
+          init-shell: bash
+      - run: python -m pip install --no-deps -e .
+      - run: |
+          bash scripts/sync_notebooks_for_docs.sh
+          python scripts/check_docs_links.py
+          mkdocs build --strict
+
+  lint:
+    name: Lint and formatting
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: python -m pip install ruff==0.16.7
+      - run: ruff check . --output-format=github
+      - run: ruff format --check .
+
+  typecheck:
+    name: Type check (advisory backlog)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: python -m pip install pyrefly
+      - run: pyrefly check
+
+  package:
+    name: Distribution integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      artifact-name: checked-distributions-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: python -m pip install build==1.6.0 twine==7.0.0
+      - run: python -m build
+      - run: python -m twine check dist/*
+      - run: python scripts/check_distribution.py dist/*
+      - name: Smoke-test installed wheel from outside the checkout
+        run: |
+          python -m venv /tmp/ace-wheel-test
+          /tmp/ace-wheel-test/bin/pip install --no-deps dist/*.whl
+          smoke_script="$GITHUB_WORKSPACE/scripts/smoke_installed_package.py"
+          cd /tmp
+          /tmp/ace-wheel-test/bin/python "$smoke_script"
+      - name: Smoke-test installed source distribution
+        run: |
+          python -m venv /tmp/ace-sdist-test
+          /tmp/ace-sdist-test/bin/pip install --no-deps dist/*.tar.gz
+          smoke_script="$GITHUB_WORKSPACE/scripts/smoke_installed_package.py"
+          cd /tmp
+          /tmp/ace-sdist-test/bin/python "$smoke_script"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: checked-distributions-${{ github.run_attempt }}
+          path: dist/
+          retention-days: 30
+
+  quality-gate:
+    name: Quality gate
+    if: always()
+    needs: [backend, portable, gui-regression, docs, lint, package]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every mandatory check to succeed
+        env:
+          NEEDS_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python - <<'PY'
+          import json, os, sys
+          results = {name: job["result"] for name, job in json.loads(os.environ["NEEDS_RESULTS"]).items()}
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write("| Check | Result |\n| --- | --- |\n")
+              for name, result in results.items():
+                  summary.write(f"| {name} | {result} |\n")
+          failed = [name for name, result in results.items() if result != "success"]
+          if failed:
+              print("Changes are not ready to merge: " + ", ".join(failed), file=sys.stderr)
+              sys.exit(1)
+          print("All mandatory integrity checks passed.")
+          PY

@@ -28,7 +28,7 @@ from aceneurotools.shared.cli_utils import (
     run_allowed_keys,
     validate_run_params,
 )
-from aceneurotools.shared.csv_worker import update_csv_cell
+from aceneurotools.shared.csv_worker import CSVRowNotFoundError, update_csv_cell
 from aceneurotools.shared.exceptions import (
     AceNeuroError,
     DataNotFoundError,
@@ -42,7 +42,10 @@ def _save_crop_coords_if_configured(coords: dict[str, int], line_num: int, proje
     analysis_params_csv = project_path / "analysis_parameters.csv"
     if not analysis_params_csv.is_file():
         return False
-    update_csv_cell(coords, "crop_coords", line_num, analysis_params_csv)
+    try:
+        update_csv_cell(coords, "crop_coords", line_num, analysis_params_csv)
+    except CSVRowNotFoundError:
+        return False
     return True
 
 

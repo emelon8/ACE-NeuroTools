@@ -141,11 +141,11 @@ def test_bad_box_id_is_not_a_link(project_folder):
     assert Project.open(project_folder).inspect("2")["recordings"][0]["box_url"] is None
 
 
-def test_zero_padded_number_remains_visible_when_existing_reader_cannot_match(tmp_path):
+def test_zero_padded_number_is_preserved_by_backend_reader(tmp_path):
     write_table(tmp_path / "experiments.csv", ["line number", "id"], [["001", "R1"]])
     detail = Project.open(tmp_path).inspect("001")
     assert detail["metadata"]["line number"] == "001"
-    assert "not found" in detail["reader_errors"][0]
+    assert detail["reader_errors"] == []
 
 
 def test_selected_unknown_number_is_a_helpful_error(project_folder):

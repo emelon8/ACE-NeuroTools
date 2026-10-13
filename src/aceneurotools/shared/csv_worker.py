@@ -2,6 +2,7 @@ import ast
 import csv
 import json
 import os
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -36,6 +37,10 @@ SEMICOLON_LIST_COLUMNS: frozenset = frozenset(
 )
 
 
+class CSVRowNotFoundError(ValueError):
+    """An otherwise valid CSV has no row for the requested experiment."""
+
+
 class CSVWorker:
     """Utility class for reading and parsing experiment CSV files.
 
@@ -67,31 +72,27 @@ class CSVWorker:
         # the disk is only touched a single time per call (this method runs once
         # per subject for both experiments.csv and analysis_parameters.csv).
         try:
-            text = path_obj.read_text()
+            # read_text normalizes CRLF, including inside quoted notes. Decode
+            # once without newline translation so cell text is preserved.
+            text = path_obj.read_bytes().decode("utf-8-sig")
         except FileNotFoundError:
             print(f"File {csv_file} not found")
             return None
 
         # Validate CSV structure before pandas parses it.
-        reader = csv_mod.reader(io.StringIO(text))
+        reader = csv_mod.reader(io.StringIO(text, newline=""), strict=True)
         try:
             header = next(reader)
         except StopIteration:
             return None  # empty file
-        for row_num, data_row in enumerate(reader, start=2):
-            if not any(data_row):  # skip empty rows
-                continue
-            if len(data_row) != len(header):
-                raise ValueError(
-                    f"CSV malformed: '{csv_file}' row {row_num} has "
-                    f"{len(data_row)} fields but the header has {len(header)} columns. "
-                    f"This usually means there is a trailing comma or an unquoted "
-                    f"comma inside a value (e.g., coordinate tuples must be "
-                    f'quoted: "(x0, y0, x1, y1)").'
-                )
+        except csv.Error as exc:
+            raise ValueError(f"CSV malformed: '{csv_file}': {exc}") from exc
+        _validate_csv_rows(header, reader, path_obj, allow_empty_columns=True)
 
         try:
-            df = pd.read_csv(io.StringIO(text))
+            # Coercion belongs exclusively to convert_data_types. Pandas' NA
+            # inference and float coercion otherwise destroy IDs and Box IDs.
+            df = pd.read_csv(io.StringIO(text, newline=""), dtype=str, keep_default_na=False)
 
             # Check for the required 'line number' column before querying.
             if "line number" not in df.columns:
@@ -108,12 +109,12 @@ class CSVWorker:
             line_num_str = str(line_num)
             row = df.loc[df["line number"].astype(str) == line_num_str]
             if row.empty:
-                raise ValueError(
+                raise CSVRowNotFoundError(
                     f"Subject line number {line_num} not found in {csv_file}.\n"
                     "  Check that the 'line number' column contains this value "
                     "and that there are no leading/trailing spaces."
                 )
-            res = row.squeeze()
+            res = row.iloc[0]
             if hasattr(res, "to_dict"):
                 return cast(dict[str, Any], res.to_dict())
             return None
@@ -194,8 +195,15 @@ class CSVWorker:
         if not isinstance(raw_value, str):
             return raw_value
 
+        # Match the former pandas missing-value handling for optional numeric
+        # settings. String-designated columns bypass this conversion entirely.
+        if raw_value.strip().lower() in {"na", "n/a", "null", "nan"}:
+            return None
+
         # NEW: Preprocess tuple-like strings for JSON
-        processed_value = raw_value.strip().replace(" ", "")
+        # JSON and literal_eval already allow formatting whitespace. Removing
+        # internal spaces would also corrupt text inside lists and dictionaries.
+        processed_value = raw_value.strip()
         if processed_value.startswith("(") and processed_value.endswith(")"):
             processed_value = f"[{processed_value[1:-1]}]"
 
@@ -249,7 +257,82 @@ class CSVWorker:
             return date_str
 
 
-def update_csv_cell(data: Any, columnTitle: str, lineNum: int, csvFile: str | Path) -> None:
+def _validate_csv_rows(
+    header: list[str], reader: Any, path: Path, *, allow_empty_columns: bool = False
+) -> list[list[str]]:
+    named_columns = [name for name in header if name]
+    unnamed_columns = [index for index, name in enumerate(header) if not name]
+    if (
+        not header
+        or any(not name.strip() for name in named_columns)
+        or len(set(named_columns)) != len(named_columns)
+        or (unnamed_columns and not allow_empty_columns)
+    ):
+        raise ValueError(f"CSV malformed: '{path}' column names must be non-empty and unique.")
+    rows = []
+    seen = set()
+    identity_column = header.index("line number") if "line number" in header else None
+    try:
+        for row in reader:
+            if not any(value.strip() for value in row):
+                continue
+            if len(row) != len(header):
+                raise ValueError(
+                    f"CSV malformed: '{path}' row {reader.line_num} has {len(row)} fields "
+                    f"but the header has {len(header)} columns. Check quoting and trailing commas."
+                )
+            # Some historical lab CSVs have spacer columns with no header.
+            # Preserve those only when they carry no data; populated unnamed
+            # columns are ambiguous and must never be silently discarded.
+            if any(row[index].strip() for index in unnamed_columns):
+                raise ValueError(f"CSV malformed: '{path}' populated columns must have non-empty, unique names.")
+            if identity_column is not None:
+                number = row[identity_column]
+                if not number or number != number.strip():
+                    raise ValueError(f"CSV malformed: '{path}' experiment number is blank or contains outer spaces.")
+                if number in seen:
+                    raise ValueError(f"CSV malformed: '{path}' experiment number {number} occurs more than once.")
+                seen.add(number)
+            rows.append(row)
+    except csv.Error as exc:
+        raise ValueError(f"CSV malformed: '{path}': {exc}") from exc
+    return rows
+
+
+def _read_writable_table(path: Path) -> tuple[list[str], list[list[str]], bool]:
+    content = path.read_bytes()
+    import io
+
+    reader = csv.reader(io.StringIO(content.decode("utf-8-sig"), newline=""), strict=True)
+    try:
+        header = next(reader, [])
+    except csv.Error as exc:
+        raise ValueError(f"CSV malformed: '{path}': {exc}") from exc
+    return (
+        header,
+        _validate_csv_rows(header, reader, path, allow_empty_columns=True),
+        content.startswith(b"\xef\xbb\xbf"),
+    )
+
+
+def _write_csv_atomically(path: Path, header: list[str], rows: list[list[str]], bom: bool = False) -> None:
+    """Replace a complete validated table; a failed write leaves the original."""
+    fd, name = tempfile.mkstemp(dir=path.parent, prefix=".ace-csv-", suffix=".tmp")
+    staged = Path(name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8-sig" if bom else "utf-8", newline="") as handle:
+            writer = csv.writer(handle, lineterminator="\n")
+            writer.writerows([header, *rows])
+            handle.flush()
+            os.fsync(handle.fileno())
+        if path.exists():
+            os.chmod(staged, path.stat().st_mode & 0o777)
+        os.replace(staged, path)
+    finally:
+        staged.unlink(missing_ok=True)
+
+
+def update_csv_cell(data: Any, columnTitle: str, lineNum: int | str, csvFile: str | Path) -> None:
     """Update a single cell in a CSV file.
 
     Args:
@@ -258,23 +341,16 @@ def update_csv_cell(data: Any, columnTitle: str, lineNum: int, csvFile: str | Pa
         lineNum: Line number to update.
         csvFile: Path to CSV file.
     """
-    csvData: list[dict[str, str]] = []
-    fieldnames: list[str] | None = None
-
-    with open(csvFile) as file:
-        reader = csv.DictReader(file)
-        if reader.fieldnames is not None:
-            fieldnames = list(reader.fieldnames)
-        for row in reader:
-            if row.get("line number") == str(lineNum):
-                row[columnTitle] = str(data)
-            csvData.append(row)
-
-    if fieldnames:
-        with open(csvFile, "w", newline="") as writeFile:
-            writer = csv.DictWriter(writeFile, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(csvData)
+    path = Path(csvFile)
+    header, rows, bom = _read_writable_table(path)
+    if "line number" not in header or not columnTitle.strip() or columnTitle not in header:
+        raise ValueError(f"Required columns 'line number' and {columnTitle!r} must exist in {path}.")
+    identity_column = header.index("line number")
+    target = next((row for row in rows if row[identity_column] == str(lineNum)), None)
+    if target is None:
+        raise CSVRowNotFoundError(f"Subject line number {lineNum} not found in {path}.")
+    target[header.index(columnTitle)] = str(data)
+    _write_csv_atomically(path, header, rows, bom)
 
 
 def append_row_csv(data: dict[str, Any], filename: str | Path) -> None:
@@ -283,9 +359,15 @@ def append_row_csv(data: dict[str, Any], filename: str | Path) -> None:
         data: Dictionary of data to be added to the csv file
         filename: Name of the CSV file to write to.
     """
-    file_exists = os.path.exists(filename)
-    with open(filename, "a", newline="") as file:
-        writer = csv.DictWriter(file, fieldnames=list(data.keys()))
-        if not file_exists:
-            writer.writeheader()
-        writer.writerow(data)
+    path = Path(filename)
+    header, rows, bom = _read_writable_table(path) if path.exists() else (list(data), [], False)
+    if not header or set(data) != set(header):
+        raise ValueError(f"Appended row must have exactly the existing columns in {path}.")
+    if "" in data and str(data[""]).strip():
+        raise ValueError(f"Unnamed spacer columns must remain empty in {path}.")
+    row = [str(data[key]) for key in header]
+    if "line number" in header:
+        index = header.index("line number")
+        if not row[index] or row[index] != row[index].strip() or any(old[index] == row[index] for old in rows):
+            raise ValueError(f"Appended experiment number must be non-blank, unique, and have no outer spaces: {path}.")
+    _write_csv_atomically(path, header, [*rows, row], bom)
