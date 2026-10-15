@@ -1,5 +1,8 @@
 import ast
+import csv
 import json
+import os
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -14,25 +17,33 @@ import pandas as pd
 # Extend via the ``extra_string_columns`` parameter to :meth:`CSVWorker.convert_data_types`
 # rather than by modifying this set — that keeps schema evolution localised
 # to the call site without touching shared code.
-STRING_COLUMNS: frozenset = frozenset({
-    'id',
-    'calcium imaging directory',
-    'ephys directory',
-    'method_deconvolution',
-    'method_init',
-    'border_nan',
-    'comments',
-})
+STRING_COLUMNS: frozenset = frozenset(
+    {
+        "id",
+        "calcium imaging directory",
+        "ephys directory",
+        "method_deconvolution",
+        "method_init",
+        "border_nan",
+        "comments",
+    }
+)
 
 # Columns whose string value should be split on ';' to produce a list.
-SEMICOLON_LIST_COLUMNS: frozenset = frozenset({
-    'LFP and EEG CSCs',
-})
+SEMICOLON_LIST_COLUMNS: frozenset = frozenset(
+    {
+        "LFP and EEG CSCs",
+    }
+)
+
+
+class CSVRowNotFoundError(ValueError):
+    """An otherwise valid CSV has no row for the requested experiment."""
 
 
 class CSVWorker:
     """Utility class for reading and parsing experiment CSV files.
-    
+
     Provides static methods to load rows from CSV files and convert
     string values to appropriate Python data types.
     """
@@ -40,14 +51,14 @@ class CSVWorker:
     @staticmethod
     def csv_row_to_dict(csv_file: str | Path, line_num: int | str) -> dict[str, Any] | None:
         """Load a single row from a CSV file as a dictionary.
-        
+
         Args:
             csv_file: Path to the CSV file.
             line_num: Line number to extract (matched against 'line number' column).
-            
+
         Returns:
             Dict mapping column names to cell values, or None on error.
-        
+
         Raises:
             ValueError: If the CSV is malformed or the line number is not found.
         """
@@ -61,34 +72,30 @@ class CSVWorker:
         # the disk is only touched a single time per call (this method runs once
         # per subject for both experiments.csv and analysis_parameters.csv).
         try:
-            text = path_obj.read_text()
+            # read_text normalizes CRLF, including inside quoted notes. Decode
+            # once without newline translation so cell text is preserved.
+            text = path_obj.read_bytes().decode("utf-8-sig")
         except FileNotFoundError:
             print(f"File {csv_file} not found")
             return None
 
         # Validate CSV structure before pandas parses it.
-        reader = csv_mod.reader(io.StringIO(text))
+        reader = csv_mod.reader(io.StringIO(text, newline=""), strict=True)
         try:
             header = next(reader)
         except StopIteration:
             return None  # empty file
-        for row_num, data_row in enumerate(reader, start=2):
-            if not any(data_row):  # skip empty rows
-                continue
-            if len(data_row) != len(header):
-                raise ValueError(
-                    f"CSV malformed: '{csv_file}' row {row_num} has "
-                    f"{len(data_row)} fields but the header has {len(header)} columns. "
-                    f"This usually means there is a trailing comma or an unquoted "
-                    f"comma inside a value (e.g., coordinate tuples must be "
-                    f"quoted: \"(x0, y0, x1, y1)\")."
-                )
+        except csv.Error as exc:
+            raise ValueError(f"CSV malformed: '{csv_file}': {exc}") from exc
+        _validate_csv_rows(header, reader, path_obj, allow_empty_columns=True)
 
         try:
-            df = pd.read_csv(io.StringIO(text))
+            # Coercion belongs exclusively to convert_data_types. Pandas' NA
+            # inference and float coercion otherwise destroy IDs and Box IDs.
+            df = pd.read_csv(io.StringIO(text, newline=""), dtype=str, keep_default_na=False)
 
             # Check for the required 'line number' column before querying.
-            if 'line number' not in df.columns:
+            if "line number" not in df.columns:
                 available = list(df.columns)
                 raise ValueError(
                     f"Required column 'line number' not found in {csv_file}.\n"
@@ -100,21 +107,20 @@ class CSVWorker:
                 )
 
             line_num_str = str(line_num)
-            row = df.loc[df['line number'].astype(str) == line_num_str]
+            row = df.loc[df["line number"].astype(str) == line_num_str]
             if row.empty:
-                raise ValueError(
+                raise CSVRowNotFoundError(
                     f"Subject line number {line_num} not found in {csv_file}.\n"
                     "  Check that the 'line number' column contains this value "
                     "and that there are no leading/trailing spaces."
                 )
-            res = row.squeeze()
-            if hasattr(res, 'to_dict'):
+            res = row.iloc[0]
+            if hasattr(res, "to_dict"):
                 return cast(dict[str, Any], res.to_dict())
             return None
         except (pd.errors.EmptyDataError, pd.errors.ParserError) as e:
             print(f"Error parsing CSV {csv_file}: {e}")
             return None
-
 
     @staticmethod
     def convert_data_types(
@@ -182,17 +188,24 @@ class CSVWorker:
                 return raw_value
 
         # Date conversion
-        if key == 'date (YYMMDD)':
+        if key == "date (YYMMDD)":
             return CSVWorker._convert_date(raw_value)
 
         # Ensure raw_value is a string for further processing
         if not isinstance(raw_value, str):
             return raw_value
 
+        # Match the former pandas missing-value handling for optional numeric
+        # settings. String-designated columns bypass this conversion entirely.
+        if raw_value.strip().lower() in {"na", "n/a", "null", "nan"}:
+            return None
+
         # NEW: Preprocess tuple-like strings for JSON
-        processed_value = raw_value.strip().replace(" ", "")
+        # JSON and literal_eval already allow formatting whitespace. Removing
+        # internal spaces would also corrupt text inside lists and dictionaries.
+        processed_value = raw_value.strip()
         if processed_value.startswith("(") and processed_value.endswith(")"):
-            processed_value = f'[{processed_value[1:-1]}]'
+            processed_value = f"[{processed_value[1:-1]}]"
 
         # Attempt JSON parsing
         try:
@@ -208,13 +221,13 @@ class CSVWorker:
 
         # Check for boolean strings
         lower_val = raw_value.lower()
-        if lower_val == 'true':
+        if lower_val == "true":
             return True
-        elif lower_val == 'false':
+        elif lower_val == "false":
             return False
 
         # Check for None/empty
-        elif lower_val == 'none' or raw_value.strip() == '':
+        elif lower_val == "none" or raw_value.strip() == "":
             return None
 
         # Attempt float conversion
@@ -223,15 +236,14 @@ class CSVWorker:
         except ValueError:
             return raw_value
 
-
     @staticmethod
     def _convert_date(date_str: Any) -> datetime | Any:
         """
         Converts a date string in the format YYMMDD to a datetime object.
-        
+
         Args:
             date_str: The date string or float to be converted.
-        
+
         Returns:
             datetime: The converted datetime object, or the original value if conversion fails.
         """
@@ -240,6 +252,122 @@ class CSVWorker:
                 date_str = str(int(date_str))
             if not isinstance(date_str, str):
                 date_str = str(date_str)
-            return datetime.strptime(date_str, '%y%m%d')
+            return datetime.strptime(date_str, "%y%m%d")
         except ValueError:
             return date_str
+
+
+def _validate_csv_rows(
+    header: list[str], reader: Any, path: Path, *, allow_empty_columns: bool = False
+) -> list[list[str]]:
+    named_columns = [name for name in header if name]
+    unnamed_columns = [index for index, name in enumerate(header) if not name]
+    if (
+        not header
+        or any(not name.strip() for name in named_columns)
+        or len(set(named_columns)) != len(named_columns)
+        or (unnamed_columns and not allow_empty_columns)
+    ):
+        raise ValueError(f"CSV malformed: '{path}' column names must be non-empty and unique.")
+    rows = []
+    seen = set()
+    identity_column = header.index("line number") if "line number" in header else None
+    try:
+        for row in reader:
+            if not any(value.strip() for value in row):
+                continue
+            if len(row) != len(header):
+                raise ValueError(
+                    f"CSV malformed: '{path}' row {reader.line_num} has {len(row)} fields "
+                    f"but the header has {len(header)} columns. Check quoting and trailing commas."
+                )
+            # Some historical lab CSVs have spacer columns with no header.
+            # Preserve those only when they carry no data; populated unnamed
+            # columns are ambiguous and must never be silently discarded.
+            if any(row[index].strip() for index in unnamed_columns):
+                raise ValueError(f"CSV malformed: '{path}' populated columns must have non-empty, unique names.")
+            if identity_column is not None:
+                number = row[identity_column]
+                if not number or number != number.strip():
+                    raise ValueError(f"CSV malformed: '{path}' experiment number is blank or contains outer spaces.")
+                if number in seen:
+                    raise ValueError(f"CSV malformed: '{path}' experiment number {number} occurs more than once.")
+                seen.add(number)
+            rows.append(row)
+    except csv.Error as exc:
+        raise ValueError(f"CSV malformed: '{path}': {exc}") from exc
+    return rows
+
+
+def _read_writable_table(path: Path) -> tuple[list[str], list[list[str]], bool]:
+    content = path.read_bytes()
+    import io
+
+    reader = csv.reader(io.StringIO(content.decode("utf-8-sig"), newline=""), strict=True)
+    try:
+        header = next(reader, [])
+    except csv.Error as exc:
+        raise ValueError(f"CSV malformed: '{path}': {exc}") from exc
+    return (
+        header,
+        _validate_csv_rows(header, reader, path, allow_empty_columns=True),
+        content.startswith(b"\xef\xbb\xbf"),
+    )
+
+
+def _write_csv_atomically(path: Path, header: list[str], rows: list[list[str]], bom: bool = False) -> None:
+    """Replace a complete validated table; a failed write leaves the original."""
+    fd, name = tempfile.mkstemp(dir=path.parent, prefix=".ace-csv-", suffix=".tmp")
+    staged = Path(name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8-sig" if bom else "utf-8", newline="") as handle:
+            writer = csv.writer(handle, lineterminator="\n")
+            writer.writerows([header, *rows])
+            handle.flush()
+            os.fsync(handle.fileno())
+        if path.exists():
+            os.chmod(staged, path.stat().st_mode & 0o777)
+        os.replace(staged, path)
+    finally:
+        staged.unlink(missing_ok=True)
+
+
+def update_csv_cell(data: Any, columnTitle: str, lineNum: int | str, csvFile: str | Path) -> None:
+    """Update a single cell in a CSV file.
+
+    Args:
+        data: New value to write.
+        columnTitle: Column header name.
+        lineNum: Line number to update.
+        csvFile: Path to CSV file.
+    """
+    path = Path(csvFile)
+    header, rows, bom = _read_writable_table(path)
+    if "line number" not in header or not columnTitle.strip() or columnTitle not in header:
+        raise ValueError(f"Required columns 'line number' and {columnTitle!r} must exist in {path}.")
+    identity_column = header.index("line number")
+    target = next((row for row in rows if row[identity_column] == str(lineNum)), None)
+    if target is None:
+        raise CSVRowNotFoundError(f"Subject line number {lineNum} not found in {path}.")
+    target[header.index(columnTitle)] = str(data)
+    _write_csv_atomically(path, header, rows, bom)
+
+
+def append_row_csv(data: dict[str, Any], filename: str | Path) -> None:
+    """Appends a new row to a CSV file.
+    Args:
+        data: Dictionary of data to be added to the csv file
+        filename: Name of the CSV file to write to.
+    """
+    path = Path(filename)
+    header, rows, bom = _read_writable_table(path) if path.exists() else (list(data), [], False)
+    if not header or set(data) != set(header):
+        raise ValueError(f"Appended row must have exactly the existing columns in {path}.")
+    if "" in data and str(data[""]).strip():
+        raise ValueError(f"Unnamed spacer columns must remain empty in {path}.")
+    row = [str(data[key]) for key in header]
+    if "line number" in header:
+        index = header.index("line number")
+        if not row[index] or row[index] != row[index].strip() or any(old[index] == row[index] for old in rows):
+            raise ValueError(f"Appended experiment number must be non-blank, unique, and have no outer spaces: {path}.")
+    _write_csv_atomically(path, header, [*rows, row], bom)

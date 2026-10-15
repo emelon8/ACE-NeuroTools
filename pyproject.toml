@@ -1,20 +1,20 @@
 [build-system]
-requires = ["setuptools>=77.0", "setuptools-scm>=8.0"]
+requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 
 [project]
 name = "aceneurotools"
 version = "0.1.0"
-description = "Analysis of Calcium Imaging and Electrophysiology — integrated pipelines for calcium imaging, electrophysical, and multimodal alignment."
+description = "Analysis of calcium imaging and electrophysiology with multimodal alignment."
 readme = "README.md"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [
     { name = "Reed Pennock" },
+    { name = "Luke Richards" },
     { name = "Eric Melonakos" },
-    { name = "Elijah Keldsen" },
 ]
 keywords = [
     "neuroscience",
@@ -49,7 +49,6 @@ dependencies = [
     "neo>=0.12",
     "quantities>=0.14",
     "joblib>=1.2",
-    "caiman>=1.11",
     "freesimplegui>=5.0",
     "Pillow>=9.0",
     "rich>=13",
@@ -62,18 +61,25 @@ ace-neuro = "aceneurotools.cli:main"
 box = [
     "box-sdk-gen>=1.0",
 ]
-# Optional accelerated coherogram path in multimodal.coherence_analysis
-# (falls back to a pure-scipy implementation when these are absent).
+# Optional coherogram plotting stack. Welch coherence statistics use SciPy.
+# Plotting requires an xrscipy version exposing signal.spectral.coherogram;
+# versions without that API warn and omit the optional coherogram plot.
 coherence = [
     "xarray>=2023.1",
     "xrscipy>=2.2",
 ]
 dev = [
+    "build>=1.2",
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "ruff>=0.4",
     "pyrefly",
+    "hypothesis>=6.0",
+    "PyYAML>=6.0",
+
+    "twine>=5.0",
 ]
+# Keep in sync with docs/requirements.txt (used by Read the Docs).
 docs = [
     "mkdocs-material>=9.0",
     "mkdocstrings[python]>=0.24",
@@ -86,10 +92,10 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/emelon8/experiment_analysis"
-Documentation = "https://aceneurotools.readthedocs.io/en/latest/"
-Repository = "https://github.com/emelon8/experiment_analysis"
-"Bug Tracker" = "https://github.com/emelon8/experiment_analysis/issues"
+Homepage = "https://github.com/emelon8/ACE-NeuroTools"
+Documentation = "https://github.com/emelon8/ACE-NeuroTools/tree/proj-comenius/docs"
+Repository = "https://github.com/emelon8/ACE-NeuroTools"
+"Bug Tracker" = "https://github.com/emelon8/ACE-NeuroTools/issues"
 
 
 # Setuptools
@@ -97,17 +103,18 @@ Repository = "https://github.com/emelon8/experiment_analysis"
 where = ["src"]
 
 [tool.setuptools.package-data]
-aceneurotools = ["py.typed", "shared/metadata_templates/*.csv"]
+aceneurotools = ["py.typed", "shared/metadata_templates/*.csv", "evc/schemas/*.json"]
 
 
 # Pytest
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-addopts = "-v --tb=short --strict-markers"
+addopts = "-v --tb=short --strict-markers --strict-config"
 markers = [
     "slow: full Miniscope CNMF-E pipeline on sample data (excluded from default CI)",
     "integration: heavier integration-level tests",
+    "requires_caiman: needs the compiled neuroscience CaImAn environment",
 ]
 
 # Coverage (pytest-cov / coverage.py)

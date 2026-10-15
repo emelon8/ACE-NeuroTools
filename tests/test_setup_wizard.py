@@ -3,9 +3,6 @@
 from __future__ import annotations
 
 import builtins
-from pathlib import Path
-
-import pytest
 
 from aceneurotools.cli import _setup_wizard, _tutorial
 

@@ -1,6 +1,7 @@
 """
 V3 Miniscope Data Manager
 """
+
 import csv
 import json
 from pathlib import Path
@@ -25,7 +26,7 @@ class UCLADataManager(MiniscopeDataManager):
         if not dir_path.exists():
             return False
         # Search for any metaData*.json or timeStamps*.csv
-        return len(list(dir_path.rglob('metaData*.json'))) > 0 or len(list(dir_path.rglob('timeStamps*.csv'))) > 0
+        return len(list(dir_path.rglob("metaData*.json"))) > 0 or len(list(dir_path.rglob("timeStamps*.csv"))) > 0
 
     def _get_miniscope_metadata(self) -> dict[str, Any]:
         """
@@ -54,15 +55,15 @@ class UCLADataManager(MiniscopeDataManager):
                 raise DataImportError(f"Error reading or parsing metadata file '{metadata_path}': {e}") from e
 
             # If 'frameRate' exists, try to convert it to a float
-            if 'frameRate' in metadata:
-                value = metadata['frameRate']
+            if "frameRate" in metadata:
+                value = metadata["frameRate"]
                 if not isinstance(value, (int, float)):
                     try:
-                        metadata['frameRate'] = float(value)
+                        metadata["frameRate"] = float(value)
                     except ValueError:
-                        cleaned_value = str(value).replace('FPS', '').strip()
+                        cleaned_value = str(value).replace("FPS", "").strip()
                         try:
-                            metadata['frameRate'] = float(cleaned_value)
+                            metadata["frameRate"] = float(cleaned_value)
                         except ValueError:
                             raise ValueError(f"Unable to convert frameRate value '{value}' to float.")
         return metadata
@@ -73,7 +74,7 @@ class UCLADataManager(MiniscopeDataManager):
         file_path = str(file_path_raw)
         time_stamps: list[float] = []
         frame_numbers: list[int] = []
-        with open(file_path, newline='') as t:
+        with open(file_path, newline="") as t:
             next(t)
             reader = csv.reader(t)
             for row in reader:
@@ -84,51 +85,50 @@ class UCLADataManager(MiniscopeDataManager):
 
     def _get_miniscope_events(self) -> dict[str, list[Any] | np.ndarray]:
         """Import calcium imaging experiment events."""
-        if self.metadata is None or 'calcium imaging directory' not in self.metadata:
+        if self.metadata is None or "calcium imaging directory" not in self.metadata:
             print("Warning: Metadata or calcium imaging directory missing. Cannot load events.")
-            return {'timestamps': [], 'labels': []}
+            return {"timestamps": [], "labels": []}
 
-        miniscope_events_filepaths = PathFinder.find(str(self.metadata['calcium imaging directory']), '.csv', 'notes')
+        miniscope_events_filepaths = PathFinder.find(str(self.metadata["calcium imaging directory"]), ".csv", "notes")
 
         if miniscope_events_filepaths is not None and len(miniscope_events_filepaths) == 1:
             miniscope_events_filepath = str(miniscope_events_filepaths[0])
         elif miniscope_events_filepaths is not None and len(miniscope_events_filepaths) > 1:
-            raise ValueError('Found multiple event files')
+            raise ValueError("Found multiple event files")
         else:
-             # Just return empty if none so it doesn't crash if it's optional
+            # Just return empty if none so it doesn't crash if it's optional
             miniscope_events_filepath = None
 
         miniscope_events: dict[str, Any] = {}
-        miniscope_events['timestamps'] = []
-        miniscope_events['labels'] = []
+        miniscope_events["timestamps"] = []
+        miniscope_events["labels"] = []
 
         if miniscope_events_filepath:
             try:
-                with open(miniscope_events_filepath, newline='') as t:
+                with open(miniscope_events_filepath, newline="") as t:
                     next(t)
                     reader = csv.reader(t)
                     for row in reader:
-                        miniscope_events['timestamps'].append(int(row[0]))
-                        miniscope_events['labels'].append(row[1])
-                miniscope_events['timestamps'] = np.divide(np.asarray(miniscope_events['timestamps']), 1000)  # converts from ms to s
+                        miniscope_events["timestamps"].append(int(row[0]))
+                        miniscope_events["labels"].append(row[1])
+                miniscope_events["timestamps"] = np.divide(
+                    np.asarray(miniscope_events["timestamps"]), 1000
+                )  # converts from ms to s
             except (OSError, IndexError, ValueError, csv.Error) as e:
                 print(f"Failed to extract events from notes.csv ({e}). Storing an empty dictionary...")
 
         return miniscope_events
 
     def sync_timestamps(
-        self,
-        ephys_dm: Any | None = None,
-        channel_name: str | None = None,
-        **kwargs: Any
+        self, ephys_dm: Any | None = None, channel_name: str | None = None, **kwargs: Any
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Synchronize V3 miniscope frame timestamps to ephys time using TTL pulses.
-        
+
         Args:
             ephys_dm: EphysDataManager instance to extract TTL sync pulses from.
             channel_name: Optional specific channel name from ephys_dm (defaults to first available).
-            
+
         Returns:
             Tuple of synced calcium timestamps and low confidence periods.
         """
@@ -144,9 +144,9 @@ class UCLADataManager(MiniscopeDataManager):
 
         print("Checking for missing TTL pulses in V3 data...")
         low_confidence_periods = np.empty((0, 2))
-        threshold = kwargs.get('threshold', 0.065)
-        fix_TTL_gaps = kwargs.get('fix_TTL_gaps', False)
-        delete_TTLs = kwargs.get('delete_TTLs', True)
+        threshold = kwargs.get("threshold", 0.065)
+        fix_TTL_gaps = kwargs.get("fix_TTL_gaps", False)
+        delete_TTLs = kwargs.get("delete_TTLs", True)
 
         # Check for gaps between TTLs. Since we only extracted the ON pulses,
         # consecutive pulses should be separated by ~1/fps seconds.
@@ -161,15 +161,15 @@ class UCLADataManager(MiniscopeDataManager):
             flippedidx_TTL_gap = np.flip(idx_TTL_gap)
             for gap_idx in flippedidx_TTL_gap:
                 gap_duration = dtCaIm[gap_idx]
-                if self.metadata is not None and 'frameRate' in self.metadata:
-                    expected_frame_duration = 1.0 / float(self.metadata['frameRate'])
+                if self.metadata is not None and "frameRate" in self.metadata:
+                    expected_frame_duration = 1.0 / float(self.metadata["frameRate"])
                 else:
                     expected_frame_duration = 0.0333  # default 30 fps
                 gap_length = int(np.round(gap_duration / expected_frame_duration))
                 print(f"{gap_length - 1} TTL event(s) missing between indices {gap_idx} and {gap_idx + 1}.")
 
                 # Interpolate estimated event times
-                estimated_event_times = np.linspace(tCaIm[gap_idx], tCaIm[gap_idx+1], gap_length + 1)
+                estimated_event_times = np.linspace(tCaIm[gap_idx], tCaIm[gap_idx + 1], gap_length + 1)
                 tCaIm = np.insert(tCaIm, gap_idx + 1, estimated_event_times[1:-1])
                 low_confidence_periods = np.append(low_confidence_periods, [[gap_idx, gap_idx + gap_length]], axis=0)
         else:
@@ -180,8 +180,12 @@ class UCLADataManager(MiniscopeDataManager):
             )
 
         # Optional: drop TTLs according to analysis parameters
-        if delete_TTLs and self.analysis_params and self.analysis_params.get('indices of TTL events to delete') is not None:
-            indices_to_delete = self.analysis_params['indices of TTL events to delete']
+        if (
+            delete_TTLs
+            and self.analysis_params
+            and self.analysis_params.get("indices of TTL events to delete") is not None
+        ):
+            indices_to_delete = self.analysis_params["indices of TTL events to delete"]
             if len(indices_to_delete) > 0:
                 print(f"Deleting the following annotated dropped TTL indices: {indices_to_delete}")
                 tCaIm = np.delete(tCaIm, indices_to_delete)

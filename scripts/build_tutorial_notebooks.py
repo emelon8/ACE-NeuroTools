@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Regenerate pipeline tutorial notebooks (used during development)."""
+
 from __future__ import annotations
 
 import json
+from hashlib import sha1
 from pathlib import Path
 
 
@@ -20,10 +22,11 @@ def make_nb(cells: list[tuple[str, str]]) -> dict:
         },
         "cells": [],
     }
-    for kind, text in cells:
+    for index, (kind, text) in enumerate(cells):
+        cell_id = sha1(f"{index}:{kind}:{text}".encode()).hexdigest()[:20]
         if kind == "md":
             lines = text.splitlines(keepends=True) or [text]
-            out["cells"].append({"cell_type": "markdown", "metadata": {}, "source": lines})
+            out["cells"].append({"cell_type": "markdown", "id": cell_id, "metadata": {}, "source": lines})
         else:
             lines = [ln + "\n" for ln in text.split("\n")]
             if lines and lines[-1] == "\n":
@@ -31,6 +34,7 @@ def make_nb(cells: list[tuple[str, str]]) -> dict:
             out["cells"].append(
                 {
                     "cell_type": "code",
+                    "id": cell_id,
                     "metadata": {},
                     "execution_count": None,
                     "outputs": [],
@@ -57,7 +61,7 @@ Hands-on walkthrough of **electrophysiology** loading and analysis: metadata fro
 
 **Audience:** You have a project directory with `experiments.csv` and `analysis_parameters.csv`, plus Neuralynx (or compatible) data under a shared raw-data root.
 
-**Published docs:** after syncing notebooks ([contributing](https://aceneurotools.readthedocs.io/en/latest/getting_started/)), these render under the site *Tutorials* tab.
+**Documentation preview:** after syncing notebooks ([getting started](https://github.com/emelon8/ACE-NeuroTools/blob/main/docs/getting_started.md)), these render under the site *Tutorials* tab.
 """,
         ),
         (
@@ -72,7 +76,7 @@ Hands-on walkthrough of **electrophysiology** loading and analysis: metadata fro
         ),
         (
             "md",
-            """## Project layout: `project_path` vs `data_path`
+            """## Project layout: project_path vs data_path
 
 | Variable | Role |
 |----------|------|
@@ -145,9 +149,9 @@ print("ephys directory (resolved):", edm.get_ephys_directory())
         ),
         (
             "md",
-            """### Step 1 — Verify raw data (`file_downloader.verify_file_by_line`)
+            """### Step 1 — Verify raw data (file_downloader.verify_file_by_line)
 
-Mirrors [EphysPipeline.run](https://aceneurotools.readthedocs.io/en/latest/api/pipelines/). Ensures ephys files for this `line_num` exist under `data_path`.
+Mirrors [EphysPipeline.run](https://github.com/emelon8/ACE-NeuroTools/blob/main/docs/api/pipelines.md). Ensures ephys files for this `line_num` exist under `data_path`.
 """,
         ),
         (
@@ -165,7 +169,7 @@ file_downloader.verify_file_by_line(
         ),
         (
             "md",
-            """### Step 2 — Import ephys block (`EphysDataManager.create`)
+            """### Step 2 — Import ephys block (EphysDataManager.create)
 
 Auto-selects backend from the folder layout. Processing is a separate step so you can see the object between import and channel extraction.
 """,
@@ -188,7 +192,7 @@ ephys_dm = EphysDataManager.create(
         ),
         (
             "md",
-            """### Step 3 — `process_ephys_block_to_channels`
+            """### Step 3 — process_ephys_block_to_channels
 
 Builds `Channel` objects for each requested CSC name (`channel_name` must exist in metadata).
 """,
@@ -205,7 +209,7 @@ print("has signal:", ch0.signal is not None, "n:", len(ch0.signal) if ch0.signal
         ),
         (
             "md",
-            """### Step 4 — Bandpass (`filter_ephys`)
+            """### Step 4 — Bandpass (filter_ephys)
 
 **`EphysPipeline.run` only filters when `filter_type` is not `None`.** Here we call `filter_ephys` directly with `replace_signal=False` (pipeline default): filtered samples go to `signal_filtered`.
 """,
@@ -219,9 +223,9 @@ assert ch.signal_filtered is not None
         ),
         (
             "md",
-            """### Step 5 — Phase (`compute_phases_all_channels`)
+            """### Step 5 — Phase (compute_phases_all_channels)
 
-Typically run **after** bandpass so phase reflects the band of interest.
+This method computes phases from `channel.signal`. The previous step used `replace_signal=False`, so these phases describe the unfiltered signal. To obtain band-specific phases, deliberately replace `channel.signal` before computing phases.
 """,
         ),
         (
@@ -232,7 +236,7 @@ ch = ephys_dm.get_channel(channel_name)
         ),
         (
             "md",
-            """### Step 6 — `ChannelWorker` plots
+            """### Step 6 — ChannelWorker plots
 
 `plot_channel`, `plot_spectrogram`, and `plot_phases` match the flags on `EphysPipeline.run`. Uncomment in a desktop session if your backend is interactive.
 """,
@@ -390,7 +394,7 @@ print("analysis params keys (sample):", list(edm.analysis_params.keys())[:12] if
         ),
         (
             "md",
-            """### Step 1 — `filenames` and `headless`
+            """### Step 1 — filenames and headless
 
 `filenames` must list movies to load (CLI default pattern: `["0.avi"]`). **`headless=True`** skips interactive crop and curation GUIs — use **`analysis_parameters.csv`** for `crop_coords` when headless.
 """,
@@ -402,7 +406,7 @@ print("analysis params keys (sample):", list(edm.analysis_params.keys())[:12] if
         ),
         (
             "md",
-            """### Step 2 — Create data manager (`MiniscopeDataManager.create`)
+            """### Step 2 — Create data manager (MiniscopeDataManager.create)
 
 `ONIX` vs `UCLA`-style acquisition is inferred from your data layout.
 """,
@@ -423,7 +427,7 @@ print("frame rate:", getattr(dm, "fr", None))
         ),
         (
             "md",
-            """### Step 3 — Preprocess (`MiniscopePreprocessor`)
+            """### Step 3 — Preprocess (MiniscopePreprocessor)
 
 Crop coordinates come from **`analysis_parameters.csv`** / GUI when `crop_coords` is None. Below mirrors pipeline defaults you can tune.
 """,
@@ -431,7 +435,7 @@ Crop coordinates come from **`analysis_parameters.csv`** / GUI when `crop_coords
         (
             "code",
             """from aceneurotools.miniscope.miniscope_preprocessor import MiniscopePreprocessor
-from aceneurotools.shared.misc_functions import get_coords_dict_from_analysis_params
+from aceneurotools.config.config_utils import get_coords_dict_from_analysis_params
 
 coords_dict, crop_job_name = get_coords_dict_from_analysis_params(dm)
 pre = MiniscopePreprocessor(dm)
@@ -450,7 +454,7 @@ dm = pre.preprocess_calcium_movie(
         ),
         (
             "md",
-            """### Step 4 — Process (`MiniscopeProcessor`)
+            """### Step 4 — Process (MiniscopeProcessor)
 
 Heavy steps: motion correction (optional) and CNMF-E. For a quick notebook test, set `run_CNMFE=False` (you will not get spatial components until CNMF-E runs).
 """,
@@ -475,7 +479,7 @@ dm = proc.process_calcium_movie(
         ),
         (
             "md",
-            """### Step 5 — Postprocess (`MiniscopePostprocessor`)
+            """### Step 5 — Postprocess (MiniscopePostprocessor)
 
 Runs only if `dm.CNMFE_obj` is not None. With `headless=True`, component-removal GUI is skipped (see `MiniscopePipeline.run`).
 """,
@@ -512,7 +516,7 @@ else:
             "md",
             """### Step 6 — Inspect results
 
-Common fields after a full run: `Cn`, `ca_events_idx`, `miniscope_phases`.
+Inspect component traces through `dm.CNMFE_obj.estimates.C`, events through `ca_events_idx`, and projections/phases through the data manager. Event indices use the detector's derivative coordinates without a frame offset. Phases and spectra are computed before temporal-projection filtering; `inline=True` replaces only the final projection. Headless pipeline runs respect this setting. The GUI can save curated estimates and recompute events in a separate export, with an explicit output inventory for its completed runs.
 """,
         ),
         (
@@ -530,7 +534,7 @@ else:
         ),
         (
             "md",
-            """### Step 7 — One-shot `MiniscopePipeline.run`
+            """### Step 7 — One-shot MiniscopePipeline.run
 
 Equivalent to chaining the three stages with shared kwargs.
 """,
@@ -559,6 +563,36 @@ print("Cn:", getattr(dm2, "Cn", None) is not None)
 - **Headless:** GUIs for crop and curation are disabled — provide `crop_coords` or pre-filled `analysis_parameters.csv`.
 - **Memory:** CNMF-E is heavy; reduce `n_processes`, crop harder, or shorten movies for learning runs.
 """,
+        ),
+        (
+            "md",
+            """## Optional: experiment history (version control)
+
+ACE-NeuroTools can keep a git-like history of an experiment's parameters and
+result manifests, so any figure traces back to the exact settings that
+produced it and lost edits are always recoverable. It is opt-in and never
+stores bulk data (movies, `.hdf5`) — see the
+[Experiment History guide](../guides/experiment_history.md) for the axioms.
+""",
+        ),
+        (
+            "code",
+            """from aceneurotools.evc import ExperimentVersionControl
+
+# One-time setup inside an experiment directory (also scaffolds
+# parameters/ results/ artifacts/ and a safe-default .evc/ignore):
+evc = ExperimentVersionControl.init(project_path, workspace=True)
+
+# Record the current parameters as a revision, then inspect history.
+evc.record("initial parameters")
+for rev in evc.history():
+    print(rev.oid[:12], rev.message)
+
+# Same operations from the shell:
+#   ace-neuro history record -m "initial parameters"
+#   ace-neuro history log
+#   ace-neuro history diff <rev-a> <rev-b>   # per-parameter changes
+#   ace-neuro history restore <rev>          # never destroys""",
         ),
     ]
 
@@ -590,6 +624,8 @@ Pick **`line_num`** only for recordings that actually have both streams populate
             "code",
             """from pathlib import Path
 
+from aceneurotools.shared.experiment_data_manager import ExperimentDataManager
+
 project_path = Path("/path/to/your/project")
 data_path = Path("/path/to/your/raw_data")
 line_num = 97
@@ -602,8 +638,6 @@ for label, p in ("experiments.csv", project_path / "experiments.csv"), (
 ):
     if not p.is_file():
         raise FileNotFoundError(f"Missing {label} at {p}")
-
-from aceneurotools.shared.experiment_data_manager import ExperimentDataManager
 
 edm = ExperimentDataManager(line_num, project_path=project_path, data_path=data_path)
 print("ephys dir:", edm.get_ephys_directory())
@@ -650,7 +684,7 @@ print("Alignment timestamps shape:", None if mm.t_ca_im is None else getattr(mm.
         ),
         (
             "md",
-            """### Step 2 — Outputs on `MultimodalPipeline`
+            """### Step 2 — Outputs on MultimodalPipeline
 
 After `run()`, use **`mm.ephys_pipeline`** / **`mm.miniscope_pipeline`** for modality-specific state, and the alignment fields below for cross-modal analysis.
 """,
@@ -697,7 +731,7 @@ if mm.phase_hist_miniscope is not None and mm.phase_bin_edges_miniscope is not N
         ),
         (
             "md",
-            """## Internals (same as `MultimodalPipeline.run`)
+            """## Internals (same as MultimodalPipeline.run)
 
 1. `EphysPipeline.run` → `MiniscopePipeline.run`
 2. `sync_neuralynx_miniscope_timestamps` — `delete_TTLs`, `fix_TTL_gaps`, `only_experiment_events`

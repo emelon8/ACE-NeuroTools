@@ -11,9 +11,12 @@ build/
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
+/cache/
 .coverage
 .coverage.*
 htmlcov/
+.hypothesis/
+/reports/
 
 # Project-specific
 experiments.csv
@@ -28,6 +31,12 @@ src/aceneurotools/shared/box_credentials.py
 /experiments_template.csv
 /lab_config.json
 /stats_config.json
+/.ace-gui-install.json
+/setup.log
+/Open ACE Experiments.command
+/Open ACE Experiments.cmd
+/Open ACE Experiments.sh
+/.ace-install-test/
 
 # MkDocs — build output only (source lives in docs/)
 site/
@@ -52,3 +61,19 @@ CLAUDE.local.md
 .anthropic/
 memory/
 MEMORY.md
+
+# Local agent workspace: collective memory + vision transcript (never committed)
+.comenius/
+
+# GUI CSV backups, preserved analysis runs, and preview thumbnails stay in their local project.
+.ace-gui-backups/
+.ace-runs/
+.ace-previews/
+
+# Embedded neuron decisions and non-destructive curation exports.
+.ace-neuron-reviews/
+.ace-curations/
+
+# Local GUI dependencies and demo data
+gui/node_modules/
+gui/.demo/

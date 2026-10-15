@@ -1,0 +1,23 @@
+{
+  "minimum_total": 62,
+  "files": {
+    "src/aceneurotools/config/lab_config.py": 77,
+    "src/aceneurotools/config/config_utils.py": 85,
+    "src/aceneurotools/evc/objects.py": 88,
+    "src/aceneurotools/evc/store.py": 90,
+    "src/aceneurotools/evc/refs.py": 93,
+    "src/aceneurotools/evc/pointers.py": 90,
+    "src/aceneurotools/shared/csv_worker.py": 85,
+    "src/aceneurotools/shared/file_io.py": 95,
+    "src/aceneurotools/shared/multitaper_spectrogram_python.py": 93,
+    "src/aceneurotools/multimodal/phase_utils.py": 91,
+    "src/aceneurotools/stats/coherence_analysis.py": 80,
+    "src/aceneurotools/stats/scatter_analysis.py": 72,
+    "src/aceneurotools/stats/loader.py": 90,
+    "src/aceneurotools/evc/api.py": 100,
+    "src/aceneurotools/stats/perievent.py": 83,
+    "src/aceneurotools/stats/event_correlograms.py": 84,
+    "src/aceneurotools/stats/surrogate.py": 94,
+    "src/aceneurotools/stats/wavelets.py": 95
+  }
+}

@@ -1,0 +1,17 @@
+subdirs:
+  linux-64:
+    packages:
+      __glibc: "2.17"
+      __linux: "0"
+      __unix: "0"
+  win-64:
+    packages:
+      __win: "0"
+  osx-64:
+    packages:
+      __osx: "11.0"
+      __unix: "0"
+  osx-arm64:
+    packages:
+      __osx: "11.0"
+      __unix: "0"

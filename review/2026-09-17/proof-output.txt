@@ -1,0 +1,146 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.21, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/reedpen/Projects/ace/comenius-review
+configfile: pyproject.toml
+plugins: anyio-4.14.2, cov-7.1.0
+collected 21 items
+
+review/2026-09-17/test_bug_proofs.py Computing spectrogram of average miniscope fluorescence...
+FComputing spectrogram of average miniscope fluorescence...
+.CLI exit=0; stdout='\n\n╔════════╗     ███╗   ██╗███████╗██╗   ██╗██████╗  ██████╗\n║A  ▟▙   ║     ████╗  ██║██╔════╝██║   ██║██╔══██╗██╔═══██╗\n║  ▟██▙  ║     ██╔██╗ ██║█████╗  ██║   ██║██████╔╝██║   ██║\n║  ▜██▛  ║     ██║╚██╗██║██╔══╝  ██║   ██║██╔══██╗██║   ██║\n║   ▜▛  A║     ██║ ╚████║███████╗╚██████╔╝██║  ██║╚██████╔╝\n╚════════╝     ╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝\n\n      Analysis of Calcium Imaging & Electrophysiology      \n'; stderr=''
+FSnapshot paths: ['parameters/params.json', 'recording.ncs', 'recording.nev', 'recording.npy', 'recording.tif']
+FSnapshot paths: ['parameters/params.json']
+.Input events=10; plotted markers=10
+.Input events=12; plotted markers=10
+FReturned crop: {'x0': 0, 'y0': 0, 'x1': 0, 'y1': 0}
+Original shape=(2, 8, 10); returned shape=(2, 0, 0)
+FReturned crop: {'x0': 0, 'y0': 0, 'x1': 0, 'y1': 0}
+Original shape=(2, 8, 10); returned shape=(2, 0, 0)
+FDownload failed: Synthetic interrupted transfer
+First status=False; retry status=True; retry downloads=[]; final bytes=b'PART'
+FDownload failed: Synthetic child listing failure
+Root status after failed child=True
+FFile 'first.ncs' downloaded successfully to '/tmp/pytest-of-reedpen/pytest-5/test_box_folder_listing_consum0/recording/first.ncs'
+Status=True; listing calls=[{}]; downloaded files=['first.ncs']
+F
+Running analyses: coherence_ephys_calcium
+Subjects (1): [1]
+Channel: CBvsPCEEG  |  Freq range: [10.0, 30.0] Hz
+Output: /tmp/pytest-of-reedpen/pytest-5/test_110_logged_band_matches_r0/stats_results
+
+
+Run complete: 1 subject(s) completed, 0 skipped.
+Logged band=[10.0, 30.0]; actual filter bands=[[0.5, 4.0], [0.5, 4.0]]; loader filter_type=None; completed=[{'line_num': 1, 'analysis': 'coherence_ephys_calcium'}]
+F
+Running analyses: coherence_ephys_calcium
+Subjects (1): [1]
+Channel: CBvsPCEEG  |  Freq range: [0.5, 4.0] Hz
+Output: /tmp/pytest-of-reedpen/pytest-5/test_110_logged_band_matches_r1/stats_results
+
+
+Run complete: 1 subject(s) completed, 0 skipped.
+Logged band=[0.5, 4.0]; actual filter bands=[[0.5, 4.0], [0.5, 4.0]]; loader filter_type=None; completed=[{'line_num': 1, 'analysis': 'coherence_ephys_calcium'}]
+.
+Running analyses: coherence_ephys_calcium
+Subjects (1): [1]
+Channel: CBvsPCEEG  |  Freq range: [10.0, 30.0] Hz
+Output: /tmp/pytest-of-reedpen/pytest-5/test_110_logged_band_matches_r2/stats_results
+
+
+Run complete: 1 subject(s) completed, 0 skipped.
+Logged band=[10.0, 30.0]; actual filter bands=[[10.0, 30.0], [10.0, 30.0]]; loader filter_type=None; completed=[{'line_num': 1, 'analysis': 'coherence_ephys_calcium'}]
+.
+Running analyses: scatter_correlation
+Subjects (1): [1]
+Channel: CBvsPCEEG  |  Freq range: [0.5, 4.0] Hz
+Output: /tmp/pytest-of-reedpen/pytest-5/test_111_pipeline_writes_all_d0/stats_results
+
+  [population] all-drugs summary plot failed: 'list' object has no attribute 'items'
+
+Run complete: 1 subject(s) completed, 0 skipped.
+
+All-drugs summary files=[]; completed subjects=[{'line_num': 1, 'analysis': 'scatter_correlation'}]; skipped=[]
+F.File 'trace.ncs' downloaded successfully to '/tmp/pytest-of-reedpen/pytest-5/test_box_control_clean_single_0/recording/trace.ncs'
+.Folder with only README verified=True
+F..
+
+=================================== FAILURES ===================================
+_____________ test_109_plotting_spectrogram_does_not_call_boolean ______________
+review/2026-09-17/test_bug_proofs.py:19: in test_109_plotting_spectrogram_does_not_call_boolean
+    m.MiniscopePostprocessor.compute_miniscope_spectrogram(np.ones(100), 30)
+src/aceneurotools/miniscope/miniscope_postprocessor.py:323: in compute_miniscope_spectrogram
+    h, ax = plot_spectrogram(tSpect/60, freqsSpect, pSpectMiniscope, xLabel='Time (min)')
+E   TypeError: 'bool' object is not callable
+_________________ test_112_explicit_missing_config_is_an_error _________________
+review/2026-09-17/test_bug_proofs.py:32: in test_112_explicit_missing_config_is_an_error
+    assert result.returncode != 0, "Explicit nonexistent config silently exits successfully"
+E   AssertionError: Explicit nonexistent config silently exits successfully
+E   assert 0 != 0
+E    +  where 0 = CompletedProcess(args=['/home/reedpen/.conda/envs/caiman/bin/python', '-m', 'aceneurotools.cli', '--config', '/tmp/pyt...╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝\n\n      Analysis of Calcium Imaging & Electrophysiology      \n', stderr='').returncode
+_____________ test_114_raw_recording_not_in_revision[raw_at_root] ______________
+review/2026-09-17/test_bug_proofs.py:48: in test_114_raw_recording_not_in_revision
+    assert not any("recording." in name for name in files), "Raw files entered the revision"
+E   AssertionError: Raw files entered the revision
+E   assert not True
+E    +  where True = any(<generator object test_114_raw_recording_not_in_revision.<locals>.<genexpr> at 0x7f136dfb13f0>)
+____________________ test_115_every_event_is_marked[twelve] ____________________
+review/2026-09-17/test_bug_proofs.py:66: in test_115_every_event_is_marked
+    assert count == event_count
+E   assert 10 == 12
+_________ test_113_cancelling_crop_does_not_return_empty_movie[cancel] _________
+review/2026-09-17/test_bug_proofs.py:86: in test_113_cancelling_crop_does_not_return_empty_movie
+    assert movie.size > 0
+E   assert 0 > 0
+E    +  where 0 = array([], shape=(2, 0, 0), dtype=float64).size
+_________ test_113_cancelling_crop_does_not_return_empty_movie[close] __________
+review/2026-09-17/test_bug_proofs.py:86: in test_113_cancelling_crop_does_not_return_empty_movie
+    assert movie.size > 0
+E   assert 0 > 0
+E    +  where 0 = array([], shape=(2, 0, 0), dtype=float64).size
+___________________ test_box_retry_replaces_interrupted_file ___________________
+review/2026-09-17/test_bug_proofs.py:109: in test_box_retry_replaces_interrupted_file
+    assert second and content == b"COMPLETE", "Retry reported success but retained truncated bytes"
+E   AssertionError: Retry reported success but retained truncated bytes
+E   assert (True and b'PART' == b'COMPLETE'
+E     
+E     At index 0 diff: b'P' != b'C'
+E     Use -v to get more diff)
+__________________ test_box_recursive_failure_reaches_caller ___________________
+review/2026-09-17/test_bug_proofs.py:119: in test_box_recursive_failure_reaches_caller
+    assert result is False
+E   assert True is False
+_________________ test_box_folder_listing_consumes_second_page _________________
+review/2026-09-17/test_bug_proofs.py:134: in test_box_folder_listing_consumes_second_page
+    assert names == ["first.ncs", "second.ncs"]
+E   AssertionError: assert ['first.ncs'] == ['first.ncs', 'second.ncs']
+E     
+E     Right contains one more item: 'second.ncs'
+E     Use -v to get more diff
+______________ test_110_logged_band_matches_real_filter[override] ______________
+review/2026-09-17/test_bug_proofs.py:181: in test_110_logged_band_matches_real_filter
+    assert bands and all(band == recorded for band in bands)
+E   assert ([[0.5, 4.0], [0.5, 4.0]] and False)
+E    +  where False = all(<generator object test_110_logged_band_matches_real_filter.<locals>.<genexpr> at 0x7f136d3a9460>)
+__________________ test_111_pipeline_writes_all_drug_summary ___________________
+review/2026-09-17/test_bug_proofs.py:203: in test_111_pipeline_writes_all_drug_summary
+    assert outputs, "Successful subjects but final summary missing"
+E   AssertionError: Successful subjects but final summary missing
+E   assert []
+_______________ test_box_partial_folder_not_considered_complete ________________
+review/2026-09-17/test_bug_proofs.py:229: in test_box_partial_folder_not_considered_complete
+    assert not status
+E   assert not True
+=========================== short test summary info ============================
+FAILED review/2026-09-17/test_bug_proofs.py::test_109_plotting_spectrogram_does_not_call_boolean
+FAILED review/2026-09-17/test_bug_proofs.py::test_112_explicit_missing_config_is_an_error
+FAILED review/2026-09-17/test_bug_proofs.py::test_114_raw_recording_not_in_revision[raw_at_root]
+FAILED review/2026-09-17/test_bug_proofs.py::test_115_every_event_is_marked[twelve]
+FAILED review/2026-09-17/test_bug_proofs.py::test_113_cancelling_crop_does_not_return_empty_movie[cancel]
+FAILED review/2026-09-17/test_bug_proofs.py::test_113_cancelling_crop_does_not_return_empty_movie[close]
+FAILED review/2026-09-17/test_bug_proofs.py::test_box_retry_replaces_interrupted_file
+FAILED review/2026-09-17/test_bug_proofs.py::test_box_recursive_failure_reaches_caller
+FAILED review/2026-09-17/test_bug_proofs.py::test_box_folder_listing_consumes_second_page
+FAILED review/2026-09-17/test_bug_proofs.py::test_110_logged_band_matches_real_filter[override]
+FAILED review/2026-09-17/test_bug_proofs.py::test_111_pipeline_writes_all_drug_summary
+FAILED review/2026-09-17/test_bug_proofs.py::test_box_partial_folder_not_considered_complete
+========================= 12 failed, 9 passed in 6.35s =========================

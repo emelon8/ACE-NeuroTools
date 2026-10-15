@@ -19,6 +19,7 @@ import numpy as np
 # Stage result dataclasses (frozen — produced by each processor)
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class PreprocessingResult:
     """Outputs captured by :class:`~aceneurotools.miniscope.miniscope_preprocessor.MiniscopePreprocessor`.
@@ -87,6 +88,7 @@ class PostprocessingResult:
 # Stage config dataclasses (mutable — passed into run_with_configs)
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class PreprocessConfig:
     """Configuration for the preprocessing stage of :class:`~aceneurotools.pipelines.miniscope.MiniscopePipeline`.
@@ -105,11 +107,11 @@ class PreprocessConfig:
 
     crop: bool = True
     crop_coords: Any | None = None
-    detrend_method: str | None = 'median'
+    detrend_method: str | None = "median"
     df_over_f: bool = False
     secs_window: float = 5
     quantile_min: float = 8
-    df_over_f_method: str = 'delta_f_over_sqrt_f'
+    df_over_f_method: str = "delta_f_over_sqrt_f"
 
 
 @dataclass
@@ -137,7 +139,7 @@ class ProcessConfig:
     plot_params: bool = False
     run_CNMFE: bool = False
     save_estimates: bool = True
-    save_CNMFE_estimates_filename: str = 'estimates.hdf5'
+    save_CNMFE_estimates_filename: str = "estimates.hdf5"
     save_CNMFE_params: bool = False
 
 
@@ -172,14 +174,14 @@ class PostprocessConfig:
 
     remove_components_with_gui: bool = True
     find_calcium_events: bool = True
-    derivative_for_estimates: str = 'first'
+    derivative_for_estimates: str = "first"
     event_height: float = 5
     compute_miniscope_phase: bool = True
     filter_miniscope_data: bool = True
     n: int = 2
     cut: list[float] = field(default_factory=lambda: [0.1, 1.5])
-    ftype: str = 'butter'
-    btype: str = 'bandpass'
+    ftype: str = "butter"
+    btype: str = "bandpass"
     inline: bool = False
     compute_miniscope_spectrogram: bool = True
     window_length: float = 30

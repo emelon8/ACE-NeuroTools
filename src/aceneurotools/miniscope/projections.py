@@ -64,9 +64,9 @@ def compute_projections(movie: "np.ndarray") -> "Projections":
 
 class Projections:
     """Container for spatial and temporal projections of a calcium movie.
-    
+
     Stores commonly used summary images computed across the movie frames.
-    
+
     Attributes:
         max: Maximum projection (brightest pixel values across all frames).
         std: Standard deviation projection.
@@ -93,10 +93,10 @@ class Projections:
         mean: np.ndarray,
         median: np.ndarray,
         range: np.ndarray,
-        time: np.ndarray
+        time: np.ndarray,
     ) -> None:
         """Initialize with all projection arrays.
-        
+
         Args:
             max: 2D array of maximum values per pixel.
             std: 2D array of standard deviation per pixel.
@@ -113,6 +113,3 @@ class Projections:
         self.median = median
         self.range = range
         self.time = time
-
-
-

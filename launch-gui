@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Open ACE with its existing scientific environment; no manual activation needed.
+set -e
+ACE_LAUNCH_ROOT="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+exec python3 "$ACE_LAUNCH_ROOT/scripts/start_gui.py" "$@"

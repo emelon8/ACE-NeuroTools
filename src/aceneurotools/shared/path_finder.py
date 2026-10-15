@@ -10,14 +10,14 @@ class PathFinder:
         suffix: str | list[str] | tuple[str, ...] | None = None,
         prefix: str | list[str] | tuple[str, ...] | None = None,
         file_and_directory: bool = False,
-        exclude_dirs: tuple[str, ...] | None = ('saved_movies',),
+        exclude_dirs: tuple[str, ...] | None = ("saved_movies",),
     ) -> list[Path] | tuple[list[Path], list[Path]] | None:
         """
         Modernized file finder using pathlib.
         Returns a sorted list of matching Path objects.
         """
         if directory is None:
-             raise ValueError("Directory must be provided to PathFinder.find()")
+            raise ValueError("Directory must be provided to PathFinder.find()")
 
         dir_path: Path = Path(directory)
         if not dir_path.exists():
@@ -43,7 +43,7 @@ class PathFinder:
                 start_tuple = prefix
 
         matches: list[Path] = []
-        for path in dir_path.rglob('*'):
+        for path in dir_path.rglob("*"):
             if not path.is_file():
                 continue
 

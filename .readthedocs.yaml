@@ -15,7 +15,6 @@ mkdocs:
 
 python:
   install:
-    - method: pip
-      path: .
-      extra_requirements:
-        - docs
+    # Docs dependencies only. Installing the package would pull caiman>=1.11,
+    # which is not on PyPI; mkdocstrings reads the API from src/ instead.
+    - requirements: docs/requirements.txt

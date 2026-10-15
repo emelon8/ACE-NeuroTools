@@ -14,3 +14,9 @@ This section details the pipeline for processing calcium imaging data.
 
 ## Postprocessor
 ::: aceneurotools.miniscope.miniscope_postprocessor.MiniscopePostprocessor
+
+## Video denoising
+::: aceneurotools.miniscope.video_denoising.denoise_movie
+
+## Head orientation (V4 IMU)
+::: aceneurotools.miniscope.head_orientation

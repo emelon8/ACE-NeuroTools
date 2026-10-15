@@ -127,9 +127,7 @@ def load_ephys_for_analysis(
         ) from exc
 
     if ephys_directory is None:
-        raise ValueError(
-            f"Ephys directory could not be determined from experiment metadata for line {line_num}."
-        )
+        raise ValueError(f"Ephys directory could not be determined from experiment metadata for line {line_num}.")
 
     # 3 & 4. Create data manager, import block, process all requested channels
     try:

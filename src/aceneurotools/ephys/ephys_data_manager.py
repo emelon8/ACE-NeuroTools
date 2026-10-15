@@ -10,6 +10,7 @@ from aceneurotools.ephys.channel import Channel
 
 T = TypeVar("T", bound="EphysDataManager")
 
+
 class EphysDataManager(ABC):
     """
     Abstract base class for ephys data managers.
@@ -17,7 +18,7 @@ class EphysDataManager(ABC):
     Stores the processed channels in self.channels, where the key is the channel name and the value is a Channel object.
     """
 
-    _registry: list[type['EphysDataManager']] = []
+    _registry: list[type["EphysDataManager"]] = []
     logger: logging.Logger
     channels: dict[str, Channel]
     ephys_block: Any
@@ -45,7 +46,6 @@ class EphysDataManager(ABC):
         """Return True if this class can handle the format in the given directory."""
         pass
 
-
     def __init__(
         self,
         ephys_directory: str | Path | None = None,
@@ -54,10 +54,10 @@ class EphysDataManager(ABC):
         auto_compute_phases: bool = True,
         level: str | int = "CRITICAL",
         channels: list[str] | None = None,
-        remove_artifacts: bool = False
+        remove_artifacts: bool = False,
     ) -> None:
         """Initialize the EphysDataManager and optionally load data.
-        
+
         Args:
             ephys_directory: Path to directory containing ephys data.
             auto_import_ephys_block: If True, automatically import raw ephys data.
@@ -83,14 +83,15 @@ class EphysDataManager(ABC):
         if auto_compute_phases:
             self.compute_phases_all_channels()
 
-
     @abstractmethod
     def import_ephys_block(self, ephys_directory: str | Path) -> None:
         """Load raw ephys data from disk."""
         pass
 
     @abstractmethod
-    def process_ephys_block_to_channels(self, channels: list[str] | None = None, remove_artifacts: bool = False) -> None:
+    def process_ephys_block_to_channels(
+        self, channels: list[str] | None = None, remove_artifacts: bool = False
+    ) -> None:
         """Process raw ephys data into Channel objects."""
         pass
 
@@ -107,13 +108,12 @@ class EphysDataManager(ABC):
         for key, value in self.channels.items():
             self.channels[key] = self.compute_phase(value)
 
-
     def compute_phase(self, channel: Channel) -> Channel:
         """Compute instantaneous phase using Hilbert transform.
-        
+
         Args:
             channel: Channel object with signal data.
-            
+
         Returns:
             Channel object with phases attribute populated.
         """
@@ -122,21 +122,20 @@ class EphysDataManager(ABC):
         channel.phases = np.angle(analytic_signal)
         return channel
 
-
     def filter_ephys(
         self,
         channel_name: str,
         n: int = 2,
         cut: float | list[float] | np.ndarray = [0.5, 4],
-        ftype: str = 'butter',
-        btype: str = 'bandpass',
-        replace_signal: bool = True
+        ftype: str = "butter",
+        btype: str = "bandpass",
+        replace_signal: bool = True,
     ) -> np.ndarray:
         """Apply a frequency filter to a channel's signal.
-        
+
         Supports FIR and Butterworth filter types with configurable
         cutoff frequencies and band types.
-        
+
         Args:
             channel_name: Name of the channel to filter.
             n: Filter order (Butterworth) or number of taps (FIR).
@@ -144,10 +143,10 @@ class EphysDataManager(ABC):
             ftype: Filter type ('butter', 'butterworth', or 'fir').
             btype: Band type ('low', 'high', 'band', 'bandpass').
             replace_signal: If True, overwrite signal; else store in signal_filtered.
-            
+
         Returns:
             Filtered signal as 1D numpy array.
-            
+
         Raises:
             ValueError: If channel is not found in loaded channels.
         """
@@ -160,15 +159,10 @@ class EphysDataManager(ABC):
         print(f"Filtering the ephys signal: {channel_name}")
 
         filtered_data = self._filter_data(
-            channel.signal,
-            n=n,
-            cut=cut,
-            ftype=ftype,
-            btype=btype,
-            fs=channel.sampling_rate
+            channel.signal, n=n, cut=cut, ftype=ftype, btype=btype, fs=channel.sampling_rate
         )
 
-        if (replace_signal):
+        if replace_signal:
             self.channels[channel_name].signal = filtered_data
         else:
             self.channels[channel_name].signal_filtered = filtered_data
@@ -181,12 +175,11 @@ class EphysDataManager(ABC):
 
     def get_channel(self, channel_name: str) -> Channel:
         """Return a single channel by name.
-        
+
         Args:
             channel_name: Name of the channel to retrieve.
         """
         return self.channels[channel_name]
-
 
     @staticmethod
     def _filter_data(
@@ -196,7 +189,7 @@ class EphysDataManager(ABC):
         ftype: str,
         btype: str,
         fs: float,
-        bodePlot: bool = False
+        bodePlot: bool = False,
     ) -> np.ndarray:
         """Apply FIR or Butterworth filter to signal data.
 
@@ -219,6 +212,3 @@ class EphysDataManager(ABC):
         from aceneurotools.shared.signal_processing import filter_signal
 
         return filter_signal(data, n=n, cut=cut, ftype=ftype, btype=btype, fs=fs, bode_plot=bodePlot)
-
-
-

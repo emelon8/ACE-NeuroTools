@@ -7,7 +7,7 @@ import math
 import numpy as np
 import pytest
 
-from aceneurotools.multimodal.signal_utils import compute_mutual_information
+from aceneurotools.stats.signal_utils import compute_mutual_information
 
 
 def test_uniform_tuning_yields_zero_mi():

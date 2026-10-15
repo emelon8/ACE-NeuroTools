@@ -1,17 +1,27 @@
 # Shared Modules API
 
-This section details the shared data structures and configuration utilities of the pipeline.
+This section details the shared data structures and utilities of the pipeline.
+Configuration loading (lab_config.json, stats_config.json, analysis_parameters.csv)
+is documented separately in [Config](config.md).
 
 ## Experiment Data Manager
 ::: aceneurotools.shared.experiment_data_manager.ExperimentDataManager
 
-## Configuration helpers (`analysis_parameters.csv`)
-::: aceneurotools.shared.config_utils.load_analysis_params
-
-::: aceneurotools.shared.config_utils.parse_analysis_params
-
 ## Path Resolution
 ::: aceneurotools.shared.paths
 
-## Misc Functions
-::: aceneurotools.shared.misc_functions
+## CSV utilities
+::: aceneurotools.shared.csv_worker.CSVWorker
+
+::: aceneurotools.shared.csv_worker.update_csv_cell
+
+::: aceneurotools.shared.csv_worker.append_row_csv
+
+## Signal processing
+::: aceneurotools.shared.signal_processing
+
+## Plotting helpers
+::: aceneurotools.shared.plotting
+
+## File loading
+::: aceneurotools.shared.file_io

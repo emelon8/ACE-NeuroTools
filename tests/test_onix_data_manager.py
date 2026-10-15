@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 
 
+@pytest.mark.requires_caiman
 def test_onix_sync_timestamps_returns_native_arrays():
     pytest.importorskip("caiman")
     from aceneurotools.miniscope.onix_miniscope_data_manager import OnixMiniscopeDataManager

@@ -1,6 +1,5 @@
 site_name: ACE-NeuroTools
-site_description: Analysis of Calcium Imaging and Electrophysical Data — integrated pipelines for calcium imaging, ephys, and multimodal alignment.
-site_url: https://aceneurotools.readthedocs.io/en/latest/  # TODO(humans): confirm RTD subdomain after rename
+site_description: Analysis of Calcium Imaging and Electrophysiology — integrated pipelines for calcium imaging, ephys, and multimodal alignment.
 site_author: "Reed Pennock, Luke Richards, Eric Melonakos"
 
 theme:
@@ -8,21 +7,19 @@ theme:
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: deep-purple
-      accent: cyan
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: deep-purple
-      accent: cyan
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
-  font:
-    text: Inter
-    code: JetBrains Mono
+  font: false
   icon:
     logo: material/flask-outline   # A science flask icon
   features:
@@ -36,6 +33,9 @@ theme:
     - search.share
     - content.code.copy
     - content.code.annotate
+
+extra_css:
+  - stylesheets/ace.css
 
 
 markdown_extensions:
@@ -72,21 +72,42 @@ plugins:
 nav:
   - Home: index.md
   - Getting Started: getting_started.md
+  - Install the GUI: gui_installation.md
+  - Plain-language terms: glossary.md
   - Examples: examples.md
   - Tutorials:
       - Miniscope Processing: notebooks/miniscope_pipeline_tutorial.ipynb
       - Ephys Processing: notebooks/ephys_pipeline_tutorial.ipynb
       - Multimodal Alignment: notebooks/multimodal_alignment_tutorial.ipynb
   - User Guides:
+      - Experiment GUI: guides/experiment_gui.md
+      - Adapting to Your Lab: guides/adapting_to_your_lab.md
       - Miniscope Analysis: guides/miniscope.md
       - Ephys Analysis: guides/ephys.md
       - Multimodal Integration: guides/multimodal.md
       - Data Management: guides/data_management.md
-  - API Reference:
+      - Experiment History: guides/experiment_history.md
+  - For Developers:
+      - Backend Integrity Checks: backend_testing.md
       - Overview: api/index.md
       - Pipelines: api/pipelines.md
       - Miniscope Components: api/miniscope.md
       - Ephys Components: api/ephys.md
       - Multimodal: api/multimodal.md
+      - Stats: api/stats.md
+      - Config: api/config.md
+      - Experiment Version Control: api/evc.md
       - Shared Utils: api/shared.md
-  - Deploying the docs: deployment.md
+      - Preview and deploy docs: deployment.md
+      - Release checklist: releasing.md
+  - Design and Status:
+      - Guided Experiments: design/guided-experiments-mvp.md
+      - Pipeline Capabilities: design/pipeline-capabilities.md
+      - Neuron Review: design/neuron-review-and-meeting-followups.md
+      - Source Findings: design/csv-viewer-findings.md
+      - Project Roadmap: design/project-roadmap-2026-10-03.md
+  - Comenius planning:
+      - Overview: comenius/README.md
+      - Open decisions: comenius/decisions.md
+      - Feature backlog: comenius/backlog.md
+      - Meeting synthesis: comenius/meeting-synthesis.md
