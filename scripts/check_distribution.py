@@ -43,6 +43,7 @@ def check_sdist(path: Path) -> None:
             "tests/compiled_stack/test_miniscope_optional_params_csv.py",
             "ci/coverage-policy.json",
             "ci/requirements-test.txt",
+            "ci/windows/environment.yml",
             "docs/backend_testing.md",
             ".github/workflows/checks.yml",
             "scripts/run_backend_checks.py",

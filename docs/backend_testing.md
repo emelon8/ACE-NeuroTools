@@ -97,7 +97,12 @@ variables. Test logs and artifacts use synthetic inputs. Save the artifacts
 alongside a review or release record if evidence is needed beyond 30 days.
 
 Linux and Windows run the complete backend suite in the locked scientific
-environment. Separate Python 3.11 and 3.12 jobs automatically discover all core
+environment. Windows installs through Miniforge using `ci/windows/environment.yml`,
+rendered from the same root lock, to avoid the stalled micromamba bootstrap.
+The contract tests verify every pinned package version, build, and pip hash in
+that manifest. After updating the root lock, regenerate it with
+`conda-lock render -k env -p win-64 --filename-template ci/windows/environment conda-lock.yml`.
+Separate Python 3.11 and 3.12 jobs automatically discover all core
 tests against current pip dependencies, without CaImAn or Box access. New tests
 are included without editing a workflow file. Tests needing CaImAn use the
 `requires_caiman` marker and import it inside the test; files that require it

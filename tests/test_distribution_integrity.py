@@ -64,6 +64,7 @@ def sdist(tmp_path, extra=(), omitted=None):
             "tests/compiled_stack/test_miniscope_optional_params_csv.py",
             "ci/coverage-policy.json",
             "ci/requirements-test.txt",
+            "ci/windows/environment.yml",
             "docs/backend_testing.md",
             ".github/workflows/checks.yml",
             "scripts/run_backend_checks.py",
@@ -84,7 +85,10 @@ def test_sdist_provenance_files_pass(tmp_path):
     check_sdist(sdist(tmp_path))
 
 
-@pytest.mark.parametrize("omitted", ["tests/conftest.py", "tests/compiled_stack/test_miniscope_optional_params_csv.py"])
+@pytest.mark.parametrize(
+    "omitted",
+    ["tests/conftest.py", "tests/compiled_stack/test_miniscope_optional_params_csv.py", "ci/windows/environment.yml"],
+)
 def test_sdist_cannot_drop_backend_test_collection_support(tmp_path, omitted):
     with pytest.raises(AssertionError, match="source distribution lacks"):
         check_sdist(sdist(tmp_path, omitted=omitted))

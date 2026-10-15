@@ -8,6 +8,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import unquote
 
 import pytest
 import yaml
@@ -75,6 +76,24 @@ def test_ci_covers_feature_branch_pull_requests_manual_runs_and_merge_queue():
         assert trigger in ci["on"]
     assert "paths" not in ci["on"]["pull_request"]
     assert ci["permissions"] == {"contents": "read"}
+
+
+def test_windows_backend_manifest_retains_the_exact_scientific_lock():
+    lock = yaml.safe_load((ROOT / "conda-lock.yml").read_text())
+    manifest = yaml.safe_load((ROOT / "ci/windows/environment.yml").read_text())
+    packages = [package for package in lock["package"] if package["platform"] == "win-64"]
+    expected_conda, expected_pip = set(), set()
+    for package in packages:
+        name, version = package["name"], package["version"]
+        if package["manager"] == "conda":
+            filename = unquote(package["url"].rsplit("/", 1)[-1])
+            build = filename.removesuffix(".conda").removesuffix(".tar.bz2").removeprefix(f"{name}-{version}-")
+            expected_conda.add(f"{name}={version}={build}")
+        else:
+            expected_pip.add(f"{name} == {version} --hash=sha256:{package['hash']['sha256']}")
+    assert {item for item in manifest["dependencies"] if isinstance(item, str)} == expected_conda
+    pip = next(item["pip"] for item in manifest["dependencies"] if isinstance(item, dict))
+    assert set(pip) == expected_pip
 
 
 def test_release_uses_the_same_checks_as_pull_requests():
