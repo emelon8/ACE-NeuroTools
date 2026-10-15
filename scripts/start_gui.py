@@ -34,6 +34,9 @@ def find_python():
         Path.home() / "miniconda3/envs/caiman/bin/python",
         sys.executable,
     ]
+    for base in (Path.home() / ".conda", Path.home() / "miniforge3", Path.home() / "miniconda3"):
+        for name in ("aceneurotools", "caiman"):
+            candidates.append(base / "envs" / name / ("python.exe" if sys.platform == "win32" else "bin/python"))
     for candidate in dict.fromkeys(str(item) for item in candidates if item):
         if not Path(candidate).is_file():
             continue
@@ -53,10 +56,39 @@ def find_python():
     )
 
 
+def registered_command():
+    registration = ROOT / ".ace-gui-install.json"
+    if not registration.exists():
+        return None
+    try:
+        value = json.loads(registration.read_text(encoding="utf-8"))
+        prefix, base_python = Path(value["prefix"]), Path(value["conda_python"])
+        if not prefix.is_dir() or not base_python.is_file():
+            raise ValueError("installation moved")
+        if Path(sys.prefix).resolve() == prefix.resolve():
+            return None
+        return [
+            str(base_python),
+            "-m",
+            "conda",
+            "run",
+            "--no-capture-output",
+            "--prefix",
+            str(prefix),
+            "python",
+            str(ROOT / "scripts/start_gui.py"),
+            *sys.argv[1:],
+        ]
+    except (OSError, ValueError, KeyError, TypeError):
+        raise RuntimeError(
+            "ACE's saved environment cannot be found. Run setup again; see docs/gui_installation.md."
+        ) from None
+
+
 def main():
     parser = argparse.ArgumentParser(description="Open ACE Experiments with its existing analysis environment.")
     parser.add_argument("--port", type=int, default=8780)
-    parser.add_argument("--project", default=str(ROOT / "data") if (ROOT / "data/experiments.csv").exists() else None)
+    parser.add_argument("--project", help="Open this project; otherwise choose one in the application")
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--check", action="store_true", help="Check the analysis environment without starting a server")
     args = parser.parse_args()
@@ -69,6 +101,9 @@ def main():
                 webbrowser.open(url)
             print(f"ACE Experiments is already running: {url}")
             return 0
+        command = registered_command()
+        if command:
+            return subprocess.call(command)
         python = find_python()
         if args.check:
             print(f"Analysis environment ready: {python}")
@@ -85,9 +120,22 @@ def main():
             "PYTHONDONTWRITEBYTECODE": "1",
             "MPLCONFIGDIR": str(cache / "matplotlib"),
         }
+        for name in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
+            environment.setdefault(name, "1")
+        process_options = (
+            {"creationflags": subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP}
+            if sys.platform == "win32"
+            else {"start_new_session": True}
+        )
         with log.open("a") as output:
             process = subprocess.Popen(
-                command, cwd=ROOT, env=environment, stdout=output, stderr=output, start_new_session=True
+                command,
+                cwd=ROOT,
+                env=environment,
+                stdin=subprocess.DEVNULL,
+                stdout=output,
+                stderr=output,
+                **process_options,
             )
         for _ in range(150):
             if running(args.port):

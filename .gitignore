@@ -31,6 +31,12 @@ src/aceneurotools/shared/box_credentials.py
 /experiments_template.csv
 /lab_config.json
 /stats_config.json
+/.ace-gui-install.json
+/setup.log
+/Open ACE Experiments.command
+/Open ACE Experiments.cmd
+/Open ACE Experiments.sh
+/.ace-install-test/
 
 # MkDocs — build output only (source lives in docs/)
 site/

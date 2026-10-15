@@ -1,0 +1,31 @@
+name: ace-gui
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.10
+  - caiman>=1.13,<1.14
+  - cython
+  - moviepy
+  - numpydoc
+  - yapf
+  - numpy>=1.23
+  - scipy>=1.9
+  - matplotlib>=3.5
+  - pandas>=1.5
+  - opencv>=4.6=*qt*
+  - tqdm>=4.64
+  - h5py>=3.7
+  - colorcet>=3.0
+  - joblib>=1.2
+  - pillow>=9
+  - rich>=13
+  - xarray>=2023.1
+  - setuptools>=77
+  - pip
+  - pip:
+      - FreeSimpleGUI>=5.0
+      - box-sdk-gen>=1.0
+      - neo>=0.12
+      - quantities>=0.14
+      - xrscipy>=2.2

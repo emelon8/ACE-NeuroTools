@@ -479,7 +479,15 @@ class Runs:
             process = self.processes.get(str(directory))
             if not process or process.poll() is not None:
                 raise ProjectError("This run is no longer active in this server session.")
-            os.killpg(process.pid, signal.SIGTERM)
+            if sys.platform == "win32":
+                # CaImAn launches child workers; terminating only Python leaves them running.
+                result = subprocess.run(
+                    ["taskkill", "/PID", str(process.pid), "/T", "/F"], capture_output=True, text=True, check=False
+                )
+                if result.returncode and process.poll() is None:
+                    raise ProjectError("Windows could not stop this analysis. The run is still active.")
+            else:
+                os.killpg(process.pid, signal.SIGTERM)
             value = json.loads((directory / "run.json").read_text())
             value["state"], value["finished"] = "stopped", datetime.now(timezone.utc).isoformat()
             atomic_json(directory / "run.json", value)

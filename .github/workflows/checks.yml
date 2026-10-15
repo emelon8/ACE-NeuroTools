@@ -212,10 +212,63 @@ jobs:
           path: dist/
           retention-days: 30
 
+  gui-installation:
+    name: Lab GUI installation (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win-64
+          - os: macos-15
+            platform: osx-arm64
+          - os: macos-15-intel
+            platform: osx-64
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
+        working-directory: ACE Lab Pilot
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: ACE Lab Pilot
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          activate-environment: ""
+          auto-activate-base: true
+      - name: Run the same setup as labmates, including movie and HTTP checks
+        run: |
+          python -c "from scripts.setup_gui import platform_key; assert platform_key() == '${{ matrix.platform }}'"
+          python scripts/setup_gui.py --prefix "$RUNNER_TEMP/ace-pilot-env"
+      - name: Exercise the generated launcher from outside the checkout
+        run: |
+          export ACE_PILOT_ROOT="$PWD"
+          python - <<'PY'
+          import os, pathlib, subprocess, sys
+          root = pathlib.Path(os.environ['ACE_PILOT_ROOT'])
+          suffix = '.cmd' if sys.platform == 'win32' else '.command'
+          launcher = root / ('Open ACE Experiments' + suffix)
+          assert launcher.is_file()
+          if sys.platform == 'win32':
+              subprocess.run('"' + str(launcher) + '" --check', shell=True, cwd=os.environ['RUNNER_TEMP'], check=True, timeout=120)
+          else:
+              subprocess.run([str(launcher), '--check'], cwd=os.environ['RUNNER_TEMP'], check=True, timeout=120)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gui-installation-${{ matrix.os }}-${{ github.run_attempt }}
+          path: ACE Lab Pilot/setup.log
+          retention-days: 30
+          if-no-files-found: warn
+
   quality-gate:
     name: Quality gate
     if: always()
-    needs: [backend, portable, gui-regression, docs, lint, package]
+    needs: [backend, portable, gui-regression, gui-installation, docs, lint, package]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

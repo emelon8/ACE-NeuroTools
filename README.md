@@ -41,6 +41,10 @@ Start with [Getting started](docs/getting_started.md), explore the
 
 ## Experiment GUI
 
+**Installing on a labmate's Windows PC or Mac? Start with
+[Install and open ACE Experiments](docs/gui_installation.md).** It covers
+Miniforge, one-time setup, a double-click launch file, and reopening after a restart.
+
 Open existing `experiments.csv` and `analysis_parameters.csv` in a minimal local
 GUI. Browse projects, click an experiment row, and edit clearly labeled metadata
 and analysis settings. System file dialogs open projects and select recording folders;
@@ -54,8 +58,7 @@ from this checkout:
 ./launch-gui
 ```
 
-The launcher searches for an existing CaImAn environment and opens the repository's
-`data` project when present. Use `./launch-gui --project /path/to/project` or choose
+The launcher searches for an existing CaImAn environment. Use `./launch-gui --project /path/to/project` or choose
 **Open project** in the GUI. Run `./launch-gui --check` to check the environment
 without starting the server. It does not install dependencies.
 The wrapper also provides guided Box authentication, embedded crop editing, and

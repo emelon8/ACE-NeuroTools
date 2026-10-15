@@ -1,5 +1,9 @@
 # Getting started with ACE-NeuroTools
 
+**For the GUI on a new Windows PC or Mac, start with
+[Install and open ACE Experiments](gui_installation.md).** The instructions below
+are for command-line analysis and development installations.
+
 This guide starts with one recording, a spreadsheet row that points to it, and a command that analyzes it. The examples use a UCLA V3 miniscope video; change the paths and experiment ID to match your own files. Miniscope analysis can take minutes to hours and create large intermediate movies, depending on recording length and processing choices.
 
 ## 1. Prerequisites
@@ -62,8 +66,8 @@ From the repository root:
 ```
 
 The launcher finds an existing scientific Python environment and opens
-`http://127.0.0.1:8780/`. With no `--project`, it opens the checkout's `data` project
-when present. The launcher can reuse a running server; use **Open project** to
+`http://127.0.0.1:8780/`. With no `--project`, choose your own project using
+**Open project**. The launcher can reuse a running server; use **Open project** to
 switch projects in that server. It never installs dependencies. If environment
 discovery fails, activate your CaImAn environment and run
 `python scripts/run_gui.py --project /path/to/project` (default port 8765).

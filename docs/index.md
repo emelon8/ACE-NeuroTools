@@ -34,6 +34,9 @@ The [system architecture diagram in the GitHub README](https://github.com/emelon
 
 ## Experiment GUI
 
+For a new Windows PC or Mac, follow [Install and open ACE Experiments](gui_installation.md).
+It includes one-time setup and a launch file you can double-click afterward.
+
 From a checkout with the scientific environment installed:
 
 ```bash

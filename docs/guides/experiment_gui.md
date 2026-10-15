@@ -6,6 +6,10 @@ analyses, review extracted neurons, and inspect exported results.
 
 ## Launch and open a project
 
+If this is your first installation on a Windows PC or Mac, follow
+[Install and open ACE Experiments](../gui_installation.md) first. After setup,
+double-click the **Open ACE Experiments** launch file in your ACE folder.
+
 From the repository root, use the environment you already use for ACE-NeuroTools:
 
 ```bash

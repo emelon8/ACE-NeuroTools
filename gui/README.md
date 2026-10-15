@@ -13,6 +13,10 @@ This README also documents storage, Box downloads, validation, and desktop integ
 
 ## Launch
 
+New Windows and Mac installations should follow
+[Install and open ACE Experiments](../docs/gui_installation.md). Setup records
+the dedicated environment and creates a double-click launch file for that computer.
+
 On this computer, search for **ACE Experiments** in the application menu. The
 shortcut opens the GUI using the existing CaImAn environment, without activating
 Conda or opening Python files. From this checkout, the equivalent command is:
@@ -21,8 +25,8 @@ Conda or opening Python files. From this checkout, the equivalent command is:
 ./launch-gui
 ```
 
-The launcher opens `http://127.0.0.1:8780/`, with the repository's `data` project
-when present. Opening it again reuses the running application. Use
+The launcher opens `http://127.0.0.1:8780/`; choose your project with **Open project**.
+Opening it again reuses the running application. Use
 `./launch-gui --project /path/to/project` for another initial project,
 `--no-browser` to leave browser opening to you, or `--check` to verify the environment.
 It checks `ACE_GUI_PYTHON`, existing `caiman` Conda environments, and the current
