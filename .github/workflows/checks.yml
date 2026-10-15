@@ -244,19 +244,9 @@ jobs:
           python -c "from scripts.setup_gui import platform_key; assert platform_key() == '${{ matrix.platform }}'"
           python scripts/setup_gui.py --prefix "$RUNNER_TEMP/ace-pilot-env"
       - name: Exercise the generated launcher from outside the checkout
-        run: |
-          export ACE_PILOT_ROOT="$PWD"
-          python - <<'PY'
-          import os, pathlib, subprocess, sys
-          root = pathlib.Path(os.environ['ACE_PILOT_ROOT'])
-          suffix = '.cmd' if sys.platform == 'win32' else '.command'
-          launcher = root / ('Open ACE Experiments' + suffix)
-          assert launcher.is_file()
-          if sys.platform == 'win32':
-              subprocess.run('"' + str(launcher) + '" --check', shell=True, cwd=os.environ['RUNNER_TEMP'], check=True, timeout=120)
-          else:
-              subprocess.run([str(launcher), '--check'], cwd=os.environ['RUNNER_TEMP'], check=True, timeout=120)
-          PY
+        run: >-
+          python -m conda run --no-capture-output --prefix "$RUNNER_TEMP/ace-pilot-env"
+          python scripts/check_gui_launcher.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
