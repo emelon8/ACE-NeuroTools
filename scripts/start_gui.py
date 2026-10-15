@@ -29,10 +29,10 @@ def running(port):
 def find_python():
     candidates = [
         os.environ.get("ACE_GUI_PYTHON"),
+        sys.executable,
         Path.home() / ".conda/envs/caiman/bin/python",
         Path.home() / "miniforge3/envs/caiman/bin/python",
         Path.home() / "miniconda3/envs/caiman/bin/python",
-        sys.executable,
     ]
     for base in (Path.home() / ".conda", Path.home() / "miniforge3", Path.home() / "miniconda3"):
         for name in ("aceneurotools", "caiman"):

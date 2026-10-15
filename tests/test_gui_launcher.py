@@ -2,10 +2,27 @@
 
 import io
 import json
+from pathlib import Path
+from types import SimpleNamespace
 from urllib.error import URLError
 
 from scripts import start_gui
 from scripts.install_gui_shortcut import install
+
+
+def test_activated_environment_wins_over_an_older_caiman_install(monkeypatch):
+    monkeypatch.delenv("ACE_GUI_PYTHON", raising=False)
+    monkeypatch.setattr(start_gui.sys, "executable", "/active/ace-env/bin/python")
+    monkeypatch.setattr(Path, "is_file", lambda _: True)
+    commands = []
+
+    def available(command, **kwargs):
+        commands.append(command)
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(start_gui.subprocess, "run", available)
+    assert start_gui.find_python() == "/active/ace-env/bin/python"
+    assert len(commands) == 1
 
 
 def test_health_identifies_only_the_ace_server(monkeypatch):
