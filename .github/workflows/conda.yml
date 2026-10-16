@@ -1,0 +1,86 @@
+name: Conda package
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: conda-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  MPLBACKEND: Agg
+  OMP_NUM_THREADS: '1'
+  OPENBLAS_NUM_THREADS: '1'
+  MKL_NUM_THREADS: '1'
+jobs:
+  build:
+    name: Build and smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-15-intel, macos-15]
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          activate-environment: ''
+          auto-activate-base: true
+      - name: Install recipe tools
+        run: conda install --yes --name base --channel conda-forge rattler-build=0.76.1 setuptools-scm menuinst jsonschema
+      - name: Derive the version from git tags
+        run: python scripts/release_version.py --github-env
+      - name: Build the legacy-dialog dependency for the lab channel
+        run: rattler-build build --recipe recipe/freesimplegui --channel conda-forge --output-dir conda-output --log-style plain
+      - name: Build ACE and run installed import, CLI and GUI recipe tests
+        run: rattler-build build --recipe recipe --channel ./conda-output --channel conda-forge --output-dir conda-output --log-style plain
+      - name: Install the actual conda package, including menuinst shortcuts
+        run: >-
+          conda create --yes --prefix "$RUNNER_TEMP/ace-installed" --override-channels
+          --channel "$GITHUB_WORKSPACE/conda-output" --channel conda-forge
+          "ace-neurotools=$ACE_VERSION" python=3.10
+      - name: Smoke-test the installed package and native shortcut metadata
+        run: |
+          conda run --no-capture-output --prefix "$RUNNER_TEMP/ace-installed" python scripts/smoke_installed_package.py --installed
+          conda run --no-capture-output --prefix "$RUNNER_TEMP/ace-installed" python scripts/check_conda_shortcuts.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: conda-${{ matrix.os }}
+          path: conda-output/noarch/*.conda
+          if-no-files-found: error
+  publish-lab:
+    name: Publish tagged pilot to lab channel
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: lab-conda
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: conda-ubuntu-latest
+          path: packages
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          activate-environment: ''
+          auto-activate-base: true
+      - name: Upload only after every native build and smoke check succeeds
+        shell: bash -leo pipefail {0}
+        env:
+          ANACONDA_OWNER: ${{ vars.LAB_CONDA_OWNER }}
+          ANACONDA_API_KEY: ${{ secrets.LAB_CONDA_TOKEN }}
+        run: |
+          test -n "$ANACONDA_OWNER" || { echo 'Configure LAB_CONDA_OWNER before creating a release tag.'; exit 1; }
+          test -n "$ANACONDA_API_KEY" || { echo 'Configure LAB_CONDA_TOKEN in the lab-conda environment.'; exit 1; }
+          conda install --yes --name base --channel conda-forge rattler-build=0.76.1
+          rattler-build upload anaconda --owner "$ANACONDA_OWNER" --channel main packages/*.conda

@@ -1,0 +1,35 @@
+schema_version: 1
+context:
+  version: "5.3.0.post1"
+package:
+  name: freesimplegui
+  version: ${{ version }}
+source:
+  url: https://files.pythonhosted.org/packages/1b/bb/e131232aaec4b845dea2a3424bb8b7772fe2d97058ee3c70a0815b0f0d46/freesimplegui-5.3.0.post1.tar.gz
+  sha256: cfc5712c6803bdf6f03aaaa18b083a54a1a3f4254221af06bb08faa4a6aa9719
+build:
+  noarch: python
+  number: 0
+  script: python -m pip install . --no-deps --no-build-isolation --no-compile
+requirements:
+  host:
+    - python 3.10.*
+    - pip
+    - setuptools
+    - wheel
+  run:
+    - python >=3.10
+    - tk
+    - pip
+tests:
+  - python:
+      imports:
+        - FreeSimpleGUI
+      pip_check: true
+      python_version: 3.10.*
+
+about:
+  homepage: https://github.com/spyoungtech/FreeSimpleGUI
+  license: LGPL-3.0-only
+  license_file: license.txt
+  summary: Legacy Tk dialogs used by ACE-NeuroTools

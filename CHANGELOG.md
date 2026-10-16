@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Correct per-bin peri-event SEM, eigenvalue multitaper normalization, circular
+  phase averages and aligned downsampling of every channel field.
+- Exclude long scatter gaps and adjacent filter margins before normalization and
+  regression; extend leading NaNs from the first acquired value.
+- Read multimodal crops from the calcium recording; wait for workers to exit
+  before reporting a successful stop, with force-kill fallback.
+- Preserve CSV quoting, multiline fields, BOM and line endings when editing or
+  adding columns; retain backups after rollback.
+
+### Added
+
+- Installed `ace-gui` workbench with per-launch API authentication and shared
+  CLI/GUI defaults. CSVs remain the settings source of truth.
+- A noarch conda recipe, menuinst shortcuts and native package smoke checks for
+  Windows, Intel Mac, Apple silicon and Linux.
+- Git-tag-derived versions and lab-first conda publishing. EVC, the Box setup
+  wizard and cluster export remain separate follow-ups.
+
+Representative recording validation is deferred by request. No pilot has been
+published yet; a lab channel and scoped publishing credential must be configured.
+
 ### Added
 - **Olympus edition** capabilities merged from `ace-neurotools-olympus-edition`: master CLI (`ace-neuro` console script), `python -m aceneurotools.init` project bootstrap, compute and stats pipelines (`pipelines.compute`, `pipelines.stats`), miniscope pipeline results and projections helpers, multimodal stats stack (lab config, stats config/loader, coherence, scatter, signal utilities), ephys loader, shared plotting and signal-processing helpers, and example `configs/*.json` plus `run_stats.bat` for Windows stats runs.
 

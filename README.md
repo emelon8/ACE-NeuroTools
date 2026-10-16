@@ -91,15 +91,26 @@ classDiagram
 
 ## Installation
 
-1. **Prerequisites**: Python 3.10+, Mamba/Conda.
-2. **Clone & Install**:
-   ```bash
-   git clone https://github.com/emelon8/experiment_analysis.git
-   cd experiment_analysis
-   mamba env create -f linux_environment.yml && conda activate caiman
-   pip install -e .
-   ```
-3. **Configure Paths**: Use `--project-path` CLI arguments or pass paths to `Pipeline.run()` (see below).
+Install [Miniforge](https://github.com/conda-forge/miniforge#download), then run:
+
+```sh
+conda create -n ace -c <channel> ace-neurotools
+```
+
+Replace `<channel>` with the lab's published channel name. The lab channel is
+being prepared; no pilot is published yet (see issue #128).
+
+Launch **ACE NeuroTools** from its installed shortcut, or run:
+
+```sh
+conda activate ace
+ace-gui
+```
+
+See [lab installation](docs/gui_installation.md) and the [experiment workbench](docs/gui.md).
+The package supplies CaImAn and Qt OpenCV. For development, create the environment
+from `environment.yml`, activate `aceneurotools`, then install the checkout with
+`python -m pip install --no-deps -e .`.
 
 ### Project Setup
 

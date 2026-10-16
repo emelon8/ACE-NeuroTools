@@ -4,31 +4,29 @@ Welcome to the Experiment Analysis pipeline! This guide will help you set up you
 
 ---
 
-## 1. Prerequisites
+## 1. Install and launch
 
-* **Python 3.10+** (Recommended: 3.10.19)
-* **Conda/Mamba** (For managing dependencies)
-* **CaImAn** (Core dependency for miniscope analysis)
+Install [Miniforge](https://github.com/conda-forge/miniforge#download), then run:
 
----
-
-## 2. Installation
-
-Clone the repository and install the package in editable mode:
-
-```bash
-git clone https://github.com/emelon8/experiment_analysis.git
-cd experiment_analysis
-
-# Recommended: Use the provided environment file
-conda env create -f linux_environment.yml
-conda activate caiman
-
-# Install the package
-pip install -e .
+```sh
+conda create -n ace -c <channel> ace-neurotools
 ```
 
----
+Use the lab's published channel name in place of `<channel>`; channel setup is
+tracked in issue #128. Launch the **ACE NeuroTools** shortcut, or activate the
+environment with `conda activate ace` and run `ace-gui`.
+
+See [lab installation](gui_installation.md) for the pilot status and
+[the workbench guide](gui.md) for local recordings, crops and saved settings.
+CaImAn and Qt OpenCV are installed as conda dependencies. Download Box recording
+files first, then choose their local data folder.
+
+## 2. Developer installation
+
+Create an environment from the root `environment.yml`, activate `aceneurotools`,
+and run `python -m pip install --no-deps -e .` from the checkout. The root
+`conda-lock.yml` reproduces the CI regression environment. See
+[packaging](packaging.md) and [releasing](releasing.md).
 
 ## 3. Data Organization
 

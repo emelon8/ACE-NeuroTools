@@ -1,0 +1,85 @@
+schema_version: 1
+context:
+  version: ${{ env.get("ACE_VERSION") }}
+package:
+  name: ace-neurotools
+  version: ${{ version }}
+source:
+  path: ..
+  filter:
+    include:
+      - src/**
+      - pyproject.toml
+      - README.md
+      - LICENSE
+      - CHANGELOG.md
+      - recipe/**
+      - scripts/smoke_installed_package.py
+build:
+  noarch: python
+  number: 0
+  script:
+    content: python recipe/build_package.py
+    env:
+      SETUPTOOLS_SCM_PRETEND_VERSION_FOR_ACENEUROTOOLS: ${{ version }}
+  python:
+    entry_points:
+      - ace-neuro = aceneurotools.cli:main
+      - ace-gui = aceneurotools.gui.server:main
+requirements:
+  host:
+    - python 3.10.*
+    - pip
+    - setuptools >=77
+    - setuptools-scm >=8
+    - menuinst >=2.4
+    - jsonschema
+  run:
+    - python >=3.10
+    - caiman >=1.13,<1.14
+    - opencv >=4.6 *qt*
+    - numpy >=1.23
+    - scipy >=1.9
+    - matplotlib-base >=3.5
+    - pandas >=1.5
+    - tqdm >=4.64
+    - h5py >=3.7
+    - colorcet >=3
+    - python-neo >=0.12
+    - quantities >=0.14
+    - joblib >=1.2
+    - freesimplegui >=5
+    - pillow >=9
+    - rich >=13
+    - menuinst >=2.4
+    # Required by CaImAn's Python metadata, omitted by its conda recipe.
+    - cython
+    - moviepy
+    - numpydoc
+    - yapf
+    - pip
+tests:
+  - python:
+      imports:
+        - aceneurotools
+        - aceneurotools.pipelines
+        - aceneurotools.gui.server
+        - caiman
+        - cv2
+      pip_check: true
+      python_version: 3.10.*
+  - script:
+      - python scripts/smoke_installed_package.py --installed
+    files:
+      source:
+        - scripts/smoke_installed_package.py
+    requirements:
+      run:
+        - python 3.10.*
+
+about:
+  homepage: https://github.com/emelon8/ACE-NeuroTools
+  repository: https://github.com/emelon8/ACE-NeuroTools
+  license: GPL-3.0-or-later
+  license_file: LICENSE
+  summary: Calcium imaging and electrophysiology analysis with a local experiment workbench
