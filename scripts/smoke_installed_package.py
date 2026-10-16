@@ -11,7 +11,7 @@ import json
 import os
 import queue
 import subprocess
-import sys
+import sysconfig
 import tempfile
 import threading
 import venv
@@ -33,7 +33,7 @@ def check_installed():
         assert root.joinpath(name).read_bytes(), name
     entries = {entry.name: entry for entry in metadata.entry_points}
     assert {"ace-neuro", "ace-gui"} <= entries.keys()
-    bindir = Path(sys.executable).parent
+    bindir = Path(sysconfig.get_path("scripts"))
     suffix = ".exe" if os.name == "nt" else ""
     subprocess.run([str(bindir / ("ace-neuro" + suffix)), "--help"], check=True, capture_output=True, timeout=30)
     process = subprocess.Popen(
