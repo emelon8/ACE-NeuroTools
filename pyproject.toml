@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=77.0", "setuptools-scm>=8.0"]
+requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 
@@ -42,23 +42,27 @@ dependencies = [
     "scipy>=1.9",
     "matplotlib>=3.5",
     "pandas>=1.5",
-    "opencv-python>=4.6",
     "tqdm>=4.64",
     "h5py>=3.7",
     "colorcet>=3.0",
     "neo>=0.12",
     "quantities>=0.14",
     "joblib>=1.2",
-    "caiman>=1.11",
     "freesimplegui>=5.0",
     "Pillow>=9.0",
     "rich>=13",
 ]
 
+# CaImAn (the PyPI name is unrelated) and Qt-enabled OpenCV are conda-only
+# runtime prerequisites; see environment.yml and docs/packaging.md. A pip extra
+# is opt-in for core workflows outside the full CaImAn environment.
 [project.scripts]
 ace-neuro = "aceneurotools.cli:main"
+ace-gui = "aceneurotools.gui.server:main"
 
 [project.optional-dependencies]
+pip-opencv = ["opencv-python>=4.6"]
+
 box = [
     "box-sdk-gen>=1.0",
 ]
@@ -69,6 +73,7 @@ coherence = [
     "xrscipy>=2.2",
 ]
 dev = [
+    "build>=1.2",
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "ruff>=0.4",
@@ -97,7 +102,7 @@ Repository = "https://github.com/emelon8/experiment_analysis"
 where = ["src"]
 
 [tool.setuptools.package-data]
-aceneurotools = ["py.typed", "shared/metadata_templates/*.csv"]
+aceneurotools = ["py.typed", "shared/metadata_templates/*.csv", "gui/*.html", "gui/*.js", "gui/*.css", "gui/assets/*"]
 
 
 # Pytest
