@@ -76,7 +76,18 @@ def handle_nans(
     fr: float,
     max_gap_seconds: float = 0.5,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Interpolate short NaN gaps (<= max_gap_seconds); zero and mask long ones."""
+    """Interpolate short NaN gaps (<= max_gap_seconds); zero and mask long ones.
+
+    Short gaps are linearly interpolated between the adjacent acquired
+    samples and stay valid. Long gaps are replaced with zeros *solely* so a
+    subsequent zero-phase filter can run over a uniform sample grid — NaNs
+    cannot be fed to ``filtfilt`` because the forward-backward pass would
+    spread them over the entire output. The zero fill is not acquired data:
+    the returned mask marks long-gap samples ``False``, and callers must
+    additionally exclude the filter transients the fill discontinuity
+    excites on both sides of each gap (see
+    :func:`mask_filter_transients`).
+    """
     nan_mask = np.isnan(signal)
     if not np.any(nan_mask):
         return signal.copy(), np.ones(len(signal), dtype=bool)
@@ -85,24 +96,20 @@ def handle_nans(
     valid_mask = np.ones(len(signal), dtype=bool)
     cleaned = signal.copy()
 
-    nan_int  = nan_mask.astype(int)
+    nan_int = nan_mask.astype(int)
     nan_diff = np.diff(np.concatenate([[0], nan_int, [0]]))
-    starts   = np.where(nan_diff == 1)[0]
-    ends     = np.where(nan_diff == -1)[0]
+    starts = np.where(nan_diff == 1)[0]
+    ends = np.where(nan_diff == -1)[0]
 
     n_interpolated = 0
-    n_excluded     = 0
+    n_excluded = 0
 
     for start, end in zip(starts, ends):
         gap = end - start
-        if gap <= max_gap_samples:
+        if gap <= max_gap_samples and gap < len(signal):
             # Linear interpolation between adjacent valid values
-            left  = cleaned[start - 1] if start > 0 else 0.0
-            right = (
-                cleaned[end]
-                if end < len(signal) and not np.isnan(cleaned[end])
-                else left
-            )
+            left = cleaned[start - 1] if start > 0 else (cleaned[end] if end < len(signal) else 0.0)
+            right = cleaned[end] if end < len(signal) and not np.isnan(cleaned[end]) else left
             cleaned[start:end] = np.linspace(left, right, gap + 2)[1:-1]
             n_interpolated += gap
         else:
@@ -111,12 +118,10 @@ def handle_nans(
             n_excluded += gap
 
     if n_interpolated > 0 or n_excluded > 0:
-        print(
-            f"    NaN handling: {n_interpolated} samples interpolated, "
-            f"{n_excluded} samples excluded."
-        )
+        print(f"    NaN handling: {n_interpolated} samples interpolated, {n_excluded} samples excluded.")
 
     return cleaned, valid_mask
+
 
 
 def normalize_signals_global(
@@ -130,13 +135,13 @@ def normalize_signals_global(
     all_2 = np.concatenate([control_2, treatment_2])
 
     mean_1 = float(np.nanmean(all_1))
-    std_1  = float(np.nanstd(all_1))
+    std_1 = float(np.nanstd(all_1))
     mean_2 = float(np.nanmean(all_2))
-    std_2  = float(np.nanstd(all_2))
+    std_2 = float(np.nanstd(all_2))
 
     def _zscore(arr: np.ndarray, mean: float, std: float) -> np.ndarray:
         if std == 0 or np.isnan(std):
-            return np.zeros_like(arr)
+            return np.where(np.isnan(arr), np.nan, np.zeros_like(arr))
         return (arr - mean) / std
 
     params = {
@@ -148,12 +153,13 @@ def normalize_signals_global(
         "signal_2_std": std_2,
     }
     return (
-        _zscore(control_1,   mean_1, std_1),
+        _zscore(control_1, mean_1, std_1),
         _zscore(treatment_1, mean_1, std_1),
-        _zscore(control_2,   mean_2, std_2),
+        _zscore(control_2, mean_2, std_2),
         _zscore(treatment_2, mean_2, std_2),
         params,
     )
+
 
 
 def compute_coherence(
@@ -370,3 +376,49 @@ def compute_mutual_information(
     bits_per_sec = float(np.nansum(p_x * tc * log_ratio))
     bits_per_spike = bits_per_sec / mean_rate
     return bits_per_sec, bits_per_spike
+
+
+def mask_filter_transients(valid_mask: np.ndarray, margin_samples: int) -> np.ndarray:
+    """Extend every run of excluded samples by *margin_samples* on both sides.
+
+    Long NaN gaps are zero-filled by :func:`handle_nans` so that a zero-phase
+    filter can process a uniform sample grid, but the fill discontinuity
+    excites filter transients that contaminate the filtered signal around
+    each gap. This helper marks a margin of ``margin_samples`` samples on
+    each side of every maximal run of excluded (``False``) samples. This
+    heuristic reduces exposure to transients; it does not bound their error
+    outside the margin, which depends on the filter and signal. Downstream
+    normalization, regression, uncertainty, and plots exclude the marked
+    samples. Runs that overlap after extension merge
+    naturally and the mask is clipped at the array boundaries (segment ends
+    are already handled by :func:`trim_filter_edges` when applied first).
+
+    Parameters
+    ----------
+    valid_mask : np.ndarray
+        1-D boolean mask; ``True`` marks usable samples.
+    margin_samples : int
+        Number of neighbours to exclude on each side of every excluded run.
+        ``<= 0`` returns an unchanged copy.
+
+    Returns
+    -------
+    np.ndarray
+        New boolean mask; the input is never modified.
+    """
+    mask = np.asarray(valid_mask, dtype=bool)
+    margin = int(margin_samples)
+    if margin <= 0 or mask.size == 0:
+        return mask.copy()
+
+    excluded = ~mask
+    if not excluded.any():
+        return mask.copy()
+
+    # Vectorized dilation of the excluded runs by `margin` samples per side.
+    # Full convolution keeps the window centred even when 2*margin + 1
+    # exceeds the mask length; slicing the centred window clips at the
+    # array boundaries.
+    kernel = np.ones(2 * margin + 1, dtype=np.int64)
+    dilated = np.convolve(excluded.astype(np.int64), kernel, mode="full")[margin : margin + mask.size] > 0
+    return mask & ~dilated

@@ -168,8 +168,7 @@ def load_for_stats(
             ca_events_idx=None,
             all_TTL_events=True,
         )
-        channel_obj.signal = channel_obj.signal[ephys_idx_all_ttl]
-        channel_obj.sampling_rate = np.array(fr)
+        _downsample_channels([channel_obj], ephys_idx_all_ttl, fr)
     except Exception as exc:
         raise PipelineExecutionError(
             f"Ephys downsampling failed for line {line_num}.",
@@ -297,10 +296,7 @@ def load_for_stats_two_channels(
             ca_events_idx=None,
             all_TTL_events=True,
         )
-        ch1.signal = ch1.signal[ephys_idx_all_ttl]
-        ch2.signal = ch2.signal[ephys_idx_all_ttl]
-        ch1.sampling_rate = np.array(fr)
-        ch2.sampling_rate = np.array(fr)
+        _downsample_channels([ch1, ch2], ephys_idx_all_ttl, fr)
     except Exception as exc:
         raise PipelineExecutionError(
             f"Ephys downsampling failed for line {line_num}.",
@@ -365,3 +361,24 @@ def load_calcium_signal(
     signal: np.ndarray = data[npz_key]
     miniscope_dm.mean_fluorescence_dict = data  # type: ignore[attr-defined]
     return signal
+
+
+def _downsample_channels(channels: list[Channel], indices: np.ndarray, fr: float) -> None:
+    """Stage aligned fields for all channels before changing any channel."""
+    reference_clock = channels[0].time_vector
+    replacements = []
+    for channel in channels:
+        if not np.array_equal(channel.time_vector, reference_clock):
+            raise ValueError("Paired channels must share the same sample timestamps.")
+        fields = {}
+        for name in ("signal", "time_vector", "signal_filtered", "phases"):
+            values = getattr(channel, name, None)
+            if values is not None:
+                if np.ndim(values) != 1 or len(values) != len(reference_clock):
+                    raise ValueError(f"Channel {channel.name}: {name} must match the sample clock.")
+                fields[name] = values[indices]
+        replacements.append(fields)
+    for channel, fields in zip(channels, replacements):
+        for name, values in fields.items():
+            setattr(channel, name, values)
+        channel.sampling_rate = fr

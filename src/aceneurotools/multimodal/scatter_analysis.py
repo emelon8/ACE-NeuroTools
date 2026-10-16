@@ -55,6 +55,7 @@ from scipy.stats import t as t_dist
 
 from aceneurotools.multimodal.signal_utils import (
     handle_nans,
+    mask_filter_transients,
     normalize_signals_global,
     slice_signal,
     trim_filter_edges,
@@ -186,39 +187,44 @@ def compute_statistics_robust(
     xv, yv = x[valid], y[valid]
 
     result: dict = {
-        "n": len(xv), "n_effective": float("nan"),
-        "r": float("nan"), "p_value": float("nan"),
+        "n": len(xv),
+        "n_effective": float("nan"),
+        "r": float("nan"),
+        "p_value": float("nan"),
         "p_value_corrected": float("nan"),
-        "ci_lower": float("nan"), "ci_upper": float("nan"),
-        "slope": float("nan"), "intercept": float("nan"),
-        "p_value_str": "N/A", "p_value_corrected_str": "N/A",
+        "ci_lower": float("nan"),
+        "ci_upper": float("nan"),
+        "slope": float("nan"),
+        "intercept": float("nan"),
+        "p_value_str": "N/A",
+        "p_value_corrected_str": "N/A",
     }
 
-    if len(xv) < 10:
+    if len(xv) < 10 or np.ptp(xv) == 0 or np.ptp(yv) == 0:
         return result
 
     r, p_value = pearsonr(xv, yv)
-    coeffs     = np.polyfit(xv, yv, 1)
-    result.update({"r": float(r), "p_value": float(p_value),
-                   "slope": float(coeffs[0]), "intercept": float(coeffs[1])})
+    coeffs = np.polyfit(xv, yv, 1)
+    result.update({"r": float(r), "p_value": float(p_value), "slope": float(coeffs[0]), "intercept": float(coeffs[1])})
     result["p_value_str"] = _fmt_p(p_value)
 
     if correct_autocorrelation:
         n_eff = estimate_effective_sample_size(xv, yv, max_acf_lags)
         result["n_effective"] = int(n_eff)
         if n_eff > 2:
-            t_stat = r * np.sqrt((n_eff - 2.0) / (1.0 - r ** 2 + 1e-10))
+            t_stat = r * np.sqrt((n_eff - 2.0) / (1.0 - r**2 + 1e-10))
             p_corr = float(2.0 * t_dist.sf(abs(t_stat), n_eff - 2.0))
             result["p_value_corrected"] = p_corr
             result["p_value_corrected_str"] = _fmt_p(p_corr)
         ci_lo, ci_hi = compute_confidence_interval(r, n_eff, confidence_level)
         result["ci_lower"], result["ci_upper"] = ci_lo, ci_hi
     else:
-        result["n_effective"]          = int(len(xv))
-        result["p_value_corrected"]    = float(p_value)
-        result["p_value_corrected_str"]= result["p_value_str"]
+        result["n_effective"] = int(len(xv))
+        result["p_value_corrected"] = float(p_value)
+        result["p_value_corrected_str"] = result["p_value_str"]
 
     return result
+
 
 
 def compute_cohens_d(group1: np.ndarray, group2: np.ndarray, paired: bool = True) -> float:
@@ -823,7 +829,7 @@ class ScatterAnalysis:
     """High-level orchestrator for per-subject EEG–calcium scatter analyses.
 
     Args:
-        config: :class:`~aceneurotools.multimodal.stats_config.StatsConfig`
+        config: :class:`~aceneurotools.config.stats_config.StatsConfig`
             controlling filter, normalization, and output settings.
     """
 
@@ -844,9 +850,25 @@ class ScatterAnalysis:
     ) -> tuple[bool, dict | None, dict | None]:
         """Run complete single-subject scatter analysis pipeline.
 
-        Steps: NaN handling → slice → filter + trim → global normalise →
-        generate 6 plots (scatter×2, hexbin×2, combined×2) → optionally
-        accumulate population statistics.
+        Steps: NaN handling → slice → filter + trim → gap-transient margin →
+        global normalise → generate 6 plots (scatter×2, hexbin×2, combined×2)
+        → optionally accumulate population statistics.
+
+        Missing-data policy: long NaN gaps are zero-filled by
+        :func:`~aceneurotools.multimodal.signal_utils.handle_nans` so the
+        zero-phase filter can run on a uniform sample grid. The zero fill is
+        a filter expedient, not data: after filtering and edge trimming, the
+        validity masks are extended by ``int(cfg.edge_trim_seconds * fr)``
+        samples around every excluded run
+        (:func:`~aceneurotools.multimodal.signal_utils.mask_filter_transients`)
+        before the affected samples are set to NaN. The margin matches the
+        width already used to remove Butterworth transients at segment ends,
+        and reduces gap-adjacent transients in normalization, regression,
+        uncertainty, and plots. This is a heuristic, not an error bound:
+        transients may persist outside the margin, especially with low cutoff
+        frequencies. A zero edge trim adds no margin; short interpolated gaps
+        remain valid. Gap-free inputs are unaffected because the margin applies
+        only around excluded runs.
 
         Args:
             eeg_signal: EEG signal at *fr* Hz.
@@ -864,6 +886,7 @@ class ScatterAnalysis:
         """
         if self.config.headless:
             from aceneurotools.shared.plotting import set_backend
+
             set_backend(headless=True)
 
         output_dir = Path(output_dir)
@@ -871,65 +894,137 @@ class ScatterAnalysis:
 
         try:
             # NaN handling
-            eeg_clean, _      = handle_nans(eeg_signal,    fr, max_gap_seconds=0.5)
-            ca_clean,  _      = handle_nans(calcium_signal, fr, max_gap_seconds=0.5)
+            eeg_clean, eeg_valid = handle_nans(eeg_signal, fr, max_gap_seconds=0.5)
+            ca_clean, ca_valid = handle_nans(calcium_signal, fr, max_gap_seconds=0.5)
 
             # Slice
-            ctrl_eeg,   treat_eeg  = slice_signal(eeg_clean,  selections, line_num, fr)
-            ctrl_ca,    treat_ca   = slice_signal(ca_clean,   selections, line_num, fr)
-            tw_ctrl  = selections[line_num][0]
+            ctrl_eeg, treat_eeg = slice_signal(eeg_clean, selections, line_num, fr)
+            ctrl_ca, treat_ca = slice_signal(ca_clean, selections, line_num, fr)
+            ctrl_valid, treat_valid = slice_signal(eeg_valid & ca_valid, selections, line_num, fr)
+            tw_ctrl = selections[line_num][0]
             tw_treat = selections[line_num][1]
 
             # Filter + trim
             from aceneurotools.multimodal.signal_utils import filter_signals
-            fe_ctrl,  fc_ctrl  = filter_signals(ctrl_eeg,  ctrl_ca,  fr, [cfg.lowcut, cfg.highcut], cfg.filter_order)
+
+            fe_ctrl, fc_ctrl = filter_signals(ctrl_eeg, ctrl_ca, fr, [cfg.lowcut, cfg.highcut], cfg.filter_order)
             fe_treat, fc_treat = filter_signals(treat_eeg, treat_ca, fr, [cfg.lowcut, cfg.highcut], cfg.filter_order)
-            fe_ctrl  = trim_filter_edges(fe_ctrl,  fr, cfg.edge_trim_seconds)
-            fc_ctrl  = trim_filter_edges(fc_ctrl,  fr, cfg.edge_trim_seconds)
+            fe_ctrl = trim_filter_edges(fe_ctrl, fr, cfg.edge_trim_seconds)
+            fc_ctrl = trim_filter_edges(fc_ctrl, fr, cfg.edge_trim_seconds)
             fe_treat = trim_filter_edges(fe_treat, fr, cfg.edge_trim_seconds)
             fc_treat = trim_filter_edges(fc_treat, fr, cfg.edge_trim_seconds)
 
+            # Zero-filled gaps permit filtering, but must never count as
+            # acquired samples in normalization, regression, or uncertainty.
+
+
+            # The zero fill is a step discontinuity for the filter, so the
+            # samples adjacent to each excluded run on both sides carry
+            # filter transients. Exclude int(edge_trim_seconds * fr)
+            # neighbours — the same width already used to remove Butterworth
+            # transients at segment ends. This heuristic reduces contamination
+            # in subsequent statistics but does not bound the residual error.
+            # With no gaps the masks are unchanged.
+            transient_margin = int(cfg.edge_trim_seconds * fr)
+            ctrl_valid = mask_filter_transients(ctrl_valid, transient_margin)
+            treat_valid = mask_filter_transients(treat_valid, transient_margin)
+            ctrl_valid = trim_filter_edges(ctrl_valid, fr, cfg.edge_trim_seconds)
+            treat_valid = trim_filter_edges(treat_valid, fr, cfg.edge_trim_seconds)
+
+            fe_ctrl[~ctrl_valid] = np.nan
+            fc_ctrl[~ctrl_valid] = np.nan
+            fe_treat[~treat_valid] = np.nan
+            fc_treat[~treat_valid] = np.nan
+
             # Global z-score normalisation
-            ne_ctrl, ne_treat, nc_ctrl, nc_treat, _ = normalize_signals_global(
-                fe_ctrl, fe_treat, fc_ctrl, fc_treat
-            )
+            ne_ctrl, ne_treat, nc_ctrl, nc_treat, _ = normalize_signals_global(fe_ctrl, fe_treat, fc_ctrl, fc_treat)
 
             # Subject output directory
-            safe_drug  = drug.replace(":", "_").replace(" ", "_").replace(".", "")
-            subj_dir   = output_dir / f"line_{line_num}_{safe_drug}"
+            safe_drug = drug.replace(":", "_").replace(" ", "_").replace(".", "")
+            subj_dir = output_dir / f"line_{line_num}_{safe_drug}"
             subj_dir.mkdir(parents=True, exist_ok=True)
 
             # 6 plots
             print(f"\n  [1/6] Control scatter — Line {line_num}")
             create_scatter_plot(
-                nc_ctrl, ne_ctrl, line_num, drug, "Control", channel, fr, tw_ctrl, cfg,
+                nc_ctrl,
+                ne_ctrl,
+                line_num,
+                drug,
+                "Control",
+                channel,
+                fr,
+                tw_ctrl,
+                cfg,
                 save_path=subj_dir / f"scatter_control_{channel}",
             )
             print("  [2/6] Control hexbin")
             _, ctrl_stats = create_hexbin_plot(
-                nc_ctrl, ne_ctrl, line_num, drug, "Control", channel, fr, tw_ctrl, cfg,
+                nc_ctrl,
+                ne_ctrl,
+                line_num,
+                drug,
+                "Control",
+                channel,
+                fr,
+                tw_ctrl,
+                cfg,
                 save_path=subj_dir / f"hexbin_control_{channel}",
             )
             print("  [3/6] Treatment scatter")
             create_scatter_plot(
-                nc_treat, ne_treat, line_num, drug, "Treatment", channel, fr, tw_treat, cfg,
+                nc_treat,
+                ne_treat,
+                line_num,
+                drug,
+                "Treatment",
+                channel,
+                fr,
+                tw_treat,
+                cfg,
                 save_path=subj_dir / f"scatter_treatment_{channel}",
             )
             print("  [4/6] Treatment hexbin")
             _, treat_stats = create_hexbin_plot(
-                nc_treat, ne_treat, line_num, drug, "Treatment", channel, fr, tw_treat, cfg,
+                nc_treat,
+                ne_treat,
+                line_num,
+                drug,
+                "Treatment",
+                channel,
+                fr,
+                tw_treat,
+                cfg,
                 save_path=subj_dir / f"hexbin_treatment_{channel}",
             )
             print("  [5/6] Combined scatter")
             create_combined_scatter_plot(
-                nc_ctrl, ne_ctrl, nc_treat, ne_treat,
-                line_num, drug, channel, fr, tw_ctrl, tw_treat, cfg,
+                nc_ctrl,
+                ne_ctrl,
+                nc_treat,
+                ne_treat,
+                line_num,
+                drug,
+                channel,
+                fr,
+                tw_ctrl,
+                tw_treat,
+                cfg,
                 save_path=subj_dir / f"scatter_combined_{channel}",
             )
             print("  [6/6] Combined hexbin")
             create_combined_hexbin_plot(
-                nc_ctrl, ne_ctrl, nc_treat, ne_treat,
-                line_num, drug, channel, fr, tw_ctrl, tw_treat, cfg,
+                nc_ctrl,
+                ne_ctrl,
+                nc_treat,
+                ne_treat,
+                line_num,
+                drug,
+                channel,
+                fr,
+                tw_ctrl,
+                tw_treat,
+                cfg,
                 save_path=subj_dir / f"hexbin_combined_{channel}",
             )
 
@@ -940,6 +1035,7 @@ class ScatterAnalysis:
 
         except Exception as exc:
             import traceback
+
             print(f"  ERROR processing line {line_num}: {exc}")
             traceback.print_exc()
             return False, None, None
