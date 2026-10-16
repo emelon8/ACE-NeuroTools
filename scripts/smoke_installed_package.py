@@ -87,9 +87,7 @@ def main():
             prefix = Path(directory) / "environment"
             venv.EnvBuilder(with_pip=True).create(prefix)
             python = prefix / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
-            subprocess.run(
-                [str(python), "-m", "pip", "install", str(wheel)], check=True, env=clean_env, cwd=directory
-            )
+            subprocess.run([str(python), "-m", "pip", "install", str(wheel)], check=True, env=clean_env, cwd=directory)
             subprocess.run(
                 [str(python), str(Path(__file__).resolve()), "--installed"],
                 check=True,
@@ -98,8 +96,13 @@ def main():
                 timeout=90,
             )
         else:
-            os.chdir(directory)
-            check_installed()
+            previous_directory = Path.cwd()
+            try:
+                os.chdir(directory)
+                check_installed()
+            finally:
+                # Windows cannot remove a directory while it is the process cwd.
+                os.chdir(previous_directory)
 
 
 if __name__ == "__main__":
