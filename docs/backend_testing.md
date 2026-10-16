@@ -29,9 +29,10 @@ adds no margin. Short interpolated gaps remain valid. The endpoint-gap test
 covers a gap contained entirely within the discarded endpoint samples whose
 transient margin still reaches retained data.
 
-## Representative recordings: required before merge
+## Representative recordings: deferred
 
-Synthetic regression success does not establish biological validity. Record the
+The user deferred these checks on 2026-10-16. Synthetic regression success does
+not establish biological validity. When recording checks resume, record the
 following in the PR for each representative Box recording:
 
 - Box file/folder ID, recording/animal ID, SHA-256 of local inputs, acquisition
@@ -51,5 +52,5 @@ following in the PR for each representative Box recording:
 
 The local full suite passed **340 tests** on 2026-10-16 using Python 3.10 in the
 existing CaImAn environment. This is regression evidence only. Representative
-Box recordings and lab review are a separate merge prerequisite; do not mark
-those checks complete based on the synthetic fixtures.
+Box recording checks have not been run and are deferred by request; do not
+mark them complete based on the synthetic fixtures.
