@@ -56,3 +56,7 @@ MEMORY.md
 # Packaged GUI development artifacts
 src/aceneurotools/gui/node_modules/
 src/aceneurotools/gui/.demo/
+
+# Git-tag-derived build metadata and conda artifacts
+src/aceneurotools/_version.py
+conda-output/

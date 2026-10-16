@@ -1,11 +1,11 @@
 [build-system]
-requires = ["setuptools>=77.0"]
+requires = ["setuptools>=77.0", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 
 [project]
 name = "aceneurotools"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Analysis of Calcium Imaging and Electrophysiology — integrated pipelines for calcium imaging, electrophysical, and multimodal alignment."
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -98,6 +98,10 @@ Repository = "https://github.com/emelon8/experiment_analysis"
 
 
 # Setuptools
+[tool.setuptools_scm]
+version_file = "src/aceneurotools/_version.py"
+local_scheme = "no-local-version"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

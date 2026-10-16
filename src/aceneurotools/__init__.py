@@ -20,7 +20,16 @@ aceneurotools.multimodal  — Alignment utils, statistical engines, lab config.
 aceneurotools.pipelines   — High-level CLI orchestrators for all modalities.
 """
 
-__version__ = "0.1.0"
+try:
+    from aceneurotools._version import __version__
+except ImportError:
+    from importlib.metadata import PackageNotFoundError, version
+
+    try:
+        __version__ = version("aceneurotools")
+    except PackageNotFoundError:
+        __version__ = "0+unknown"
+
 
 __all__ = [
     "__version__",
