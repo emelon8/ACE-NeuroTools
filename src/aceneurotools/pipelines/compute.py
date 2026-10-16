@@ -86,7 +86,7 @@ class ComputePipeline:
         from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
         from aceneurotools.miniscope.miniscope_preprocessor import MiniscopePreprocessor
         from aceneurotools.shared.experiment_data_manager import ExperimentDataManager
-        from aceneurotools.shared.misc_functions import get_coords_dict_from_analysis_params
+        from aceneurotools.shared.config_utils import get_coords_dict_from_analysis_params
         from aceneurotools.shared.path_finder import PathFinder
 
         meta_dm = ExperimentDataManager(

@@ -17,6 +17,7 @@ from aceneurotools.multimodal.phase_utils import (
 )
 from aceneurotools.pipelines.ephys import EphysPipeline
 from aceneurotools.pipelines.miniscope import MiniscopePipeline
+from aceneurotools.shared.pipeline_defaults import pipeline_defaults
 from aceneurotools.shared.cli_utils import (
     apply_headless_policy,
     build_run_params,
@@ -187,6 +188,7 @@ class MultimodalPipeline:
                 plot_phases=plot_phases,
                 logging_level=logging_level,
                 headless=headless,
+                compute_phases=ca_events,
             )
         except Exception as e:
             raise PipelineExecutionError(
@@ -360,61 +362,7 @@ Examples:
     args = parser.parse_args()
 
     # Default parameters
-    defaults = {
-        # ephys parameters
-        'channel_name': 'PFCLFPvsCBEEG',
-        'remove_artifacts': False,
-        'filter_type': None,
-        'filter_range': [0.5, 4],
-        'plot_channel': False,
-        'plot_spectrogram': False,
-        'plot_phases': False,
-        'logging_level': "CRITICAL",
-
-        # miniscope parameters
-        'miniscope_filenames': ['0.avi'],
-        # preprocessing parameters
-        'crop': True,
-        'detrend_method': 'linear',
-        'df_over_f': True,
-        'secs_window': 5,
-        'quantile_min': 8,
-        'df_over_f_method': 'delta_f_over_sqrt_f',
-        # processing parameters
-        'parallel': False,
-        'n_processes': 6,
-        'apply_motion_correction': True,
-        'inspect_motion_correction': True,
-        'plot_params': False,
-        'run_CNMFE': True,
-        'save_estimates': False,
-        'save_CNMFE_estimates_filename': 'estimates.hdf5',
-        'save_CNMFE_params': False,
-        # post-processing parameters
-        'remove_components_with_gui': True,
-        'find_calcium_events': True,
-        'derivative_for_estimates': 'first',
-        'event_height': 5,
-        'compute_miniscope_phase': True,
-        'filter_miniscope_data': True,
-        'n': 2,
-        'cut': [0.1, 1.5],
-        'ftype': 'butter',
-        'btype': 'bandpass',
-        'inline': False,
-        'compute_miniscope_spectrogram': False,
-        'window_length': 30,
-        'window_step': 3,
-        'freq_lims': [0, 15],
-        'time_bandwidth': 2,
-        # multimodal parameters
-        'delete_TTLs': True,
-        'fix_TTL_gaps': True,
-        'only_experiment_events': False,
-        'all_TTL_events': True,
-        'ca_events': True,
-        'time_range': None
-    }
+    defaults = pipeline_defaults("multimodal")
 
     run_params = build_run_params(
         defaults=defaults,

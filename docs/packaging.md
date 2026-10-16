@@ -6,8 +6,9 @@ allocate an available port for an automated check, or choose a different port.
 The application and its HTML, JavaScript, CSS and assets live inside
 `aceneurotools.gui`; launching does not depend on the current working directory.
 
-The packaging groundwork supplies the application shell. The dependent GUI PR
-adds experiment workflows and their regression suite.
+The application browses CSV projects, previews crops, edits settings and runs
+analysis in private run folders. Download Box recordings before opening their
+local folders; the Box setup wizard and cluster-script export are deferred.
 
 ## Scientific prerequisites
 
@@ -37,5 +38,4 @@ python scripts/smoke_installed_package.py --wheel dist/<built-wheel>.whl
 The smoke check creates a clean temporary environment, installs the built wheel,
 and launches its installed `ace-neuro` and `ace-gui` commands from outside the
 checkout. It checks packaged assets and the live HTTP health endpoint, then
-stops the server. The application shell requires only the standard library;
-the GUI feature PR adds the runtime dependencies used by its experiment routes.
+stops the server. The installed GUI uses the runtime dependencies declared by the wheel.

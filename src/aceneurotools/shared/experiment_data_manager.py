@@ -10,7 +10,7 @@ import warnings
 from pathlib import Path
 from typing import Any
 
-from aceneurotools.shared.csv_worker import CSVWorker
+from aceneurotools.shared.csv_worker import CSVWorker, CSVRowNotFoundError
 from aceneurotools.shared.paths import PROJECT_ROOT
 
 
@@ -134,7 +134,10 @@ class ExperimentDataManager:
             self.analysis_params = {}
             return
 
-        analysis_params_unconverted = CSVWorker.csv_row_to_dict(analysis_params_csv, self.line_num)
+        try:
+            analysis_params_unconverted = CSVWorker.csv_row_to_dict(analysis_params_csv, self.line_num)
+        except CSVRowNotFoundError:
+            analysis_params_unconverted = None
         if analysis_params_unconverted is None:
             self.logger.info(
                 f"Line {self.line_num} not found in {analysis_params_csv}. "

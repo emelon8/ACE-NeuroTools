@@ -1,1 +1,1 @@
-"""Installed local browser interface for ACE-NeuroTools."""
+"""Optional local experiment editor; scientific implementation remains in aceneurotools."""

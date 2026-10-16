@@ -52,3 +52,7 @@ CLAUDE.local.md
 .anthropic/
 memory/
 MEMORY.md
+
+# Packaged GUI development artifacts
+src/aceneurotools/gui/node_modules/
+src/aceneurotools/gui/.demo/

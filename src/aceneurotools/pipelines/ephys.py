@@ -7,6 +7,7 @@ from pathlib import Path
 from aceneurotools.ephys.channel_worker import ChannelWorker
 from aceneurotools.ephys.ephys_data_manager import EphysDataManager
 from aceneurotools.ephys.ephys_loader import load_ephys_for_analysis
+from aceneurotools.shared.pipeline_defaults import pipeline_defaults
 from aceneurotools.shared.cli_utils import (
     apply_headless_policy,
     build_run_params,
@@ -312,17 +313,7 @@ Examples:
     args = parser.parse_args()
 
     # Default parameters
-    defaults = {
-        'channel_name': 'PFCLFPvsCBEEG',
-        'remove_artifacts': False,
-        'filter_type': None,
-        'filter_range': [0.3, 0.5],
-        'compute_phases': False,
-        'plot_channel': True,
-        'plot_spectrogram': True,
-        'plot_phases': False,
-        'logging_level': "DEBUG"
-    }
+    defaults = pipeline_defaults("ephys")
 
     from aceneurotools.shared.config_utils import load_analysis_params
     run_params = build_run_params(

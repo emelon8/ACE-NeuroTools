@@ -57,28 +57,28 @@ def test_empty_file_returns_none(tmp_path: Path):
 
 
 def test_reads_file_only_once(csv_file: Path, monkeypatch):
-    """The disk should be touched exactly once (single read_text call) and
+    """The disk should be touched exactly once (single read_bytes call, preserving literal CRLF notes) and
     pandas should parse from memory (single read_csv call)."""
-    read_text_calls = {"n": 0}
+    read_bytes_calls = {"n": 0}
     read_csv_calls = {"n": 0}
 
-    original_read_text = Path.read_text
+    original_read_bytes = Path.read_bytes
     original_read_csv = csv_worker_mod.pd.read_csv
 
-    def counting_read_text(self, *args, **kwargs):
-        read_text_calls["n"] += 1
-        return original_read_text(self, *args, **kwargs)
+    def counting_read_bytes(self, *args, **kwargs):
+        read_bytes_calls["n"] += 1
+        return original_read_bytes(self, *args, **kwargs)
 
     def counting_read_csv(*args, **kwargs):
         read_csv_calls["n"] += 1
         return original_read_csv(*args, **kwargs)
 
-    monkeypatch.setattr(Path, "read_text", counting_read_text)
+    monkeypatch.setattr(Path, "read_bytes", counting_read_bytes)
     monkeypatch.setattr(csv_worker_mod.pd, "read_csv", counting_read_csv)
 
     CSVWorker.csv_row_to_dict(csv_file, 1)
 
-    assert read_text_calls["n"] == 1
+    assert read_bytes_calls["n"] == 1
     assert read_csv_calls["n"] == 1
 
 
