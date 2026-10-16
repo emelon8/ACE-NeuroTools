@@ -61,6 +61,8 @@ ace-neuro = "aceneurotools.cli:main"
 ace-gui = "aceneurotools.gui.server:main"
 
 [project.optional-dependencies]
+evc = ["jsonschema>=4"]
+
 pip-opencv = ["opencv-python>=4.6"]
 
 box = [
@@ -73,6 +75,7 @@ coherence = [
     "xrscipy>=2.2",
 ]
 dev = [
+    "hypothesis>=6",
     "build>=1.2",
     "pytest>=7.0",
     "pytest-cov>=4.0",
@@ -102,7 +105,7 @@ Repository = "https://github.com/emelon8/experiment_analysis"
 where = ["src"]
 
 [tool.setuptools.package-data]
-aceneurotools = ["py.typed", "shared/metadata_templates/*.csv", "gui/*.html", "gui/*.js", "gui/*.css", "gui/assets/*"]
+aceneurotools = ["py.typed", "shared/metadata_templates/*.csv", "evc/schemas/*.json", "gui/*.html", "gui/*.js", "gui/*.css", "gui/assets/*"]
 
 
 # Pytest
