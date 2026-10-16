@@ -226,8 +226,8 @@ class MiniscopePostprocessor:
         return ca_events_idx
 
 
+    @staticmethod
     def find_calcium_events_with_derivatives(
-        self,
         estimates: 'Estimates',
         derivative: str = 'first',
         event_height: float = 5

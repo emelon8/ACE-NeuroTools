@@ -88,7 +88,7 @@ def main():
             venv.EnvBuilder(with_pip=True).create(prefix)
             python = prefix / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
             subprocess.run(
-                [str(python), "-m", "pip", "install", "--no-deps", str(wheel)], check=True, env=clean_env, cwd=directory
+                [str(python), "-m", "pip", "install", str(wheel)], check=True, env=clean_env, cwd=directory
             )
             subprocess.run(
                 [str(python), str(Path(__file__).resolve()), "--installed"],

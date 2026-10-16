@@ -144,6 +144,5 @@ def apply_headless_policy(*, pipeline_name: str, run_params: dict[str, Any]) -> 
         run_params["inspect_motion_correction"] = False
         run_params["remove_components_with_gui"] = False
         run_params["plot_params"] = False
-        run_params["inline"] = False
 
     return run_params

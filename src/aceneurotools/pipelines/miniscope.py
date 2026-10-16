@@ -16,6 +16,7 @@ from aceneurotools.miniscope.pipeline_results import (
     ProcessConfig,
     ProcessingResult,
 )
+from aceneurotools.shared.pipeline_defaults import pipeline_defaults
 from aceneurotools.shared.cli_utils import (
     apply_headless_policy,
     build_run_params,
@@ -28,7 +29,8 @@ from aceneurotools.shared.exceptions import (
     PipelineExecutionError,
     print_cli_error,
 )
-from aceneurotools.shared.misc_functions import get_coords_dict_from_analysis_params, update_csv_cell
+from aceneurotools.shared.config_utils import get_coords_dict_from_analysis_params
+from aceneurotools.shared.csv_worker import update_csv_cell
 
 
 class MiniscopePipeline:
@@ -168,7 +170,6 @@ class MiniscopePipeline:
             inspect_motion_correction = False
             remove_components_with_gui = False
             plot_params = False
-            inline = False
             print("Running in HEADLESS mode. GUI steps disabled.", flush=True)
 
         try:
@@ -407,43 +408,7 @@ Examples:
     args = parser.parse_args()
 
     # Default parameters
-    defaults = {
-        'filenames': ['0.avi'],
-        # Preprocessing
-        'crop': True,
-        'detrend_method': None,
-        'df_over_f': False,
-        'secs_window': 5,
-        'quantile_min': 8,
-        'df_over_f_method': 'delta_f_over_sqrt_f',
-        # Processing
-        'parallel': True,
-        'n_processes': 6,
-        'apply_motion_correction': False,
-        'inspect_motion_correction': True,
-        'plot_params': False,
-        'run_CNMFE': True,
-        'save_estimates': True,
-        'save_CNMFE_estimates_filename': 'estimates.hdf5',
-        'save_CNMFE_params': True,
-        # Post-processing
-        'remove_components_with_gui': True,
-        'find_calcium_events': True,
-        'derivative_for_estimates': 'first',
-        'event_height': 5,
-        'compute_miniscope_phase': True,
-        'filter_miniscope_data': True,
-        'n': 2,
-        'cut': [0.1, 1.5],
-        'ftype': 'butter',
-        'btype': 'bandpass',
-        'inline': True,
-        'compute_miniscope_spectrogram': True,
-        'window_length': 30,
-        'window_step': 3,
-        'freq_lims': [0, 15],
-        'time_bandwidth': 2
-    }
+    defaults = pipeline_defaults("miniscope")
 
     from aceneurotools.shared.config_utils import load_analysis_params
     run_params = build_run_params(
