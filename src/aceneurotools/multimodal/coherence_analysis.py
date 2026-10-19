@@ -13,6 +13,7 @@ from scipy.stats import wilcoxon
 
 from aceneurotools.multimodal.signal_utils import (
     compute_signal_stats,
+    power_to_db,
     filter_signals,
     slice_signal,
 )
@@ -328,7 +329,12 @@ class CoherenceAnalysis:
             warnings.warn(f"Spectrogram failed for line {line_num}: {exc}", stacklevel=2)
             return
 
-        power_db = 10.0 * np.log10(power_matrix + 1e-30)
+        power_db = power_to_db(power_matrix)
+        if np.isfinite(power_db).any():
+            vmin = float(np.nanpercentile(power_db, 5))
+            vmax = float(np.nanpercentile(power_db, 95))
+        else:
+            vmin, vmax = None, None
         times_min = times / 60.0
 
         fig, ax = plt.subplots(figsize=(12, 5))
@@ -337,8 +343,8 @@ class CoherenceAnalysis:
             aspect="auto",
             origin="lower",
             extent=[times_min[0], times_min[-1], freqs[0], freqs[-1]],
-            vmin=np.percentile(power_db, 5),
-            vmax=np.percentile(power_db, 95),
+            vmin=vmin,
+            vmax=vmax,
         )
         # Mark control / treatment windows
         windows = selections.get(line_num)

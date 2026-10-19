@@ -18,6 +18,7 @@ MPLBACKEND=Agg python -m pytest tests/ -m "not slow"
 | Peri-event SEM | Each padded time bin uses its own number of contributing events. Bins without acquired samples remain undefined. | `tests/test_backend_perievent_sem.py` |
 | Multitaper PSD | Eigenvalue weights sum to one. Power and one-sided frequency scaling match independent SciPy periodograms. | `tests/test_backend_spectrogram.py` |
 | Phase average | Average Cartesian unit vectors with equal neuron weights, then convert to an angle. Ignore empty neurons; no events means undefined density/phase. | `tests/test_backend_phase_analysis.py` |
+| Spectral band power and plots | Convert only positive finite power to dB. Zero/negative/nonfinite bins are missing; means and color limits ignore them, and wholly missing bands stay undefined. | `tests/test_backend_spectral_db_contract.py` |
 | TTL downsampling | Signal, timestamps, filtered signal and phase use identical sample indices. Validate both channel clocks and lengths before mutating either channel. | `tests/test_backend_downsampling.py` |
 | Scatter gaps | Exclude the union of long EEG/calcium gaps and a margin on both sides before pooled z-scoring, regression and uncertainty. Extend masks before trimming endpoints. | `tests/test_backend_scatter_analysis.py` |
 | Boundary NaNs | Extend short leading/trailing gaps with the nearest acquired value. An entirely missing signal has no valid samples. | `tests/test_backend_signal_integrity.py` |
@@ -54,3 +55,13 @@ The local full suite passed **340 tests** on 2026-10-16 using Python 3.10 in the
 existing CaImAn environment. This is regression evidence only. Representative
 Box recording checks have not been run and are deferred by request; do not
 mark them complete based on the synthetic fixtures.
+
+## Spectral dB follow-up
+
+Band-power averages and spectrogram color limits no longer convert exact zeros
+into a fabricated -300 dB floor. Non-positive and non-finite linear power bins
+are treated as missing. This changes results for bands containing those bins;
+positive finite power retains the existing 10*log10(power) convention. An
+all-zero or fully missing band reports NaN. Seven focused tests cover scalar
+and array conversion, mixed and all-missing bands, ordinary positive power,
+and plot output. Representative recording checks remain deferred by request.
