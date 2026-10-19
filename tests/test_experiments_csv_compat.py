@@ -101,3 +101,28 @@ def test_verify_with_empty_box_ids_stays_local(tmp_path):
     base = tmp_path / "data"
     base.mkdir()
     assert verify_file_by_line(7, csv_path, do_type="both", base_file_path=base) is False
+
+
+@pytest.mark.parametrize(
+    ("modality", "directory_column", "box_column", "other_directory"),
+    [
+        ("miniscope", "calcium imaging directory", "Box Calcium Folder ID", "ephys directory"),
+        ("ephys", "ephys directory", "Box ephys folder ID", "calcium imaging directory"),
+    ],
+)
+def test_box_id_without_destination_is_rejected_before_download(
+    tmp_path, monkeypatch, modality, directory_column, box_column, other_directory
+):
+    csv_path = tmp_path / "experiments.csv"
+    _write_csv(csv_path, ["line number", box_column, other_directory], ["7", "123", ""])
+    base = tmp_path / "data"
+
+    def unexpected_box_setup():
+        pytest.fail("Box must not be consulted without a destination directory column")
+
+    monkeypatch.setattr(
+        "aceneurotools.shared.file_downloader.is_box_installed", unexpected_box_setup
+    )
+    with pytest.raises(KeyError, match=directory_column):
+        verify_file_by_line(7, csv_path, do_type=modality, base_file_path=base)
+    assert not base.exists()

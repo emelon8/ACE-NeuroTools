@@ -95,9 +95,9 @@ def verify_file_by_line(
         return df.at[line_num_str, column]
 
     miniscope_id = _optional_cell("Box Calcium Folder ID")
-    miniscope_path = _optional_cell("calcium imaging directory")
+    miniscope_path = df.at[line_num_str, "calcium imaging directory"]
     ephys_id = _optional_cell("Box ephys folder ID")
-    ephys_path = _optional_cell("ephys directory")
+    ephys_path = df.at[line_num_str, "ephys directory"]
 
     # --- 1. Check Local Status ---
     has_miniscope = False
