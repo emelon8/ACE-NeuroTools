@@ -7,11 +7,11 @@ from typing import Any
 
 import numpy as np
 
-from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
+from aceneurotools.calcium_imaging.calcium_imaging_data_manager import CalciumImagingDataManager
 from aceneurotools.shared.path_finder import PathFinder
 
 
-class OnixMiniscopeDataManager(MiniscopeDataManager):
+class OnixMiniscopeDataManager(CalciumImagingDataManager):
     """
     Handles UCLA V4 Miniscope data formats (start-time_*_miniscope.csv, ucla-miniscope-v4-clock_*.raw).
     """

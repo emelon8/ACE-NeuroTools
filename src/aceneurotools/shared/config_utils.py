@@ -8,6 +8,8 @@ CSV files. Project paths must be provided explicitly.
 from pathlib import Path
 from typing import Any
 
+from aceneurotools.shared.calcium_imaging_names import accept_legacy_keywords
+
 
 def load_analysis_params(line_num: int, project_path: Path | None = None) -> dict[str, Any]:
     """Load analysis parameters for an experiment from the project directory.
@@ -29,7 +31,7 @@ def load_analysis_params(line_num: int, project_path: Path | None = None) -> dic
 
     Example:
         >>> params = load_analysis_params(96, project_path=Path("/path/to/project"))
-        >>> api = MiniscopePipeline()
+        >>> api = CalciumImagingPipeline()
         >>> api.run(line_num=96, project_path="/path/to/project", **params)
     """
     from aceneurotools.shared.csv_worker import CSVRowNotFoundError, CSVWorker
@@ -63,7 +65,7 @@ def parse_analysis_params(params: dict[str, Any]) -> dict[str, Any]:
     """Convert CSV column values to pipeline kwargs.
 
     Maps column names from analysis_parameters.csv to the exact argument
-    names expected by MiniscopePipeline.run() and EphysPipeline.run().
+    names expected by CalciumImagingPipeline.run() and EphysPipeline.run().
     Empty/None values are skipped, allowing pipeline defaults to apply.
 
     Args:
@@ -76,14 +78,14 @@ def parse_analysis_params(params: dict[str, Any]) -> dict[str, Any]:
 
     # Columns that map directly (CSV column name == kwarg name)
     DIRECT_KEYS: list[str] = [
-        # Miniscope preprocessing
+        # Calcium imaging preprocessing
         "filenames",
         "crop_coords",
         "detrend_method",
         "df_over_f",
         "secs_window",
         "quantile_min",
-        # Miniscope processing
+        # Calcium imaging processing
         "parallel",
         "n_processes",
         "apply_motion_correction",
@@ -93,12 +95,13 @@ def parse_analysis_params(params: dict[str, Any]) -> dict[str, Any]:
         "save_estimates",
         "save_CNMFE_estimates_filename",
         "save_CNMFE_params",
-        # Miniscope postprocessing
+        # Calcium imaging postprocessing
         "remove_components_with_gui",
         "find_calcium_events",
         "derivative_for_estimates",
         "event_height",
         "compute_miniscope_phase",
+        "calcium_imaging_filenames",
         "n",
         "cut",
         "ftype",
@@ -129,7 +132,7 @@ def parse_analysis_params(params: dict[str, Any]) -> dict[str, Any]:
 
     args: dict[str, Any] = {}
 
-    direct_keys = set(DIRECT_KEYS) | pipeline_keys("miniscope") | pipeline_keys("ephys") | pipeline_keys("multimodal")
+    direct_keys = set(DIRECT_KEYS) | pipeline_keys("miniscope") | pipeline_keys("calcium_imaging") | pipeline_keys("ephys") | pipeline_keys("multimodal")
     for key in direct_keys:
         if key in params and params[key] is not None:
             args[key] = params[key]
@@ -145,9 +148,10 @@ def parse_analysis_params(params: dict[str, Any]) -> dict[str, Any]:
     return args
 
 
-def get_coords_dict_from_analysis_params(miniscope_data_manager: Any) -> tuple[dict[str, int] | None, str]:
+@accept_legacy_keywords(miniscope_data_manager="calcium_imaging_data_manager")
+def get_coords_dict_from_analysis_params(calcium_imaging_data_manager: Any) -> tuple[dict[str, int] | None, str]:
     """Read canonical coordinates or the legacy crop tuple through one shared path."""
-    params = miniscope_data_manager.analysis_params or {}
+    params = calcium_imaging_data_manager.analysis_params or {}
     if params.get("crop") is False:
         return None, ""
     coords = params.get("crop_coords")

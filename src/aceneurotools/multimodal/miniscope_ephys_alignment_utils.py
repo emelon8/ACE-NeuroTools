@@ -9,25 +9,25 @@ from aceneurotools.shared.exceptions import DataFormatError
 from aceneurotools.shared.path_finder import PathFinder
 
 if TYPE_CHECKING:
-    from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
+    from aceneurotools.calcium_imaging.calcium_imaging_data_manager import CalciumImagingDataManager
 
 
 def sync_neuralynx_miniscope_timestamps(
     channel: Channel,
-    miniscope_dm: 'MiniscopeDataManager',
+    miniscope_dm: 'CalciumImagingDataManager',
     ephys_dm: EphysDataManager,
     delete_TTLs: bool = True,
     fix_TTL_gaps: bool = False,
     only_experiment_events: bool = True
-) -> tuple[np.ndarray, np.ndarray, Channel, 'MiniscopeDataManager']:
+) -> tuple[np.ndarray, np.ndarray, Channel, 'CalciumImagingDataManager']:
     """Synchronize Neuralynx and miniscope timestamps.
     
-    This is a legacy wrapper. It delegates to the new MiniscopeDataManager
+    This is a legacy wrapper. It delegates to the new CalciumImagingDataManager
     sync_timestamps architecture.
     
     Args:
         channel: Channel object containing ephys events.
-        miniscope_dm: MiniscopeDataManager with frame info and analysis params.
+        miniscope_dm: CalciumImagingDataManager with frame info and analysis params.
         ephys_dm: EphysDataManager to extract TTLs from.
         delete_TTLs: If True, remove TTLs for dropped frames from analysis_params.
         fix_TTL_gaps: If True, interpolate missing TTL events.
@@ -64,10 +64,10 @@ def _correct_tCaIm(
     event_labels: np.ndarray,
     tCaIm: np.ndarray,
     low_confidence_periods: np.ndarray,
-    miniscope_dm: 'MiniscopeDataManager',
+    miniscope_dm: 'CalciumImagingDataManager',
     threshold: float = 0.065,
     fix_TTL_gaps: bool = False
-) -> tuple[np.ndarray, np.ndarray, 'MiniscopeDataManager']:
+) -> tuple[np.ndarray, np.ndarray, 'CalciumImagingDataManager']:
     """This method first confirms that the TTL events alternate and then checks for missing TTL events. If there are any, the method guesses their timing and inserts them into the calcium imaging time vector.
     event_labels is the array of imported Neuralynx event labels.
     THRESHOLD is the time threshold, in seconds, for detecting gaps in the TTL events."""
@@ -186,7 +186,7 @@ def find_ca_movie_frame_num_of_ephys_idx(
 def find_ca_movie_filenums(
     channel: Channel,
     ephys_idx_all_TTL_events: np.ndarray,
-    miniscope_dm: 'MiniscopeDataManager',
+    miniscope_dm: 'CalciumImagingDataManager',
     time_range: list[float] | None = None
 ) -> tuple[list[str], np.ndarray]:
     """Determine the calcium imaging movie file(s) that correspond to a specified time period (in seconds) in the electrophysiological signal.

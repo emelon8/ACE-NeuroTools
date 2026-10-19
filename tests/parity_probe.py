@@ -64,7 +64,7 @@ def main():
     observed = {}
 
     def observe(frame, event, result):
-        if frame.f_code.co_name != "run" or frame.f_globals.get("__name__") != "__main__":
+        if frame.f_code.co_name != "run" or frame.f_globals.get("__name__") not in {"__main__", "aceneurotools.pipelines.calcium_imaging"}:
             return
         if event == "call":
             count = frame.f_code.co_argcount + frame.f_code.co_kwonlyargcount

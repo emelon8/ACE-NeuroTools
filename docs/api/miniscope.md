@@ -1,16 +1,6 @@
-# Miniscope Modules API
+# Miniscope compatibility
 
-This section details the pipeline for processing calcium imaging data.
+Shared analysis is documented in the [Calcium Imaging API](calcium_imaging.md).
 
-
-## Miniscope Data Manager
-::: aceneurotools.miniscope.miniscope_data_manager.MiniscopeDataManager
-
-## Preprocessor
-::: aceneurotools.miniscope.miniscope_preprocessor.MiniscopePreprocessor
-
-## Processor (CNMF-E)
-::: aceneurotools.miniscope.miniscope_processor.MiniscopeProcessor
-
-## Postprocessor
-::: aceneurotools.miniscope.miniscope_postprocessor.MiniscopePostprocessor
+The previous Miniscope imports and CLI entry point remain supported.
+UCLA and ONIX acquisition readers keep their Miniscope names.

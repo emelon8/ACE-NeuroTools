@@ -487,7 +487,7 @@ class Neurons:
                         )
                     np.savez_compressed(stage / "C_curated.npz", **values)
                     if job["event_analysis"] is not None:
-                        from aceneurotools.miniscope.miniscope_postprocessor import MiniscopePostprocessor
+                        from aceneurotools.calcium_imaging.calcium_imaging_postprocessor import CalciumImagingPostprocessor
 
                         job["message"] = "Detecting calcium events from saved curated estimates…"
                         curated_path = stage / job["filename"]
@@ -496,7 +496,7 @@ class Neurons:
                             raise ProjectError(
                                 "Curated traces contain invalid numeric values; events cannot be detected."
                             )
-                        events = MiniscopePostprocessor.find_calcium_events_with_derivatives(
+                        events = CalciumImagingPostprocessor.find_calcium_events_with_derivatives(
                             curated, **job["event_analysis"]
                         )
                         write_json(

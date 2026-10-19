@@ -6,17 +6,17 @@ import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
 
-from aceneurotools.miniscope.miniscope_preprocessor import MiniscopePreprocessor
+from aceneurotools.calcium_imaging.calcium_imaging_preprocessor import CalciumImagingPreprocessor
 from aceneurotools.multimodal.miniscope_ephys_alignment_utils import find_ca_movie_filenums
 from aceneurotools.shared.misc_functions import get_coords_dict_from_analysis_params
 from aceneurotools.shared.path_finder import PathFinder
 
 if TYPE_CHECKING:
     from aceneurotools.ephys.channel import Channel
-    from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
+    from aceneurotools.calcium_imaging.calcium_imaging_data_manager import CalciumImagingDataManager
 
 def create_ca_ephys_movie(
-    miniscope_dm: 'MiniscopeDataManager',
+    miniscope_dm: 'CalciumImagingDataManager',
     ephys_idx_all_TTL_events: np.ndarray,
     channel_object: 'Channel',
     time_range: list[float] | None = None,
@@ -84,7 +84,7 @@ def create_ca_ephys_movie(
             }
         else:
             coords_dict, _ = get_coords_dict_from_analysis_params(miniscope_dm)
-        preprocessor = MiniscopePreprocessor(miniscope_dm)
+        preprocessor = CalciumImagingPreprocessor(miniscope_dm)
         projections = preprocessor.compute_projections(movie)
         final_coords = preprocessor.get_crop_coordinates(coords_dict, projections, movie.shape[1], movie.shape[2])
         if final_coords is not None:
@@ -103,7 +103,7 @@ def create_ca_ephys_movie(
     if plot_mean_fluorescence:
         time_projection -= np.mean(time_projection) # Maybe not needed for the filtered signal, but this is applied to both filtered and non-filtered just in case the filter doesn't exclude the DC component (0 Hz).
     if df_over_sqrt_f:
-        preprocessor = MiniscopePreprocessor(miniscope_dm)
+        preprocessor = CalciumImagingPreprocessor(miniscope_dm)
         movie = preprocessor.compute_df_over_f(movie)
     if vmin == None:
         vmin = movie.mean() - movie.std()*0

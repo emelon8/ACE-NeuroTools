@@ -15,7 +15,7 @@ from PIL import Image
 from aceneurotools.gui.csv_projects import ProjectError
 from aceneurotools.gui.recording_scope import apply_scope
 from aceneurotools.gui.runs import inventory, recording_path
-from aceneurotools.miniscope.projections import compute_projections
+from aceneurotools.calcium_imaging.projections import compute_projections
 from aceneurotools.shared.csv_worker import CSVWorker
 
 

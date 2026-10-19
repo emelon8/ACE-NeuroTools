@@ -30,7 +30,7 @@ def test_gui_and_cli_headless_policy_preserve_inline(inline):
 
 @pytest.mark.parametrize("inline", [True, False])
 def test_real_postprocessing_matches_interactive_pipeline_when_headless(tmp_path, monkeypatch, inline):
-    from aceneurotools.pipelines import miniscope
+    from aceneurotools.pipelines import calcium_imaging as miniscope
     from aceneurotools.shared import plotting
 
     t = np.arange(600) / 30
@@ -68,12 +68,12 @@ def test_real_postprocessing_matches_interactive_pipeline_when_headless(tmp_path
             assert args[3] is False and args[4] is False
             return self.dm
 
-    monkeypatch.setattr(miniscope.MiniscopeDataManager, "create", create)
-    monkeypatch.setattr(miniscope, "MiniscopePreprocessor", Preprocessor)
-    monkeypatch.setattr(miniscope, "MiniscopeProcessor", Processor)
+    monkeypatch.setattr(miniscope.CalciumImagingDataManager, "create", create)
+    monkeypatch.setattr(miniscope, "CalciumImagingPreprocessor", Preprocessor)
+    monkeypatch.setattr(miniscope, "CalciumImagingProcessor", Processor)
     monkeypatch.setattr(plotting, "set_backend", lambda **kwargs: None)
     for headless in [False, True]:
-        pipeline = miniscope.MiniscopePipeline()
+        pipeline = miniscope.CalciumImagingPipeline()
         pipeline.run(
             line_num=1,
             project_path=tmp_path,

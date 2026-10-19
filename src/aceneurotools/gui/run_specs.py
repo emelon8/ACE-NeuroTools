@@ -1,3 +1,5 @@
+from aceneurotools.shared.calcium_imaging_names import options_for_keys
+
 """Read the existing CLI defaults without importing heavy pipeline modules."""
 
 import csv
@@ -61,7 +63,7 @@ def effective_parameters(kind, raw):
     else:
         values = {}
     converted = CSVWorker.convert_data_types(values)
-    parsed = config_utils.parse_analysis_params(converted)
+    parsed = options_for_keys(config_utils.parse_analysis_params(converted), allowed)
     params = dict(defaults)
     sources = {key: "CLI default" for key in defaults}
     for key, value in parsed.items():

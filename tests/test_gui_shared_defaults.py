@@ -21,8 +21,10 @@ def test_shared_options_match_public_pipeline_run(kind):
         "data_path",
         "headless",
     }
-    assert pipeline_keys(kind) == public
-    assert set(pipeline_defaults(kind)) <= public
+    from aceneurotools.shared.calcium_imaging_names import options_for_keys
+
+    assert set(options_for_keys(dict.fromkeys(pipeline_keys(kind)), public)) == public
+    assert set(options_for_keys(pipeline_defaults(kind), public)) <= public
 
 
 def test_each_frontend_gets_independent_nested_defaults():

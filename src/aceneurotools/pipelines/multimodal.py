@@ -11,13 +11,13 @@ from aceneurotools.multimodal.miniscope_ephys_alignment_utils import (
     sync_neuralynx_miniscope_timestamps,
 )
 from aceneurotools.multimodal.phase_utils import (
+    calcium_imaging_phase_ca_events,
     ephys_phase_ca_events,
-    miniscope_phase_ca_events,
     phase_ca_events_histogram,
 )
+from aceneurotools.pipelines.calcium_imaging import CalciumImagingPipeline
 from aceneurotools.pipelines.ephys import EphysPipeline
-from aceneurotools.pipelines.miniscope import MiniscopePipeline
-from aceneurotools.shared.pipeline_defaults import pipeline_defaults
+from aceneurotools.shared.calcium_imaging_names import LEGACY_OPTIONS, accept_legacy_keywords, alias_attribute
 from aceneurotools.shared.cli_utils import (
     apply_headless_policy,
     build_run_params,
@@ -26,29 +26,35 @@ from aceneurotools.shared.cli_utils import (
 )
 from aceneurotools.shared.config_utils import load_analysis_params
 from aceneurotools.shared.exceptions import AceNeuroError, PipelineExecutionError, print_cli_error
+from aceneurotools.shared.pipeline_defaults import pipeline_defaults
 
 
 class MultimodalPipeline:
-    """Orchestrates ephys + miniscope analysis and multimodal alignment.
+    """Orchestrates ephys + calcium imaging analysis and multimodal alignment.
 
     After :meth:`run`, these instance attributes are populated (``None`` if a
     stage did not apply):
 
     - :attr:`ephys_pipeline` — :class:`EphysPipeline` instance used for this run
-    - :attr:`miniscope_pipeline` — :class:`MiniscopePipeline` instance used
+    - :attr:`calcium_imaging_pipeline` — :class:`CalciumImagingPipeline` instance used
     - :attr:`t_ca_im` — aligned calcium frame times from TTL sync
     - :attr:`low_confidence_periods` — sync quality mask from alignment
     - :attr:`ephys_idx_all_TTL_events` — ephys sample indices for TTL events
     - :attr:`ephys_idx_ca_events` — ephys indices at calcium events (if ``ca_events``)
     - :attr:`ca_frame_num_of_ephys_idx` — per-frame mapping (if TTL indices exist)
     - :attr:`ca_events_phases_ephys` — phase samples for CA events (ephys band)
-    - :attr:`ca_events_phases_miniscope` — phase samples for CA events (miniscope)
+    - :attr:`ca_events_phases_calcium_imaging` — phase samples for CA events (calcium imaging)
     - :attr:`phase_hist_ephys` / :attr:`phase_bin_edges_ephys` — histogram of ephys phases
-    - :attr:`phase_hist_miniscope` / :attr:`phase_bin_edges_miniscope` — histogram of miniscope phases
+    - :attr:`phase_hist_calcium_imaging` / :attr:`phase_bin_edges_calcium_imaging` — histogram of calcium imaging phases
     """
 
+    miniscope_pipeline = alias_attribute("calcium_imaging_pipeline")
+    ca_events_phases_miniscope = alias_attribute("ca_events_phases_calcium_imaging")
+    phase_hist_miniscope = alias_attribute("phase_hist_calcium_imaging")
+    phase_bin_edges_miniscope = alias_attribute("phase_bin_edges_calcium_imaging")
+
     def __init__(self) -> None:
-        self.miniscope_pipeline = MiniscopePipeline()
+        self.calcium_imaging_pipeline = CalciumImagingPipeline()
         self.ephys_pipeline = EphysPipeline()
         self.t_ca_im: np.ndarray | None = None
         self.low_confidence_periods: Any = None
@@ -56,12 +62,13 @@ class MultimodalPipeline:
         self.ephys_idx_ca_events: Any = None
         self.ca_frame_num_of_ephys_idx: Any = None
         self.ca_events_phases_ephys: Any = None
-        self.ca_events_phases_miniscope: Any = None
+        self.ca_events_phases_calcium_imaging: Any = None
         self.phase_hist_ephys: Any = None
         self.phase_bin_edges_ephys: Any = None
-        self.phase_hist_miniscope: Any = None
-        self.phase_bin_edges_miniscope: Any = None
+        self.phase_hist_calcium_imaging: Any = None
+        self.phase_bin_edges_calcium_imaging: Any = None
 
+    @accept_legacy_keywords(**LEGACY_OPTIONS)
     def run(
         self,
         line_num: int,
@@ -77,8 +84,8 @@ class MultimodalPipeline:
         plot_phases: bool = False,
         logging_level: str = "CRITICAL",
 
-        # miniscope parameters
-        miniscope_filenames: list[str] = [],
+        # calcium imaging parameters
+        calcium_imaging_filenames: list[str] = [],
         # preprocessing parameters
         crop: bool = True,
         crop_coords: list[int] | tuple[int, int, int, int] | None = None,
@@ -105,14 +112,14 @@ class MultimodalPipeline:
         find_calcium_events: bool = True,
         derivative_for_estimates: str = 'first',
         event_height: float = 5,
-        compute_miniscope_phase: bool = True,
-        filter_miniscope_data: bool = True,
+        compute_calcium_imaging_phase: bool = True,
+        filter_calcium_imaging_data: bool = True,
         n: int = 2,
         cut: list[float] = [0.1, 1.5],
         ftype: str = 'butter',
         btype: str = 'bandpass',
         inline: bool = False,
-        compute_miniscope_spectrogram: bool = True,
+        compute_calcium_imaging_spectrogram: bool = True,
         window_length: float = 30,
         window_step: float = 3,
         freq_lims: list[float] = [0, 15],
@@ -129,7 +136,7 @@ class MultimodalPipeline:
     ) -> None:
         """Run the complete multimodal analysis pipeline.
 
-        Executes both ephys and miniscope pipelines, synchronizes their
+        Executes both ephys and calcium imaging pipelines, synchronizes their
         timestamps via TTL events, and performs phase-locked calcium event
         analysis.
 
@@ -143,7 +150,7 @@ class MultimodalPipeline:
             plot_spectrogram: If True, plot ephys spectrogram.
             plot_phases: If True, plot phase histograms.
             logging_level: Verbosity level.
-            miniscope_filenames: List of movie files to load.
+            calcium_imaging_filenames: List of movie files to load.
             crop: If True, crop the movie.
             crop_coords: Crop coordinates as (x0, y0, x1, y1) tuple/list.
                 If None, reads from analysis_parameters.csv or opens the GUI.
@@ -167,11 +174,11 @@ class MultimodalPipeline:
         self.ephys_idx_ca_events = None
         self.ca_frame_num_of_ephys_idx = None
         self.ca_events_phases_ephys = None
-        self.ca_events_phases_miniscope = None
+        self.ca_events_phases_calcium_imaging = None
         self.phase_hist_ephys = None
         self.phase_bin_edges_ephys = None
-        self.phase_hist_miniscope = None
-        self.phase_bin_edges_miniscope = None
+        self.phase_hist_calcium_imaging = None
+        self.phase_bin_edges_calcium_imaging = None
 
         self.ephys_pipeline = EphysPipeline()
         try:
@@ -200,13 +207,13 @@ class MultimodalPipeline:
                 hint="Check ephys input paths and channel parameters before multimodal sync.",
             ) from e
 
-        self.miniscope_pipeline = MiniscopePipeline()
+        self.calcium_imaging_pipeline = CalciumImagingPipeline()
         try:
-            self.miniscope_pipeline.run(
+            self.calcium_imaging_pipeline.run(
                 line_num=line_num,
                 project_path=project_path,
                 data_path=data_path,
-                filenames=miniscope_filenames,
+                filenames=calcium_imaging_filenames,
                 crop=crop,
                 crop_coords=crop_coords,
                 detrend_method=detrend_method,
@@ -227,14 +234,14 @@ class MultimodalPipeline:
                 find_calcium_events=find_calcium_events,
                 derivative_for_estimates=derivative_for_estimates,
                 event_height=event_height,
-                compute_miniscope_phase=compute_miniscope_phase,
-                filter_miniscope_data=filter_miniscope_data,
+                compute_calcium_imaging_phase=compute_calcium_imaging_phase,
+                filter_calcium_imaging_data=filter_calcium_imaging_data,
                 n=n,
                 cut=cut,
                 ftype=ftype,
                 btype=btype,
                 inline=inline,
-                compute_miniscope_spectrogram=compute_miniscope_spectrogram,
+                compute_calcium_imaging_spectrogram=compute_calcium_imaging_spectrogram,
                 window_length=window_length,
                 window_step=window_step,
                 freq_lims=freq_lims,
@@ -243,23 +250,23 @@ class MultimodalPipeline:
             )
         except Exception as e:
             raise PipelineExecutionError(
-                "Multimodal run failed during miniscope sub-pipeline.",
+                "Multimodal run failed during calcium imaging sub-pipeline.",
                 stage="run_miniscope_pipeline",
                 line_num=line_num,
                 project_path=project_path,
                 data_path=data_path,
-                hint="Check miniscope inputs and CNMF-E parameters before multimodal sync.",
+                hint="Check calcium imaging inputs and CNMF-E parameters before multimodal sync.",
             ) from e
 
         channel_object = self.ephys_pipeline.ephys_data_manager.get_channel(channel_name)
-        frame_rate = self.miniscope_pipeline.miniscope_data_manager.fr
-        ca_events_idx = self.miniscope_pipeline.miniscope_data_manager.ca_events_idx
-        miniscope_phases = self.miniscope_pipeline.miniscope_data_manager.miniscope_phases
+        frame_rate = self.calcium_imaging_pipeline.calcium_imaging_data_manager.fr
+        ca_events_idx = self.calcium_imaging_pipeline.calcium_imaging_data_manager.ca_events_idx
+        calcium_imaging_phases = self.calcium_imaging_pipeline.calcium_imaging_data_manager.calcium_imaging_phases
 
         try:
-            t_ca_im, low_confidence_periods, channel_object, miniscope_dm = sync_neuralynx_miniscope_timestamps(
+            t_ca_im, low_confidence_periods, channel_object, calcium_imaging_dm = sync_neuralynx_miniscope_timestamps(
                 channel_object,
-                self.miniscope_pipeline.miniscope_data_manager,
+                self.calcium_imaging_pipeline.calcium_imaging_data_manager,
                 self.ephys_pipeline.ephys_data_manager,
                 delete_TTLs=delete_TTLs,
                 fix_TTL_gaps=fix_TTL_gaps,
@@ -276,7 +283,7 @@ class MultimodalPipeline:
             ) from e
 
         print("\nSuccess! Setting changed variables.")
-        self.miniscope_pipeline.miniscope_data_manager = miniscope_dm
+        self.calcium_imaging_pipeline.calcium_imaging_data_manager = calcium_imaging_dm
         self.ephys_pipeline.ephys_data_manager.channels[channel_name] = channel_object
 
         self.t_ca_im = t_ca_im
@@ -308,7 +315,7 @@ class MultimodalPipeline:
         if ephys_idx_ca_events is not None:
             try:
                 self.ca_events_phases_ephys = ephys_phase_ca_events(ephys_idx_ca_events, channel_object, neurons='all')
-                self.ca_events_phases_miniscope = miniscope_phase_ca_events(ca_events_idx, miniscope_phases, neurons='all')
+                self.ca_events_phases_calcium_imaging = calcium_imaging_phase_ca_events(ca_events_idx, calcium_imaging_phases, neurons='all')
             except Exception as e:
                 raise PipelineExecutionError(
                     "Failed to compute event-locked phases.",
@@ -327,14 +334,14 @@ class MultimodalPipeline:
                 res1 = phase_ca_events_histogram(self.ca_events_phases_ephys)
                 hist1, bin_edges1 = res1[0], res1[1]
 
-            if self.ca_events_phases_miniscope is not None:
-                res2 = phase_ca_events_histogram(self.ca_events_phases_miniscope)
+            if self.ca_events_phases_calcium_imaging is not None:
+                res2 = phase_ca_events_histogram(self.ca_events_phases_calcium_imaging)
                 hist2, bin_edges2 = res2[0], res2[1]
 
         self.phase_hist_ephys = hist1
         self.phase_bin_edges_ephys = bin_edges1
-        self.phase_hist_miniscope = hist2
-        self.phase_bin_edges_miniscope = bin_edges2
+        self.phase_hist_calcium_imaging = hist2
+        self.phase_bin_edges_calcium_imaging = bin_edges2
 
 
 if __name__ == "__main__":

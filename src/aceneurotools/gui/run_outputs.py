@@ -198,7 +198,7 @@ def ephys_outputs(report, channel):
 
 def multimodal_outputs(report, pipeline):
     """Preserve both sub-pipelines and every retained alignment result."""
-    miniscope_outputs(report, pipeline.miniscope_pipeline.miniscope_data_manager)
+    miniscope_outputs(report, pipeline.calcium_imaging_pipeline.calcium_imaging_data_manager)
     channel = pipeline.ephys_pipeline.ephys_data_manager.get_channel(report.parameters["channel_name"])
     ephys_outputs(report, channel)
     for name in [

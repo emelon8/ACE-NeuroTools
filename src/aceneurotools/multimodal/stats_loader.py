@@ -6,7 +6,7 @@ this loader does **not** run motion correction, CNMF-E, or calcium event
 detection.  It performs only the operations required to produce two
 time-aligned signals at the miniscope frame rate:
 
-1. Build a :class:`~aceneurotools.miniscope.miniscope_data_manager.MiniscopeDataManager`
+1. Build a :class:`~aceneurotools.calcium_imaging.calcium_imaging_data_manager.CalciumImagingDataManager`
    with ``auto_import_data=False`` to read frame-rate metadata and TTL events
    without loading any movie files.
 2. Run :class:`~aceneurotools.pipelines.ephys.EphysPipeline` in silent mode to
@@ -45,7 +45,7 @@ import aceneurotools.miniscope.onix_miniscope_data_manager  # noqa: F401 — reg
 import aceneurotools.miniscope.ucla_data_manager  # noqa: F401 — registers UCLADataManager
 from aceneurotools.ephys.channel import Channel
 from aceneurotools.ephys.ephys_loader import load_ephys_for_analysis
-from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
+from aceneurotools.calcium_imaging.calcium_imaging_data_manager import CalciumImagingDataManager
 from aceneurotools.multimodal.miniscope_ephys_alignment_utils import (
     find_ephys_idx_of_TTL_events,
     sync_neuralynx_miniscope_timestamps,
@@ -62,7 +62,7 @@ def load_for_stats(
     delete_TTLs: bool = True,
     fix_TTL_gaps: bool = True,
     only_experiment_events: bool = True,
-) -> tuple[Channel, MiniscopeDataManager, float]:
+) -> tuple[Channel, CalciumImagingDataManager, float]:
     """Load and synchronise a single ephys channel for statistical analysis.
 
     The returned channel object's ``.signal`` has been downsampled to the
@@ -98,9 +98,9 @@ def load_for_stats(
     project_path = Path(project_path)
     data_path = Path(data_path) if data_path is not None else None
 
-    # 1. Build a metadata-only MiniscopeDataManager (no movie loading)
+    # 1. Build a metadata-only CalciumImagingDataManager (no movie loading)
     try:
-        miniscope_dm = MiniscopeDataManager.create(
+        miniscope_dm = CalciumImagingDataManager.create(
             line_num=line_num,
             project_path=project_path,
             data_path=data_path,
@@ -110,7 +110,7 @@ def load_for_stats(
         fr: float = float(miniscope_dm.fr) if hasattr(miniscope_dm, "fr") and miniscope_dm.fr else 30.0
     except Exception as exc:
         raise PipelineExecutionError(
-            f"Failed to create MiniscopeDataManager for line {line_num}.",
+            f"Failed to create CalciumImagingDataManager for line {line_num}.",
             stage="stats_loader_miniscope_dm",
             line_num=line_num,
             project_path=project_path,
@@ -199,7 +199,7 @@ def load_for_stats_two_channels(
     delete_TTLs: bool = True,
     fix_TTL_gaps: bool = True,
     only_experiment_events: bool = True,
-) -> tuple[Channel, Channel, MiniscopeDataManager, float]:
+) -> tuple[Channel, Channel, CalciumImagingDataManager, float]:
     """Load two ephys channels downsampled to the same TTL indices.
 
     Used for ephys-ephys coherence analysis where two channels from the same
@@ -229,7 +229,7 @@ def load_for_stats_two_channels(
 
     # Metadata-only miniscope DM for frame rate + TTL sync
     try:
-        miniscope_dm = MiniscopeDataManager.create(
+        miniscope_dm = CalciumImagingDataManager.create(
             line_num=line_num,
             project_path=project_path,
             data_path=data_path,
@@ -239,7 +239,7 @@ def load_for_stats_two_channels(
         fr = float(miniscope_dm.fr) if hasattr(miniscope_dm, "fr") and miniscope_dm.fr else 30.0
     except Exception as exc:
         raise PipelineExecutionError(
-            f"Failed to create MiniscopeDataManager for line {line_num}.",
+            f"Failed to create CalciumImagingDataManager for line {line_num}.",
             stage="stats_loader_two_ch_miniscope_dm",
             line_num=line_num,
             project_path=project_path,
@@ -317,7 +317,7 @@ def load_for_stats_two_channels(
 
 
 def load_calcium_signal(
-    miniscope_dm: MiniscopeDataManager,
+    miniscope_dm: CalciumImagingDataManager,
     calcium_signal_dir: str | Path,
     line_num: int,
     npz_key: str = "meanFluorescence",
@@ -329,7 +329,7 @@ def load_calcium_signal(
     output of :class:`~aceneurotools.pipelines.compute.ComputePipeline`.
 
     Args:
-        miniscope_dm: A MiniscopeDataManager; the loaded array is stored in
+        miniscope_dm: A CalciumImagingDataManager; the loaded array is stored in
             ``miniscope_dm.mean_fluorescence_dict`` as a side-effect.
         calcium_signal_dir: Directory containing the ``.npz`` files.
         line_num: Experiment line number (used to construct the filename).

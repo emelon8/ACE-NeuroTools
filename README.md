@@ -32,12 +32,12 @@ classDiagram
         +import_analysis_parameters()
     }
 
-    class MiniscopeDataManager {
+    class CalciumImagingDataManager {
         +list time_stamps
         +list frame_numbers
         +movie movie
         +dict miniscope_events
-        +MiniscopeProcessor processor
+        +CalciumImagingProcessor processor
         +load_attributes()
     }
 
@@ -59,8 +59,8 @@ classDiagram
         +np.array phases
     }
 
-    class MiniscopeProcessor {
-        +MiniscopeDataManager data_manager
+    class CalciumImagingProcessor {
+        +CalciumImagingDataManager data_manager
         +process_calcium_movie()
         +motion_correction_manager()
         +CNMFE_parameter_handler()
@@ -72,21 +72,21 @@ classDiagram
         +remove_artifacts()
     }
 
-    ExperimentDataManager <|-- MiniscopeDataManager : Inherits
+    ExperimentDataManager <|-- CalciumImagingDataManager : Inherits
     ExperimentDataManager <|-- EphysDataManager : Inherits
     EphysDataManager --> BlockProcessor : Uses
     BlockProcessor ..> Channel : Creates
     EphysDataManager *-- Channel : Contains
-    MiniscopeProcessor --> MiniscopeDataManager : Processes
+    CalciumImagingProcessor --> CalciumImagingDataManager : Processes
 ```
 
 ### Core Data Classes
 *   **`ExperimentDataManager`**: Base class for managing experiment metadata and analysis parameters.
-*   **`MiniscopeDataManager`**: Specialized handler for calcium imaging data, managing video streams, timestamps, and CNMF-E results.
+*   **`CalciumImagingDataManager`**: Specialized handler for calcium imaging data, managing video streams, timestamps, and CNMF-E results.
 *   **`EphysDataManager`**: Specialized handler for electrophysiology data, managing raw Block imports and channel signal processing.
 
 ### Processing Classes
-*   **`MiniscopeProcessor`**: Orchestrates the calcium imaging workflow, wrapping `CaImAn` functionality with optimized defaults and parallel processing management.
+*   **`CalciumImagingProcessor`**: Orchestrates the calcium imaging workflow, wrapping `CaImAn` functionality with optimized defaults and parallel processing management.
 *   **`BlockProcessor`**: Handles signal conditioning and artifact removal for electrophysiological data.
 
 ## Installation
@@ -132,15 +132,20 @@ For more details on directory structure and cloud integration, see the **[Gettin
 
 The project uses modular pipeline scripts as the primary entry points. Each pipeline loads parameters from your project's `analysis_parameters.csv` based on the experiment's line number.
 
-### 1. Miniscope Analysis
-**Entry point:** `python -m aceneurotools.pipelines.miniscope` (implementation under `src/aceneurotools/pipelines/miniscope.py`).
+### 1. Calcium Imaging Analysis
+
+Shared analysis uses `CalciumImaging…` names. Existing `Miniscope…` imports and the
+old CLI command remain supported; hardware readers retain their Miniscope names.
+See the [naming and acquisition notes](docs/guides/calcium_imaging.md#naming-and-acquisition-formats).
+
+**Entry point:** `python -m aceneurotools.pipelines.calcium_imaging` (implementation under `src/aceneurotools/pipelines/calcium_imaging.py`).
 
 ```bash
 # Run analysis for experiment line 96
-python -m aceneurotools.pipelines.miniscope --line-num 96
+python -m aceneurotools.pipelines.calcium_imaging --line-num 96
 
 # Run in headless mode (e.g., for HPC/Slurm jobs)
-python -m aceneurotools.pipelines.miniscope --line-num 96 --headless
+python -m aceneurotools.pipelines.calcium_imaging --line-num 96 --headless
 ```
 
 ### 2. Electrophysiology Analysis
@@ -157,7 +162,7 @@ python -m aceneurotools.pipelines.ephys --line-num 96
 python -m aceneurotools.pipelines.multimodal --line-num 97
 ```
 
-For detailed documentation, see the user guides: [Miniscope](docs/guides/miniscope.md), [Ephys](docs/guides/ephys.md), and [Multimodal](docs/guides/multimodal.md) (also published on [Read the Docs](https://aceneurotools.readthedocs.io/en/latest/)).
+For detailed documentation, see the user guides: [Calcium Imaging](docs/guides/calcium_imaging.md), [Ephys](docs/guides/ephys.md), and [Multimodal](docs/guides/multimodal.md) (also published on [Read the Docs](https://aceneurotools.readthedocs.io/en/latest/)).
 
 ## Documentation
 
@@ -179,7 +184,7 @@ Check the `examples/` directory for demonstration scripts:
 
 ### Test fixtures
 
-- **`tests/data/sample_recording/`** — Small committed recordings used by **autodetect** tests (`MiniscopeDataManager.create` / `EphysDataManager.create` routing) and by the **slow** Miniscope CNMF-E end-to-end test. A normal clone includes this tree; do not remove it if you want those tests to run.
+- **`tests/data/sample_recording/`** — Small committed recordings used by **autodetect** tests (`CalciumImagingDataManager.create` / `EphysDataManager.create` routing) and by the **slow** Miniscope CNMF-E end-to-end test. A normal clone includes this tree; do not remove it if you want those tests to run.
 - **Regenerating fixtures** — If you have the full raw `sample data/` folders at the project root (not required for most contributors), run [`scripts/create_test_data.py`](scripts/create_test_data.py) to rebuild truncated UCLA miniscope + Neuralynx ephys fixtures from those sources.
 
 ### Running tests
