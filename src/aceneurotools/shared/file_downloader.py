@@ -89,10 +89,15 @@ def verify_file_by_line(
         print(f"Error: Line {line_num_str} not found in {csv_path}")
         return False
 
-    miniscope_id = df.at[line_num_str, "Box Calcium Folder ID"]
-    miniscope_path = df.at[line_num_str, "calcium imaging directory"]
-    ephys_id = df.at[line_num_str, "Box ephys folder ID"]
-    ephys_path = df.at[line_num_str, "ephys directory"]
+    def _optional_cell(column: str) -> Any:
+        if column not in df.columns:
+            return None
+        return df.at[line_num_str, column]
+
+    miniscope_id = _optional_cell("Box Calcium Folder ID")
+    miniscope_path = _optional_cell("calcium imaging directory")
+    ephys_id = _optional_cell("Box ephys folder ID")
+    ephys_path = _optional_cell("ephys directory")
 
     # --- 1. Check Local Status ---
     has_miniscope = False
