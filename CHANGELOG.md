@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Align bundled CSV example rows with their headers and allow local recording
+  checks when optional Box columns are absent.
+- Report a missing explicit CLI configuration as an error without launching setup.
+- Apply statistics frequency overrides consistently without modifying caller
+  settings; preserve condition labels in summaries and report output failures.
+- Treat zero or invalid spectral power as missing in dB averages and plots,
+  instead of reporting a fabricated -300 dB floor.
+
 - Correct per-bin peri-event SEM, eigenvalue multitaper normalization, circular
   phase averages and aligned downsampling of every channel field.
 - Exclude long scatter gaps and adjacent filter margins before normalization and

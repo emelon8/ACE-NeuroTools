@@ -197,6 +197,37 @@ def compute_cross_correlation(
     return float(nxcorr[peak_idx]), float(lags[peak_idx])
 
 
+def power_to_db(power: np.ndarray | float) -> np.ndarray | float:
+    """Convert linear power to decibels, treating non-positive and non-finite power as missing.
+
+    Only strictly positive, finite power values are converted, via
+    ``10 * log10(power)`` — the same value returned by
+    :func:`aceneurotools.shared.multitaper_spectrogram_python.nanpow2db` and the
+    per-event power in :mod:`aceneurotools.multimodal.oscillatory_events`.  Zeros,
+    negatives, ``+inf``, ``-inf``, and NaN are mapped to NaN so that they can be
+    skipped by nan-aware averages instead of masquerading as a physical
+    ``-300 dB`` floor (which ``log10(power + 1e-30)`` produces for exact zeros)
+    or poisoning the average (negative power, ``±inf``, NaN).
+
+    Parameters
+    ----------
+    power : float or np.ndarray
+        Linear power value(s).
+
+    Returns
+    -------
+    float or np.ndarray
+        ``10 * log10(power)`` at positive finite values and NaN elsewhere.  A
+        scalar input yields a ``float``; array input yields an array with the
+        same shape.
+    """
+    values = np.asarray(power, dtype=float)
+    result = np.full(values.shape, np.nan, dtype=float)
+    np.log10(values, out=result, where=np.isfinite(values) & (values > 0))
+    result *= 10.0
+    return float(result) if result.ndim == 0 else result
+
+
 def compute_spectral_power(
     signal: np.ndarray,
     fr: float,
@@ -205,7 +236,13 @@ def compute_spectral_power(
     window_step: float = 3.0,
     time_bandwidth: float = 2.0,
 ) -> float:
-    """Mean power in freq_range (dB) via multitaper spectrogram (Prerau lab implementation)."""
+    """Mean power in freq_range (dB) via multitaper spectrogram (Prerau lab implementation).
+
+    ``multitaper_spectrogram`` returns linear power, so it is converted with
+    :func:`power_to_db` (non-positive and non-finite bins become NaN) and the
+    frequency band is averaged with :func:`numpy.nanmean`.  A band with no
+    finite power values is reported as NaN rather than a spurious dB floor.
+    """
     from aceneurotools.shared.multitaper_spectrogram_python import multitaper_spectrogram
 
     num_tapers = int(time_bandwidth * 2 - 1)
@@ -227,9 +264,14 @@ def compute_spectral_power(
         verbose=False,
         xyflip=False,
     )
-    power_db = 10.0 * np.log10(power_matrix + 1e-30)
+    power_db = power_to_db(power_matrix)
     freq_mask = (frequencies >= freq_range[0]) & (frequencies <= freq_range[1])
-    return float(np.mean(power_db[freq_mask])) if np.any(freq_mask) else float("nan")
+    if not np.any(freq_mask):
+        return float("nan")
+    masked_db = power_db[freq_mask]
+    if not np.isfinite(masked_db).any():
+        return float("nan")
+    return float(np.nanmean(masked_db))
 
 
 def compute_signal_stats(
