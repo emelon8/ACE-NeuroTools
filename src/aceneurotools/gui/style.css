@@ -592,7 +592,7 @@ pre { margin: 0; color: var(--ink-2); font: 12px/1.55 var(--mono); white-space: 
 #neuron-map .kept { border-color: var(--kept-line); background: var(--kept-bg); color: var(--kept); }
 #neuron-map .rejected { border-color: var(--rejected-line); background: var(--rejected-bg); color: var(--rejected); }
 #neuron-map button[aria-current="true"] { outline: 2px solid var(--ink); outline-offset: 1px; }
-.neuron-images { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.neuron-images { display: grid; grid-template-columns: 1fr 1fr; align-items: end; gap: 16px; }
 .neuron-images figure { margin: 0; }
 .neuron-images figcaption { margin: 0 0 6px; color: var(--ink-3); font-size: 12px; }
 .neuron-images img, .neuron-images canvas { display: block; width: 100%; background: var(--viewer); }
