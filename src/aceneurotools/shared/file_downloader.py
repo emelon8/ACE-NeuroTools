@@ -291,7 +291,7 @@ def download_file(
             if not name or name in {".", "..", _INCOMPLETE_DOWNLOAD} or "/" in name or "\\" in name:
                 raise ValueError("Box returned an invalid file or folder name")
             if item.type == "folder":
-                if not download_file(client, str(destination / name), item.id, need_to_download, base_file_path):
+                if not download_file(client, str(Path(path) / name), item.id, need_to_download, base_file_path):
                     return False
             elif need_to_download and name.lower().endswith(".avi") and name not in need_to_download:
                 continue

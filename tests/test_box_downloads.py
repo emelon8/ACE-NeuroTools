@@ -1,5 +1,6 @@
 """Offline Box transfer and local-availability contracts from Comenius review."""
 
+from pathlib import Path
 from types import SimpleNamespace as NS
 
 import pytest
@@ -209,3 +210,18 @@ def test_local_rhs_signal_is_distinct_from_clock_metadata(tmp_path, name, availa
     directory.mkdir()
     (directory / name).write_bytes(b"data")
     assert downloader.verify_path("recording", base_file_path=tmp_path) is available
+
+
+@pytest.mark.parametrize("base_path", ["data", Path("data")])
+def test_recursive_download_uses_a_relative_base_once(tmp_path, monkeypatch, base_path):
+    monkeypatch.chdir(tmp_path)
+
+    def listing(identifier, **kwargs):
+        if identifier == "1":
+            return NS(entries=[NS(type="folder", name="child", id="9")], next_marker=None)
+        return NS(entries=[file()], next_marker=None)
+
+    assert downloader.download_file(client([], listing=listing), "recording", 1, base_file_path=base_path)
+    assert (tmp_path / "data" / "recording" / "child" / "trace.ncs").read_bytes() == b"COMPLETE"
+    assert downloader.verify_path("recording", base_file_path=base_path)
+    assert not (tmp_path / "data" / "data").exists()
