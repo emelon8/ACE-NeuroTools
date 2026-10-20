@@ -1,5 +1,9 @@
 # ACE-NeuroTools: Calcium imaging and electrophysiology
 
+**[Read the documentation](https://ace-neurotools.readthedocs.io/en/latest/)** ·
+[Install and open ACE](https://ace-neurotools.readthedocs.io/en/latest/gui_installation/) ·
+[Lab walkthrough](https://ace-neurotools.readthedocs.io/en/latest/lab_walkthrough/)
+
 ACE turns supported calcium movies and electrical brain recordings into analysis
 results. Use the local browser application to edit experiment details, crop
 movies, review and run analyses, inspect extracted neurons, and find saved results.
