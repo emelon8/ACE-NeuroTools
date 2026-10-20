@@ -1,206 +1,105 @@
-# ACE-NeuroTools: Analysis of Calcium Imaging and Electrophysiology
+# ACE-NeuroTools: Calcium imaging and electrophysiology
 
-**A comprehensive, open-source data analysis pipeline for systems neuroscience.**
+ACE turns supported calcium movies and electrical brain recordings into analysis
+results. Use the local browser application to edit experiment details, crop
+movies, review and run analyses, inspect extracted neurons, and find saved results.
 
-This software facilitates the processing, analysis, and visualization of simultaneous calcium imaging (Miniscope) and electrophysiology (EEG/LFP) data. It provides a modular and extensible framework for handling complex multimodal datasets, as described in **[Paper Title/Citation Placeholder]**.
+**Lab members:** start with [Install and open ACE](docs/gui_installation.md), then
+[Use the experiment workbench](docs/gui.md) and the
+[lab practice checklist](docs/lab_walkthrough.md). The lab package channel is not
+yet published; a maintainer must prepare a source installation for now. No
+ready-to-run recording dataset is bundled.
 
-## Key Features
+## What it does
 
-*   **Miniscope Processing:** End-to-end pipeline for 1-photon calcium imaging data, incorporating:
-    *   Preprocessing: Cropping, detrending, and $\Delta F/F$ normalization.
-    *   Motion Correction: Rigid and non-rigid registration.
-    *   Source Extraction: Implementation of Constrained Nonnegative Matrix Factorization for micro-Endoscopic data (CNMF-E).
-    *   Event Detection: Robust inference of calcium events from temporal traces.
-*   **Electrophysiology Analysis:** Tools for importing and cleaning Neuralynx data, including artifact removal, filtering, phase computation, and spectral analysis.
-*   **Multimodal Integration:** Seamless alignment of independent Miniscope and Ephys timestamps, enabling cross-modal analysis such as phase-locking of calcium events to channel-specific oscillations.
-*   **Data Management:** Integrated utilities for managing large experiment cohorts with explicit path management and automated cloud storage (Box) interaction.
-*   **Modern Infrastructure:** 100% type-hinted codebase, automated documentation site, and CI/CD testing framework.
+| Workflow | Inputs | Available processing |
+| --- | --- | --- |
+| Calcium imaging | Supported UCLA/ONIX miniscope movies, metadata and timestamps | Cropping, normalization, motion correction, CNMF-E cell extraction and event detection, depending on settings |
+| Electrophysiology | Neuralynx or RHS2116/ONIX recordings | Channel import and requested artifact removal, filtering and phases |
+| Combined recordings | Calcium and electrical recordings with synchronization information | Timestamp alignment and requested event comparisons |
 
-## System Architecture
+This is alpha research software. Validate representative recordings and review
+scientific results before using them in a report. Record the software revision
+and settings with the study; see [CITATION.cff](CITATION.cff) for citation metadata.
 
-The project is built on a robust object-oriented framework designed for scalability and reproducibility:
+## Install from source
 
-```mermaid
-classDiagram
-    class ExperimentDataManager {
-        +int line_num
-        +Path project_path
-        +Path data_path
-        +dict metadata
-        +dict analysis_params
-        +import_metadata()
-        +import_analysis_parameters()
-    }
-
-    class CalciumImagingDataManager {
-        +list time_stamps
-        +list frame_numbers
-        +movie movie
-        +dict miniscope_events
-        +CalciumImagingProcessor processor
-        +load_attributes()
-    }
-
-    class EphysDataManager {
-        +dict channels
-        +Block ephys_block
-        +import_ephys_block()
-        +process_ephys_block_to_channels()
-        +filter_ephys()
-    }
-
-    class Channel {
-        +str name
-        +np.array signal
-        +float sampling_rate
-        +np.array time_vector
-        +dict events
-        +np.array signal_filtered
-        +np.array phases
-    }
-
-    class CalciumImagingProcessor {
-        +CalciumImagingDataManager data_manager
-        +process_calcium_movie()
-        +motion_correction_manager()
-        +CNMFE_parameter_handler()
-    }
-
-    class BlockProcessor {
-        +Block ephys_block
-        +process_raw_ephys()
-        +remove_artifacts()
-    }
-
-    ExperimentDataManager <|-- CalciumImagingDataManager : Inherits
-    ExperimentDataManager <|-- EphysDataManager : Inherits
-    EphysDataManager --> BlockProcessor : Uses
-    BlockProcessor ..> Channel : Creates
-    EphysDataManager *-- Channel : Contains
-    CalciumImagingProcessor --> CalciumImagingDataManager : Processes
-```
-
-### Core Data Classes
-*   **`ExperimentDataManager`**: Base class for managing experiment metadata and analysis parameters.
-*   **`CalciumImagingDataManager`**: Specialized handler for calcium imaging data, managing video streams, timestamps, and CNMF-E results.
-*   **`EphysDataManager`**: Specialized handler for electrophysiology data, managing raw Block imports and channel signal processing.
-
-### Processing Classes
-*   **`CalciumImagingProcessor`**: Orchestrates the calcium imaging workflow, wrapping `CaImAn` functionality with optimized defaults and parallel processing management.
-*   **`BlockProcessor`**: Handles signal conditioning and artifact removal for electrophysiological data.
-
-## Installation
-
-Install [Miniforge](https://github.com/conda-forge/miniforge#download), then run:
+Install Miniforge and Git, then run in a conda-enabled terminal:
 
 ```sh
-conda create -n ace -c <channel> ace-neurotools
-```
-
-Replace `<channel>` with the lab's published channel name. The lab channel is
-being prepared; no pilot is published yet (see issue #128).
-
-Launch **ACE NeuroTools** from its installed shortcut, or run:
-
-```sh
-conda activate ace
+git clone https://github.com/emelon8/ACE-NeuroTools.git
+cd ACE-NeuroTools
+conda env create -f environment.yml
+conda activate aceneurotools
+python -m pip install --no-deps -e .
 ace-gui
 ```
 
-See [lab installation](docs/gui_installation.md) and the [experiment workbench](docs/gui.md).
-The package supplies CaImAn and Qt OpenCV. For development, create the environment
-from `environment.yml`, activate `aceneurotools`, then install the checkout with
-`python -m pip install --no-deps -e .`.
+See [installation](docs/gui_installation.md) for prerequisites, launch/reopening,
+platform limits, and the future package path. `environment.yml` supplies the
+neuroscience CaImAn package and Qt OpenCV. A pip-only install cannot run the full
+analysis, and the project named `caiman` on PyPI is unrelated. The root
+`conda-lock.yml` reproduces the CI environment; see [packaging](docs/packaging.md).
 
-### Project Setup
+Keep the application terminal open. If the browser does not open, use the full
+printed launch address, including its token. The server defaults to
+`127.0.0.1:8765`; choose another port with `ace-gui --port 8766`.
 
-The pipeline requires explicit paths — no hidden environment variables or config files:
+## Prepare a project and run an analysis
 
-1.  **CLI Arguments**: Use `--project-path` and `--data-path` when running scripts.
-2.  **Programmatic API**: Pass paths directly to the `Pipeline.run()` method.
+The GUI opens a folder containing `experiments.csv`; `analysis_parameters.csv`
+stores optional settings for matching experiment IDs. Ask the lab for a prepared
+project, short recording, and suitable settings. Download Box recordings outside
+ACE and select their local folder. The installed GUI has no Box setup/download
+service, cluster-script export, or connected experiment revision history.
 
-```python
-from aceneurotools.pipelines.ephys import EphysPipeline
+Each GUI run copies its inputs and writes separate outputs under
+`<project>/.ace-runs/<run-id>/`. Repeating a run preserves previous results.
+The [workbench guide](docs/gui.md) explains saving edits, drawing a crop, mandatory
+run review, cancellation, result files, and neuron review/event export.
 
-api = EphysPipeline()
-api.run(line_num=96, project_path="/path/to/project")
+For command-line analysis, replace the paths and ID with your own:
+
+```sh
+python -m aceneurotools.pipelines.calcium_imaging --line-num 96 --project-path /path/to/project --data-path /path/to/raw_data --headless
+python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /path/to/project --data-path /path/to/raw_data --headless
+python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /path/to/project --data-path /path/to/raw_data --headless
 ```
 
-For more details on directory structure and cloud integration, see the **[Getting Started guide on Read the Docs](https://aceneurotools.readthedocs.io/en/latest/getting_started/)** (source: [`docs/getting_started.md`](docs/getting_started.md)).
+The ID matches the `line number` column; it is not a spreadsheet row position.
+Commands merge shared defaults and recognized saved settings. Direct Python
+`run()` calls use explicit arguments and method defaults; they do not
+automatically merge CSV run switches. Calcium Python calls default to no CNMF-E
+extraction; the command enables extraction and selects `0.avi` by default.
+Read [Getting started](docs/getting_started.md) before copying these commands.
 
-## Usage
+Shared analysis uses `CalciumImaging…` names; historical `Miniscope…` imports and
+the old module command remain aliases. Hardware readers retain Miniscope names.
+See [naming and acquisition formats](docs/guides/calcium_imaging.md#naming-and-acquisition-formats).
 
-The project uses modular pipeline scripts as the primary entry points. Each pipeline loads parameters from your project's `analysis_parameters.csv` based on the experiment's line number.
+## Documentation and examples
 
-### 1. Calcium Imaging Analysis
-
-Shared analysis uses `CalciumImaging…` names. Existing `Miniscope…` imports and the
-old CLI command remain supported; hardware readers retain their Miniscope names.
-See the [naming and acquisition notes](docs/guides/calcium_imaging.md#naming-and-acquisition-formats).
-
-**Entry point:** `python -m aceneurotools.pipelines.calcium_imaging` (implementation under `src/aceneurotools/pipelines/calcium_imaging.py`).
-
-```bash
-# Run analysis for experiment line 96
-python -m aceneurotools.pipelines.calcium_imaging --line-num 96
-
-# Run in headless mode (e.g., for HPC/Slurm jobs)
-python -m aceneurotools.pipelines.calcium_imaging --line-num 96 --headless
-```
-
-### 2. Electrophysiology Analysis
-**Entry point:** `python -m aceneurotools.pipelines.ephys` (implementation under `src/aceneurotools/pipelines/ephys.py`).
-
-```bash
-python -m aceneurotools.pipelines.ephys --line-num 96
-```
-
-### 3. Multimodal Analysis
-**Entry point:** `python -m aceneurotools.pipelines.multimodal` (implementation under `src/aceneurotools/pipelines/multimodal.py`).
-
-```bash
-python -m aceneurotools.pipelines.multimodal --line-num 97
-```
-
-For detailed documentation, see the user guides: [Calcium Imaging](docs/guides/calcium_imaging.md), [Ephys](docs/guides/ephys.md), and [Multimodal](docs/guides/multimodal.md) (also published on [Read the Docs](https://aceneurotools.readthedocs.io/en/latest/)).
-
-## Documentation
-
-A comprehensive documentation site, including full API references and guides, is available at:
-**[https://aceneurotools.readthedocs.io/en/latest/](https://aceneurotools.readthedocs.io/en/latest/)**
-
-To view the documentation locally:
-```bash
-pip install mkdocs-material mkdocstrings-python
-mkdocs serve
-```
-
-## Examples
-
-Check the `examples/` directory for demonstration scripts:
-*   **[explicit_paths_demo.py](examples/explicit_paths_demo.py)**: Shows how to run pipelines using the explicit path API.
+- [Documentation home](docs/index.md) and [hosted documentation](https://ace-neurotools.readthedocs.io/en/latest/)
+- [Calcium imaging](docs/guides/calcium_imaging.md), [ephys](docs/guides/ephys.md), and [combined recordings](docs/guides/multimodal.md)
+- [Data organization](docs/guides/data_management.md), [examples](docs/examples.md), and [API reference](docs/api/index.md)
+- [Build and preview the docs](docs/deployment.md)
 
 ## Development and testing
 
-### Test fixtures
+Tests generate small synthetic inputs. `tests/data/sample_recording/` is not a
+bundled dataset, and `scripts/create_test_data.py` is an unimplemented hook.
+The ordinary suite does not establish that a complete acquired recording analysis
+works on every lab computer. In the prepared analysis environment:
 
-- **`tests/data/sample_recording/`** — Small committed recordings used by **autodetect** tests (`CalciumImagingDataManager.create` / `EphysDataManager.create` routing) and by the **slow** Miniscope CNMF-E end-to-end test. A normal clone includes this tree; do not remove it if you want those tests to run.
-- **Regenerating fixtures** — If you have the full raw `sample data/` folders at the project root (not required for most contributors), run [`scripts/create_test_data.py`](scripts/create_test_data.py) to rebuild truncated UCLA miniscope + Neuralynx ephys fixtures from those sources.
-
-### Running tests
-
-```bash
-pip install -e ".[dev]"
-# Default: fast tests (excludes slow CNMF-E full pipeline)
-pytest tests/ -m "not slow"
-# Full suite including Miniscope CNMF-E e2e on sample data
-pytest tests/
+```sh
+python -m pytest tests/ -m "not slow"
 ```
 
-You can configure CI (e.g. GitHub Actions) to run `pytest tests/ -m "not slow"` on every push or PR; add a separate job or manual workflow if you want the full **slow** Miniscope CNMF-E suite on release branches.
+CI runs this selection in the locked environment and checks the installed wheel,
+GUI assets, and documentation. See [backend testing](docs/backend_testing.md),
+[packaging](docs/packaging.md), and [releasing](docs/releasing.md) for maintainers.
 
 ## License
 
-ACE-NeuroTools is licensed under the **GNU General Public License version 3 (or later)** (`GPL-3.0-or-later`). See [`LICENSE`](LICENSE).
-
-This project depends on [CaImAn](https://github.com/flatironinstitute/CaImAn) at runtime. CaImAn’s upstream license notice permits use under **GPLv2 or any later version**; ACE-NeuroTools exercises that option and distributes under GPL-3.0-or-later for improved ecosystem license compatibility.
+ACE-NeuroTools is licensed under GPL-3.0-or-later; see [LICENSE](LICENSE).
+CaImAn permits GPLv2 or later; ACE uses that option under GPL-3.0-or-later.

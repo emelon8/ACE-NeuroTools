@@ -1,87 +1,89 @@
-# Calcium Imaging Pipeline
+# Calcium imaging analysis
 
-The calcium imaging pipeline performs calcium imaging analysis using CaImAn, including preprocessing (cropping, detrending, DF/F), motion correction, CNMF-E source extraction, and postprocessing (component evaluation, event detection, phase analysis).
+This pipeline reads supported UCLA/ONIX miniscope recordings and can crop,
+normalize, correct motion, extract cell signals with CaImAn CNMF-E, and compute
+postprocessing results. Which steps run depends on the settings.
+For a click-by-click path, use the [experiment workbench](../gui.md).
 
-## Quick Start
+## Quick start
 
-### Prerequisites
+Prepare `experiments.csv`, the complete recording, and lab-approved settings as
+shown in [Getting started](../getting_started.md). `analysis_parameters.csv` is
+optional for modality commands but is needed to store overrides.
 
-1. Ensure your project directory has:
-   - `experiments.csv` with experiment metadata
-   - `analysis_parameters.csv` with CaImAn and pipeline parameters
-
-### Command Line
-
-```bash
-# Run with explicit project path
-python -m aceneurotools.pipelines.calcium_imaging --line-num 96 --project-path /my/project
-
-# Run with explicit project and data paths
-python -m aceneurotools.pipelines.calcium_imaging --line-num 96 --project-path /my/project --data-path /my/raw_data
-
-# Run in headless mode (no GUI)
-python -m aceneurotools.pipelines.calcium_imaging --line-num 96 --project-path /my/project --headless
+```sh
+python -m aceneurotools.pipelines.calcium_imaging --line-num 96 --project-path /my/project --data-path /my/raw_data --headless
 ```
 
-### Python API
+Replace the paths and experiment ID. The command enables extraction and saves
+estimates by default, selects `0.avi`, and does not enable motion correction by
+default. Set `filenames=[]` in saved settings to process all supported movies.
+Headless mode skips interactive cell selection; inspect the saved estimates
+using [Neurons](../gui.md#review-neurons-and-save-accepted-cells).
+
+Direct Python calls have different defaults. Request extraction explicitly:
 
 ```python
 from aceneurotools.pipelines.calcium_imaging import CalciumImagingPipeline
 
-api = CalciumImagingPipeline()
-api.run(
+CalciumImagingPipeline().run(
     line_num=96,
     project_path="/my/project",
     data_path="/my/raw_data",
-    headless=True
+    filenames=[],
+    crop=False,
+    run_CNMFE=True,
+    save_estimates=True,
+    headless=True,
 )
 ```
 
-## Pipeline Steps
+This example uses the full frame. It does not enable motion correction or
+fluorescence normalization. Choose those options to suit your acquisition.
+Direct `run()` defaults to no extraction and does not automatically merge CSV
+run switches; see [parameter precedence](../getting_started.md#3-passing-parameters-into-the-pipelines).
 
-### 1. Preprocessing (`CalciumImagingPreprocessor`)
-- **Cropping**: Interactive GUI or automatic (headless) using `crop_coords` from `analysis_parameters.csv`
-- **Detrending**: Linear or median-based photobleaching correction
-- **DF/F**: Delta F over F or sqrt(F) normalization
+## Crop coordinates and settings
 
-### 2. Processing (`CalciumImagingProcessor`)
-- **Motion Correction**: Rigid or piecewise-rigid via CaImAn
-- **CNMF-E**: Constrained non-negative matrix factorization for source extraction
-- **Parameter Tuning**: Interactive plots for `gSig`, `min_corr`, `min_pnr`, etc.
+`crop_coords=(left, bottom, right, top)` uses original image pixels and a
+bottom-left origin. For example, `(10, 20, 110, 120)` selects a 100 by 100 area
+only if it fits the recording. Prefer drawing and saving it in the GUI.
+The old `(67, 503, 555, 61)` example reversed its vertical bounds and is not a
+valid GUI crop.
 
-### 3. Postprocessing (`CalciumImagingPostprocessor`)
-- **Component Evaluation**: Interactive GUI to accept/reject detected neurons
-- **Event Detection**: Calcium transient identification
-- **Phase Analysis**: Hilbert transform phase computation
-- **Spectrograms**: Multi-taper spectral analysis
+In headless command-line runs, missing coordinates cause a warning and skipped
+cropping. The GUI blocks an invalid/missing crop until it is saved or disabled.
 
-## Headless Mode
+| Setting | Meaning |
+| --- | --- |
+| `run_CNMFE` | Extract cell signals |
+| `apply_motion_correction` | Correct movement before extraction |
+| `save_estimates` | Save estimates for later review |
+| `save_CNMFE_params` | Save resolved CaImAn settings |
+| `gSig`, `rf`, `stride`, `min_corr`, `min_pnr`, `decay_time` | Recording-specific cell scale, patches, thresholds and indicator decay in the analysis metadata |
+| `find_calcium_events`, `derivative_for_estimates`, `event_height` | Event detection choices |
 
-When `headless=True`:
-- Crop GUI is bypassed; coordinates from `analysis_parameters.csv` are used directly
-- Component evaluation GUI is skipped
-- Motion correction inspection is disabled
-- All matplotlib plots are suppressed (uses `Agg` backend)
-- Detrend comparison plots are suppressed
+Use the [API](../api/calcium_imaging.md) for full details. GUI separate-window
+plots and component-selection dialogs are disabled; use embedded Crop/Neurons.
 
-> **Note**: For headless cropping, ensure your `analysis_parameters.csv` has `crop_coords` coordinates (e.g., `"(67, 503, 555, 61)"`). If missing, the crop step is skipped with a warning. You can also pass coordinates directly via `crop_coords=(x0, y0, x1, y1)` in the Python API.
+## Outputs and interpretation
 
-## Key Parameters in `analysis_parameters.csv`
+Successful saved extraction normally creates `saved_movies/estimates.hdf5` within
+the calcium recording directory. CaImAn settings are `opts_caiman.json` when
+saving is enabled. GUI runs place that recording copy under
+`<project>/.ace-runs/<run-id>/recording/` and also export signals, footprints,
+events and available diagnostics; consult [Results](../gui.md#find-and-reopen-results).
+Those GUI exports are not automatically written by direct pipeline calls.
 
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| `crop_coords` | Crop coordinates (x0, y0, x1, y1) | `"(67, 503, 555, 61)"` |
-| `gSig` | Gaussian kernel half-size | `(3, 3)` |
-| `min_corr` | Minimum correlation threshold | `0.85` |
-| `min_pnr` | Minimum peak-to-noise ratio | `10` |
-| `rf` | Half-size of patch | `25` |
-| `stride` | Overlap between patches | `10` |
-| `decay_time` | Transient decay time (s) | `0.4` |
+The core pipeline computes projection phases and spectra before filtering;
+those describe the unfiltered projection even if `inline=True` replaces the
+final projection with its filtered version. `inline=False` retains the original
+projection and keeps filtered data separately. Headless mode respects `inline`.
+Events are detected from component traces, not from the final movie projection.
+Curating cells does not automatically replace earlier results.
 
-## Data Organization
-
-Raw data is found via `experiments.csv` paths. Processed outputs are saved to `saved_movies/` within each experiment's calcium imaging directory.
 ## Naming and acquisition formats
+
 
 Shared analysis uses `CalciumImagingPipeline`, `CalciumImagingDataManager`,
 `CalciumImagingPreprocessor`, `CalciumImagingProcessor`,

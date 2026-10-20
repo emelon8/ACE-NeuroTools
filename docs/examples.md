@@ -1,53 +1,33 @@
-# Examples & Workflows
+# Examples and workflows
 
-ACE-NeuroTools is designed to be flexible. Below are common usage patterns and demonstration scripts included in the repository.
+For a first session in the browser, use the [lab practice checklist](lab_walkthrough.md).
+It requires a lab-supplied project, short recording and suitable settings.
 
-**Passing parameters:** pipeline behavior is controlled by **kwargs to `run()`**, optional rows in **`analysis_parameters.csv`**, and (for CLI) built-in defaults merged with that CSV. Read **§3a** in [Getting started](getting_started.md) before copying snippets below.
+## Command-line and Python examples
 
-## 1. Explicit Paths API
-**Script**: `examples/explicit_paths_demo.py`
+Read [Getting started](getting_started.md) for complete commands with recording
+paths and the distinction between command defaults, saved settings and Python
+arguments. [explicit_paths_demo.py](https://github.com/emelon8/ACE-NeuroTools/blob/main/examples/explicit_paths_demo.py) illustrates
+explicit paths; its example paths must be replaced. A direct Python call does
+not enable every processing step automatically.
 
-This script demonstrates the "explicit path" philosophy of ACE-NeuroTools. It shows how to initialize and run each of the three main pipelines without relying on any environment variables or hidden configuration files.
+## Supercomputer work
 
-```python
-from aceneurotools.pipelines.miniscope import MiniscopePipeline
+No ready-to-submit `submit_job.slurm` is included. Ask your cluster administrator
+for its account, resource and environment requirements, and adapt a headless
+modality command from Getting started. The installed GUI does not generate
+cluster scripts. Resource requirements depend on the recording and settings;
+there is no universal memory or time allocation.
 
-# Run with explicit project and data paths
-api = MiniscopePipeline()
-api.run(
-    line_num=96,
-    project_path="/path/to/project",
-    data_path="/path/to/raw_data"
-)
-```
+## Notebooks
 
-## 2. Supercomputer (Slurm) Workflow
-**Script**: `submit_job.slurm`
+These need your recording and project files, including the settings file expected
+by their setup cells. They are rendered without executing scientific analysis:
 
-For high-throughput processing, ACE-NeuroTools includes a standard Slurm submission script. It handles the resource allocation (150GB RAM, multiple cores) and executes the pipelines in `headless` mode.
+- [Miniscope tutorial](notebooks/miniscope_pipeline_tutorial.ipynb)
+- [Ephys tutorial](notebooks/ephys_pipeline_tutorial.ipynb)
+- [Multimodal tutorial](notebooks/multimodal_alignment_tutorial.ipynb)
 
-```bash
-# Submit the job to your cluster
-sbatch submit_job.slurm
-```
-
-## 3. Data Integration Workflows
-
-### Batch Processing
-Since ACE-NeuroTools is driven by an `experiments.csv` file, you can easily wrap it in a simple Python loop or bash script to process hundreds of recording sessions with a single command.
-
-### Cloud Integration
-The pipeline can automatically pull missing data from Box if configured. See the [Data Management Guide](guides/data_management.md#optional-box-cloud-integration) for setup instructions.
-
-## 4. Interactive Tutorials
-
-Notebooks emphasize **`project_path`** (CSVs) vs **`data_path`** (raw data) before running pipelines. They render on the docs site via **mkdocs-jupyter** ([Miniscope](https://aceneurotools.readthedocs.io/en/latest/notebooks/miniscope_pipeline_tutorial/), [Ephys](https://aceneurotools.readthedocs.io/en/latest/notebooks/ephys_pipeline_tutorial/), [Multimodal](https://aceneurotools.readthedocs.io/en/latest/notebooks/multimodal_alignment_tutorial/)).
-
-| Notebook | In-repo after `scripts/sync_notebooks_for_docs.sh` |
-|----------|-----------------------------------------------------|
-| Miniscope | [notebooks/miniscope_pipeline_tutorial.ipynb](notebooks/miniscope_pipeline_tutorial.ipynb) |
-| Ephys | [notebooks/ephys_pipeline_tutorial.ipynb](notebooks/ephys_pipeline_tutorial.ipynb) |
-| Multimodal | [notebooks/multimodal_alignment_tutorial.ipynb](notebooks/multimodal_alignment_tutorial.ipynb) |
-
-> [!TIP]
-> **Docstrings:** use `help(MiniscopePipeline)` or the [API Reference](api/index.md).
+Before running a notebook locally, review paths, actual channel names and optional
+processing settings. The [data guide](guides/data_management.md) describes optional
+library/command-line Box access; download files separately for GUI use.

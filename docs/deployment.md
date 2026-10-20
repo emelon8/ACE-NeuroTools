@@ -1,34 +1,41 @@
-# Building and deploying documentation
+# Build and publish the documentation
 
-## What gets committed
+## Build locally
 
-- **Source:** `docs/` (Markdown, API stubs, assets), `mkdocs.yml`, and tutorial notebooks under `notebooks/` (synced into `docs/notebooks/` before a build).
-- **Not committed:** `site/` (MkDocs HTML output) and `.cache/` (mkdocs-jupyter cache). Both are listed in `.gitignore`.
+Use Python 3.10 or newer in a separate environment. No CaImAn installation or
+recording dataset is needed: API pages are read from source, and notebooks are
+rendered without running their analysis cells. From the repository root:
 
-## Local preview
-
-```bash
-pip install -e ".[docs]"
+```sh
+python -m pip install ".[docs]"
+python scripts/check_docs_links.py
 bash scripts/sync_notebooks_for_docs.sh
-mkdocs serve
+python -m mkdocs build --strict
+python -m mkdocs serve
 ```
 
-Open the URL MkDocs prints (usually `http://127.0.0.1:8000`).
+Open the address printed by `mkdocs serve`. Commit Markdown, configuration,
+and notebooks in `notebooks/`; copied `docs/notebooks/`, `site/`, and caches are
+build products. On Windows, run the notebook sync in Git Bash, or copy the three
+`.ipynb` files from `notebooks/` into `docs/notebooks/` before building.
 
-## Read the Docs (hosted site)
+## Read the Docs
 
-Documentation is built and published by [Read the Docs](https://readthedocs.org/) using [`.readthedocs.yaml`](https://docs.readthedocs.io/en/stable/config-file/v2.html) at the repository root.
+[ACE-NeuroTools](https://app.readthedocs.org/projects/ace-neurotools/) uses the
+root `.readthedocs.yaml`: Python 3.10, installation of `.[docs]`, notebook sync,
+local-link checking, and a strict MkDocs build. The published site is
+[ace-neurotools.readthedocs.io](https://ace-neurotools.readthedocs.io/en/latest/).
+The previous address without the hyphen is obsolete.
 
-On each build, RTD:
+The docs extra in `pyproject.toml` is the installation source for both CI and
+Read the Docs. PyMdown Extensions is constrained below 12.2 because newer
+versions require a Markdown argument that mkdocstrings 1.0.x does not pass to
+its highlighter. This caused the API-page crash in
+[build 35277395](https://app.readthedocs.org/projects/ace-neurotools/builds/35277395/).
+Change that compatibility constraint only after testing the complete API build
+in a fresh environment. Installing unconstrained docs tools separately can
+reintroduce the incompatible version.
 
-1. Installs the package with docs extras (`pip install -e ".[docs]"`).
-2. Runs `scripts/sync_notebooks_for_docs.sh` so `docs/notebooks/` matches `notebooks/`.
-3. Runs `mkdocs build` with `mkdocs.yml`.
-
-**Project setup (dashboard):** import the GitHub repository in Read the Docs, connect the private repo if needed ([private repositories](https://docs.readthedocs.com/platform/latest/guides/creating-project-private-repository.html)), and point the default branch at your main docs branch. The canonical docs URL is configured in `mkdocs.yml` as `site_url` (currently `https://aceneurotools.readthedocs.io/en/latest/`). If your RTD project slug differs, update `site_url` and any hardcoded links accordingly.
-
-**CI:** You can add a GitHub Actions workflow that runs `mkdocs build` on pushes and pull requests (without deploying); production hosting is typically Read the Docs.
-
-## Updating tutorials
-
-Edit files in `notebooks/`, regenerate or copy into `docs/notebooks/` with `scripts/sync_notebooks_for_docs.sh`, then commit.
+CI installs the same docs extra in a fresh environment, checks local links, syncs
+notebooks, and runs a strict build. A passing local build does not publish the
+site; Read the Docs must build the merged commit successfully.

@@ -1,6 +1,6 @@
 site_name: ACE-NeuroTools
-site_description: Analysis of Calcium Imaging and Electrophysical Data — integrated pipelines for calcium imaging, ephys, and multimodal alignment.
-site_url: https://aceneurotools.readthedocs.io/en/latest/  # TODO(humans): confirm RTD subdomain after rename
+site_description: Analysis of Calcium Imaging and Electrophysiology — integrated pipelines for calcium imaging, ephys, and multimodal alignment.
+site_url: https://ace-neurotools.readthedocs.io/en/latest/
 site_author: "Reed Pennock, Luke Richards, Eric Melonakos"
 
 theme:
@@ -71,17 +71,22 @@ plugins:
 
 nav:
   - Home: index.md
-  - Getting Started: getting_started.md
-  - Examples: examples.md
+  - Lab Guide:
+      - Install and Open ACE: gui_installation.md
+      - Experiment Workbench: gui.md
+      - Lab Practice Checklist: lab_walkthrough.md
+  - Analysis Guides:
+      - Command-line Getting Started: getting_started.md
+      - Examples: examples.md
+      - Calcium Imaging: guides/calcium_imaging.md
+      - Electrophysiology: guides/ephys.md
+      - Combined Recordings: guides/multimodal.md
+      - Data Management: guides/data_management.md
+      - Adapting to Your Lab: guides/adapting_to_your_lab.md
   - Tutorials:
       - Miniscope Processing: notebooks/miniscope_pipeline_tutorial.ipynb
       - Ephys Processing: notebooks/ephys_pipeline_tutorial.ipynb
       - Multimodal Alignment: notebooks/multimodal_alignment_tutorial.ipynb
-  - User Guides:
-      - Calcium Imaging Analysis: guides/calcium_imaging.md
-      - Ephys Analysis: guides/ephys.md
-      - Multimodal Integration: guides/multimodal.md
-      - Data Management: guides/data_management.md
   - API Reference:
       - Overview: api/index.md
       - Pipelines: api/pipelines.md
@@ -89,4 +94,8 @@ nav:
       - Ephys Components: api/ephys.md
       - Multimodal: api/multimodal.md
       - Shared Utils: api/shared.md
-  - Deploying the docs: deployment.md
+  - For Maintainers:
+      - Package installation: packaging.md
+      - Release checklist: releasing.md
+      - Backend checks: backend_testing.md
+      - Build and publish docs: deployment.md

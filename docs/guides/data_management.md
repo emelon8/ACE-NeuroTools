@@ -6,13 +6,12 @@ This approach ensures that your analysis pipelines can be run in large batches w
 
 ## The Core Files
 
-At the root of your project directory, ACE-NeuroTools expects to find two files:
+The project directory contains these configuration files:
 
 1.  `experiments.csv`: The metadata for each recording session (e.g., date, rat ID, raw data directories, drug doses).
-2.  `analysis_parameters.csv`: The algorithmic parameters used to process the data (e.g., CNMF-E parameters, filtering thresholds).
+2.  `analysis_parameters.csv` (optional for modality commands): The algorithmic parameters used to process the data (e.g., CNMF-E parameters, filtering thresholds).
 
-> [!IMPORTANT]
-> Both files must have a `line number` column. This is the unique identifier that links an experiment's metadata to its analysis parameters, and it is the primary argument passed to all ACE-NeuroTools pipelines.
+Both files, when present, must have a `line number` column. It is the experiment's ID, not its spreadsheet row position. Missing settings use defaults; review them before analysis.
 
 ## Getting Started: The Templates
 
@@ -52,11 +51,11 @@ In `experiments.csv`, you specify the location of your raw data in the `calcium 
 Once your CSV files are populated, you can run the pipeline by specifying the `line_num` and the paths to your project and data directories:
 
 ```python
-from aceneurotools.pipelines.miniscope import MiniscopePipeline
+from aceneurotools.pipelines.calcium_imaging import CalciumImagingPipeline
 
-pipeline = MiniscopePipeline()
+pipeline = CalciumImagingPipeline()
 
-# Run the experiment on line 5 of your CSVs
+# Select experiment ID 5 in the line number column
 pipeline.run(
     line_num=5,
     project_path="/path/to/my_awesome_project/data",  # Where the CSVs live
@@ -65,6 +64,9 @@ pipeline.run(
 ```
 
 ## Optional: Box Cloud Integration
+
+**This section describes optional command-line/library downloads. The installed GUI
+requires you to download Box files separately and choose their local folder.**
 
 If your lab uses Box to store and share raw data, ACE-NeuroTools can automatically download missing files for a specific experiment before the analysis begins. This is an **optional opt-in feature**.
 
@@ -81,13 +83,16 @@ To allow the code to talk to Box, you must provide your own API credentials:
 ### How it Works
 - **Local First**: If the data already exists at the specified local path, the pipeline starts immediately without connecting to Box.
 - **Smart Sync**: If files are missing locally **and** a Box ID is provided, the system will connect to Box and download the required files automatically.
-- **Graceful Fallback**: If Box IDs are present but you haven't configured your credentials, the system will print a reminder with setup instructions and proceed using only what is available locally.
+- **Graceful Fallback**: If Box IDs are present but you haven't configured your credentials, the system prints a reminder. Processing can continue only if all required recording files are already local; missing required files prevent a usable run.
 
 ### Where are the outputs saved?
 
-By default, ACE-NeuroTools saves all intermediate and final analysis results (such as HDF5 files, filtered movies, and generated plots) **directly adjacent to the raw data**.
+Direct pipeline runs save intermediate and final analysis results (such as HDF5 files, filtered movies, and generated plots) **directly adjacent to the raw data**.
 
 If your `calcium imaging directory` is set to `Rat01/2024_01_01/Miniscope`, the pipeline will create analysis folders inside that specific `Miniscope` directory. This keeps the derived data organized alongside the raw data it came from.
+
+GUI runs instead copy inputs and save outputs under `<project>/.ace-runs/<run-id>/`;
+curation exports use separate `.ace-curations` folders. See [Results](../gui.md#find-and-reopen-results).
 
 ## Adding New Columns
 

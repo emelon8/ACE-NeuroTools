@@ -6,10 +6,10 @@ This section details the high-level entry points for running the analysis workfl
 
 1. Call `run(line_num=..., project_path=..., data_path=..., **other_kwargs)` from Python.
 2. Optionally load per-line defaults from `analysis_parameters.csv` with `load_analysis_params` and merge: `run(**{**csv_params, "line_num": n, ...})`.
-3. CLI modules (`python -m aceneurotools.pipelines.*`) only expose a few flags; they merge CSV + defaults internally — see [Getting started](../getting_started.md) §3a.
+3. CLI modules (`python -m aceneurotools.pipelines.*`) only expose a few flags; they merge CSV + defaults internally — see [parameter precedence](../getting_started.md#3-passing-parameters-into-the-pipelines).
 
-## Miniscope Pipeline
-::: aceneurotools.pipelines.miniscope.MiniscopePipeline
+## Calcium Imaging Pipeline
+::: aceneurotools.pipelines.calcium_imaging.CalciumImagingPipeline
 
 ## Ephys Pipeline
 ::: aceneurotools.pipelines.ephys.EphysPipeline

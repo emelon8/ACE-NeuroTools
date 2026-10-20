@@ -41,7 +41,7 @@ dependencies:
   - conda-lock>=4
   - mkdocs-material>=9
   - mkdocstrings-python>=0.24
-  - pymdown-extensions>=10
+  - pymdown-extensions>=10,<12.2
   - mkdocs-jupyter>=0.24
   - python-markdown-math>=0.8
   - pip

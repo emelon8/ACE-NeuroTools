@@ -8,10 +8,12 @@ build:
   jobs:
     pre_build:
       # Mirror local/CI flow: copy notebooks into docs/ for mkdocs-jupyter
+      - python scripts/check_docs_links.py
       - bash scripts/sync_notebooks_for_docs.sh
 
 mkdocs:
   configuration: mkdocs.yml
+  fail_on_warning: true
 
 python:
   install:

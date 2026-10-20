@@ -6,7 +6,7 @@ ACE-NeuroTools is built so that **different acquisition setups** can be supporte
 
 ## Design goal
 
-- **Same pipelines** (`EphysPipeline`, `MiniscopePipeline`, `MultimodalPipeline`) for interactive and batch runs.
+- **Same pipelines** (`EphysPipeline`, `CalciumImagingPipeline`, `MultimodalPipeline`) for interactive and batch runs.
 - **Lab-specific details** isolated in **data managers** and **metadata**, not scattered through processors.
 - **Explicit paths and parameters** (`project_path`, `data_path`, `analysis_parameters.csv`) so runs are reproducible and shareable across groups.
 
@@ -19,7 +19,7 @@ Many differences between labs are handled without changing Python code:
 | What varies | Where to set it |
 |-------------|-----------------|
 | Raw data layout under a shared root | `data_path` + columns in `experiments.csv` (e.g. **ephys directory**, **calcium imaging directory**) |
-| Per-session analysis choices | `analysis_parameters.csv` and kwargs to `run()` (see [Getting started](../getting_started.md) §3a) |
+| Per-session analysis choices | `analysis_parameters.csv` and kwargs to `run()` (see [Getting started](../getting_started.md) parameter precedence) |
 | Imaging frame rate and file layout | Miniscope **metadata** (e.g. `frameRate`, paths to movies). TTL gap logic scales with `frameRate` when present (see [Multimodal integration](multimodal.md#ttl-synchronization-and-gap-detection)) |
 | Headless / cluster runs | `headless=True` and the same kwargs you would use locally |
 

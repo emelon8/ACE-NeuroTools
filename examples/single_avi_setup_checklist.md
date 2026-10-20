@@ -1,309 +1,78 @@
-# Single-AVI Smoke Test — Setup Checklist
+# Legacy single-AVI smoke test: maintainer reference
 
-Use this to set up `aceneurotools` on a new machine and reach the goal:
+For nontechnical lab testing, use the [lab walkthrough](../docs/lab_walkthrough.md)
+and [installed GUI guide](../docs/gui.md). This older script is a separate,
+interactive source-checkout test of Box access and one UCLA-style AVI. It is
+not a complete-recording analysis or the installed browser workflow.
 
-> Download one `.avi` from Box, run CNMF-E to produce `estimates.hdf5`, and
-> open the GUI to pick neurons.
+**This script currently needs repair before use.** Its CSV lookups infer numeric
+experiment IDs, then search for string IDs, so ordinary template-derived projects
+can fail before download. Both lookups in `step_1_download_avi()` and
+`step_3_report_estimates()` need consistent ID handling. The steps below describe
+the intended legacy setup, not a verified working test. Use the GUI lab walkthrough
+for acceptance testing until the script is repaired.
 
-Everything below is meant to be done **once** per machine. Once it works, the
-day-to-day workflow is just step 8 (edit the four constants and run).
+## 1. Prepare the environment
 
-The companion script is [`single_avi_smoke_test.py`](single_avi_smoke_test.py)
-in this same folder.
+Follow [source installation](../docs/gui_installation.md#for-maintainers-install-the-current-source)
+using `environment.yml` and the `aceneurotools` environment. The old
+`linux_environment.yml` and `windows.yml` setup commands do not apply.
 
----
-
-## 1. Install miniforge / mambaforge (if you don't have conda already)
-
-- macOS / Linux: <https://github.com/conda-forge/miniforge#install>
-- Windows: install **Miniforge3** from the same page; pick the option that
-  installs "Miniforge Prompt" into the Start menu.
-
-Verify:
-
-```bash
-conda --version
+```sh
+conda activate aceneurotools
+python -c "import caiman, aceneurotools; print('imports OK')"
 ```
 
-Anything `conda 23+` is fine.
+An import check alone does not validate a full scientific run. If installation
+fails, preserve the error and repair that environment before continuing; do not
+remove another environment named `caiman`.
 
----
+## 2. Prepare Box access, if needed
 
-## 2. Clone the repo
+Ask the lab administrator for an authorized Box application and access to the
+recording. Copy `src/aceneurotools/shared/BLANK_box_credentials.py` to
+`src/aceneurotools/shared/box_credentials.py` and fill in the CCG client ID,
+client secret and user ID fields. Keep the file private; it is ignored by Git.
+See [optional command-line Box integration](../docs/guides/data_management.md#optional-box-cloud-integration).
 
-Pick a folder you're happy keeping code in (e.g. `~/code/`):
+The template's `dev_token` variable is not used by its configured CCG `auth`.
+Do not follow the former instruction to uncomment a numbered downloader line.
+This checklist uses the template's CCG path only. For browser testing, download
+recordings separately; the installed GUI does not use this credentials file.
 
-```bash
-cd ~/code
-git clone https://github.com/emelon8/experiment_analysis.git
-cd experiment_analysis
-```
+## 3. Prepare project files
 
-From here, all paths in this doc are **relative to** that
-`experiment_analysis/` folder unless they start with `/`.
+Use a separate practice project containing `experiments.csv` and
+`analysis_parameters.csv`, with matching experiment IDs in `line number`.
+This particular script requires both files even though modality commands can
+run with defaults when the settings file is missing.
 
----
+Supply the real recording's Box folder ID and `calcium imaging directory`.
+Keep metadata and timestamps in the original acquisition layout. Get the
+crop, cell scale, detection thresholds and indicator decay from the lab; the
+template values are examples, not validated settings for every UCLA recording.
+Do not assume historical rows in the repository refer to data you can access.
 
-## 3. Create the conda environment
+## 4. Intended script procedure (after repair)
 
-Use the file that matches your OS:
+Edit the four constants in [single_avi_smoke_test.py](single_avi_smoke_test.py):
+`PROJECT_PATH` is the project folder, `DATA_PATH` is the raw-data root,
+`LINE_NUM` is the experiment ID, and `AVI_FILENAME` is the selected movie.
+For Windows paths use forward slashes or raw Python strings.
 
-```bash
-# Linux / macOS
-conda env create -f linux_environment.yml
+From the repository root in the activated environment:
 
-# Windows
-conda env create -f windows.yml
-```
-
-This pulls in CaImAn and everything else and takes ~10–20 minutes. Then:
-
-```bash
-conda activate caiman
-pip install -e .
-```
-
-The `-e .` registers `aceneurotools` so `python -m aceneurotools.pipelines.miniscope`
-and `from aceneurotools... import ...` both work from any directory.
-
-Verify:
-
-```bash
-python -c "import caiman, aceneurotools; print('caiman + aceneurotools OK')"
-```
-
-If that prints `caiman + aceneurotools OK`, the environment is good. If it fails
-on a CaImAn import, recreate the env (`conda env remove -n caiman`, then
-re-run step 3).
-
----
-
-## 4. Get your Box credentials
-
-Open <https://byu.app.box.com/developers/console>.
-
-You have two options. **Pick one.**
-
-### Option A — quick, expires every hour (good for first-time testing)
-
-1. Open (or create) any Box custom app you have access to.
-2. Click **Configuration**.
-3. Scroll to **Developer Token** and click **Generate Developer Token**.
-4. Copy the token. **It only lasts 1 hour.**
-
-### Option B — permanent, what we use day-to-day
-
-1. **First person on the team only:** click **Create Platform App** →
-   **Server Authentication (Client Credentials Grant)**. Up to 15 teammates
-   can share one app.
-2. Open that app → **Configuration**:
-   - Under **Application Scopes**, check **Write all files and folders
-     stored in Box**.
-   - Save changes.
-3. Open **Authorization** → **Submit for Authorization**, and ask whoever
-   manages the BYU Box enterprise to approve it. Until this is approved
-   nothing else in this guide will authenticate, so don't skip it.
-4. Back on the **Configuration** tab, copy:
-   - **Client ID**
-   - **Client Secret**
-   - **User ID** (top right of the Box web UI → click your avatar → Account
-     Settings → the long number beside "Account Details")
-
-Keep these somewhere safe (a password manager — **not** in git).
-
----
-
-## 5. Fill in `box_credentials.py`
-
-From the repo root:
-
-```bash
-# Linux / macOS
-cp src/aceneurotools/shared/BLANK_box_credentials.py src/aceneurotools/shared/box_credentials.py
-
-# Windows (PowerShell)
-Copy-Item src/aceneurotools/shared/BLANK_box_credentials.py src/aceneurotools/shared/box_credentials.py
-```
-
-Open `src/aceneurotools/shared/box_credentials.py` in your editor and paste in
-the values from step 4:
-
-- If you used **Option A** (dev token): set `dev_token = '<your token>'`,
-  and additionally **uncomment line 122** in
-  `src/aceneurotools/shared/file_downloader.py`:
-
-  ```python
-  auth = BoxDeveloperTokenAuth(token=dev_token)
-  ```
-
-  This makes `make_auth()` use your dev token instead of CCG.
-
-- If you used **Option B** (CCG): fill in `client_id`, `client_secret`,
-  `user_id`. Leave `file_downloader.py` alone.
-
-`box_credentials.py` is in `.gitignore`, so it will not be committed. Don't
-share this file.
-
-Verify the file at least imports:
-
-```bash
-python -c "from aceneurotools.shared.box_credentials import auth; print('credentials loaded:', auth)"
-```
-
-Then verify it actually authenticates with Box:
-
-```bash
-python -c "from aceneurotools.shared.file_downloader import make_auth; print(make_auth())"
-```
-
-You want to see `Successfully connected to Box client` and a `<BoxClient ...>`
-object. If you get `None` or an exception, the credentials or the
-enterprise-approval step (4-Option-B-3) are wrong; fix that **before** moving
-on.
-
----
-
-## 6. Create your `project_path` (the CSV folder)
-
-Pick a folder somewhere local — it does **not** need to live inside the repo.
-Example: `~/lab/correlation_project/`.
-
-Copy the two templates into it and rename them:
-
-```bash
-mkdir -p ~/lab/correlation_project
-cp src/aceneurotools/shared/metadata_templates/experiments_template.csv          ~/lab/correlation_project/experiments.csv
-cp src/aceneurotools/shared/metadata_templates/analysis_parameters_template.csv  ~/lab/correlation_project/analysis_parameters.csv
-```
-
-You should now have:
-
-```text
-~/lab/correlation_project/
-├── experiments.csv
-└── analysis_parameters.csv
-```
-
-Open `experiments.csv` in a spreadsheet editor (Excel, LibreOffice, Google
-Sheets) and either:
-
-- **Reuse an existing row.** Copy the row that corresponds to the recording
-  you want to test from `data/experiments_correlation_project.csv` in this
-  repo. Make sure it has values in **`Box Calcium Folder ID`** and
-  **`calcium imaging directory`**. Note the **`line number`** — you'll use
-  it as `LINE_NUM` in step 8.
-
-- **Add a new row.** The two fields that *must* be filled in for the smoke
-  test:
-
-  | Column                       | Where to get it                                                                                                            |
-  | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-  | `line number`                | Any unique integer — pick `1` if the file is otherwise empty.                                                              |
-  | `Box Calcium Folder ID`      | Open the Miniscope folder for that recording in Box's web UI; the long number at the end of the URL is the folder ID.     |
-  | `calcium imaging directory`  | Relative path under `data_path` where you want the AVI to land, e.g. `K99/miniscope_data/sleep/R220817B/2022_11_25/14_04_09`. |
-
-Then open `analysis_parameters.csv` and either copy the row from
-`data/analysis_parameters_correlation_project.csv` for the same line number,
-or just leave the example row from the template. The pipeline only needs
-sensible values in `crop_coords`, `gSig`, `gSiz`, `min_corr`, `min_pnr`, and
-`decay_time` to actually finish CNMF-E; the template values work for UCLA
-miniscope data.
-
-> Tip: keep the `line number` identical in both CSVs. The pipeline matches
-> rows across the two files by that number.
-
----
-
-## 7. Create your `data_path` (the raw data folder)
-
-Pick a directory with **plenty of free space** (a single 10-minute miniscope
-session is several GB). Example: `~/lab/raw_data/`.
-
-```bash
-mkdir -p ~/lab/raw_data
-```
-
-You don't have to put anything in it; the smoke-test script will let Box
-populate the right subfolders.
-
-> If your `experiments.csv` row says
-> `calcium imaging directory = K99/miniscope_data/sleep/R220817B/2022_11_25/14_04_09`,
-> the AVI will end up at
-> `~/lab/raw_data/K99/miniscope_data/sleep/R220817B/2022_11_25/14_04_09/Miniscope/0.avi`.
-
----
-
-## 8. Run the smoke test
-
-Open `examples/single_avi_smoke_test.py` and edit the four constants near
-the top:
-
-```python
-PROJECT_PATH = Path("/home/<you>/lab/correlation_project")
-DATA_PATH    = Path("/home/<you>/lab/raw_data")
-LINE_NUM     = 96             # the row you set up in step 6
-AVI_FILENAME = "0.avi"        # start with the first AVI of the session
-```
-
-On Windows, use forward slashes or raw strings:
-
-```python
-PROJECT_PATH = Path(r"C:\Users\you\lab\correlation_project")
-```
-
-Then, with the env active:
-
-```bash
-conda activate caiman
+```sh
 python examples/single_avi_smoke_test.py
 ```
 
-What you should see, in order:
+The script checks paths/credentials, downloads or finds the AVI, runs extraction,
+and locates saved estimates. Its separate component-selection window uses
+FreeSimpleGUI, not PySimpleGUI. If that import fails, repair the declared
+`FreeSimpleGUI` dependency in the analysis environment; do not install an old
+PySimpleGUI build. Report the exact `[smoke-test] FAILED at:` stage and error.
 
-1. `Step 0/3: checking paths and credentials...` — confirms the CSVs are
-   where you said and `box_credentials.py` imports.
-2. `Step 1/3: downloading AVI from Box...` — if the AVI is already on disk
-   it skips immediately; otherwise it pulls it.
-3. `Step 2/3: running MiniscopePipeline...` — CaImAn does motion correction
-   (skipped by default) and CNMF-E. This is the slow step (minutes to
-   tens-of-minutes for one AVI). Then a **PySimpleGUI window opens** showing
-   the detected neurons over a max projection. Click the listbox entries
-   for any components you want to reject, then **Submit**.
-4. `Step 3/3: locating estimates.hdf5` — prints the full path of the saved
-   `estimates.hdf5`.
-
-If any step fails, the script prints `[smoke-test] FAILED at: <stage>` plus
-a hint targeted at that specific stage. Take the stage name to whoever set
-this up and they'll know where to look.
-
----
-
-## 9. After it works once
-
-You're now set up. From this point:
-
-- Re-running the same line number is just `python examples/single_avi_smoke_test.py`
-  again (it'll skip the download if the AVI is already on disk).
-- To process a different recording: edit `LINE_NUM` (and add the row in
-  `experiments.csv` / `analysis_parameters.csv` if it's not there).
-- To process the *whole* recording (all AVIs) instead of just `0.avi`: stop
-  using this smoke-test script and use the real entry point —
-  `python -m aceneurotools.pipelines.miniscope --line-num <N> --project-path
-  /your/project --data-path /your/raw_data`. See
-  [`docs/guides/miniscope.md`](../docs/guides/miniscope.md) for the full
-  parameter list.
-
----
-
-## Quick troubleshooting reference
-
-| Symptom                                                              | Most likely cause                                                                                  |
-| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `ModuleNotFoundError: aceneurotools.shared.box_credentials`              | Skipped step 5 — the file is still named `BLANK_box_credentials.py`.                              |
-| `make_auth()` returns `None` or prints an exception                  | Step 4-Option-B-3 (enterprise approval) wasn't done, or client_id/secret/user_id is wrong.        |
-| Dev token suddenly stops working ~1 hour in                          | That's expected — generate a fresh dev token (step 4-Option-A-3), or switch to CCG (Option B).    |
-| `The miniscope path or ID do not exist in the CSV file` in the logs  | The `experiments.csv` row is missing `Box Calcium Folder ID` or `calcium imaging directory`.       |
-| `0.avi did not land at ...`                                          | Box folder ID points at the wrong folder, or that folder doesn't actually contain `0.avi`.        |
-| GUI step crashes with `ModuleNotFoundError: PySimpleGUI`             | PySimpleGUI relicensed; reinstall via `pip install "PySimpleGUI<5.0.0"` from the legacy mirror.    |
-| `import caiman` fails                                                | Conda env wasn't activated (`conda activate caiman`) or step 3 didn't finish — recreate the env.   |
-| CNMF-E finishes with 0 neurons                                       | `gSig` / `min_corr` / `min_pnr` in `analysis_parameters.csv` are wrong for this recording.         |
+One-AVI results describe only that selected movie. For a complete recording,
+use the [calcium guide](../docs/guides/calcium_imaging.md) and explicitly set
+`filenames=[]` or list all intended movie segments. The default modality command
+selects `0.avi`; changing commands alone does not select the whole session.

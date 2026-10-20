@@ -14,13 +14,13 @@ The multimodal pipeline combines ephys and calcium imaging analysis for synchron
 
 ```bash
 # Run with explicit project path
-python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /my/project
+python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /my/project --data-path /my/raw_data
 
 # Run with explicit project and data paths
 python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /my/project --data-path /my/raw_data
 
 # Run in headless mode
-python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /my/project --headless
+python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /my/project --data-path /my/raw_data --headless
 ```
 
 ### Python API
@@ -39,11 +39,11 @@ api.run(
 
 ## Pipeline Steps
 
-1. **Ephys Processing**: Runs the full ephys pipeline (channel loading, filtering, phase analysis)
+1. **Ephys Processing**: Loads the requested channel and applies requested processing.
 2. **Miniscope Processing**: Runs the full miniscope pipeline (preprocessing, CNMF-E, postprocessing)
 3. **Timestamp Synchronization**: Aligns Neuralynx and Miniscope timestamps using TTL events
 4. **TTL Event Detection**: Identifies and optionally cleans TTL synchronization events
-5. **Phase-Based Event Analysis**: Computes calcium event phases relative to ephys oscillations
+5. **Phase-Based Event Analysis**: Computes requested calcium event phases relative to available oscillation phases.
 6. **Phase Histograms**: Generates circular histograms of calcium event phase distributions
 
 ## Key Parameters
@@ -57,7 +57,15 @@ api.run(
 | `ca_events` | Analyze calcium events | `True` |
 | `time_range` | Time window to analyze (seconds) | `None` |
 
-All ephys and miniscope parameters from their respective pipelines also apply here.
+The combined pipeline accepts a selected subset of ephys and calcium options;
+check its [run signature](../api/pipelines.md) before forwarding settings.
+The table above gives shared command-line defaults, which the GUI also inherits.
+Direct Python defaults differ: `fix_TTL_gaps=False`, `only_experiment_events=True`,
+`ca_events=False`, and `save_estimates=True`. The shared command defaults instead
+set `save_estimates=False`; enable estimates saving explicitly for later review.
+Filtering is off unless `filter_type` is supplied, and event-phase analysis is
+conditional on the requested events/phases. The steps below describe capabilities,
+not a promise that every output is computed for every run.
 
 ## Data Requirements
 
@@ -66,3 +74,17 @@ The `experiments.csv` must contain both:
 - `ephys directory`: Path to Neuralynx recordings
 
 Both directories should contain data from the same synchronized recording session.
+
+
+## TTL synchronization and gap detection
+
+TTL pulses are synchronization markers used to map movie frames to electrical
+recording times. Verify that the recordings belong to the same session, their
+frame rate is correct, and the pulse mapping matches the acquisition. The reader
+may instead use the shared ONIX hardware clock. Inspect aligned frame times and
+`low_confidence_periods` before accepting results. Gap-repair settings change
+alignment behavior and require acquisition-specific review; they do not prove
+that missing synchronization data has been recovered correctly.
+
+For GUI runs, review both input lists and the enabled alignment/event options.
+Results stay in separate `.ace-runs` folders. See [the workbench guide](../gui.md).

@@ -5,7 +5,7 @@ This section contains the automatically generated documentation for the ACE-Neur
 ACE-NeuroTools is organized into several key modules:
 
 - **[Pipelines](pipelines.md)**: High-level entry points for standard workflows.
-- **[Miniscope](miniscope.md)**: Tools for calcium imaging data extraction and processing.
+- **[Calcium imaging](calcium_imaging.md)**: Tools for calcium imaging data extraction and processing.
 - **[Ephys](ephys.md)**: Multi-channel electrophysiology data management and signal processing.
 - **[Multimodal](multimodal.md)**: Cross-modal alignment and the multimodal pipeline API.
 - **[Shared](shared.md)**: Core utilities for configuration, paths, and data managers.
@@ -15,7 +15,8 @@ ACE-NeuroTools is organized into several key modules:
 ```text
 aceneurotools/
 ├── ephys/        # Electrophysiology pipeline & managers
-├── miniscope/    # Calcium imaging pipeline & processing
+├── calcium_imaging/ # Shared calcium imaging analysis
+├── miniscope/    # Hardware acquisition readers and compatibility aliases
 ├── multimodal/   # Cross-modal alignment & analysis
 ├── pipelines/    # High-level CLI & API entry points
 └── shared/       # Common utilities & base classes
