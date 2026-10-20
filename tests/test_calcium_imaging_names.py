@@ -173,3 +173,35 @@ def test_event_phase_helper_supports_both_names_and_keywords():
     old = miniscope_phase_ca_events(events, miniscope_phases=phases)
     np.testing.assert_array_equal(new[0], phases[[2, 5, 8]])
     np.testing.assert_array_equal(new[0], old[0])
+
+
+@pytest.mark.parametrize("old,new", LEGACY_OPTIONS.items())
+@pytest.mark.parametrize("source", ["parser", "csv", "manager"])
+def test_programmatic_parameters_prefer_new_csv_spelling(old, new, source, tmp_path):
+    from aceneurotools.pipelines.calcium_imaging import CalciumImagingPipeline
+    from aceneurotools.pipelines.multimodal import MultimodalPipeline
+    from aceneurotools.shared.config_utils import load_analysis_params
+    from aceneurotools.shared.experiment_data_manager import ExperimentDataManager
+
+    previous, canonical = (["old.avi"], ["new.avi"]) if "filenames" in old else (True, False)
+    raw = {old: previous, new: canonical}
+    if source == "parser":
+        params = parse_analysis_params(raw)
+    elif source == "csv":
+        import csv
+
+        with (tmp_path / "analysis_parameters.csv").open("w", newline="") as stream:
+            writer = csv.DictWriter(stream, fieldnames=["line number", old, new])
+            writer.writeheader()
+            writer.writerow({"line number": 1, **raw})
+        params = load_analysis_params(1, project_path=tmp_path)
+    else:
+        manager = object.__new__(ExperimentDataManager)
+        manager.analysis_params = raw
+        params = manager.get_pipeline_params()
+
+    assert params == {new: canonical}
+    # These mappings can be unpacked directly into the documented public API.
+    method = MultimodalPipeline.run if "filenames" in old else CalciumImagingPipeline.run
+    bound = inspect.signature(method).bind_partial(None, line_num=1, **params)
+    assert bound.arguments[new] == canonical

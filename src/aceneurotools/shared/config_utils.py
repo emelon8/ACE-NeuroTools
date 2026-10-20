@@ -8,7 +8,7 @@ CSV files. Project paths must be provided explicitly.
 from pathlib import Path
 from typing import Any
 
-from aceneurotools.shared.calcium_imaging_names import accept_legacy_keywords
+from aceneurotools.shared.calcium_imaging_names import accept_legacy_keywords, options_for_keys
 
 
 def load_analysis_params(line_num: int, project_path: Path | None = None) -> dict[str, Any]:
@@ -145,7 +145,9 @@ def parse_analysis_params(params: dict[str, Any]) -> dict[str, Any]:
         if csv_key in params and params[csv_key] is not None:
             args[kwarg_key] = params[csv_key]
 
-    return args
+    # Programmatic callers also pass this result straight to run(**params).
+    # Collapse mixed spellings here, while retaining legacy-only dictionary keys.
+    return options_for_keys(args, set(args))
 
 
 @accept_legacy_keywords(miniscope_data_manager="calcium_imaging_data_manager")
