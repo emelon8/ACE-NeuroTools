@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
+from aceneurotools.shared.calcium_imaging_names import accept_legacy_keywords
 from aceneurotools.shared.misc_functions import _prep_axes as prep_axes
 
 if TYPE_CHECKING:
@@ -44,14 +45,15 @@ def ephys_phase_ca_events(
     return ca_events_phases_ephys
 
 
-def miniscope_phase_ca_events(
-    ca_events_idx: dict[int, np.ndarray], miniscope_phases: np.ndarray, neurons: str | list[int] | int = "all"
+@accept_legacy_keywords(miniscope_phases="calcium_imaging_phases")
+def calcium_imaging_phase_ca_events(
+    ca_events_idx: dict[int, np.ndarray], calcium_imaging_phases: np.ndarray, neurons: str | list[int] | int = "all"
 ) -> dict[int, np.ndarray]:
-    """Compare calcium events to the phase extracted from the mean fluorescence of the (cropped) miniscope recording.
-    miniscope_phases: the phase calculatied from the movie that is given to MiniscopePostprocessor
+    """Compare calcium events to the phase extracted from the mean fluorescence of the (cropped) calcium imaging recording.
+    calcium_imaging_phases: the phase calculated from the movie that is given to CalciumImagingPostprocessor
     neurons: the neuron number (i.e., the integer row number in self.estimates.C, starting with 0) of the neuron you want to compare. If you want to compare all of the neurons in the recording, pass 'all' as the argument."""
     print(
-        "Comparing the calcium events to the corresponding phase of the mean fluorescence of the (cropped) miniscope recording..."
+        "Comparing the calcium events to the corresponding phase of the mean fluorescence of the (cropped) calcium imaging recording..."
     )
     if neurons == "all":
         neurons_list = list(ca_events_idx.keys())
@@ -60,11 +62,11 @@ def miniscope_phase_ca_events(
     else:
         neurons_list = [int(n) for n in neurons]
 
-    ca_events_phases_miniscope: dict[int, np.ndarray] = {}
+    ca_events_phases_calcium_imaging: dict[int, np.ndarray] = {}
     for k in neurons_list:
-        ca_events_phases_miniscope[k] = _event_phases(miniscope_phases, ca_events_idx[k])
+        ca_events_phases_calcium_imaging[k] = _event_phases(calcium_imaging_phases, ca_events_idx[k])
 
-    return ca_events_phases_miniscope
+    return ca_events_phases_calcium_imaging
 
 
 def phase_ca_events_histogram(
@@ -381,3 +383,7 @@ def _calculate_histograms_without_plotting(
             hist_dict[k] = h
             bin_edges_dict[k] = b
         return hist_dict, bin_edges_dict
+
+
+# Historical function name remains available to existing notebooks.
+miniscope_phase_ca_events = calcium_imaging_phase_ca_events

@@ -103,7 +103,7 @@ def test_multimodal_export_keeps_alignment_arrays_and_per_neuron_events(tmp_path
     monkeypatch.setattr(run_outputs, "miniscope_outputs", lambda report, manager: called.append("miniscope"))
     monkeypatch.setattr(run_outputs, "ephys_outputs", lambda report, channel: called.append("ephys"))
     pipeline = SimpleNamespace(
-        miniscope_pipeline=SimpleNamespace(miniscope_data_manager=object()),
+        calcium_imaging_pipeline=SimpleNamespace(calcium_imaging_data_manager=object()),
         ephys_pipeline=SimpleNamespace(ephys_data_manager=SimpleNamespace(get_channel=lambda name: object())),
         t_ca_im=np.array([0.1, 0.2]),
         low_confidence_periods=np.empty((0, 2), dtype=int),
@@ -206,10 +206,10 @@ def test_multimodal_requests_ephys_phases_when_aligning_calcium_events(monkeypat
 
     class Miniscope:
         def run(self, **params):
-            self.miniscope_data_manager = SimpleNamespace(fr=10, ca_events_idx=None, miniscope_phases=np.arange(10))
+            self.calcium_imaging_data_manager = SimpleNamespace(fr=10, ca_events_idx=None, calcium_imaging_phases=np.arange(10))
 
     monkeypatch.setattr(multimodal, "EphysPipeline", Ephys)
-    monkeypatch.setattr(multimodal, "MiniscopePipeline", Miniscope)
+    monkeypatch.setattr(multimodal, "CalciumImagingPipeline", Miniscope)
     monkeypatch.setattr(
         multimodal,
         "sync_neuralynx_miniscope_timestamps",

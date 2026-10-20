@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 class ComputePipeline:
     """Generates mean-fluorescence .npz files from raw miniscope recordings.
 
-    Heavy imports (caiman, MiniscopeDataManager) are deferred to method bodies
+    Heavy imports (caiman, CalciumImagingDataManager) are deferred to method bodies
     so the class can be imported without the full scientific stack.
     """
 
@@ -83,10 +83,10 @@ class ComputePipeline:
 
         import caiman as cm
 
-        from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
-        from aceneurotools.miniscope.miniscope_preprocessor import MiniscopePreprocessor
-        from aceneurotools.shared.experiment_data_manager import ExperimentDataManager
+        from aceneurotools.calcium_imaging.calcium_imaging_data_manager import CalciumImagingDataManager
+        from aceneurotools.calcium_imaging.calcium_imaging_preprocessor import CalciumImagingPreprocessor
         from aceneurotools.shared.config_utils import get_coords_dict_from_analysis_params
+        from aceneurotools.shared.experiment_data_manager import ExperimentDataManager
         from aceneurotools.shared.path_finder import PathFinder
 
         meta_dm = ExperimentDataManager(
@@ -129,7 +129,7 @@ class ComputePipeline:
         mid_end = min(n_files, mid_start + 10)
         sample_basenames = [p.name for p in sorted_filepaths[mid_start:mid_end]]
 
-        sample_dm = MiniscopeDataManager.create(
+        sample_dm = CalciumImagingDataManager.create(
             line_num,
             project_path=project_path,
             data_path=data_path,
@@ -137,7 +137,7 @@ class ComputePipeline:
         )
 
         coords_dict, _ = get_coords_dict_from_analysis_params(sample_dm)
-        preprocessor = MiniscopePreprocessor(sample_dm)
+        preprocessor = CalciumImagingPreprocessor(sample_dm)
         final_coords = None
 
         if coords_dict is not None:

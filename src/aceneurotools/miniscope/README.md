@@ -1,5 +1,6 @@
-# Miniscope pipeline (ACE-NeuroTools)
+# Miniscope acquisition readers
 
-1-photon calcium imaging with CaImAn/CNMF-E: preprocessing, motion correction, source extraction, postprocessing.
+UCLA and ONIX hardware readers live here. Shared analysis lives in
+`aceneurotools.calcium_imaging`; the old Miniscope module paths remain compatible.
 
-**Full guide:** [Miniscope Analysis](https://aceneurotools.readthedocs.io/en/latest/guides/miniscope/) — source: [`docs/guides/miniscope.md`](../../../docs/guides/miniscope.md).
+See [the calcium imaging guide](../../../docs/guides/calcium_imaging.md).

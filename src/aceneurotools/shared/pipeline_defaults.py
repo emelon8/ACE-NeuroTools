@@ -1,3 +1,5 @@
+from aceneurotools.shared.calcium_imaging_names import LEGACY_OPTIONS
+
 """Common CLI/GUI defaults; importing this module never loads the movie stack."""
 
 from copy import deepcopy
@@ -201,9 +203,13 @@ _ALLOWED = {
 
 def pipeline_defaults(kind):
     """Return independent settings so one run cannot mutate another run's defaults."""
+    if kind == "calcium_imaging":
+        return {LEGACY_OPTIONS.get(key, key): value for key, value in deepcopy(_DEFAULTS["miniscope"]).items()}
     return deepcopy(_DEFAULTS[kind])
 
 
 def pipeline_keys(kind):
     """Return pipeline run options shared by CLI configuration and GUI forms."""
+    if kind == "calcium_imaging":
+        return {LEGACY_OPTIONS.get(key, key) for key in _ALLOWED["miniscope"]}
     return set(_ALLOWED[kind])

@@ -74,15 +74,15 @@ def execute(manifest):
             finally:
                 cap.release()
     if manifest["kind"] == "preprocess":
-        from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
-        from aceneurotools.miniscope.miniscope_preprocessor import MiniscopePreprocessor
+        from aceneurotools.calcium_imaging.calcium_imaging_data_manager import CalciumImagingDataManager
+        from aceneurotools.calcium_imaging.calcium_imaging_preprocessor import CalciumImagingPreprocessor
 
-        manager = MiniscopeDataManager.create(
+        manager = CalciumImagingDataManager.create(
             params["line_num"], project_path=execution, data_path=root, filenames=params["filenames"]
         )
         coords = params.get("crop_coords")
         coords_dict = dict(zip(["x0", "y0", "x1", "y1"], coords)) if coords else None
-        preprocessor = MiniscopePreprocessor(manager)
+        preprocessor = CalciumImagingPreprocessor(manager)
         preprocessor.preprocess_calcium_movie(
             coords_dict=coords_dict,
             **{
@@ -113,11 +113,11 @@ def execute(manifest):
             raise RuntimeError("The existing compute pipeline skipped this experiment. Read the run log for its error.")
         report.artifact("mean_fluorescence", outputs[params["line_num"]])
     elif manifest["kind"] == "miniscope":
-        from aceneurotools.pipelines.miniscope import MiniscopePipeline
+        from aceneurotools.pipelines.calcium_imaging import CalciumImagingPipeline
 
-        pipeline = MiniscopePipeline()
+        pipeline = CalciumImagingPipeline()
         pipeline.run(**params)
-        miniscope_outputs(report, pipeline.miniscope_data_manager)
+        miniscope_outputs(report, pipeline.calcium_imaging_data_manager)
     elif manifest["kind"] == "multimodal":
         from aceneurotools.pipelines.multimodal import MultimodalPipeline
 

@@ -153,7 +153,7 @@ class ExperimentDataManager:
         """Return analysis parameters formatted for pipeline.run().
         
         Converts the raw analysis_params dict to kwargs compatible with
-        MiniscopePipeline.run() and EphysPipeline.run().
+        CalciumImagingPipeline.run() and EphysPipeline.run().
         
         Returns:
             Dict of kwargs to pass to pipeline.run()
@@ -168,9 +168,12 @@ class ExperimentDataManager:
             return Path(val) if val else None
         return None
 
-    def get_miniscope_directory(self) -> Path | None:
-        """Return the miniscope/calcium imaging directory path from metadata."""
+    def get_calcium_imaging_directory(self) -> Path | None:
+        """Return the calcium imaging directory path from metadata."""
         if self.metadata:
             val = self.metadata.get('calcium imaging directory')
             return Path(val) if val else None
         return None
+
+    # Historical accessor retained for acquisition adapters and existing scripts.
+    get_miniscope_directory = get_calcium_imaging_directory

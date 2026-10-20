@@ -44,7 +44,7 @@ def test_invalid_paired_fields_do_not_partially_modify_channels(bad_field):
 @pytest.mark.parametrize('paired', [False, True])
 def test_public_loaders_use_shared_downsampling(monkeypatch, tmp_path, paired):
     selected = channels()
-    monkeypatch.setattr(loader.MiniscopeDataManager, 'create', lambda **kw: SimpleNamespace(fr=2))
+    monkeypatch.setattr(loader.CalciumImagingDataManager, 'create', lambda **kw: SimpleNamespace(fr=2))
     monkeypatch.setattr(loader, 'load_ephys_for_analysis', lambda **kw: SimpleNamespace(get_channel=lambda name: selected[name == 'two']))
     monkeypatch.setattr(loader, 'sync_neuralynx_miniscope_timestamps', lambda ch, dm, ep, **kw: (np.array([100, 100.5, 101]), [], ch, dm))
     monkeypatch.setattr(loader, 'find_ephys_idx_of_TTL_events', lambda *args, **kw: (np.array([0, 5, 10]), None))

@@ -8,12 +8,12 @@ from typing import Any
 
 import numpy as np
 
-from aceneurotools.miniscope.miniscope_data_manager import MiniscopeDataManager
+from aceneurotools.calcium_imaging.calcium_imaging_data_manager import CalciumImagingDataManager
 from aceneurotools.shared.exceptions import DataFormatError, DataImportError
 from aceneurotools.shared.path_finder import PathFinder
 
 
-class UCLADataManager(MiniscopeDataManager):
+class UCLADataManager(CalciumImagingDataManager):
     """
     Handles V3 Miniscope data formats (metaData.json, timeStamps.csv, default events).
     """

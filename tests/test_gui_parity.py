@@ -14,6 +14,7 @@ from aceneurotools.gui.csv_projects import Project
 from aceneurotools.gui.run_specs import effective_parameters
 from aceneurotools.gui.server import ProjectServer
 from aceneurotools.shared import config_utils
+from aceneurotools.shared.calcium_imaging_names import options_for_keys
 from tests.test_gui_server import TOKENS
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -71,7 +72,7 @@ def gui_parameters(root, kind):
     raw = Project.open(root).inspect("1")["parameters"]
     options, _ = effective_parameters(kind, raw)
     bound = inspect.signature(method).bind_partial(
-        None, **options, line_num=1, project_path=str(root), data_path=str(root), headless=True
+        None, **options_for_keys(options, set(inspect.signature(method).parameters)), line_num=1, project_path=str(root), data_path=str(root), headless=True
     )
     bound.apply_defaults()
     return json.loads(json.dumps({key: value for key, value in bound.arguments.items() if key != "self"}))
@@ -266,7 +267,7 @@ def test_gui_http_saved_settings_match_real_cli(app, kind, changes):
 
         method = MultimodalPipeline.run
     bound = inspect.signature(method).bind_partial(
-        None, **shown["parameters"], line_num=1, project_path=str(root), data_path=str(root), headless=True
+        None, **options_for_keys(shown["parameters"], set(inspect.signature(method).parameters)), line_num=1, project_path=str(root), data_path=str(root), headless=True
     )
     bound.apply_defaults()
     actual = json.loads(json.dumps({key: value for key, value in bound.arguments.items() if key != "self"}))

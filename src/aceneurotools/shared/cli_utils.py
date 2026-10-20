@@ -8,6 +8,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from aceneurotools.shared.calcium_imaging_names import options_for_keys
 from aceneurotools.shared.exceptions import ConfigurationError
 
 
@@ -31,7 +32,7 @@ def build_run_params(
     csv_loader: Callable[..., dict[str, Any]],
 ) -> dict[str, Any]:
     """Build run params with canonical precedence: defaults -> CSV -> CLI."""
-    params = dict(defaults)
+    params = options_for_keys(defaults, allowed_keys)
     params["line_num"] = line_num
 
     try:
@@ -40,7 +41,7 @@ def build_run_params(
         warnings.warn(str(e), stacklevel=2)
         csv_params = {}
 
-    for key, value in csv_params.items():
+    for key, value in options_for_keys(csv_params, allowed_keys).items():
         if key in allowed_keys:
             params[key] = value
         else:
@@ -107,8 +108,10 @@ def validate_run_params(*, pipeline_name: str, run_params: dict[str, Any]) -> No
                 hint="Set channel_name in CSV or defaults to a valid channel.",
             )
 
-    if pipeline_name in {"miniscope", "multimodal"}:
-        key = "filenames" if pipeline_name == "miniscope" else "miniscope_filenames"
+    if pipeline_name in {"miniscope", "calcium_imaging", "multimodal"}:
+        key = "filenames" if pipeline_name in {"miniscope", "calcium_imaging"} else (
+            "calcium_imaging_filenames" if "calcium_imaging_filenames" in run_params else "miniscope_filenames"
+        )
         filenames = run_params.get(key)
         if isinstance(filenames, str):
             run_params[key] = [filenames]
@@ -140,7 +143,7 @@ def apply_headless_policy(*, pipeline_name: str, run_params: dict[str, Any]) -> 
         run_params["plot_spectrogram"] = False
         run_params["plot_phases"] = False
 
-    if pipeline_name in {"miniscope", "multimodal"}:
+    if pipeline_name in {"miniscope", "calcium_imaging", "multimodal"}:
         run_params["inspect_motion_correction"] = False
         run_params["remove_components_with_gui"] = False
         run_params["plot_params"] = False

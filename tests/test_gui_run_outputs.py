@@ -14,7 +14,7 @@ from tests.test_gui_analysis import make_recording
 
 @pytest.fixture
 def worker_case(tmp_path, monkeypatch):
-    from aceneurotools.pipelines import miniscope
+    from aceneurotools.pipelines import calcium_imaging as miniscope
 
     project, _ = make_recording(tmp_path)
     root = project / "run"
@@ -56,9 +56,9 @@ def worker_case(tmp_path, monkeypatch):
 
     class Pipeline:
         def run(self, **params):
-            self.miniscope_data_manager = dm
+            self.calcium_imaging_data_manager = dm
 
-    monkeypatch.setattr(miniscope, "MiniscopePipeline", Pipeline)
+    monkeypatch.setattr(miniscope, "CalciumImagingPipeline", Pipeline)
     manifest = dict(
         directory=str(root),
         recording_path=str(project / "raw"),
