@@ -7,7 +7,7 @@ For a click-by-click path, use the [experiment workbench](../gui.md).
 
 ## Quick start
 
-Prepare `experiments.csv`, the complete recording, and lab-approved settings as
+Prepare `experiments.csv`, the complete recording, and recording-specific settings as
 shown in [Getting started](../getting_started.md). `analysis_parameters.csv` is
 optional for modality commands but is needed to store overrides.
 

@@ -1,5 +1,12 @@
 # Package installation and dependencies
 
+For first-time installation, use [Install and open ACE](gui_installation.md).
+The current source route includes dependency checks, first launch, reopening,
+updates, and troubleshooting. The source installation creates command-line
+entry points, but no desktop shortcut; shortcuts belong to the future conda
+package. A successful HTTP smoke check does not verify movie processing or a
+full acquired-recording analysis.
+
 `ace-neuro` launches the command-line tools. `ace-gui` opens the installed local
 browser application on **127.0.0.1:8765**. Use `ace-gui --port 0 --no-browser` to
 allocate an available port for an automated check, or choose a different port.

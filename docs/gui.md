@@ -3,12 +3,48 @@
 ACE opens in your browser and runs on your own computer. Use it to edit
 experiment details, choose a movie area, run an analysis, review neurons, and
 find the saved results. Start with [installation](gui_installation.md). For a
-practice session, use the [lab walkthrough](lab_walkthrough.md).
+first session, use the [first-run walkthrough](lab_walkthrough.md).
+
+## Prepare a project
+
+ACE opens an existing project; the GUI does not create the initial experiment
+list. If you already have a compatible project, make a separate working copy
+and continue to [Open ACE and a project](#open-ace-and-a-project).
+
+1. Create a writable folder for your project, separate from the ACE source
+   folder. Keep the original recordings in their acquisition folder structure.
+2. In your downloaded `ACE-NeuroTools` source folder, open
+   `src/aceneurotools/shared/metadata_templates` in your file manager. Copy
+   `experiments_template.csv` and `analysis_parameters_template.csv` into the
+   project folder. Rename the copies to `experiments.csv` and
+   `analysis_parameters.csv`.
+3. Open the copies in a spreadsheet editor. Preserve the column headers and
+   replace the example experiment with your recording's details. Give each
+   experiment a unique integer in `line number`, enter its subject and recording
+   date, and set its calcium or electrical recording folder. Use the same
+   `line number` in the settings file. Remove unused example rows from both files.
+4. Replace example paths and channel names with real values. Leave Box folder IDs
+   blank for local recordings. Keep metadata, timestamps, and movie segments in
+   the layout produced by your acquisition system; a movie alone may be insufficient.
+   See [calcium recording formats](guides/calcium_imaging.md#naming-and-acquisition-formats)
+   and [electrical recordings](guides/ephys.md) for supported inputs.
+5. Review the settings for your recording, especially frame rate, calcium indicator
+   decay, cell size, motion correction, and any electrical channels or filters.
+   Template values are examples, not validated settings for every recording.
+6. Save each file as **comma-separated CSV in UTF-8**, keeping the `.csv`
+   extension. Close the spreadsheet editor before editing the files in ACE.
+
+You can also create starter files using the command in
+[Getting started](getting_started.md#1-prepare-project-files-and-recordings).
+The generated `lab_config.json` and `stats_config.json` belong to the separate
+compute/statistics launcher; neither is required to open a CSV project in the GUI.
+The settings CSV is optional, but supplying it makes your chosen analysis
+settings explicit. If it is absent, use **Add settings for this experiment**
+after opening the project and review inherited defaults before running analysis.
 
 ## Open ACE and a project
 
-1. Open the **ACE NeuroTools** shortcut if your maintainer supplied an installed
-   package, or activate your prepared environment and run `ace-gui`.
+1. Activate the environment created during installation and run `ace-gui`.
 2. Keep the application terminal open. If your browser does not open, copy the
    complete launch address printed in that terminal. It includes a private token;
    typing only `http://127.0.0.1:8765/` will not reconnect an unauthenticated tab.
@@ -19,8 +55,9 @@ practice session, use the [lab walkthrough](lab_walkthrough.md).
    in **Overview**. The experiment number is its ID, not its spreadsheet row.
 
 The optional `analysis_parameters.csv` stores analysis settings for those same
-experiment IDs. Ask the maintainer for a prepared project and a short recording;
-no ready-to-run lab demonstration recording is bundled.
+experiment IDs. If you do not already have a project,
+[prepare one from the templates](#prepare-a-project). No ready-to-run
+demonstration recording is bundled.
 
 ## Check recording locations
 
@@ -46,7 +83,7 @@ together. A single movie copied without its companion files may not be usable.
 3. Choose **Save experiment details** or **Save analysis settings**. Each saves
    only that section; save both separately if you changed both.
 4. If settings are missing, choose **Add settings for this experiment**, fill in
-   the lab-approved values, and save. Blank settings can inherit defaults;
+   values appropriate to your recording, and save. Blank settings can inherit defaults;
    a blank field does not establish that the default suits your recording.
 
 **Discard changes** removes the current section's unsaved edits. ACE warns before
@@ -91,8 +128,8 @@ CNMF-E is the method used to separate cell signals from a calcium movie. Croppin
 alone does not find neurons. For neuron extraction, choose **Set up CNMF-E** in
 Overview, set **Extract neurons with CNMF-E = Yes** and **Save CNMF-E estimates =
 Yes**, and choose **Save run settings**. Check **Movie filenames**: the calcium
-analysis default is `["0.avi"]`; enter `[]` to use all supported movies. Use only
-the recording and settings approved for your test. Motion and cell-detection
+analysis default is `["0.avi"]`; enter `[]` to use all supported movies. Use a short supported recording and settings appropriate to its acquisition
+system and calcium indicator. Motion and cell-detection
 parameters also appear in **Data & settings**.
 
 1. Save changes, then choose **Review & run**.
@@ -115,8 +152,7 @@ assumed to have completed.
 
 For combined recordings, set both recording folders and review both input lists.
 Calcium data is copied under `recording/` and electrical data under
-`recording-ephys/`. Ask the lab to verify the synchronization information before
-interpreting aligned results.
+`recording-ephys/`. Verify the synchronization information before interpreting aligned results.
 
 ## Find and reopen results
 
@@ -152,15 +188,14 @@ do not automatically create these GUI exports.
    Alternatively, open **Neurons**, choose an estimates HDF5 file, and choose
    **Load estimates**.
 2. Inspect the cell footprint (its highlighted image area) and activity trace.
-   Follow the lab's acceptance criteria; choose **Keep & next** or **Reject & next**.
+   Apply your neuron acceptance criteria consistently; choose **Keep & next** or **Reject & next**.
    K/R and arrow keys also navigate. **Next undecided** finds unfinished decisions.
 3. Decisions save automatically. Reopen the same unchanged estimates file to
    resume. **Undo last decision** works within the current browser session.
 4. Choose **Finish review**, resolve every undecided cell, and check the totals.
    Choose the **Curation output folder** and **Curated estimates filename**.
 5. To calculate calcium events from the kept cells, leave **Detect calcium events
-   from curated estimates** checked. Use the lab-approved derivative and event
-   height, then choose **Save curated copies & detect events**.
+   from curated estimates** checked. Choose a derivative and event height appropriate to your signals, then choose **Save curated copies & detect events**.
 6. When saving finishes, choose **Open curation folder** and confirm the exports.
 
 Each export creates a separate folder, by default under `<project>/.ace-curations`.
@@ -187,9 +222,9 @@ component IDs; displayed neuron numbers start at 1.
 | Browser asks you to reopen ACE | Use the complete launch address from the running terminal, including its token. A restart creates a new address. |
 | Address is already in use | Open a new terminal in the ACE environment and run `ace-gui --port 8766`; use its printed address. |
 | Recording missing | Download it first, then select its local folder or the correct data base folder. Save and retry. |
-| Preview will not load | Save pending edits and check that the recording has its metadata, timestamps, and readable movies. Send the exact error to the maintainer. |
+| Preview will not load | Save pending edits and check that the recording has its metadata, timestamps, and readable movies. Include the exact error when [reporting a problem](gui_installation.md#report-an-installation-problem). |
 | Settings changed elsewhere | Keep a copy of any draft you need, reload the project, and apply your edits to the current version. |
-| Run failed | Select it in Results and send the error and `run.log`, experiment ID, and chosen analysis to the maintainer. |
+| Run failed | Select it in Results and include the error, `run.log`, experiment ID, and chosen analysis in your problem report. |
 | Neurons list is empty | Check that extraction succeeded and estimates saving was enabled; a cropped movie alone contains no extracted cells. |
 
 Box setup, cluster job-script generation, and experiment revision history are not
