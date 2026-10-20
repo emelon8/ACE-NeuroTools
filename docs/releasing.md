@@ -15,7 +15,7 @@ A project package channel has not been published. Complete issue #128 before pub
 3. Set `LAB_CONDA_TOKEN` in the GitHub `lab-conda` environment to a scoped upload
    token for that account. Keep credentials outside source files and CSVs.
 4. Review the changelog, create an appropriate prerelease tag such as
-   `v0.1.0a1`, and push it only after the ordered PR series is merged.
+   `v0.1.0a1`, and tag the intended release commit after its checks pass.
 
 The Conda package workflow builds and tests on Windows, Intel Mac, Apple silicon
 and Linux. Every platform builds a noarch Python package, runs import/CLI/GUI

@@ -87,8 +87,8 @@ runs. These commands download the repository's default branch. If you need a
 specific release or revision, select it before creating the environment and record
 which revision you used.
 
-Use this Git checkout for the steps below. The old Comenius ZIP setup scripts
-and **Open ACE Experiments** launch files belong to a different pilot application.
+Use this Git checkout for the steps below. Earlier ZIP setup scripts and
+**Open ACE Experiments** launch files belong to a different pilot application.
 
 ### 3. Install the analysis environment and ACE
 
