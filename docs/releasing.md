@@ -1,4 +1,4 @@
-# Build and release the conda pilot
+# Build and release the conda package
 
 The Python distribution is `aceneurotools`; the conda package is
 `ace-neurotools`. Both commands, `ace-neuro` and `ace-gui`, are installed by the
@@ -6,11 +6,11 @@ package. Version numbers come from git tags through setuptools-scm. Development
 builds carry a `.dev` version. Release builds require a clean tagged checkout and
 a matching version heading in `CHANGELOG.md`.
 
-## Lab channel setup
+## Package channel setup
 
-There is no existing lab channel. Complete issue #128 before publishing:
+A project package channel has not been published. Complete issue #128 before publishing:
 
-1. Create a lab-owned Anaconda.org account/channel.
+1. Create a project-owned Anaconda.org account/channel.
 2. Set repository variable `LAB_CONDA_OWNER` to that account name.
 3. Set `LAB_CONDA_TOKEN` in the GitHub `lab-conda` environment to a scoped upload
    token for that account. Keep credentials outside source files and CSVs.
@@ -21,12 +21,12 @@ The Conda package workflow builds and tests on Windows, Intel Mac, Apple silicon
 and Linux. Every platform builds a noarch Python package, runs import/CLI/GUI
 checks, installs it using conda, and verifies menuinst metadata and native
 shortcuts. Only after every platform succeeds does a tag upload the Linux-built
-noarch artifacts to the lab channel. No force-overwrite is used. Normal PRs and
+noarch artifacts to the project channel. No force-overwrite is used. Normal PRs and
 branch pushes never publish. This workflow replaces native installer jobs and
 custom launcher scripts.
 
 FreeSimpleGUI is not available from conda-forge. Its small companion recipe at
-`recipe/freesimplegui/` builds the unmodified hash-pinned PyPI source for the lab
+`recipe/freesimplegui/` builds the unmodified hash-pinned PyPI source for the project
 channel; it must be published alongside ACE. No pip command runs during conda
 installation. CaImAn and Qt OpenCV are conda run dependencies. The recipe also
 lists CaImAn's otherwise omitted Python metadata requirements.
@@ -48,7 +48,7 @@ regression environment. Do not add installer locks or rendered environments.
 
 ## After the pilot is stable
 
-Record lab feedback, update the changelog and tag a stable release. Submit a
+Record user feedback, update the changelog and tag a stable release. Submit a
 recipe to conda-forge/staged-recipes using a versioned source archive and its
 SHA-256 instead of the local `path` used for CI development builds. Submit the
 FreeSimpleGUI prerequisite too if it is still absent. Follow conda-forge review;

@@ -1,6 +1,6 @@
-# Legacy single-AVI smoke test: maintainer reference
+# Legacy single-AVI smoke test
 
-For nontechnical lab testing, use the [lab walkthrough](../docs/lab_walkthrough.md)
+For a first browser session, use the [first-run walkthrough](../docs/lab_walkthrough.md)
 and [installed GUI guide](../docs/gui.md). This older script is a separate,
 interactive source-checkout test of Box access and one UCLA-style AVI. It is
 not a complete-recording analysis or the installed browser workflow.
@@ -9,12 +9,12 @@ not a complete-recording analysis or the installed browser workflow.
 experiment IDs, then search for string IDs, so ordinary template-derived projects
 can fail before download. Both lookups in `step_1_download_avi()` and
 `step_3_report_estimates()` need consistent ID handling. The steps below describe
-the intended legacy setup, not a verified working test. Use the GUI lab walkthrough
+the intended legacy setup, not a verified working test. Use the GUI first-run walkthrough
 for acceptance testing until the script is repaired.
 
 ## 1. Prepare the environment
 
-Follow [source installation](../docs/gui_installation.md#for-maintainers-install-the-current-source)
+Follow [source installation](../docs/gui_installation.md#install-from-source)
 using `environment.yml` and the `aceneurotools` environment. The old
 `linux_environment.yml` and `windows.yml` setup commands do not apply.
 
@@ -29,8 +29,8 @@ remove another environment named `caiman`.
 
 ## 2. Prepare Box access, if needed
 
-Ask the lab administrator for an authorized Box application and access to the
-recording. Copy `src/aceneurotools/shared/BLANK_box_credentials.py` to
+Use an authorized Box application and a recording your account can access.
+For an organization-managed account, request access from its administrator. Copy `src/aceneurotools/shared/BLANK_box_credentials.py` to
 `src/aceneurotools/shared/box_credentials.py` and fill in the CCG client ID,
 client secret and user ID fields. Keep the file private; it is ignored by Git.
 See [optional command-line Box integration](../docs/guides/data_management.md#optional-box-cloud-integration).
@@ -48,8 +48,8 @@ This particular script requires both files even though modality commands can
 run with defaults when the settings file is missing.
 
 Supply the real recording's Box folder ID and `calcium imaging directory`.
-Keep metadata and timestamps in the original acquisition layout. Get the
-crop, cell scale, detection thresholds and indicator decay from the lab; the
+Keep metadata and timestamps in the original acquisition layout. Choose the
+crop, cell scale, detection thresholds and indicator decay for your recording; the
 template values are examples, not validated settings for every UCLA recording.
 Do not assume historical rows in the repository refer to data you can access.
 

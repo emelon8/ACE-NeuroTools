@@ -79,10 +79,10 @@ plugins:
 
 nav:
   - Home: index.md
-  - Lab Guide:
+  - User Guide:
       - Install and Open ACE: gui_installation.md
       - Experiment Workbench: gui.md
-      - Lab Practice Checklist: lab_walkthrough.md
+      - First-run Walkthrough: lab_walkthrough.md
   - Analysis Guides:
       - Command-line Getting Started: getting_started.md
       - Examples: examples.md
@@ -90,7 +90,7 @@ nav:
       - Electrophysiology: guides/ephys.md
       - Combined Recordings: guides/multimodal.md
       - Data Management: guides/data_management.md
-      - Adapting to Your Lab: guides/adapting_to_your_lab.md
+      - Adapting to Your Recordings: guides/adapting_to_your_lab.md
   - Tutorials:
       - Miniscope Processing: notebooks/miniscope_pipeline_tutorial.ipynb
       - Ephys Processing: notebooks/ephys_pipeline_tutorial.ipynb
@@ -102,7 +102,7 @@ nav:
       - Ephys Components: api/ephys.md
       - Multimodal: api/multimodal.md
       - Shared Utils: api/shared.md
-  - For Maintainers:
+  - Development and Packaging:
       - Package installation: packaging.md
       - Release checklist: releasing.md
       - Backend checks: backend_testing.md

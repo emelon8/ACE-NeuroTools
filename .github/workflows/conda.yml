@@ -1,6 +1,7 @@
 name: Conda package
 on:
   pull_request:
+  merge_group:
   push:
     branches: [main]
     tags: ['v*']
@@ -16,7 +17,30 @@ env:
   OPENBLAS_NUM_THREADS: '1'
   MKL_NUM_THREADS: '1'
 jobs:
+  plan:
+    name: Select checks
+    runs-on: ubuntu-latest
+    outputs:
+      docs: ${{ steps.plan.outputs.docs }}
+      tests: ${{ steps.plan.outputs.tests }}
+      package: ${{ steps.plan.outputs.package }}
+      conda: ${{ steps.plan.outputs.conda }}
+      test_paths: ${{ steps.plan.outputs.test_paths }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Test change selection
+        run: python -m unittest tests.test_ci_plan
+      - name: Select jobs and regression tests
+        id: plan
+        run: python scripts/ci_plan.py
   build:
+    needs: plan
+    if: needs.plan.outputs.conda == 'true'
     name: Build and smoke (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
@@ -84,3 +108,20 @@ jobs:
           test -n "$ANACONDA_API_KEY" || { echo 'Configure LAB_CONDA_TOKEN in the lab-conda environment.'; exit 1; }
           conda install --yes --name base --channel conda-forge rattler-build=0.76.1
           rattler-build upload anaconda --owner "$ANACONDA_OWNER" --channel main packages/*.conda
+  result:
+    name: Conda result
+    if: ${{ always() }}
+    needs: [plan, build, publish-lab]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all selected checks to pass
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python - <<'PY'
+          import json, os
+          results = json.loads(os.environ["RESULTS"])
+          failed = {name: job["result"] for name, job in results.items() if job["result"] not in {"success", "skipped"}}
+          assert results["plan"]["result"] == "success", "Change selection did not succeed"
+          assert not failed, failed
+          PY

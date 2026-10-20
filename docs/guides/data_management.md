@@ -17,7 +17,7 @@ Both files, when present, must have a `line number` column. It is the experiment
 
 When starting a new project, utilize our provided templates as a starting point. These templates contain all necessary headers in the expected format. 
 
-You can find the templates in the [source code repository](https://github.com/emelon8/experiment_analysis/tree/main/src/aceneurotools/shared/metadata_templates).
+You can find the templates in the [source code repository](https://github.com/emelon8/ACE-NeuroTools/tree/main/src/aceneurotools/shared/metadata_templates).
 
 1. Copy `experiments_template.csv` to your project folder and rename it to `experiments.csv`.
 2. Copy `analysis_parameters_template.csv` to your project folder and rename it to `analysis_parameters.csv`.
@@ -68,7 +68,7 @@ pipeline.run(
 **This section describes optional command-line/library downloads. The installed GUI
 requires you to download Box files separately and choose their local folder.**
 
-If your lab uses Box to store and share raw data, ACE-NeuroTools can automatically download missing files for a specific experiment before the analysis begins. This is an **optional opt-in feature**.
+If you use Box to store and share raw data, ACE-NeuroTools can automatically download missing files for a specific experiment before the analysis begins. This is an **optional opt-in feature**.
 
 ### 1. Enable Box in Metadata
 In your `experiments.csv`, fill in the **Box Calcium Folder ID** and/or **Box ephys folder ID** columns for the experiments you want to sync. If these columns are empty, ACE-NeuroTools will only look for data at the local paths provided.

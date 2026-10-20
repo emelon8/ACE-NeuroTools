@@ -2,17 +2,17 @@
 
 **[Read the documentation](https://ace-neurotools.readthedocs.io/en/latest/)** ·
 [Install and open ACE](https://ace-neurotools.readthedocs.io/en/latest/gui_installation/) ·
-[Lab walkthrough](https://ace-neurotools.readthedocs.io/en/latest/lab_walkthrough/)
+[First-run walkthrough](https://ace-neurotools.readthedocs.io/en/latest/lab_walkthrough/)
 
 ACE turns supported calcium movies and electrical brain recordings into analysis
 results. Use the local browser application to edit experiment details, crop
 movies, review and run analyses, inspect extracted neurons, and find saved results.
 
-**Lab members:** start with [Install and open ACE](docs/gui_installation.md), then
+**Start here:** begin with [Install and open ACE](docs/gui_installation.md), then
 [Use the experiment workbench](docs/gui.md) and the
-[lab practice checklist](docs/lab_walkthrough.md). The lab package channel is not
-yet published; a maintainer must prepare a source installation for now. No
-ready-to-run recording dataset is bundled.
+[first-run walkthrough](docs/lab_walkthrough.md). A project package channel is not
+yet published; follow the source installation guide. No ready-to-run recording
+dataset is bundled.
 
 ## What it does
 
@@ -39,8 +39,10 @@ python -m pip install --no-deps -e .
 ace-gui
 ```
 
-See [installation](docs/gui_installation.md) for prerequisites, launch/reopening,
-platform limits, and the future package path. `environment.yml` supplies the
+The [step-by-step installation guide](docs/gui_installation.md) covers choosing
+Miniforge, dependency checks, first launch, reopening, updates, and recovery.
+Use that guide for a first installation; the commands above are a quick reference.
+The source install does not create a desktop shortcut. `environment.yml` supplies the
 neuroscience CaImAn package and Qt OpenCV. A pip-only install cannot run the full
 analysis, and the project named `caiman` on PyPI is unrelated. The root
 `conda-lock.yml` reproduces the CI environment; see [packaging](docs/packaging.md).
@@ -52,9 +54,10 @@ printed launch address, including its token. The server defaults to
 ## Prepare a project and run an analysis
 
 The GUI opens a folder containing `experiments.csv`; `analysis_parameters.csv`
-stores optional settings for matching experiment IDs. Ask the lab for a prepared
-project, short recording, and suitable settings. Download Box recordings outside
-ACE and select their local folder. The installed GUI has no Box setup/download
+stores optional settings for matching experiment IDs.
+[Create your project from the supplied templates](docs/gui.md#prepare-a-project),
+then select a short supported recording and settings appropriate to your data.
+Download Box recordings outside ACE and select their local folder. The installed GUI has no Box setup/download
 service, cluster-script export, or connected experiment revision history.
 
 Each GUI run copies its inputs and writes separate outputs under
@@ -93,7 +96,7 @@ See [naming and acquisition formats](docs/guides/calcium_imaging.md#naming-and-a
 Tests generate small synthetic inputs. `tests/data/sample_recording/` is not a
 bundled dataset, and `scripts/create_test_data.py` is an unimplemented hook.
 The ordinary suite does not establish that a complete acquired recording analysis
-works on every lab computer. In the prepared analysis environment:
+works on every computer. In the prepared analysis environment:
 
 ```sh
 python -m pytest tests/ -m "not slow"
@@ -101,7 +104,7 @@ python -m pytest tests/ -m "not slow"
 
 CI runs this selection in the locked environment and checks the installed wheel,
 GUI assets, and documentation. See [backend testing](docs/backend_testing.md),
-[packaging](docs/packaging.md), and [releasing](docs/releasing.md) for maintainers.
+[packaging](docs/packaging.md), and [releasing](docs/releasing.md) for development and packaging.
 
 ## License
 

@@ -1,4 +1,4 @@
-# Adapting ACE-NeuroTools to your lab
+# Adapting ACE-NeuroTools to your recordings
 
 ACE-NeuroTools is built so that **different acquisition setups** can be supported without rewriting the whole pipeline. This page explains what is **configuration-only**, what requires **small code extensions**, and where to plug them in.
 
@@ -7,14 +7,14 @@ ACE-NeuroTools is built so that **different acquisition setups** can be supporte
 ## Design goal
 
 - **Same pipelines** (`EphysPipeline`, `CalciumImagingPipeline`, `MultimodalPipeline`) for interactive and batch runs.
-- **Lab-specific details** isolated in **data managers** and **metadata**, not scattered through processors.
+- **Acquisition-specific details** isolated in **data managers** and **metadata**, not scattered through processors.
 - **Explicit paths and parameters** (`project_path`, `data_path`, `analysis_parameters.csv`) so runs are reproducible and shareable across groups.
 
 ---
 
 ## Step 1: Try configuration first
 
-Many differences between labs are handled without changing Python code:
+Many differences between acquisition setups are handled without changing Python code:
 
 | What varies | Where to set it |
 |-------------|-----------------|

@@ -8,12 +8,13 @@ signals from channels. ACE can process each and align recordings made together.
 
 - [Install and open ACE](gui_installation.md): current installation status and launch steps.
 - [Use the experiment workbench](gui.md): project editing, cropping, analysis, neuron review, and saved results.
-- [Lab practice checklist](lab_walkthrough.md): tasks for a first test session.
+- [First-run walkthrough](lab_walkthrough.md): check the recording-to-results workflow.
 - [Command-line getting started](getting_started.md): project files and complete command examples.
 
-Bring a lab-prepared project, recordings with their companion files, and suitable
-analysis settings. A recording dataset is not bundled. The lab's packaged conda
-channel is still pending; use the maintainer-assisted source installation for now.
+Prepare a project using [the CSV templates](gui.md#prepare-a-project), recordings
+with their companion files, and settings appropriate to your data. A recording
+dataset is not bundled. A project conda package channel is still pending; follow
+the source installation guide, which includes dependency and first-launch checks.
 
 ## Analysis guides
 

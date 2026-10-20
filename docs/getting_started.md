@@ -3,12 +3,13 @@
 For the browser application, start with [Install and open ACE](gui_installation.md)
 and [Use the experiment workbench](gui.md). This page is for analysts running
 commands or Python scripts. Install the source in the full conda environment
-using the [maintainer instructions](gui_installation.md#for-maintainers-install-the-current-source).
+using the [source installation instructions](gui_installation.md#install-from-source).
 
 ## 1. Prepare project files and recordings
 
-Ask the lab for a prepared project and short recording first. To create starter
-files yourself, run in the activated analysis environment:
+Start with a short supported recording and a project containing your experiment
+metadata. You can [copy the CSV templates](gui.md#prepare-a-project) or create
+starter files in the activated analysis environment:
 
 ```sh
 python -m aceneurotools.init --project-path /path/to/project
