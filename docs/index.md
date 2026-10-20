@@ -8,7 +8,6 @@ signals from channels. ACE can process each and align recordings made together.
 
 - [Install and open ACE](gui_installation.md): current installation status and launch steps.
 - [Use the experiment workbench](gui.md): project editing, cropping, analysis, neuron review, and saved results.
-- [First-run walkthrough](lab_walkthrough.md): check the recording-to-results workflow.
 - [Command-line getting started](getting_started.md): project files and complete command examples.
 
 Prepare a project using [the CSV templates](gui.md#prepare-a-project), recordings

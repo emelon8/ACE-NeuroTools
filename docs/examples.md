@@ -1,6 +1,6 @@
 # Examples and workflows
 
-For a first session in the browser, use the [first-run walkthrough](lab_walkthrough.md).
+For browser-based analysis, use the [experiment workbench guide](gui.md).
 [Create a project from the templates](gui.md#prepare-a-project) and use a short
 supported recording with settings appropriate to your data.
 

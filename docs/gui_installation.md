@@ -15,7 +15,7 @@ If you use a managed computer, you may need IT assistance to install prerequisit
 You can check that the interface opens without a recording. To test previews
 and analysis, prepare:
 
-- Your own writable practice project folder containing `experiments.csv` and,
+- A writable project folder containing `experiments.csv` and,
   preferably, an `analysis_parameters.csv` file with settings for the same experiment IDs.
 - A short supported recording with its original metadata and timestamp files.
 - The experiment ID, settings appropriate to the recording, and expected outputs.
@@ -71,7 +71,7 @@ Both must print a version. Resolve errors before continuing.
 ### 2. Download ACE
 
 Choose a permanent, writable parent folder for the ACE software, separate from
-your practice project. Open a terminal in that folder, or type `cd ` followed by
+your project. Open a terminal in that folder, or type `cd ` followed by
 its full path in double quotes. For example, `cd "C:\Users\YourName\Documents"`
 on Windows or `cd "/Users/YourName/Documents"` on a Mac; replace the example path
 with your actual folder.
@@ -87,8 +87,8 @@ runs. These commands download the repository's default branch. If you need a
 specific release or revision, select it before creating the environment and record
 which revision you used.
 
-Use this Git checkout for the steps below. The old Comenius ZIP setup scripts
-and **Open ACE Experiments** launch files belong to a different pilot application.
+Use this Git checkout for the steps below. Earlier ZIP setup scripts and
+**Open ACE Experiments** launch files belong to a different pilot application.
 
 ### 3. Install the analysis environment and ACE
 
@@ -142,7 +142,7 @@ git rev-parse HEAD
 ```
 
 Save that revision and the printed versions with the computer's operating system
-and processor type so feedback identifies the installation that was tested.
+and processor type so you can identify the installation when reporting a problem.
 
 ### 5. Open the GUI
 
@@ -154,7 +154,7 @@ The terminal should print `Experiment application:` followed by a complete local
 address, and ACE should open in your browser. If it does not open automatically,
 copy that complete address into a browser **on this same computer**. It includes
 `#token=...`, which the app needs to connect. Keep that address private and omit
-the token from screenshots or feedback.
+the token from screenshots or problem reports.
 
 Keep the terminal open while using ACE. The default port is 8765. If it is already
 occupied, stop the extra ACE instance if appropriate, or run `ace-gui --port 8766`
@@ -172,11 +172,10 @@ save its location, and load a crop preview. Relative recording paths also need
 **Choose data base folder**; that selection must be repeated after restarting
 ACE. Absolute recording paths saved in experiment details do not need it.
 
-Then follow the
-[first-run walkthrough](lab_walkthrough.md) to check a preview, process a short
-recording, and find the saved outputs. Neuron extraction, ephys, and
-combined-recording analysis need their own suitable inputs and validation;
-preprocessing alone does not establish that those workflows work.
+The workbench guide covers [running an analysis](gui.md#review-and-run-an-analysis)
+and [finding saved outputs](gui.md#find-and-reopen-results). Start with a short
+recording before processing a complete study. Neuron extraction, ephys, and
+combined-recording analysis each require suitable inputs and settings.
 
 ## Open ACE again
 
@@ -229,7 +228,7 @@ For an incomplete first installation, use
 command above if present. Do not delete an existing environment as a first remedy.
 
 Repeat [the installation checks](#4-check-the-installation), launch ACE, and retry
-the short practice analysis after an update. If you move the source folder, run
+a short analysis after an update. If you move the source folder, run
 the editable pip installation command from its new location in the activated
 environment, then repeat the checks.
 

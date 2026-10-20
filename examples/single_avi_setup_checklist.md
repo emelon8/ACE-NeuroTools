@@ -1,7 +1,7 @@
 # Legacy single-AVI smoke test
 
-For a first browser session, use the [first-run walkthrough](../docs/lab_walkthrough.md)
-and [installed GUI guide](../docs/gui.md). This older script is a separate,
+For browser-based analysis, use the [installed GUI guide](../docs/gui.md).
+This older script is a separate,
 interactive source-checkout test of Box access and one UCLA-style AVI. It is
 not a complete-recording analysis or the installed browser workflow.
 
@@ -9,8 +9,8 @@ not a complete-recording analysis or the installed browser workflow.
 experiment IDs, then search for string IDs, so ordinary template-derived projects
 can fail before download. Both lookups in `step_1_download_avi()` and
 `step_3_report_estimates()` need consistent ID handling. The steps below describe
-the intended legacy setup, not a verified working test. Use the GUI first-run walkthrough
-for acceptance testing until the script is repaired.
+the intended legacy setup, not a verified working test. Use the installed GUI
+for analysis until the script is repaired.
 
 ## 1. Prepare the environment
 

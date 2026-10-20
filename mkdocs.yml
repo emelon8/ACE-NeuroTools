@@ -82,7 +82,6 @@ nav:
   - User Guide:
       - Install and Open ACE: gui_installation.md
       - Experiment Workbench: gui.md
-      - First-run Walkthrough: lab_walkthrough.md
   - Analysis Guides:
       - Command-line Getting Started: getting_started.md
       - Examples: examples.md

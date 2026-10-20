@@ -2,8 +2,8 @@
 
 ACE opens in your browser and runs on your own computer. Use it to edit
 experiment details, choose a movie area, run an analysis, review neurons, and
-find the saved results. Start with [installation](gui_installation.md). For a
-first session, use the [first-run walkthrough](lab_walkthrough.md).
+find the saved results. Start with [installation](gui_installation.md), then
+prepare or open your project below.
 
 ## Prepare a project
 
