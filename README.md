@@ -2,15 +2,14 @@
 
 **[Read the documentation](https://ace-neurotools.readthedocs.io/en/latest/)** ·
 [Install and open ACE](https://ace-neurotools.readthedocs.io/en/latest/gui_installation/) ·
-[First-run walkthrough](https://ace-neurotools.readthedocs.io/en/latest/lab_walkthrough/)
+[Use the experiment workbench](https://ace-neurotools.readthedocs.io/en/latest/gui/)
 
 ACE turns supported calcium movies and electrical brain recordings into analysis
 results. Use the local browser application to edit experiment details, crop
 movies, review and run analyses, inspect extracted neurons, and find saved results.
 
 **Start here:** begin with [Install and open ACE](docs/gui_installation.md), then
-[Use the experiment workbench](docs/gui.md) and the
-[first-run walkthrough](docs/lab_walkthrough.md). A project package channel is not
+[Use the experiment workbench](docs/gui.md). A project package channel is not
 yet published; follow the source installation guide. No ready-to-run recording
 dataset is bundled.
 
