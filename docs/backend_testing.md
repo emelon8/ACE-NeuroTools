@@ -65,3 +65,45 @@ positive finite power retains the existing 10*log10(power) convention. An
 all-zero or fully missing band reports NaN. Seven focused tests cover scalar
 and array conversion, mixed and all-missing bands, ordinary positive power,
 and plot output. Representative recording checks remain deferred by request.
+
+## Change-based continuous integration
+
+Pull requests and pushes to `main` first run the lightweight selector in
+`scripts/ci_plan.py`. Each workflow summary lists the jobs and test paths selected.
+The workflows still report a result when expensive jobs are skipped; selection
+failures or failures in any selected job fail the aggregate result.
+
+| Changed files | Checks selected |
+| --- | --- |
+| Documentation, notebooks, documentation theme/configuration, or documentation scripts | Documentation build and local-link checks |
+| Individual test files | Changed tests; GUI test changes also run the GUI group because tests share fixtures |
+| GUI Python, JavaScript, or HTML | GUI tests and public naming contracts; installed-wheel checks; Python changes also rebuild API docs |
+| GUI styles or static image/font assets | Installed-wheel checks |
+| Calcium imaging or miniscope readers | Imaging regressions and downstream GUI/alignment/statistics integration checks, API docs, and installed-wheel checks |
+| Electrical recording code | Electrical regressions and downstream GUI/alignment/statistics integration checks, API docs, and installed-wheel checks |
+| Multimodal code | Multimodal regressions and downstream GUI/statistics integration checks, API docs, and installed-wheel checks |
+| Shared utilities, pipeline orchestration, dependencies, package recipes, CI configuration, other scripts, or unclassified files | All jobs and the full non-slow test suite |
+
+Native conda builds on Linux, Windows, and both Mac architectures run when package
+configuration, dependencies, CI, or native launch entry points change. They also
+run for the conservative full fallback. Other focused code changes use the Linux
+installed-wheel check; release tags and manual workflow runs always run all jobs.
+Merge-queue events and unavailable comparison history also fall back to full checks.
+
+PR comparisons use the merge base of the target and PR head, so all commits in
+the PR count. Push comparisons use the complete before/after range, not only the
+last commit. Renames count as a removal and addition so both affected areas are
+covered. Mixed changes combine their selected checks. New unclassified test files
+are included in focused code runs until they are assigned to a group.
+
+The selector uses conservative groups rather than claiming exact per-function
+coverage. Keep its regression groups current when adding cross-component
+coupling. Its dependency-free tests run before selection in both workflows:
+
+```sh
+python -m unittest tests.test_ci_plan
+```
+
+To request a full run regardless of changed files, select **Run workflow** for
+**CI** or **Conda package** in GitHub Actions. Full runs retain the existing
+`not slow` selection; they do not introduce a real-recording acceptance test.

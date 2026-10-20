@@ -3,13 +3,38 @@ on:
   push:
     branches: [main]
   pull_request:
+  merge_group:
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  plan:
+    name: Select checks
+    runs-on: ubuntu-latest
+    outputs:
+      docs: ${{ steps.plan.outputs.docs }}
+      tests: ${{ steps.plan.outputs.tests }}
+      package: ${{ steps.plan.outputs.package }}
+      conda: ${{ steps.plan.outputs.conda }}
+      test_paths: ${{ steps.plan.outputs.test_paths }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Test change selection
+        run: python -m unittest tests.test_ci_plan
+      - name: Select jobs and regression tests
+        id: plan
+        run: python scripts/ci_plan.py
   docs:
+    needs: plan
+    if: needs.plan.outputs.docs == 'true'
     name: Documentation (Read the Docs environment)
     runs-on: ubuntu-latest
     steps:
@@ -22,6 +47,8 @@ jobs:
       - run: bash scripts/sync_notebooks_for_docs.sh
       - run: python -m mkdocs build --strict
   test:
+    needs: plan
+    if: needs.plan.outputs.tests == 'true'
     name: Tests (locked environment)
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -37,8 +64,14 @@ jobs:
           cache-environment: true
           init-shell: bash
       - run: python -m pip install --no-deps -e .
-      - run: MPLBACKEND=Agg python -m pytest tests/ -m "not slow"
+      - name: Run selected regression tests
+        env:
+          MPLBACKEND: Agg
+          CI_TEST_PATHS: ${{ needs.plan.outputs.test_paths }}
+        run: python scripts/ci_plan.py --run-tests
   package:
+    needs: plan
+    if: needs.plan.outputs.package == 'true'
     name: Installed wheel (import, CLI, GUI)
     runs-on: ubuntu-latest
     steps:
@@ -58,3 +91,20 @@ jobs:
         with:
           name: distributions
           path: dist/
+  result:
+    name: CI result
+    if: ${{ always() }}
+    needs: [plan, docs, test, package]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all selected checks to pass
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python - <<'PY'
+          import json, os
+          results = json.loads(os.environ["RESULTS"])
+          failed = {name: job["result"] for name, job in results.items() if job["result"] not in {"success", "skipped"}}
+          assert results["plan"]["result"] == "success", "Change selection did not succeed"
+          assert not failed, failed
+          PY
