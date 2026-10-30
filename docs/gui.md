@@ -61,9 +61,15 @@ demonstration recording is bundled.
 
 ## Check recording locations
 
-Download Box recordings outside ACE before continuing. **Choose recording files**
-checks files already on your computer; this version has no Box connection or
-download service. Box folder links open the Box website.
+For Box recordings, install `aceneurotools[box]` in the analysis environment,
+then open **Box connection** in the left navigation. Enter your lab app's Client
+ID, Client secret, and Box user or enterprise ID; **Check connection** verifies
+the account. Choose a local download folder. The GUI can remember this connection
+on this computer in `~/.config/aceneurotools/gui/box.json` (or under
+`$XDG_CONFIG_HOME`), outside project CSVs. A developer token is session-only.
+In **Data & settings**, set the experiment's Box folder ID, then choose
+**Choose recording files**. Review the file list and confirm the download before
+cropping or running analysis. Local recordings remain usable without Box.
 
 In **Data & settings → Experiment details**, choose the local calcium or ephys
 recording folder and save. For relative folder names, use **Choose data base
@@ -184,10 +190,19 @@ do not automatically create these GUI exports.
 
 ## Review neurons and save accepted cells
 
+For results extracted on a compute cluster, see [Import a cluster CNMF-E result](guides/cluster_results.md).
+
 1. After successful extraction, choose **Results → Review extracted neurons**.
    Alternatively, open **Neurons**, choose an estimates HDF5 file, and choose
    **Load estimates**.
 2. Inspect the cell footprint (its highlighted image area) and activity trace.
+   If the estimates include CaImAn quality scores, the review also shows trace
+   signal-to-noise ratio (SNR) and spatial correlation. Higher SNR means clearer
+   calcium transients; higher spatial correlation means the footprint agrees
+   more closely with movie frames when the component is active. These scores
+   support review but do not automatically keep or reject a component. Scores
+   from newly saved CNMF-E runs are calculated during extraction when possible;
+   older estimates without them show **Unavailable**.
    Apply your neuron acceptance criteria consistently; choose **Keep & next** or **Reject & next**.
    K/R and arrow keys also navigate. **Next undecided** finds unfinished decisions.
 3. Decisions save automatically. Reopen the same unchanged estimates file to
@@ -221,12 +236,11 @@ component IDs; displayed neuron numbers start at 1.
 | --- | --- |
 | Browser asks you to reopen ACE | Use the complete launch address from the running terminal, including its token. A restart creates a new address. |
 | Address is already in use | Open a new terminal in the ACE environment and run `ace-gui --port 8766`; use its printed address. |
-| Recording missing | Download it first, then select its local folder or the correct data base folder. Save and retry. |
+| Recording missing | Choose recording files to download from its Box folder, or select its local folder or data base folder. Save and retry. |
 | Preview will not load | Save pending edits and check that the recording has its metadata, timestamps, and readable movies. Include the exact error when [reporting a problem](gui_installation.md#report-an-installation-problem). |
 | Settings changed elsewhere | Keep a copy of any draft you need, reload the project, and apply your edits to the current version. |
 | Run failed | Select it in Results and include the error, `run.log`, experiment ID, and chosen analysis in your problem report. |
 | Neurons list is empty | Check that extraction succeeded and estimates saving was enabled; a cropped movie alone contains no extracted cells. |
 
-Box setup, cluster job-script generation, and experiment revision history are not
-connected in this installed GUI. Some controls are retained from the earlier
-pilot; follow this guide for the supported workflow.
+Cluster job-script generation and experiment revision history are not connected
+in this installed GUI.

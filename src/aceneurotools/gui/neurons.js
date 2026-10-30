@@ -64,7 +64,7 @@ $("neuron-load").onclick = () => neuronAction("Loading CNMF-E estimates…", asy
 function renderNeuronDecisions() {
   const session = neuronSession, status = session.decisions[neuronIndex];
   $("neuron-review").hidden = false; $("neuron-title").textContent = `Neuron ${neuronIndex + 1} / ${session.count} · ${status === null ? "Undecided" : status ? "Kept" : "Rejected"}`;
-  $("neuron-source-label").textContent = `${session.source_path} · Original component ID ${neuronIndex}`;
+  $("neuron-source-label").textContent = `${session.source_path} · Original component ID ${session.component_ids[neuronIndex]}`;
   $("neuron-counts").textContent = `${session.kept} kept · ${session.rejected} rejected · ${session.undecided} undecided · Decisions saved`;
   $("neuron-jump").value = neuronIndex + 1; $("neuron-jump").max = session.count;
   $("neuron-prev").disabled = neuronIndex === 0; $("neuron-next").disabled = neuronIndex === session.count - 1; $("neuron-undo").disabled = !neuronUndo.length;
@@ -81,6 +81,11 @@ async function showNeuron(index, start = null, full = false) {
   neuronWindowEdited = false; neuronFrameEdited = false;
   neuronSession = {...neuronSession, ...result}; neuronDetail = result; neuronIndex = index;
   renderNeuronDecisions(); $("neuron-start").value = result.start.toFixed(3);
+  const {trace_snr: snr, spatial_correlation: correlation} = result.quality;
+  $("neuron-quality-scores").textContent = `Trace SNR: ${snr === null ? "Unavailable" : snr.toFixed(2)} · Spatial correlation: ${correlation === null ? "Unavailable" : correlation.toFixed(2)}`;
+  $("neuron-quality-help").textContent = snr === null && correlation === null
+    ? "Quality scores were not stored in these estimates. Review the footprint and trace directly."
+    : "Saved CaImAn scores: higher SNR means clearer transients; higher spatial correlation means the footprint agrees more closely with active movie frames. Scores assist review; they do not change your decision.";
   $("neuron-footprint-label").textContent = `Neuron ${index+1} footprint`;
   $("neuron-trace-label").textContent = `Neuron ${index+1} fluorescence trace · raw C values`;
   $("neuron-footprint").src = "data:image/png;base64," + result.footprint;

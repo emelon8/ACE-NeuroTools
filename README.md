@@ -56,8 +56,10 @@ The GUI opens a folder containing `experiments.csv`; `analysis_parameters.csv`
 stores optional settings for matching experiment IDs.
 [Create your project from the supplied templates](docs/gui.md#prepare-a-project),
 then select a short supported recording and settings appropriate to your data.
-Download Box recordings outside ACE and select their local folder. The installed GUI has no Box setup/download
-service, cluster-script export, or connected experiment revision history.
+For Box recordings, install the optional `box` dependency, open **Box connection**
+in the GUI, and set the folder IDs in `experiments.csv`. The GUI lets you select
+files and confirm downloads before analysis. Cluster-script export and connected
+experiment revision history are not yet available in the installed GUI.
 
 Each GUI run copies its inputs and writes separate outputs under
 `<project>/.ace-runs/<run-id>/`. Repeating a run preserves previous results.

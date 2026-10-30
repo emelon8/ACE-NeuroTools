@@ -32,6 +32,8 @@ def response(base, path, token=None, method="GET"):
         "/api/run/file",
         "/api/preview",
         "/api/neuron/sources",
+        "/api/box/status",
+        "/api/recording",
     ],
 )
 def test_get_routes_require_token_even_from_same_host(viewer, path):  # noqa: F811
@@ -49,6 +51,9 @@ def test_get_routes_require_token_even_from_same_host(viewer, path):  # noqa: F8
         "/api/run/stop",
         "/api/crop/save",
         "/api/neuron/decide",
+        "/api/box/check",
+        "/api/box/finish",
+        "/api/recording/start",
     ],
 )
 def test_post_routes_require_token_even_from_same_host(viewer, path):  # noqa: F811

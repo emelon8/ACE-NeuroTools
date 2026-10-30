@@ -10,24 +10,88 @@ const windowFlags = new Set(["inspect_motion_correction", "remove_components_wit
 const paramLabel = key => runNames[key] || key.replaceAll("_", " ").replace(/^./, letter => letter.toUpperCase());
 const displayParam = value => value === null ? "None" : typeof value === "object" ? JSON.stringify(value) : String(value);
 const extraUnsaved = () => cropDirty || Object.keys(runSettingDraft).length > 0;
-const dataBase = () => dataBases.get(project.id) || preparedBase || project.path;
+const dataBase = () => dataBases.get(project.id) || preparedBase || boxStatus.download_path || project.path;
 function analysisPayload(extra = {}) { return {project: project.id, number: experiment.number, versions: experiment.versions, ...(dataBases.has(project.id) || preparedBase ? {data_path: dataBases.get(project.id) || preparedBase} : {}), ...extra}; }
 function mustSaveFirst() {
   if (anyDirty()) { showError(new Error("Save or discard your pending changes before loading a preview or reviewing a run.")); return false; }
   return !busy;
 }
-async function prepareRecording(kind) {
-  const result = await post("/api/recording/prepare", analysisPayload({kind, data_path: dataBases.get(project.id)}));
-  preparedBase = result.data_path; preparedSubset = false;
-  $("data-base-label").textContent = result.data_path;
+function renderDownloadFiles() {
+  const term = $("download-search").value.trim().toLowerCase();
+  $("download-files").replaceChildren(...downloadPlan.files.filter(item => item.path.toLowerCase().includes(term)).map(item => {
+    const row = element("tr"), cell = element("td"), check = element("input");
+    check.type = "checkbox"; check.checked = downloadSelection.has(item.path); check.setAttribute("aria-label", `Select ${item.path}`);
+    check.onchange = () => { if (check.checked) downloadSelection.add(item.path); else downloadSelection.delete(item.path); updateDownloadSelection(); };
+    cell.append(check); row.append(cell, element("td", item.path), element("td", formatSize(item.size)), element("td", item.local ? "Available" : "Not downloaded"));
+    return row;
+  }));
+  updateDownloadSelection();
+}
+function updateDownloadSelection() {
+  const selected = downloadPlan.files.filter(item => downloadSelection.has(item.path));
+  const missing = selected.filter(item => !item.local), bytes = missing.reduce((sum, item) => sum + item.size, 0);
+  const enough = bytes === 0 || bytes + 1024 * 1024 <= downloadPlan.free_bytes;
+  $("download-selection").textContent = `${selected.length} of ${downloadPlan.files.length} files selected · ${formatSize(selected.reduce((sum, item) => sum + item.size, 0))} total · ${formatSize(bytes)} to download${selected.length && !enough ? " · Not enough free disk space. Select fewer files or choose another local folder." : ""}`;
+  $("download-confirm").disabled = !selected.length || !enough;
+  $("download-confirm").textContent = !selected.length ? "Confirm & download selected files" : bytes ? `Confirm & download ${missing.length} ${missing.length === 1 ? "file" : "files"} (${formatSize(bytes)})` : "Confirm selected local files";
+}
+function confirmRecordingDownload(plan) {
+  downloadPlan = plan; downloadSelection = new Set(plan.previous_selection.filter(path => plan.files.some(item => item.path === path)));
+  $("download-context").textContent = `${project.name} · ${$("detail-title").textContent} · ${$("run-kind").selectedOptions[0].textContent}`;
+  const details = [["Box folder", plan.folder_id], ["Full recording", `${plan.files.length} files · ${formatSize(plan.total_bytes)}`], ["Destination", plan.recording_path], ["Free disk space", formatSize(plan.free_bytes)]];
+  $("download-details").replaceChildren(...details.flatMap(([label, value]) => [element("dt", label), element("dd", value)]));
+  $("download-search").value = ""; $("download-review").hidden = false;
+  renderDownloadFiles(); $("download-one").focus();
+  return new Promise(resolve => { downloadChoice = resolve; });
+}
+$("download-one").onclick = () => {
+  const candidates = downloadPlan.files.filter(item => item.path.toLowerCase().endsWith(".avi"));
+  const calcium = candidates.filter(item => item.path.split("/").some(part => /miniscope|calcium/i.test(part)));
+  const movie = (calcium.length ? calcium : candidates).sort((a,b) => a.size - b.size || a.path.localeCompare(b.path, undefined, {numeric:true}))[0];
+  if (!movie) { $("download-selection").textContent = "No AVI movie is present. Select individual recording files below."; return; }
+  const parent = movie.path.split("/").slice(0,-1).join("/");
+  downloadSelection = new Set([movie.path, ...downloadPlan.files.filter(item => {
+    const folder = item.path.split("/").slice(0,-1).join("/");
+    return (!folder || parent === folder || parent.startsWith(folder + "/")) && /^(metadata.*\.json|timestamps.*\.csv)$/i.test(item.path.split("/").pop());
+  }).map(item => item.path)]);
+  renderDownloadFiles();
+};
+$("download-all").onclick = () => { downloadSelection = new Set(downloadPlan.files.map(item => item.path)); renderDownloadFiles(); };
+$("download-none").onclick = () => { downloadSelection.clear(); renderDownloadFiles(); };
+$("download-search").oninput = renderDownloadFiles;
+$("download-confirm").onclick = () => { if (downloadChoice && !$("download-confirm").disabled) { const resolve = downloadChoice; downloadChoice = null; $("download-review").hidden = true; resolve([...downloadSelection]); } };
+$("download-dismiss").onclick = () => { if (downloadChoice) { const resolve = downloadChoice; downloadChoice = null; $("download-review").hidden = true; resolve(null); } };
+$("download-cancel").onclick = async () => {
+  if (!activeDownload) return;
+  $("download-cancel").disabled = true; $("download-progress-text").textContent = "Cancelling download and removing temporary files…";
+  try { await post("/api/recording/cancel", analysisPayload({job: activeDownload.id})); }
+  catch (error) { showError(error); $("download-cancel").disabled = false; }
+};
+async function prepareRecording(kind, choose = false) {
+  let result = await post(choose ? "/api/recording/plan" : "/api/recording/prepare", analysisPayload({kind, data_path: dataBases.get(project.id)}));
+  if (result.state === "selection_required") {
+    $("analysis-status").textContent = "Review the file selection before downloading.";
+    const selected = await confirmRecordingDownload(result);
+    if (!selected) throw new RecordingCancelled("Download cancelled. No files were downloaded.");
+    result = await post("/api/recording/start", analysisPayload({plan: result.plan, files: selected, confirmed: true}));
+  }
+  while (["queued", "downloading", "cancelling", "finalizing"].includes(result.state)) {
+    activeDownload = result; $("download-progress").hidden = false;
+    $("download-cancel").disabled = ["cancelling", "finalizing"].includes(result.state);
+    $("download-progress-text").textContent = `${result.message} ${result.total_files ? `${result.files_done}/${result.total_files} files · ${formatSize(result.bytes)} / ${formatSize(result.total_bytes)}` : ""}\nLocal folder: ${result.recording_path}`;
+    $("download-meter").max = result.total_bytes || 1; $("download-meter").value = Math.min(result.bytes, result.total_bytes || 1);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    result = await request(`/api/recording?project=${encodeURIComponent(project.id)}&job=${encodeURIComponent(result.id)}`);
+  }
+  activeDownload = null; $("download-progress").hidden = true;
+  if (result.state === "cancelled") throw new RecordingCancelled(result.message);
+  if (result.state === "failed") throw new Error(result.error);
+  preparedBase = result.data_path; preparedSubset = Boolean(result.subset);
+  $("data-base-label").textContent = `${result.data_path}${preparedSubset ? "\nSelected files only" : ""}`;
+  boxStatus = await request("/api/box/status"); renderBoxStatus();
   return result;
 }
-$("choose-recording-files").onclick = () => { if (mustSaveFirst()) analysisAction("Checking local recording files…", async () => {
-  const kind = $("run-kind").value; await prepareRecording(kind);
-  if (kind === "multimodal") await prepareRecording("ephys");
-  runReview = null; cropPreview = null; $("crop-workspace").hidden = true;
-  $("analysis-status").textContent = "Recording files are ready.";
-}); };
+$("choose-recording-files").onclick = () => { if (mustSaveFirst()) analysisAction("Reading the Box file list…", async () => { const kind = $("run-kind").value; await prepareRecording(kind, true); if (kind === "multimodal") { const calciumSubset = preparedSubset; await prepareRecording("ephys", true); preparedSubset ||= calciumSubset; } runReview = null; cropPreview = null; $("crop-workspace").hidden = true; $("analysis-status").textContent = preparedSubset ? "Selected files are ready. Crop and analysis use only this selection; the remaining Box files will not download automatically." : "Recording files are ready."; }); };
 function renderAnalysis() {
   const selection = `${project.id}/${experiment.number}`;
   if (analysisSelection !== selection) {
@@ -148,7 +212,7 @@ async function refreshRuns() {
       row.append(element("td", new Date(run.started).toLocaleString()), element("td", run.label), state);
       actionableRow(row, () => { selectedRun = run.id; for (const other of body.children) other.classList.toggle("is-selected", other === row); showRun(run); }); body.append(row);
     }
-    table.append(body); $("run-list").replaceChildren(result.runs.length ? table : element("p", "No GUI runs have been saved for this experiment. Choose Review & run to start one."));
+    table.append(body); $("run-list").replaceChildren(result.runs.length ? table : element("p", "No runs have been saved for this experiment. Start an analysis or import a cluster result."));
     if (selectedRun) { const run = result.runs.find(item => item.id === selectedRun); if (run) showRun(run); }
     else if (result.runs.length) { selectedRun = result.runs[0].id; showRun(result.runs[0]); }
     else $("run-output").hidden = true;
@@ -159,6 +223,7 @@ function showRun(run) {
   $("run-output").hidden = false; $("run-output-title").textContent = run.label;
   $("run-output-state").textContent = `${run.state[0].toUpperCase()}${run.state.slice(1)}${run.error ? ` · ${run.error}` : ""}${run.state === "untracked" ? " · The GUI server restarted. Use Refresh runs to check completion; the log and outputs are retained." : ""}`;
   $("run-output-location").textContent = run.directory; $("run-output-location").dataset.path = run.directory; $("stop-run").hidden = run.state !== "running";
+  $("cluster-postprocess").hidden = run.origin !== "cluster-import";
   const estimates = run.files.find(file => /\.(hdf5|h5)$/i.test(file.name));
   $("review-run-neurons").hidden = !["miniscope", "multimodal"].includes(run.kind) || run.state !== "completed" || !estimates;
   $("review-run-neurons").onclick = () => { setWorkspace("neurons"); chooseNeuronSource(run.directory + "/" + estimates.name); $("neuron-load").click(); };
@@ -187,6 +252,15 @@ function showRun(run) {
   if (run.state === "running" && workspaceView === "results") runPoll = setTimeout(refreshRuns, 2000);
 }
 $("refresh-runs").onclick = refreshRuns;
+$("cluster-choose").onclick = () => { if (!busy) browse(project.path, {kind: "cluster-folder"}); };
+$("cluster-import").onclick = () => analysisAction("Validating and importing cluster result…", async () => {
+  const run = await post("/api/run/import", analysisPayload({folder: $("cluster-folder").value}));
+  selectedRun = run.id; await refreshRuns(); $("analysis-status").textContent = "Cluster result imported. Review neurons or detect events from the estimates.";
+});
+$("cluster-detect-events").onclick = () => analysisAction("Detecting events from imported estimates…", async () => {
+  const run = await post("/api/run/postprocess", analysisPayload({run: selectedRun, derivative: $("cluster-derivative").value, event_height: $("cluster-event-height").value}));
+  showRun(run); $("analysis-status").textContent = "A new calcium event result was saved in the imported run folder.";
+});
 $("open-run-folder").onclick = () => openSystemFolder($("run-output-location").dataset.path);
 $("stop-run").onclick = () => { if (window.confirm("Stop this analysis? Partial outputs will remain in its run folder.")) analysisAction("Stopping analysis…", async () => { const run = await post("/api/run/stop", analysisPayload({run: selectedRun})); showRun(run); $("analysis-status").textContent = "Run stopped. Its inputs, log, and partial outputs were retained."; refreshRuns(); }); };
 

@@ -12,6 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+from aceneurotools.gui.box_setup import BoxSetup, BoxSetupError
 from aceneurotools.gui.cropping import Cropping, preview_file, saved_previews
 from aceneurotools.gui.csv_projects import Project, ProjectChangedError, ProjectError
 from aceneurotools.gui.native_dialogs import NativeDialogs
@@ -33,6 +34,7 @@ STATIC = {
             "theme.js",
             "auth.js",
             "app.js",
+            "box.js",
             "analysis.js",
             "neurons.js",
             "shell.js",
@@ -45,12 +47,13 @@ STATIC = {
 class ProjectServer(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, address, initial: str | None = None):
+    def __init__(self, address, initial: str | None = None, *, box_setup=None):
 
         self.token = secrets.token_urlsafe(32)
+        self.box = box_setup if box_setup is not None else BoxSetup()
         self.runs = Runs()
         self.cropping = Cropping()
-        self.recordings = Recordings()
+        self.recordings = Recordings(self.box)
         self.neurons = Neurons()
         self.native = NativeDialogs()
         self.projects: dict[str, Project] = {}
@@ -102,6 +105,14 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if route.path == "/api/health":
                 self._json({"application": "ACE Experiments"})
+            elif route.path == "/api/box/status":
+                self._json(self.server.box.status())
+            elif route.path == "/api/recording":
+                with self.server.lock:
+                    project = self.server.projects.get(args.get("project", [""])[0])
+                if project is None:
+                    raise ProjectError("Open this project first.")
+                self._json(self.server.recordings.status(project, args.get("job", [""])[0]))
             elif route.path == "/api/neuron/export":
                 with self.server.lock:
                     project = self.server.projects.get(args.get("project", [""])[0])
@@ -241,7 +252,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"error": "Page not found."}, 404)
         except ProjectChangedError as exc:
             self._json({"error": str(exc), "reload": True}, 409)
-        except (ProjectError, OSError, ValueError) as exc:
+        except (ProjectError, BoxSetupError, OSError, ValueError) as exc:
             self._json({"error": str(exc)}, 400)
 
     def do_POST(self) -> None:
@@ -253,15 +264,28 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"error": "Open the application at its local address to work with projects."}, 403)
             return
         route = urlsplit(self.path).path
+        box_routes = {
+            "/api/box/check": self.server.box.check,
+            "/api/box/connect": self.server.box.connect,
+            "/api/box/location": self.server.box.location,
+            "/api/box/folders": self.server.box.folders,
+            "/api/box/finish": self.server.box.finish,
+            "/api/box/disconnect": self.server.box.disconnect,
+        }
         experiment_routes = {
             "/api/experiment/save",
             "/api/run/review",
             "/api/run/start",
+            "/api/run/import",
+            "/api/run/postprocess",
             "/api/run/stop",
             "/api/run/settings/save",
             "/api/crop/preview",
             "/api/crop/save",
             "/api/recording/prepare",
+            "/api/recording/plan",
+            "/api/recording/start",
+            "/api/recording/cancel",
             "/api/neuron/open",
             "/api/neuron/component",
             "/api/neuron/decide",
@@ -274,6 +298,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/system/pick",
             "/api/system/open-folder",
             *experiment_routes,
+            *box_routes,
         }:
             self._json({"error": "Operation not found."}, 404)
             return
@@ -291,6 +316,9 @@ class Handler(BaseHTTPRequestHandler):
                 if not isinstance(body.get("path"), str) or not body["path"].strip():
                     raise ProjectError("Choose an output folder.")
                 self._json(self.server.native.open_folder(body["path"]))
+                return
+            if route in box_routes:
+                self._json(box_routes[route](body))
                 return
             if route in {"/api/projects/default", "/api/experiment/create"}:
                 with self.server.lock:
@@ -329,6 +357,9 @@ class Handler(BaseHTTPRequestHandler):
                 # Preview reads and run launches never hold the CSV lock during long work.
                 if route in {
                     "/api/recording/prepare",
+                    "/api/recording/plan",
+                    "/api/recording/start",
+                    "/api/recording/cancel",
                     "/api/neuron/open",
                     "/api/neuron/component",
                     "/api/neuron/decide",
@@ -346,6 +377,15 @@ class Handler(BaseHTTPRequestHandler):
                 if route == "/api/run/start":
                     with self.server.lock:
                         self._json(self.server.runs.start(project, body))
+                    return
+                if route == "/api/run/import":
+                    from aceneurotools.gui.cluster_results import import_bundle
+
+                    run_id = import_bundle(project, body.get("folder"))
+                    self._json(self.server.runs.inspect(project, run_id))
+                    return
+                if route == "/api/run/postprocess":
+                    self._json(self.server.runs.postprocess_import(project, body))
                     return
                 if route == "/api/run/stop":
                     self._json(self.server.runs.stop(project, body.get("run")))
@@ -388,7 +428,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json(project.summary())
         except ProjectChangedError as exc:
             self._json({"error": str(exc), "reload": True}, 409)
-        except (ProjectError, OSError, ValueError) as exc:
+        except (ProjectError, BoxSetupError, OSError, ValueError) as exc:
             self._json({"error": str(exc)}, 400)
 
     def log_message(self, format, *args) -> None:

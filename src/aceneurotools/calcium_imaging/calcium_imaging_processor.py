@@ -133,6 +133,16 @@ class CalciumImagingProcessor:
                 print('No estimates were saved to disk. Do not continue to post-processing or multimodal analysis')
                 raise ProcessingError(f"CNMFE failed: {e}") from e
 
+            if save_estimates:
+                # Store quality evidence with the fitted estimates for later review.
+                # The CNN footprint classifier is not intended for one-photon CNMF-E data.
+                try:
+                    quality_params = self.data_manager.CNMFE_obj.params
+                    quality_params.set('quality', {'min_SNR': 3, 'rval_thr': 0.85, 'use_cnn': False})
+                    self.data_manager.CNMFE_obj.estimates.evaluate_components(images, quality_params, dview=dview)
+                except Exception as exc:
+                    print(f'Warning: component quality scores could not be computed: {exc}')
+
         #save results 'estimates' to disk and update data_manager with their filepaths
         self.data_manager = self._save_processed_data(self.data_manager, save_estimates, save_CNMFE_estimates_filename, save_CNMFE_params)
 
