@@ -101,3 +101,25 @@ curation exports use separate `.ace-curations` folders. See [Results](../gui.md#
 ## Adding New Columns
 
 You are free to add as many custom columns to `experiments.csv` as you like (e.g., `behavioral_score`, `genotype`). ACE-NeuroTools will automatically load these into the `ExperimentDataManager.metadata` dictionary, making them accessible to your custom downstream analysis scripts.
+
+### Interrupted and partial Box downloads
+
+Folder listings are paginated, including child folders. Requested AVI filenames
+limit movie downloads in both flat and nested Miniscope layouts; metadata and
+other recording files remain included.
+
+A file is downloaded to a temporary file beside its destination, checked against
+Box's file size when available, and then installed by atomic replacement. Failed
+or short transfers leave existing files intact. A retry replaces files whose
+known size does not match Box and reuses completed files.
+
+An unfinished folder retains a hidden `.ace-box-incomplete` marker. Retry the
+same download to finish the sync and clear the marker. Until then, a few completed
+files cannot make that folder pass the local availability check. Successful API
+responses containing only metadata also do not establish recording availability.
+
+Local availability means recognized, nonempty recording files are present and
+requested AVI files exist. It does not prove that every acquisition file is
+present or validate its binary format. Clock-only RHS2116 metadata is not signal
+data; supported AC/DC raw files count as recording data. Existing files are not
+hash-verified, and cross-file downloads are not one atomic transaction.
