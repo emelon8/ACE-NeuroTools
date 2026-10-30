@@ -188,6 +188,13 @@ do not automatically create these GUI exports.
    Alternatively, open **Neurons**, choose an estimates HDF5 file, and choose
    **Load estimates**.
 2. Inspect the cell footprint (its highlighted image area) and activity trace.
+   If the estimates include CaImAn quality scores, the review also shows trace
+   signal-to-noise ratio (SNR) and spatial correlation. Higher SNR means clearer
+   calcium transients; higher spatial correlation means the footprint agrees
+   more closely with movie frames when the component is active. These scores
+   support review but do not automatically keep or reject a component. Scores
+   from newly saved CNMF-E runs are calculated during extraction when possible;
+   older estimates without them show **Unavailable**.
    Apply your neuron acceptance criteria consistently; choose **Keep & next** or **Reject & next**.
    K/R and arrow keys also navigate. **Next undecided** finds unfinished decisions.
 3. Decisions save automatically. Reopen the same unchanged estimates file to
