@@ -64,7 +64,7 @@ $("neuron-load").onclick = () => neuronAction("Loading CNMF-E estimates…", asy
 function renderNeuronDecisions() {
   const session = neuronSession, status = session.decisions[neuronIndex];
   $("neuron-review").hidden = false; $("neuron-title").textContent = `Neuron ${neuronIndex + 1} / ${session.count} · ${status === null ? "Undecided" : status ? "Kept" : "Rejected"}`;
-  $("neuron-source-label").textContent = `${session.source_path} · Original component ID ${neuronIndex}`;
+  $("neuron-source-label").textContent = `${session.source_path} · Original component ID ${session.component_ids[neuronIndex]}`;
   $("neuron-counts").textContent = `${session.kept} kept · ${session.rejected} rejected · ${session.undecided} undecided · Decisions saved`;
   $("neuron-jump").value = neuronIndex + 1; $("neuron-jump").max = session.count;
   $("neuron-prev").disabled = neuronIndex === 0; $("neuron-next").disabled = neuronIndex === session.count - 1; $("neuron-undo").disabled = !neuronUndo.length;

@@ -630,6 +630,7 @@ function applyPickedPath(path, target) {
   if (target?.onpick) { target.onpick(path); return; }
   else if (target?.kind === "neuron-estimates") { chooseNeuronSource(path); $("neuron-load").focus(); }
   else if (target?.kind === "neuron-output") { $("neuron-output-path").value = path; if (neuronSession && !$("neuron-finish").hidden) finishNeurons(); }
+  else if (target?.kind === "cluster-folder") { $("cluster-folder").value = path; }
   else if (target?.kind === "data-base") { dataBases.set(project.id, path); renderAnalysis(); }
   else if (target?.field) {
     const {field, section} = target;
@@ -692,6 +693,7 @@ $("parent-folder").onclick = () => browseFolders(folder.parent, folderTarget);
 $("folder-form").onsubmit = event => { event.preventDefault(); browseFolders($("folder-path").value.trim(), folderTarget); };
 $("use-folder").onclick = () => {
   if (folderTarget?.kind === "neuron-output") { $("neuron-output-path").value = folder.path; $("folders").hidden = true; }
+  else if (folderTarget?.kind === "cluster-folder") { $("cluster-folder").value = folder.path; $("folders").hidden = true; }
   else if (folderTarget?.kind === "data-base") { dataBases.set(project.id, folder.path); $("folders").hidden = true; renderAnalysis(); }
   else if (folderTarget) { const {field, section} = folderTarget; updateValue(field, folder.path, section); $("folders").hidden = true; renderEditor(); if (section === activeTab) document.querySelector(`[data-key="${CSS.escape(field.key)}"]`)?.focus(); }
   else openProject(folder.path);

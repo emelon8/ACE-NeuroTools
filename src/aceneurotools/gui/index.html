@@ -235,11 +235,13 @@
                 </div>
               </section>
               <section id="results-panel" class="panel" hidden>
-                <div class="panel-header"><div><h2 class="panel-title">Results &amp; runs</h2><p class="muted">Every GUI run keeps its frozen inputs, log, and outputs in a separate folder.</p></div><div class="panel-actions"><button id="refresh-runs"><svg class="icon"><use href="#i-refresh"/></svg>Refresh runs</button></div></div>
+                <div class="panel-header"><div><h2 class="panel-title">Results &amp; runs</h2><p class="muted">Local runs and imported cluster extractions keep their outputs in separate folders.</p></div><div class="panel-actions"><button id="refresh-runs"><svg class="icon"><use href="#i-refresh"/></svg>Refresh runs</button></div></div>
+                <section class="card"><h3 class="card-title">Import cluster extraction</h3><p class="muted">Choose a completed bundle folder containing manifest.json and its CaImAn estimates. ACE checks the file checksum and component IDs, then saves a local copy.</p><div class="input-row"><input id="cluster-folder" aria-label="Cluster result folder" placeholder="Cluster result folder"><button id="cluster-choose">Choose folder</button><button id="cluster-import" class="btn-primary">Import result</button></div></section>
                 <div id="run-list"></div>
                 <section id="run-output" class="card" hidden>
                   <div class="card-header"><div><h3 id="run-output-title" class="card-title"></h3><p id="run-output-state" class="muted"></p></div><div class="panel-actions"><button id="stop-run" class="btn-danger" hidden>Stop this run</button><button id="review-run-neurons" class="btn-primary" hidden>Review extracted neurons</button></div></div>
                   <div class="location-line"><div><span class="label">Output folder</span><p id="run-output-location" class="path"></p></div><button id="open-run-folder"><svg class="icon"><use href="#i-folder-open"/></svg>Open output folder</button></div>
+                  <div id="cluster-postprocess" class="neuron-options" hidden><div class="field"><label for="cluster-derivative">Event derivative</label><select id="cluster-derivative"><option value="zeroth">Zeroth (raw C)</option><option value="first" selected>First</option><option value="second">Second</option></select></div><div class="field"><label for="cluster-event-height">Event height</label><input id="cluster-event-height" type="number" step="any" value="5"></div><button id="cluster-detect-events">Detect events from estimates</button></div>
                   <div id="run-output-files" class="output-files"></div>
                   <details class="code-details" open><summary>Output inventory</summary><div id="run-output-inventory"></div></details>
                   <details class="code-details" open><summary>Run log</summary><pre id="run-log"></pre></details>
