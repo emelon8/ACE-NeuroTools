@@ -257,6 +257,8 @@ class Handler(BaseHTTPRequestHandler):
             "/api/experiment/save",
             "/api/run/review",
             "/api/run/start",
+            "/api/run/import",
+            "/api/run/postprocess",
             "/api/run/stop",
             "/api/run/settings/save",
             "/api/crop/preview",
@@ -346,6 +348,15 @@ class Handler(BaseHTTPRequestHandler):
                 if route == "/api/run/start":
                     with self.server.lock:
                         self._json(self.server.runs.start(project, body))
+                    return
+                if route == "/api/run/import":
+                    from aceneurotools.gui.cluster_results import import_bundle
+
+                    run_id = import_bundle(project, body.get("folder"))
+                    self._json(self.server.runs.inspect(project, run_id))
+                    return
+                if route == "/api/run/postprocess":
+                    self._json(self.server.runs.postprocess_import(project, body))
                     return
                 if route == "/api/run/stop":
                     self._json(self.server.runs.stop(project, body.get("run")))

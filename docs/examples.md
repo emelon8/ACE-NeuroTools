@@ -19,6 +19,9 @@ for its account, resource and environment requirements, and adapt a headless
 modality command from Getting started. The installed GUI does not generate
 cluster scripts. Resource requirements depend on the recording and settings;
 there is no universal memory or time allocation.
+After a cluster job saves CaImAn CNMF-E estimates, follow the
+[cluster result import guide](guides/cluster_results.md) to register and review
+the extraction or recompute component events locally.
 
 ## Notebooks
 

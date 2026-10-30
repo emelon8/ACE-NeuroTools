@@ -163,6 +163,7 @@ class Neurons:
                 "fr",
                 "window",
                 "count",
+                "component_ids",
                 "frames",
                 "decisions",
                 "revision",
@@ -264,6 +265,23 @@ class Neurons:
             if len(self.sessions) >= 3:
                 self.sessions.pop(next(iter(self.sessions)))
             token = uuid.uuid4().hex
+            component_ids = list(range(A.shape[1]))
+            manifest_path = path.parent / "manifest.json"
+            if manifest_path.is_file():
+                from aceneurotools.gui.cluster_results import file_sha256
+
+                try:
+                    manifest = json.loads(manifest_path.read_text())
+                    ids = manifest["component_ids"]
+                    if (
+                        manifest["sha256"] == file_sha256(path)
+                        and len(ids) == A.shape[1]
+                        and all(type(value) is int and value >= 0 for value in ids)
+                        and len(ids) == len(set(ids))
+                    ):
+                        component_ids = ids
+                except (OSError, ValueError, KeyError, TypeError):
+                    pass
             session = dict(
                 session=token,
                 project=project.id,
@@ -276,6 +294,7 @@ class Neurons:
                 fr=fr,
                 window=window,
                 count=A.shape[1],
+                component_ids=component_ids,
                 frames=C.shape[1],
                 decisions=saved.get("decisions", [None] * A.shape[1]),
                 revision=saved.get("revision", 0),
@@ -427,6 +446,7 @@ class Neurons:
                 state="saving",
                 directory=str(parent / stamp),
                 kept=[i for i, value in enumerate(session["decisions"]) if value is True],
+                original_ids=[session["component_ids"][i] for i, value in enumerate(session["decisions"]) if value is True],
                 files=[],
                 filename=filename,
                 event_analysis=events,
@@ -456,7 +476,7 @@ class Neurons:
                         "source": session["signature"],
                         "experiment": session["number"],
                         "decisions": session["decisions"],
-                        "neuron_ids": job["kept"],
+                        "neuron_ids": job["original_ids"],
                         "fr": session["fr"],
                         "revision": session["revision"],
                         "estimates_filename": job["filename"],
@@ -474,7 +494,7 @@ class Neurons:
                     if job["filename"] != saved_estimates.name:
                         saved_estimates.rename(stage / job["filename"])
                     estimates = obj.estimates
-                    values = {"C": estimates.C, "neuron_ids": np.asarray(job["kept"], dtype=int), "fr": session["fr"]}
+                    values = {"C": estimates.C, "neuron_ids": np.asarray(job["original_ids"], dtype=int), "fr": session["fr"]}
                     A = estimates.A
                     if A.shape[0] * A.shape[1] * A.dtype.itemsize <= 128 * 1024**2:
                         values["A_dense"] = A.toarray() if hasattr(A, "toarray") else np.asarray(A)
@@ -487,7 +507,9 @@ class Neurons:
                         )
                     np.savez_compressed(stage / "C_curated.npz", **values)
                     if job["event_analysis"] is not None:
-                        from aceneurotools.calcium_imaging.calcium_imaging_postprocessor import CalciumImagingPostprocessor
+                        from aceneurotools.calcium_imaging.calcium_imaging_postprocessor import (
+                            CalciumImagingPostprocessor,
+                        )
 
                         job["message"] = "Detecting calcium events from saved curated estimates…"
                         curated_path = stage / job["filename"]
@@ -509,7 +531,7 @@ class Neurons:
                                 "revision": session["revision"],
                                 "fr": session["fr"],
                                 "frames": session["frames"],
-                                "neuron_ids": job["kept"],
+                                "neuron_ids": job["original_ids"],
                                 "parameters": job["event_analysis"],
                                 "index_convention": "Zero-based peak indices in C (zeroth) or np.diff(C, n=1 or 2); no frame offset added.",
                                 "ca_events_idx": {str(key): value.tolist() for key, value in events.items()},

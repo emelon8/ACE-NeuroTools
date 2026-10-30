@@ -148,7 +148,7 @@ async function refreshRuns() {
       row.append(element("td", new Date(run.started).toLocaleString()), element("td", run.label), state);
       actionableRow(row, () => { selectedRun = run.id; for (const other of body.children) other.classList.toggle("is-selected", other === row); showRun(run); }); body.append(row);
     }
-    table.append(body); $("run-list").replaceChildren(result.runs.length ? table : element("p", "No GUI runs have been saved for this experiment. Choose Review & run to start one."));
+    table.append(body); $("run-list").replaceChildren(result.runs.length ? table : element("p", "No runs have been saved for this experiment. Start an analysis or import a cluster result."));
     if (selectedRun) { const run = result.runs.find(item => item.id === selectedRun); if (run) showRun(run); }
     else if (result.runs.length) { selectedRun = result.runs[0].id; showRun(result.runs[0]); }
     else $("run-output").hidden = true;
@@ -159,6 +159,7 @@ function showRun(run) {
   $("run-output").hidden = false; $("run-output-title").textContent = run.label;
   $("run-output-state").textContent = `${run.state[0].toUpperCase()}${run.state.slice(1)}${run.error ? ` · ${run.error}` : ""}${run.state === "untracked" ? " · The GUI server restarted. Use Refresh runs to check completion; the log and outputs are retained." : ""}`;
   $("run-output-location").textContent = run.directory; $("run-output-location").dataset.path = run.directory; $("stop-run").hidden = run.state !== "running";
+  $("cluster-postprocess").hidden = run.origin !== "cluster-import";
   const estimates = run.files.find(file => /\.(hdf5|h5)$/i.test(file.name));
   $("review-run-neurons").hidden = !["miniscope", "multimodal"].includes(run.kind) || run.state !== "completed" || !estimates;
   $("review-run-neurons").onclick = () => { setWorkspace("neurons"); chooseNeuronSource(run.directory + "/" + estimates.name); $("neuron-load").click(); };
@@ -187,6 +188,15 @@ function showRun(run) {
   if (run.state === "running" && workspaceView === "results") runPoll = setTimeout(refreshRuns, 2000);
 }
 $("refresh-runs").onclick = refreshRuns;
+$("cluster-choose").onclick = () => { if (!busy) browse(project.path, {kind: "cluster-folder"}); };
+$("cluster-import").onclick = () => analysisAction("Validating and importing cluster result…", async () => {
+  const run = await post("/api/run/import", analysisPayload({folder: $("cluster-folder").value}));
+  selectedRun = run.id; await refreshRuns(); $("analysis-status").textContent = "Cluster result imported. Review neurons or detect events from the estimates.";
+});
+$("cluster-detect-events").onclick = () => analysisAction("Detecting events from imported estimates…", async () => {
+  const run = await post("/api/run/postprocess", analysisPayload({run: selectedRun, derivative: $("cluster-derivative").value, event_height: $("cluster-event-height").value}));
+  showRun(run); $("analysis-status").textContent = "A new calcium event result was saved in the imported run folder.";
+});
 $("open-run-folder").onclick = () => openSystemFolder($("run-output-location").dataset.path);
 $("stop-run").onclick = () => { if (window.confirm("Stop this analysis? Partial outputs will remain in its run folder.")) analysisAction("Stopping analysis…", async () => { const run = await post("/api/run/stop", analysisPayload({run: selectedRun})); showRun(run); $("analysis-status").textContent = "Run stopped. Its inputs, log, and partial outputs were retained."; refreshRuns(); }); };
 

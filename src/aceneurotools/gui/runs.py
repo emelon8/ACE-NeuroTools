@@ -432,7 +432,30 @@ class Runs:
                 "parameters": value["parameters"],
                 "error": value.get("error"),
                 "exit_code": value.get("exit_code"),
+                "origin": value.get("origin"),
             }
+
+    def postprocess_import(self, project, body):
+        run_id = body.get("run")
+        directory = self.directory(project, run_id)
+        value = json.loads((directory / "run.json").read_text())
+        if value.get("origin") != "cluster-import" or value.get("number") != body.get("number"):
+            raise ProjectError("Choose an imported cluster result for this experiment.")
+        from aceneurotools.pipelines.postprocess_estimates import postprocess_bundle
+
+        output = directory / "postprocessing" / (
+            datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S") + "-" + uuid.uuid4().hex[:8]
+        )
+        try:
+            postprocess_bundle(
+                directory,
+                output,
+                derivative=body.get("derivative", "first"),
+                event_height=body.get("event_height", 5),
+            )
+        except (OSError, ValueError, TypeError) as exc:
+            raise ProjectError(f"Could not postprocess the imported estimates: {exc}") from exc
+        return self.inspect(project, run_id)
 
     def listing(self, project, number):
         root = project.path / ".ace-runs"

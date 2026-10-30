@@ -184,6 +184,8 @@ do not automatically create these GUI exports.
 
 ## Review neurons and save accepted cells
 
+For results extracted on a compute cluster, see [Import a cluster CNMF-E result](guides/cluster_results.md).
+
 1. After successful extraction, choose **Results → Review extracted neurons**.
    Alternatively, open **Neurons**, choose an estimates HDF5 file, and choose
    **Load estimates**.
