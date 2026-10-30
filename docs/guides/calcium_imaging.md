@@ -52,7 +52,9 @@ The old `(67, 503, 555, 61)` example reversed its vertical bounds and is not a
 valid GUI crop.
 
 In headless command-line runs, missing coordinates cause a warning and skipped
-cropping. The GUI blocks an invalid/missing crop until it is saved or disabled.
+cropping. Cancelling the desktop crop dialog skips cropping for that operation
+and preserves the caller’s saved coordinate inputs. The browser GUI blocks an
+invalid/missing crop until it is saved or disabled.
 
 | Setting | Meaning |
 | --- | --- |

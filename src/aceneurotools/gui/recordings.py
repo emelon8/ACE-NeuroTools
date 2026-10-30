@@ -11,7 +11,6 @@ import threading
 import time
 import uuid
 from pathlib import Path, PureWindowsPath
-from types import SimpleNamespace
 
 from aceneurotools.gui.box_setup import BoxSetupError, folder_id, safe_failure
 from aceneurotools.gui.csv_projects import ProjectError
@@ -390,26 +389,15 @@ class Recordings:
                         with service.lock:
                             job["files_done"] += 1
 
-                # Reuse the existing byte-transfer implementation. A flattened, fully
-                # paginated listing bypasses its recursion and partial-folder pitfalls.
-                from aceneurotools.shared.file_downloader import download_file
-
-                adapter = SimpleNamespace(
-                    folders=SimpleNamespace(
-                        get_folder_items=lambda _: SimpleNamespace(
-                            entries=[SimpleNamespace(id=item["id"], name=item["path"], type="file") for item in missing]
-                        )
-                    ),
-                    downloads=Transfers(),
-                )
-                succeeded = not missing or download_file(adapter, ".", int(number), base_file_path=stage)
+                # The manifest is already paginated and its paths validated.
+                # Transfer into staging directly so the GUI's selected relative
+                # paths do not masquerade as Box entry names.
+                transfers = Transfers()
+                for item in missing:
+                    check()
+                    with (stage / item["path"]).open("wb") as stream:
+                        transfers.download_file_to_output_stream(item["id"], stream)
                 check()
-                if not succeeded:
-                    raise BoxSetupError(
-                        transfer_errors[0]
-                        if transfer_errors
-                        else "Box download failed. Check access or reconnect in Box settings, then try again."
-                    )
                 if any(not matches(stage / item["path"], item, check) for item in missing):
                     raise ProjectError(
                         "The downloaded recording is incomplete or does not match Box. No new files were installed; try again."

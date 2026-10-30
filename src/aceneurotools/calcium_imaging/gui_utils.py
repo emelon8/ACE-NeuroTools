@@ -262,9 +262,9 @@ def component_gui(movie, estimates, projections):
 
 
 
-def crop_gui(coords_dict, projections: Projections, movie_height, movie_width, previous_coords=None) -> dict:
+def crop_gui(coords_dict, projections: Projections, movie_height, movie_width, previous_coords=None) -> dict[str, int] | None:
     """
-    Creates and handles all events for the freesimplegui cropping application.  Returns a dictionary of coordinates!
+    Return accepted crop coordinates, or None when the dialog is cancelled.
     """
 
     # The whole point of this function is to get the coordinates that will crop the movie
@@ -307,7 +307,9 @@ def crop_gui(coords_dict, projections: Projections, movie_height, movie_width, p
 
     #adds image to window
     _update_image(graph, movie_height, projections.max,)
-    if coords_dict is not None:
+    if coords_dict:
+        # Keep provisional GUI edits separate from the caller's saved crop.
+        coords_dict = dict(coords_dict)
         try:
             #This code seems like we are changing the coords, but only temporarily so the rectangle is drawn correctly. This function correctly saves crop coords
             box = graph.draw_rectangle((coords_dict['x0'], coords_dict['y0']),
@@ -328,12 +330,9 @@ def crop_gui(coords_dict, projections: Projections, movie_height, movie_width, p
         #controls events to update window
         event, values = window.read(timeout=100)
 
-        if event == sg.WINDOW_CLOSED or event in '-CANCEL-':
-            # Make sure that nothing gets cropped
-            coords_dict['x0'] = 0
-            coords_dict['y0'] = 0
-            coords_dict['x1'] = 0
-            coords_dict['y1'] = 0
+        if event in (sg.WINDOW_CLOSED, '-CANCEL-'):
+            # None tells preprocessing to skip cropping; zero bounds empty it.
+            coords_dict = None
             break
 
         #color of box options

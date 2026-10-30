@@ -86,7 +86,7 @@ class Visualizer:
         """Add vertical lines and labels for events on a plot.
         
         Draws dashed vertical lines at event timestamps with rotated
-        text labels. Currently limited to first 10 events.
+        text labels for every matching timestamp and label.
         
         Args:
             axisHandle: Matplotlib axes object to draw on.
@@ -105,8 +105,8 @@ class Visualizer:
         if 'labels' not in events or 'timestamps' not in events:
             return
 
-        labels = events['labels'][:10]
-        timestamps = events['timestamps'][:10]
+        labels = events['labels']
+        timestamps = events['timestamps']
 
         for label, timestamp in zip(labels, timestamps):
             # Plot the event line
