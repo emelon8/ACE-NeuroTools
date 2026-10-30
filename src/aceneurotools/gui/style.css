@@ -583,6 +583,10 @@ pre { margin: 0; color: var(--ink-2); font: 12px/1.55 var(--mono); white-space: 
 .neuron-header { margin-top: 8px; }
 .neuron-header h3 { margin: 2px 0; font-size: 18px; }
 .neuron-header p { margin: 0; font-size: 13px; }
+.neuron-quality { margin: 12px 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: 8px; }
+.neuron-quality h4, .neuron-quality p { margin: 0; }
+.neuron-quality h4 { font-size: 13px; }
+.neuron-quality p { margin-top: 4px; font-size: 13px; }
 .neuron-nav, .neuron-trace-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 14px 0; }
 .neuron-nav label, .neuron-trace-controls label { margin: 0 0 0 8px; color: var(--ink-3); font-weight: 500; }
 #neuron-jump { width: 80px; }

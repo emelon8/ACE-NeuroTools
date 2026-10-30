@@ -100,6 +100,21 @@ def trace_points(values, fr, start=0, end=None, limit=1800):
     return [[int(index) / fr, float(values[index])] for index in indices]
 
 
+def component_score(estimates, name, index, count):
+    """Read an optional CaImAn quality metric without sending NaN to JSON."""
+    values = getattr(estimates, name, None)
+    if values is None:
+        return None
+    try:
+        values = np.asarray(values)
+        if values.ndim != 1 or len(values) != count:
+            return None
+        score = float(values[index])
+    except (TypeError, ValueError, IndexError):
+        return None
+    return score if math.isfinite(score) else None
+
+
 class Neurons:
     def __init__(self, loader=load_estimates):
         self.loader = loader
@@ -336,6 +351,10 @@ class Neurons:
             y, x = np.unravel_index(int(np.argmax(footprint)), dims)
             return self._summary(session) | {
                 "index": index,
+                "quality": {
+                    "trace_snr": component_score(obj.estimates, "SNR_comp", index, session["count"]),
+                    "spatial_correlation": component_score(obj.estimates, "r_values", index, session["count"]),
+                },
                 "footprint": png(footprint, "hot"),
                 "outline": footprint_outline(footprint),
                 "peak_pixel": [int(x), int(y)],
@@ -487,7 +506,9 @@ class Neurons:
                         )
                     np.savez_compressed(stage / "C_curated.npz", **values)
                     if job["event_analysis"] is not None:
-                        from aceneurotools.calcium_imaging.calcium_imaging_postprocessor import CalciumImagingPostprocessor
+                        from aceneurotools.calcium_imaging.calcium_imaging_postprocessor import (
+                            CalciumImagingPostprocessor,
+                        )
 
                         job["message"] = "Detecting calcium events from saved curated estimates…"
                         curated_path = stage / job["filename"]

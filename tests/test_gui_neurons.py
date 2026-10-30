@@ -88,6 +88,33 @@ def test_load_footprints_traces_peak_window_and_frame_override(estimates):
     assert edge["footprint"]
 
 
+def test_saved_component_quality_scores_are_optional_and_do_not_change_decisions(estimates):
+    project, path, _, _ = estimates
+    obj = load_estimates(path)
+    obj.estimates.SNR_comp = np.array([3.25, np.nan, 1.5])
+    obj.estimates.r_values = np.array([0.91, 0.72, np.inf])
+    obj.save(str(path))
+
+    service = Neurons()
+    session = service.open(project, body(project, path=str(path)))
+    first = service.component(project, body(project, session=session["session"], index=0))
+    assert first["quality"] == {"trace_snr": 3.25, "spatial_correlation": 0.91}
+    assert first["decisions"] == [None, None, None]
+    second = service.component(project, body(project, session=session["session"], index=1))
+    assert second["quality"] == {"trace_snr": None, "spatial_correlation": 0.72}
+    third = service.component(project, body(project, session=session["session"], index=2))
+    assert third["quality"] == {"trace_snr": 1.5, "spatial_correlation": None}
+    assert service.open(project, body(project, path=str(path)))["decisions"] == [None, None, None]
+
+
+def test_missing_component_quality_scores_show_unavailable(estimates):
+    project, path, _, _ = estimates
+    service = Neurons()
+    session = service.open(project, body(project, path=str(path)))
+    detail = service.component(project, body(project, session=session["session"], index=0))
+    assert detail["quality"] == {"trace_snr": None, "spatial_correlation": None}
+
+
 def test_footprint_images_match_script_sum_and_fortran_reshape(estimates):
     from matplotlib import colormaps
 
