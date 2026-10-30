@@ -14,8 +14,9 @@ The application and its HTML, JavaScript, CSS and assets live inside
 `aceneurotools.gui`; launching does not depend on the current working directory.
 
 The application browses CSV projects, previews crops, edits settings and runs
-analysis in private run folders. Download Box recordings before opening their
-local folders; the Box setup wizard and cluster-script export are deferred.
+analysis in private run folders. With the optional Box SDK installed, the GUI
+can connect to Box and download selected recording files. Cluster-script export
+is deferred.
 
 ## Scientific prerequisites
 

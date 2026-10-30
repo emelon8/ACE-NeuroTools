@@ -571,7 +571,10 @@ function makeField(field) {
     boxLink = element("a", "Open Box folder", "box-link"); boxLink.target = "_blank"; boxLink.rel = "noopener noreferrer";
     const updateLink = raw => { boxLink.hidden = !/^[0-9]+$/.test(raw.trim()); boxLink.href = boxLink.hidden ? "#" : `https://app.box.com/folder/${raw.trim()}`; };
     updateLink(value); container.append(boxLink);
-
+    if (activeTab === "metadata") {
+      const chooseBox = element("button", "Choose Box folder"); chooseBox.type = "button";
+      chooseBox.onclick = () => openBoxFolderPicker(field.key); controls.append(chooseBox);
+    }
     control.addEventListener("input", () => updateLink(control.value));
   }
   const help = field.help || (field.kind === "date" && control.type !== "date" ? "Recording date as YYMMDD, e.g. 240101." : "");
@@ -631,6 +634,7 @@ function applyPickedPath(path, target) {
   else if (target?.kind === "neuron-estimates") { chooseNeuronSource(path); $("neuron-load").focus(); }
   else if (target?.kind === "neuron-output") { $("neuron-output-path").value = path; if (neuronSession && !$("neuron-finish").hidden) finishNeurons(); }
   else if (target?.kind === "cluster-folder") { $("cluster-folder").value = path; }
+  else if (target?.kind === "box-cache") { $("box-download-path").value = path; $("box-finish").focus(); }
   else if (target?.kind === "data-base") { dataBases.set(project.id, path); renderAnalysis(); }
   else if (target?.field) {
     const {field, section} = target;
@@ -662,7 +666,7 @@ async function browseFolders(path, target = null) {
   try {
     const query = new URLSearchParams(); if (path) query.set("path", path); if (target?.kind === "neuron-estimates") query.set("files", "estimates"); else if (target?.field?.kind === "file" || target?.onpick) query.set("files", "all");
     const result = await request(`/api/folders?${query}`);
-    folder = result; folderTarget = target; $("folders").hidden = false; $("folder-title").textContent = target ? target.kind === "data-base" ? "Choose the base folder containing recordings" : target.kind === "neuron-estimates" ? "Choose a CNMF-E estimates file" : target.kind === "neuron-output" ? "Choose a curation output folder" : target.kind === "movie-files" ? "Choose a recording movie" : `Choose ${target.field.label.toLowerCase()}` : "Open a project";
+    folder = result; folderTarget = target; $("folders").hidden = false; $("folder-title").textContent = target ? target.kind === "data-base" ? "Choose the base folder containing recordings" : target.kind === "box-cache" ? "Choose a local download folder" : target.kind === "neuron-estimates" ? "Choose a CNMF-E estimates file" : target.kind === "neuron-output" ? "Choose a curation output folder" : target.kind === "cluster-folder" ? "Choose a cluster output folder" : target.kind === "movie-files" ? "Choose a recording movie" : `Choose ${target.field.label.toLowerCase()}` : "Open a project";
     $("folder-path").value = result.path; $("parent-folder").disabled = result.path === result.parent;
     $("use-folder").textContent = target ? "Use this folder" : "Open this project"; $("use-folder").disabled = (target?.kind === "neuron-estimates" || target?.field?.kind === "file" || Boolean(target?.onpick)) || (!target && !result.has_experiments);
     $("breadcrumbs").replaceChildren(...result.breadcrumbs.flatMap((crumb, index) => {
@@ -694,6 +698,7 @@ $("folder-form").onsubmit = event => { event.preventDefault(); browseFolders($("
 $("use-folder").onclick = () => {
   if (folderTarget?.kind === "neuron-output") { $("neuron-output-path").value = folder.path; $("folders").hidden = true; }
   else if (folderTarget?.kind === "cluster-folder") { $("cluster-folder").value = folder.path; $("folders").hidden = true; }
+  else if (folderTarget?.kind === "box-cache") { $("box-download-path").value = folder.path; $("folders").hidden = true; $("box-finish").focus(); }
   else if (folderTarget?.kind === "data-base") { dataBases.set(project.id, folder.path); $("folders").hidden = true; renderAnalysis(); }
   else if (folderTarget) { const {field, section} = folderTarget; updateValue(field, folder.path, section); $("folders").hidden = true; renderEditor(); if (section === activeTab) document.querySelector(`[data-key="${CSS.escape(field.key)}"]`)?.focus(); }
   else openProject(folder.path);
@@ -783,3 +788,5 @@ function renderWorkspace() {
 for (const button of $("workspace-tabs").querySelectorAll("button")) button.onclick = () => setWorkspace(button.dataset.view);
 $("overview-edit").onclick = () => setWorkspace("editor");
 $("unconnected-edit").onclick = () => { activeTab = "parameters"; renderEditor(); setWorkspace("editor"); };
+
+$("overview-box").onclick = () => $("box-setup-button").click();

@@ -7,7 +7,7 @@
 <script src="/theme.js"></script>
 <link rel="stylesheet" href="/style.css">
 <script src="auth.js" defer></script>
-<script src="/app.js" defer></script><script src="/analysis.js" defer></script><script src="/neurons.js" defer></script><script src="/shell.js" defer></script>
+<script src="/app.js" defer></script><script src="/box.js" defer></script><script src="/analysis.js" defer></script><script src="/neurons.js" defer></script><script src="/shell.js" defer></script>
 </head>
 <body>
 <svg class="icon-sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
@@ -56,6 +56,7 @@
     <div class="leftnav-scroll">
       <button class="nav-item" id="nav-experiments" type="button" aria-current="page"><svg class="icon"><use href="#i-flask"/></svg><span>Experiments</span></button>
 
+      <button class="nav-item" id="box-setup-button" type="button"><svg class="icon"><use href="#i-cloud"/></svg><span>Box connection</span></button>
       <hr class="nav-divider">
       <p class="nav-section-label">Projects</p>
       <div id="nav-projects" class="nav-projects"></div>
@@ -64,7 +65,7 @@
     <div class="leftnav-footer">
       <a class="nav-item nav-item-quiet" href="https://github.com/emelon8/ACE-NeuroTools/blob/main/docs/gui.md" target="_blank" rel="noopener noreferrer"><svg class="icon"><use href="#i-book"/></svg><span>Experiment guide</span></a>
       <button class="nav-item nav-item-quiet switch-item" id="theme-switch" type="button" role="switch" aria-checked="false"><svg class="icon"><use href="#i-moon"/></svg><span>Dark mode</span><span class="switch" aria-hidden="true"></span></button>
-      <div class="connection-status" id="connection-status"><span class="status-dot" id="box-dot" aria-hidden="true"></span><span id="box-indicator">Local recordings</span></div>
+      <div class="connection-status" id="connection-status"><span class="status-dot" id="box-dot" aria-hidden="true"></span><span id="box-indicator">Box not connected</span></div>
     </div>
   </nav>
 
@@ -80,6 +81,7 @@
       <div class="topbar-actions">
         <button id="open-project" class="btn-primary" type="button"><svg class="icon"><use href="#i-folder-open"/></svg>Open project</button>
         <button class="icon-button" id="theme-toggle" type="button" aria-label="Dark mode" aria-pressed="false" title="Switch to dark mode"><svg class="icon theme-icon-light"><use href="#i-moon"/></svg><svg class="icon theme-icon-dark"><use href="#i-sun"/></svg></button>
+        <span class="avatar avatar-account" id="box-avatar" title="Box not connected" aria-hidden="true" hidden></span>
 
       </div>
     </header>
@@ -93,6 +95,57 @@
       </div>
 
       <!-- Box connection page -->
+      <section id="box-setup" class="page" hidden aria-label="Box setup">
+        <div class="actionbar">
+          <div class="actionbar-title"><p class="eyebrow">Settings</p><h1>Box connection</h1></div>
+          <div class="actionbar-actions"><button id="close-box" type="button">Return to experiments</button></div>
+        </div>
+        <div class="page-body narrow">
+          <section class="card box-status-card">
+            <div class="card-row"><span class="avatar avatar-cloud" aria-hidden="true"><svg class="icon"><use href="#i-cloud"/></svg></span><p id="box-status" role="status"></p></div>
+            <div class="card-actions">
+              <div id="box-saved-actions" hidden><button id="box-reconnect">Use saved connection</button><button id="box-forget" class="btn-danger-text">Forget saved connection</button></div>
+              <button id="box-disconnect" hidden>Disconnect this session</button>
+              <button id="box-change-account" hidden>Change account</button>
+            </div>
+          </section>
+          <ol id="box-steps" class="stepper"><li id="box-step-label-1">Connect</li><li id="box-step-label-2" hidden>Recording folder</li><li id="box-step-label-3">Local location</li></ol>
+          <div id="box-error" class="notice notice-error" role="alert" tabindex="-1" hidden><strong>Box setup could not continue</strong><p id="box-error-text"></p></div>
+          <section id="box-step-1" class="card">
+            <h2 class="card-title">Connect to Box</h2>
+            <div class="field"><label for="box-method">Connection type</label><select id="box-method"><option value="ccg">Lab connection (Client Credentials Grant)</option><option value="token">Temporary developer token</option></select></div>
+            <details class="setup-help"><summary>Set up a Box app for the first time</summary>
+              <ol><li>Open the <a href="https://app.box.com/developers/console" target="_blank" rel="noopener noreferrer">Box Developer Console</a>. Create a Server app using Client Credentials Grant.</li><li>Ask your Box administrator to authorize the app. For an existing Box user, enable App + Enterprise Access and Generate User Access Tokens, then authorize the updated app.</li><li>Copy the Client ID and Client secret from the app's Configuration page. Enter the numeric Box user ID below. For a service account, use the enterprise ID and share your recording folder with that account.</li></ol>
+              <a href="https://developer.box.com/guides/authentication/client-credentials/client-credentials-setup" target="_blank" rel="noopener noreferrer">Box's setup instructions</a>
+              <p>No Python files need to be opened or edited.</p>
+            </details>
+            <form id="box-connect-form">
+              <div id="box-ccg-fields" class="fields-grid">
+                <div class="field"><label for="box-client-id">Client ID</label><input id="box-client-id" autocomplete="off" required></div>
+                <div class="field"><label for="box-client-secret">Client secret</label><input id="box-client-secret" type="password" autocomplete="off" required></div>
+                <div class="field"><label for="box-subject-type">Connect as</label><select id="box-subject-type"><option value="user">Box user</option><option value="enterprise">App service account</option></select></div>
+                <div class="field"><label id="box-subject-label" for="box-subject-id">Box user ID</label><input id="box-subject-id" inputmode="numeric" autocomplete="off" required></div>
+              </div>
+              <div id="box-token-field" class="field" hidden><label for="box-token">Developer token</label><input id="box-token" type="password" autocomplete="off"><small>Temporary access expires. It will not be saved.</small></div>
+              <div class="form-footer"><button id="box-check" type="submit">Check connection</button><span id="box-account" role="status"></span><button id="box-next-1" class="btn-primary" type="button" disabled>Choose local location</button></div>
+            </form>
+          </section>
+          <section id="box-step-2" class="card" hidden>
+            <h2 class="card-title">Choose a recording folder</h2><p class="muted">Choose the recording folder for this experiment. Its saved Box folder ID is opened automatically. Using a folder saves that ID to experiments.csv.</p>
+            <form id="box-folder-form" class="inline-form"><label for="box-folder-link">Folder link or ID</label><input id="box-folder-link" placeholder="https://app.box.com/folder/…"><button>Open folder</button></form>
+            <nav id="box-breadcrumbs" class="path-crumbs" aria-label="Box folder location"></nav>
+            <div class="list-frame"><table class="file-table"><thead><tr><th>Name</th><th>Type</th></tr></thead><tbody id="box-folder-list"></tbody></table><p id="box-folder-empty" class="empty-row" hidden>This Box folder has no items.</p></div>
+            <button id="box-more" hidden>Show more items</button>
+            <div class="form-footer"><button id="box-back-2">Back</button><span id="box-folder-name"></span><button id="box-next-2" class="btn-primary" disabled>Use this folder</button></div>
+          </section>
+          <section id="box-step-3" class="card" hidden>
+            <h2 class="card-title">Choose a local location</h2><p class="muted">This location is shared by all projects. Relative recording paths in experiments.csv are placed under this folder; absolute paths keep their specified location. An explicitly chosen data base folder takes priority.</p>
+            <div class="field"><label for="box-download-path">Local download folder</label><div class="input-row"><input id="box-download-path" readonly placeholder="Choose a folder on this computer"><button id="box-choose-local">Choose folder</button></div></div>
+            <p id="box-summary"></p><label id="box-remember-label" class="check"><input id="box-remember" type="checkbox" checked>Remember this lab connection on this computer</label><p id="box-storage-note" class="muted">Saved credentials are stored in your private user settings, outside projects and CSV files.</p>
+            <div class="form-footer"><button id="box-back-3">Back</button><button id="box-finish" class="btn-primary">Finish setup</button></div>
+          </section>
+        </div>
+      </section>
 
 
       <!-- Folder / file chooser (modal) -->
@@ -199,7 +252,7 @@
                 <h2 class="panel-title">Workflow</h2>
                 <ol class="workflow">
                   <li class="workflow-step"><span class="step-index">1</span><div class="step-text"><h3>Experiment details &amp; settings</h3><p>Check the subject, date, recording folders, and analysis settings stored in the project CSVs.</p></div><div class="step-actions"><button id="overview-edit">Edit data &amp; settings</button></div></li>
-                  <li class="workflow-step"><span class="step-index">2</span><div class="step-text"><h3>Recording files</h3><p>Make the recording available locally. Download Box recordings first, then choose their local folder.</p></div><div class="step-actions"><button type="button" data-click="choose-recording-files">Choose recording files</button></div></li>
+                  <li class="workflow-step"><span class="step-index">2</span><div class="step-text"><h3>Recording files</h3><p>Make the recording available locally. Box recordings show a file selection before anything downloads.</p></div><div class="step-actions"><button type="button" data-click="choose-recording-files">Choose recording files</button><button id="overview-box">Box settings</button></div></li>
                   <li class="workflow-step"><span class="step-index">3</span><div class="step-text"><h3>Crop</h3><p>Draw the field of view for calcium analysis, or turn Apply crop off in Run settings to use the full frame.</p></div><div class="step-actions"><button type="button" data-goto="crop">Open crop</button></div></li>
                   <li class="workflow-step"><span class="step-index">4</span><div class="step-text"><h3>Review &amp; run</h3><p>Confirm the recording, crop, and every effective parameter, then start the analysis. Each run gets its own output folder.</p></div><div class="step-actions"><button id="overview-cnmfe">Set up CNMF-E</button><button type="button" data-click="review-run">Review &amp; run</button></div></li>
                   <li class="workflow-step"><span class="step-index">5</span><div class="step-text"><h3>Review neurons</h3><p>Keep or reject extracted components, then export curated estimates and recomputed calcium events.</p></div><div class="step-actions"><button type="button" data-goto="neurons">Open neurons</button></div></li>

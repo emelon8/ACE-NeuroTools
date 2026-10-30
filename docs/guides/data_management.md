@@ -74,11 +74,15 @@ If you use Box to store and share raw data, ACE-NeuroTools can automatically dow
 In your `experiments.csv`, fill in the **Box Calcium Folder ID** and/or **Box ephys folder ID** columns for the experiments you want to sync. If these columns are empty, ACE-NeuroTools will only look for data at the local paths provided.
 
 ### 2. Configure Authentication
-To allow the code to talk to Box, you must provide your own API credentials:
+For direct Python pipeline runs, you must provide your own API credentials:
 1.  **Install the SDK**: Ensure you have the optional dependencies installed: `pip install aceneurotools[box]`
 2.  **Locate the Template**: Find `src/aceneurotools/shared/BLANK_box_credentials.py` in the package source.
 3.  **Setup your file**: Copy it to `src/aceneurotools/shared/box_credentials.py`.
 4.  **Enter Credentials**: Enter your **Client ID**, **Client Secret**, and **User ID** (obtained from the [Box Developer Console](https://app.box.com/developers/console)).
+
+The GUI has its own **Box connection** screen. It stores remembered credentials
+in private user settings and downloads only the files you select and confirm.
+The Python credential module above applies to direct pipeline runs.
 
 ### How it Works
 - **Local First**: If the data already exists at the specified local path, the pipeline starts immediately without connecting to Box.

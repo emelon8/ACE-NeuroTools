@@ -22,8 +22,9 @@ the source installation guide, which includes dependency and first-launch checks
 - [Combined-recording alignment](guides/multimodal.md)
 - [Data organization and optional command-line Box access](guides/data_management.md)
 
-The GUI saves separate results for each run. Its History screen, Box setup, and
-cluster-script export are not connected. Scientific processing depends on the
+The GUI saves separate results for each run and can download selected Box
+recordings after account setup. Its History screen and cluster-script export
+are not connected. Scientific processing depends on the
 selected options; validate a short representative recording before a large study.
 
 ## Notebooks and developer reference

@@ -21,8 +21,8 @@ and analysis, prepare:
 - The experiment ID, settings appropriate to the recording, and expected outputs.
 - Criteria for keeping or rejecting extracted neurons, if you will review them.
 
-No ready-to-run recording dataset is bundled. Download Box recordings outside
-ACE; the installed GUI does not connect to Box or download recordings.
+No ready-to-run recording dataset is bundled. Box downloads require the optional
+`box` dependency and an account connection in the GUI.
 
 ## Install from source
 
