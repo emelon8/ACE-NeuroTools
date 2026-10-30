@@ -65,8 +65,9 @@ pipeline.run(
 
 ## Optional: Box Cloud Integration
 
-**This section describes optional command-line/library downloads. The installed GUI
-requires you to download Box files separately and choose their local folder.**
+This section describes optional command-line/library downloads. For GUI downloads,
+use [Box connection](../gui.md#check-recording-locations) to connect an account and
+confirm the recording files to transfer.
 
 If you use Box to store and share raw data, ACE-NeuroTools can automatically download missing files for a specific experiment before the analysis begins. This is an **optional opt-in feature**.
 

@@ -34,4 +34,5 @@ by their setup cells. They are rendered without executing scientific analysis:
 
 Before running a notebook locally, review paths, actual channel names and optional
 processing settings. The [data guide](guides/data_management.md) describes optional
-library/command-line Box access; download files separately for GUI use.
+library/command-line Box access. For GUI downloads, use the
+[Box connection workflow](gui.md#check-recording-locations).

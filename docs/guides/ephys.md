@@ -66,3 +66,6 @@ with optional arrays identified in the [output inventory](../gui.md#find-and-reo
 Direct Python `run()` returns `None`. Retrieve the selected channel from
 `pipeline.ephys_data_manager` after the run, as shown above. Direct calls do not
 automatically write the GUI's exported inventory and archives.
+
+Spectrogram event annotations show every supplied timestamp and label pair;
+recordings with many events can produce dense labels.
