@@ -15,9 +15,11 @@ from urllib.parse import parse_qs, urlsplit
 from aceneurotools.gui.box_setup import BoxSetup, BoxSetupError
 from aceneurotools.gui.cropping import Cropping, preview_file, saved_previews
 from aceneurotools.gui.csv_projects import Project, ProjectChangedError, ProjectError
+from aceneurotools.gui.features import ENABLED
 from aceneurotools.gui.native_dialogs import NativeDialogs
 from aceneurotools.gui.neurons import Neurons
 from aceneurotools.gui.recordings import Recordings
+from aceneurotools.gui.routes import Context, Feature, FileResponse, Registry, Route, load_features
 from aceneurotools.gui.run_specs import PIPELINES, effective_parameters, settings_keys, specification, validate_settings
 from aceneurotools.gui.runs import Runs
 
@@ -34,6 +36,7 @@ STATIC = {
             "theme.js",
             "auth.js",
             "app.js",
+            "features.js",
             "box.js",
             "analysis.js",
             "neurons.js",
@@ -44,18 +47,34 @@ STATIC = {
 }
 
 
+def _feature_manifest(context):
+    return {"features": context.server.registry.manifest()}
+
+
+# Built-in feature: tells features.js which feature scripts and styles to load.
+CORE_FEATURE = Feature(name="core", routes=(Route("GET", "/api/features", _feature_manifest, scope="none"),))
+
+
 class ProjectServer(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, address, initial: str | None = None, *, box_setup=None):
+    def __init__(self, address, initial: str | None = None, *, box_setup=None, features=None):
+        """``features`` replaces the enabled feature list (tests); by default ``features.ENABLED`` loads."""
 
         self.token = secrets.token_urlsafe(32)
+        self.registry = Registry([CORE_FEATURE, *(load_features(ENABLED) if features is None else features)])
+        overlap = set(self.registry.static) & set(STATIC)
+        if overlap:
+            raise ValueError(f"Feature files replace core files: {sorted(overlap)}")
         self.box = box_setup if box_setup is not None else BoxSetup()
         self.runs = Runs()
         self.cropping = Cropping()
         self.recordings = Recordings(self.box)
         self.neurons = Neurons()
         self.native = NativeDialogs()
+        self.services = {
+            feature.name: feature.service(self) for feature in self.registry.features if feature.service is not None
+        }
         self.projects: dict[str, Project] = {}
         self.lock = threading.Lock()
         self.startup_error: str | None = None
@@ -93,6 +112,56 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _file(self, response: FileResponse) -> None:
+        size = len(response.body) if response.body is not None else response.path.stat().st_size
+        self.send_response(200)
+        self.send_header("Content-Type", response.content_type)
+        self.send_header("Content-Length", str(size))
+        self.send_header("Cache-Control", response.cache)
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        if response.download_name is not None:
+            name = response.download_name.replace('"', "").replace("\\", "")
+            self.send_header("Content-Disposition", f'attachment; filename="{name}"')
+        self.end_headers()
+        if response.body is not None:
+            self.wfile.write(response.body)
+            return
+        import shutil
+
+        with response.path.open("rb") as handle:
+            shutil.copyfileobj(handle, self.wfile)
+
+    def _feature(self, route: Route, query: dict, body: dict) -> None:
+        """Run a registered feature route after the caller's origin/token checks."""
+        context = Context(self.server, self.command, route.path, query, body)
+        if route.scope != "none":
+            project_id = context.value("project")
+            with self.server.lock:
+                project = self.server.projects.get(project_id) if isinstance(project_id, str) else None
+            if project is None:
+                raise ProjectError("Open this project first.")
+            context.project = project
+            if route.scope == "experiment":
+                number = context.value("number")
+                if not isinstance(number, str) or not number:
+                    raise ProjectError("Choose an experiment first.")
+                if number not in project.experiments:
+                    raise ProjectError(f"Experiment {number} was not found in this project.")
+                context.number = number
+        if route.locked:
+            with self.server.lock:
+                if context.project is not None:
+                    # Use the latest saved copy; another request may have replaced it.
+                    context.project = self.server.projects[context.project.id]
+                result = route.handler(context)
+        else:
+            result = route.handler(context)
+        if isinstance(result, FileResponse):
+            self._file(result)
+        else:
+            self._json(result)
+
     def do_GET(self) -> None:
         if not self._same_origin():
             self._json({"error": "This viewer accepts requests from its local address only."}, 403)
@@ -103,7 +172,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         args = parse_qs(route.query)
         try:
-            if route.path == "/api/health":
+            feature_route = self.server.registry.match("GET", route.path)
+            if feature_route is not None:
+                self._feature(feature_route, {key: values[0] for key, values in args.items()}, {})
+            elif route.path == "/api/health":
                 self._json({"application": "ACE Experiments"})
             elif route.path == "/api/box/status":
                 self._json(self.server.box.status())
@@ -232,8 +304,8 @@ class Handler(BaseHTTPRequestHandler):
                         ],
                     }
                 )
-            elif route.path in STATIC:
-                name = STATIC[route.path]
+            elif route.path in STATIC or route.path in self.server.registry.static:
+                name = STATIC.get(route.path) or self.server.registry.static[route.path]
                 body = (ASSETS / name).read_bytes()
                 self.send_response(200)
                 mime = mimetypes.guess_type(name)[0] or "application/octet-stream"
@@ -299,6 +371,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/system/open-folder",
             *experiment_routes,
             *box_routes,
+            *self.server.registry.paths("POST"),
         }:
             self._json({"error": "Operation not found."}, 404)
             return
@@ -309,6 +382,10 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(length))
             if not isinstance(body, dict):
                 raise ProjectError("Send a valid application request.")
+            feature_route = self.server.registry.match("POST", route)
+            if feature_route is not None:
+                self._feature(feature_route, {}, body)
+                return
             if route == "/api/system/pick":
                 self._json(self.server.native.pick(body))
                 return

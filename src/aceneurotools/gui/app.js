@@ -23,7 +23,7 @@ function labelledButton(iconName, text, className) {
   button.append(icon(iconName), document.createTextNode(text)); return button;
 }
 const dirty = section => Object.keys(drafts[section]).length > 0 || (section === "parameters" && creating);
-const anyDirty = () => dirty("metadata") || dirty("parameters") || (typeof extraUnsaved === "function" && extraUnsaved());
+const anyDirty = () => dirty("metadata") || dirty("parameters") || (typeof extraUnsaved === "function" && extraUnsaved()) || aceFeatures.unsaved();
 function canLeave() { return !busy && (!anyDirty() || window.confirm("Leave without saving your changes? Choose Cancel to keep editing.")); }
 function clearError() { $("error").hidden = true; }
 function showError(error) {
@@ -776,6 +776,7 @@ function renderWorkspace() {
   $("experiment-attention").replaceChildren(element("p", experiment.parameter_error || (experiment.parameters ? "Experiment details and analysis settings are ready to edit." : `Experiment ${experiment.number} has no analysis settings. Add them in Data & settings.`)));
   if (typeof renderAnalysis === "function") renderAnalysis();
   if (typeof renderNeurons === "function") renderNeurons();
+  aceFeatures.renderWorkspace(workspaceView);
   $("recording-overview").replaceChildren(...experiment.recordings.map(recording => {
     const kind = /electro/i.test(recording.name) ? "ep" : "ca", item = element("div", undefined, "recording-item"), body = element("div", undefined, "recording-body");
     body.append(element("h3", recording.name), element("p", recording.directory || "Local folder not set", recording.directory ? "path" : "muted"));

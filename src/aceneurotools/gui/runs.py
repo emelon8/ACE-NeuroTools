@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import shutil
@@ -18,6 +19,8 @@ from aceneurotools.gui.recording_scope import apply_scope
 from aceneurotools.gui.run_specs import PIPELINES, effective_parameters
 
 ROOT = Path(__file__).parent.parent
+# A review is valid for 30 minutes; recordings and settings are rechecked at start.
+REVIEW_SECONDS = 1800
 IGNORED = {"saved_movies", ".ace-runs", ".ace-gui-backups", "__pycache__"}
 RAW_SUFFIXES = {
     ".avi",
@@ -285,21 +288,29 @@ class Runs:
         token = uuid.uuid4().hex
         with self.lock:
             self.reviews = {
-                key: review for key, review in self.reviews.items() if time.monotonic() - review["time"] < 1800
+                key: review for key, review in self.reviews.items() if time.monotonic() - review["time"] < REVIEW_SECONDS
             }
             self.reviews[token] = {"value": value, "time": time.monotonic()}
         return {**value, "review": token}
+
+    def reviewed(self, project, token):
+        """Return a copy of an unexpired review of one of this project's experiments."""
+        with self.lock:
+            reviewed = self.reviews.get(token) if isinstance(token, str) else None
+            if not reviewed or time.monotonic() - reviewed["time"] >= REVIEW_SECONDS:
+                raise ProjectError("This review expired. Review the experiment again before running.")
+            value = reviewed["value"]
+            if value["project"] != project.id:
+                raise ProjectError("Review the selected project's experiment first.")
+            return copy.deepcopy(value)
 
     def start(self, project, body):
         if body.get("confirmed") is not True:
             raise ProjectError("Review the experiment details and parameters, then confirm before starting.")
         token = body.get("review")
         with self.lock:
-            reviewed = self.reviews.get(token) if isinstance(token, str) else None
-            if not reviewed or time.monotonic() - reviewed["time"] >= 1800:
-                raise ProjectError("This review expired. Review the experiment again before running.")
-            value = reviewed["value"]
-            if value["project"] != project.id or (body.get("number") is not None and body["number"] != value["number"]):
+            value = self.reviewed(project, token)
+            if body.get("number") is not None and body["number"] != value["number"]:
                 raise ProjectError("Review the selected project's experiment first.")
             if value["blockers"]:
                 raise ProjectError("Resolve the problems listed in the review before running.")
