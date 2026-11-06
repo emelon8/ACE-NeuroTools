@@ -52,7 +52,7 @@ document.addEventListener("click", event => {
 
 // Highlight the navigation entry for the visible page.
 function syncNavigation() {
-  if (aceFeatures.activePage()) return;  // A feature page manages its own navigation state.
+  if (typeof aceFeatures === "object" && aceFeatures.activePage()) return;  // A feature page manages its own navigation state.
   $("nav-experiments").setAttribute("aria-current", "page");
   document.body.dataset.view = !$("detail").hidden ? "experiment" : "projects";
 }

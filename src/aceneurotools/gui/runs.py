@@ -113,9 +113,13 @@ class Runs:
             raise ProjectError("Choose a local data base folder.")
         records, raw = [], None
         ephys_records, ephys_raw = [], None
+        # True when a confirmed recording selection excludes files present in the folder.
+        selection_restricted = False
         try:
             raw = recording_path(project, detail["metadata"], base, column)
-            records = apply_scope(raw, inventory(raw))
+            available = inventory(raw)
+            records = apply_scope(raw, available)
+            selection_restricted = records != available
             if not records:
                 blockers.append("No supported recording files were found in this folder.")
             if kind != "ephys" and not any(item["path"].lower().endswith(".avi") for item in records):
@@ -125,7 +129,9 @@ class Runs:
         if kind == "multimodal":
             try:
                 ephys_raw = recording_path(project, detail["metadata"], base, "ephys directory")
-                ephys_records = apply_scope(ephys_raw, inventory(ephys_raw))
+                ephys_available = inventory(ephys_raw)
+                ephys_records = apply_scope(ephys_raw, ephys_available)
+                selection_restricted = selection_restricted or ephys_records != ephys_available
                 if not any(
                     Path(item["path"]).suffix.lower() in {".ncs", ".rhs", ".rhd", ".dat", ".bin", ".raw"}
                     for item in ephys_records
@@ -278,6 +284,7 @@ class Runs:
             "files": records,
             "ephys_recording_path": str(ephys_raw) if ephys_raw else "",
             "ephys_files": ephys_records,
+            "selection_restricted": selection_restricted,
             "input_bytes": size,
             "output_root": str(root),
             "run_id": run_id,
