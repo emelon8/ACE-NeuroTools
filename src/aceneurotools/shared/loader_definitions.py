@@ -20,6 +20,7 @@ Public API
 SCHEMA                    -- the schema identifier, ``"ace-loader/1"``.
 validate_definition       -- list every problem in a parsed JSON document.
 parse_definition          -- build a :class:`LoaderDefinition` or raise.
+check_definition_text     -- parse JSON text strictly and list its problems.
 load_definition           -- read and parse one ``<name>.json`` file.
 load_project_definitions  -- read ``<project>/loaders/*.json``.
 definition_matches        -- does a definition's ``detect`` match a folder?
@@ -64,6 +65,7 @@ __all__ = [
     "ResolvedFiles",
     "validate_definition",
     "parse_definition",
+    "check_definition_text",
     "load_definition",
     "load_project_definitions",
     "definition_matches",
@@ -1075,6 +1077,34 @@ def _reject_constant(name: str) -> Any:
 
 def _loads(text: str) -> Any:
     return json.loads(text, object_pairs_hook=_strict_object, parse_constant=_reject_constant)
+
+
+def check_definition_text(text: str, *, file_stem: str | None = None) -> tuple[Any, list[DefinitionProblem]]:
+    """Parse definition JSON text strictly and validate it, without raising.
+
+    Uses the same strict JSON rules as :func:`load_definition` (no duplicate
+    keys, no ``NaN``/``Infinity``). When ``file_stem`` is given, the
+    definition's ``name`` must equal it, as for a file ``<file_stem>.json``.
+
+    Returns:
+        ``(data, problems)``. ``data`` is the parsed document, or ``None`` when
+        the text is not JSON; ``problems`` is empty when the definition is valid.
+    """
+    try:
+        data = _loads(text)
+    except (ValueError, RecursionError) as exc:  # json.JSONDecodeError is a ValueError
+        return None, [DefinitionProblem("", f"invalid JSON: {exc}")]
+    problems = validate_definition(data)
+    if (
+        file_stem is not None
+        and isinstance(data, dict)
+        and isinstance(data.get("name"), str)
+        and data["name"] != file_stem
+    ):
+        problems.append(
+            DefinitionProblem("name", f"'{data['name']}' must match the file name ('{file_stem}.json')")
+        )
+    return data, problems
 
 
 def load_definition(path: str | Path) -> LoaderDefinition:
