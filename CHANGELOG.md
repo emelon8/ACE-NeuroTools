@@ -37,6 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Windows, Intel Mac, Apple silicon and Linux.
 - Git-tag-derived versions and lab-first conda publishing. EVC, the Box setup
   wizard and cluster export remain separate follow-ups.
+- Ephys loader definitions: describe an acquisition system in
+  `<project>/loaders/<name>.json` (schema `ace-loader/1`), with validation,
+  folder detection, a JSON Schema and `ace-neuro loaders list|validate|detect`.
+  Example definitions reproduce the Neuralynx and RHS2116 loaders. Loading
+  channels from a definition is proposed in ADR 0008; analyses still use the
+  built-in loaders.
 
 Representative recording validation is deferred by request. No pilot has been
 published yet; a lab channel and scoped publishing credential must be configured.

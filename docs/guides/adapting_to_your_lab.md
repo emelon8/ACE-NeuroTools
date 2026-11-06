@@ -49,6 +49,15 @@ Shipped examples you can copy from include **UCLA V3** (`UCLADataManager`) and *
 
 Entry point: **`EphysDataManager.create(ephys_directory=...)`**.
 
+!!! tip "Describe a rig in JSON instead"
+    Many ephys loaders are configuration only: how to recognise the folder,
+    which reader opens it, where times come from and how sync works. You can
+    write these down as a [loader definition](loader_definitions.md) in
+    `<project>/loaders/<name>.json` and check it with
+    `ace-neuro loaders validate` and `ace-neuro loaders detect`. Loading
+    channels from a definition is proposed in ADR 0008 and not available
+    yet. Until then, analyses use the Python loaders described above.
+
 ---
 
 ## Step 3: Multimodal alignment contract
@@ -75,6 +84,7 @@ Details and defaults are documented under [TTL synchronization and gap detection
 | Approach | Best for |
 |----------|-----------|
 | CSV + metadata + kwargs only | Same code paths; different paths, filters, and session notes |
+| Ephys [loader definition](loader_definitions.md) (`loaders/<name>.json`) | Describing an ephys rig as configuration; validation and detection today, loading proposed in ADR 0008 |
 | New `MiniscopeDataManager` / `EphysDataManager` subclass | New folder layouts, file formats, or acquisition hardware |
 | Adjust `sync_timestamps` / `get_sync_timestamps` | New sync strategies while keeping the same high-level multimodal API |
 

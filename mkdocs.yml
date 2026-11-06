@@ -90,6 +90,7 @@ nav:
       - Combined Recordings: guides/multimodal.md
       - Data Management: guides/data_management.md
       - Adapting to Your Recordings: guides/adapting_to_your_lab.md
+      - Ephys Loader Definitions: guides/loader_definitions.md
   - Tutorials:
       - Miniscope Processing: notebooks/miniscope_pipeline_tutorial.ipynb
       - Ephys Processing: notebooks/ephys_pipeline_tutorial.ipynb
