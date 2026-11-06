@@ -217,10 +217,6 @@ details[open] > summary::before { transform: rotate(90deg); }
 .nav-project { min-height: 36px; font-size: 13px; }
 .nav-project .count { margin-left: auto; color: var(--ink-4); font-size: 12px; font-weight: 500; }
 .leftnav-footer { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px 14px; border-top: 1px solid var(--line); }
-.switch-item .switch { position: relative; width: 32px; height: 18px; flex: none; margin-left: auto; overflow: visible; background: var(--line-3); transition: background-color .15s; }
-.switch-item .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; background: #fff; transition: transform .15s; }
-.switch-item[aria-checked="true"] .switch { background: var(--primary); }
-.switch-item[aria-checked="true"] .switch::after { background: var(--primary-fg); transform: translateX(14px); }
 .connection-status { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 12px; color: var(--ink-3); font-size: 12px; }
 .connection-status span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .status-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--line-3); }

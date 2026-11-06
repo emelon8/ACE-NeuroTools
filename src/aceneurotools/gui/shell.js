@@ -62,19 +62,17 @@ syncNavigation();
 
 $("error-close").onclick = () => { $("error").hidden = true; };
 
-// Dark mode: theme.js applies the saved or system theme; these toggles save a choice.
+// Dark mode: theme.js applies the saved or system theme; the top-bar toggle saves a choice.
 function syncTheme() {
   const dark = document.documentElement.dataset.theme === "dark";
   $("theme-toggle").setAttribute("aria-pressed", dark ? "true" : "false");
   $("theme-toggle").title = dark ? "Switch to light mode" : "Switch to dark mode";
-  $("theme-switch").setAttribute("aria-checked", dark ? "true" : "false");
 }
 function toggleTheme() {
   const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
   document.documentElement.dataset.theme = next; remember("theme", next); syncTheme();
 }
 $("theme-toggle").onclick = toggleTheme;
-$("theme-switch").onclick = toggleTheme;
 document.addEventListener("ace-themechange", syncTheme);
 syncTheme();
 
