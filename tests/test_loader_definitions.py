@@ -541,6 +541,7 @@ def test_load_definition_requires_matching_file_name(tmp_path: Path) -> None:
         ("{not json", "invalid JSON"),
         ('{"schema": "ace-loader/1", "schema": "ace-loader/1"}', "duplicate key 'schema'"),
         ('{"x": NaN}', "NaN is not valid JSON"),
+        ("[" * 100_000, "nested too deeply"),
     ],
 )
 def test_load_definition_rejects_bad_json(tmp_path: Path, text: str, fragment: str) -> None:
@@ -581,6 +582,16 @@ def test_project_definitions_report_bad_files(tmp_path: Path) -> None:
     assert set(problems) == {str(folder / "broken.json"), str(folder / "renamed.json")}
     assert "invalid JSON" in problems[str(folder / "broken.json")][0].message
     assert [p.path for p in problems[str(folder / "renamed.json")]] == ["name"]
+
+
+def test_project_definitions_report_deeply_nested_file(tmp_path: Path) -> None:
+    folder = tmp_path / "loaders"
+    _write(folder / "neuralynx.json", _raw(NEURALYNX))
+    _write(folder / "deep.json", "[" * 100_000)
+
+    definitions, problems = load_project_definitions(tmp_path)
+    assert [d.name for d in definitions] == ["neuralynx"]
+    assert "nested too deeply" in problems[str(folder / "deep.json")][0].message
 
 
 def test_project_definitions_reject_duplicate_names(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

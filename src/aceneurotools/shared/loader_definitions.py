@@ -1095,6 +1095,8 @@ def load_definition(path: str | Path) -> LoaderDefinition:
         data = _loads(text)
     except ValueError as exc:  # json.JSONDecodeError is a ValueError
         raise DefinitionError([DefinitionProblem("", f"invalid JSON: {exc}")], source=path) from None
+    except RecursionError:
+        raise DefinitionError([DefinitionProblem("", "invalid JSON: nested too deeply")], source=path) from None
     problems = validate_definition(data)
     if isinstance(data, dict) and isinstance(data.get("name"), str) and data["name"] != path.stem:
         problems.append(
