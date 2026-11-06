@@ -202,6 +202,7 @@ def test_generated_python_calls_run_with_the_gui_parameters(project_folder, kind
     module_name, class_name = run_plan.PIPELINE_CLASSES[kind]
     cls = getattr(importlib.import_module(module_name), class_name)
     original = cls.run
+    expected = gui_parameters(project_folder, kind)  # Reads run()'s signature, so before patching it.
     captured = {}
     monkeypatch.setattr(cls, "run", lambda self, **kwargs: captured.update(kwargs))
     snippet = run_plan.python_snippet(entry, project_path=str(project_folder), data_path=str(project_folder))
@@ -209,7 +210,8 @@ def test_generated_python_calls_run_with_the_gui_parameters(project_folder, kind
     bound = inspect.signature(original).bind(None, **captured)
     bound.apply_defaults()
     arguments = json.loads(json.dumps({key: value for key, value in bound.arguments.items() if key != "self"}))
-    assert arguments == gui_parameters(project_folder, kind)
+    assert captured, "the snippet did not call run()"
+    assert arguments == expected
 
 
 # The HTTP route builds plans only from this server's unexpired reviews.
