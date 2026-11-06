@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Remove the duplicate dark-mode switch from the bottom of the GUI navigation;
+  the top-bar toggle remains (reported by @Aathok-Git).
 - Align bundled CSV example rows with their headers and allow local recording
   checks when optional Box columns are absent.
 - Report a missing explicit CLI configuration as an error without launching setup.
