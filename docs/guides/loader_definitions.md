@@ -121,7 +121,7 @@ name only. Each rule names a **role** that other sections refer to.
 | `exclude_names` | `[]` | Globs matched case-sensitively against the file name, for example `"*miniscope*"`. |
 | `exclude_dirs` | `[]` | Folder names. A file inside such a folder (below the recording folder) is skipped. |
 | `pick` | `"only"` | How to choose among several matches. See below. |
-| `required` | `true` | When `false`, a missing file is allowed. |
+| `required` | `true` | When `false`, a missing file is allowed. Because the file may be absent, no other section may name its role or use a `{variable}` it captures, except another optional rule. An optional rule whose `{variable}` was not captured is skipped. |
 | `capture` | — | `{"variable", "split", "part"}`: store `stem.split(split)[part]` of the chosen file as `{variable}`. |
 
 Only regular files are matched. `pick` values:
@@ -262,8 +262,9 @@ schema = definition_json_schema()                             # draft 2020-12
 builders. Some rules depend on context, so only `validate_definition` checks
 them:
 
-- neo IO names and their arguments
-- references to roles and placeholders
+- neo IO names and their arguments, including refused file, folder and cache
+  arguments and the read-only `mode` rule
+- references to roles and placeholders, including references to optional files
 - which backend, time and channel settings can be combined
 - machine paths inside reader arguments
 - the file-name rule
