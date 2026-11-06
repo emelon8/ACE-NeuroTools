@@ -38,6 +38,7 @@ import glob as globlib
 import inspect
 import json
 import math
+import os
 import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
@@ -96,6 +97,13 @@ SAMPLE_DTYPES = (
 CLOCK_DTYPES = ("uint32", "uint64", "int32", "int64", "float64")
 OUTPUT_DTYPES = ("float32", "float64")
 READ_ONLY_MODES = ("r", "ro")
+#: Read-only ``mode`` values for neo IOs that accept only some of READ_ONLY_MODES.
+READ_ONLY_MODES_BY_IO: Mapping[str, tuple[str, ...]] = {"NixIO": ("ro",)}
+
+#: neo reader arguments a definition may not set: they name files, folders or
+#: caches (neo's cache is unpickled with joblib), and the loader alone decides
+#: which files a reader opens.
+_DENIED_ARG_RE = re.compile(r"file|dir|path|folder|cache|dll|url", re.IGNORECASE)
 
 #: neo IO classes a definition may not name, with the reason.
 DENIED_NEO_IOS: Mapping[str, str] = {
@@ -301,7 +309,12 @@ Reader = NeoReader | RawBinaryReader
 
 @dataclass(frozen=True)
 class CsvValue:
-    """A number read from a located CSV file (no header unless ``header_rows``)."""
+    """A number read from a located CSV file (no header unless ``header_rows``).
+
+    The value is the first data row's ``column`` (0-based), parsed as an
+    unsigned integer and converted to float, as the RHS2116 manager reads the
+    acquisition clock rate from its start-time CSV.
+    """
 
     csv_file: str
     column: int
@@ -310,9 +323,14 @@ class CsvValue:
 
 @dataclass(frozen=True)
 class EffectiveRate:
-    """How ``Channel.sampling_rate`` is derived from a clock time vector."""
+    """How ``Channel.sampling_rate`` is derived from a clock time vector.
 
-    method: str  # median_interval: 1 / median(diff(times[:first_samples]))
+    ``median_interval``: ``1 / median(diff(times[:first_samples]))``. When the
+    clock holds fewer than two samples there is no interval, and the rate is
+    ``ticks_per_second`` instead.
+    """
+
+    method: str
     first_samples: int
 
 
@@ -322,7 +340,9 @@ class TimeSpec:
 
     * ``reader`` -- the neo reader's segments (via ``BlockProcessor``).
     * ``clock_file`` -- a binary clock file of ``clock_dtype`` ticks;
-      ``seconds = ticks / ticks_per_second`` in float64.
+      ``seconds = ticks / ticks_per_second`` in float64. The loaded length is
+      ``min(signal samples, clock samples)`` (and any load cap); both the
+      signal and the time vector are cut to it.
     * ``sample_index`` -- ``arange(n) / sampling_rate_hz``.
     """
 
@@ -407,7 +427,12 @@ def _is_int(value: object) -> bool:
 
 
 def _is_number(value: object) -> bool:
-    return (_is_int(value) or isinstance(value, float)) and math.isfinite(value)  # type: ignore[arg-type]
+    if not (_is_int(value) or isinstance(value, float)):
+        return False
+    try:
+        return math.isfinite(value)  # type: ignore[arg-type]
+    except OverflowError:  # an int too large for a float
+        return False
 
 
 def _looks_like_machine_path(text: str) -> bool:
@@ -428,8 +453,8 @@ def check_relative_glob(pattern: object) -> str | None:
         return "must be a string"
     if not pattern:
         return "must not be empty"
-    if "\x00" in pattern:
-        return "must not contain NUL characters"
+    if any(ord(ch) < 0x20 or ch == "\x7f" for ch in pattern):
+        return "must not contain control characters (such as NUL, tab or newline)"
     if "\\" in pattern:
         return "must use '/' separators, not backslashes"
     if pattern.startswith("/"):
@@ -450,24 +475,38 @@ def check_relative_glob(pattern: object) -> str | None:
     return None
 
 
-def neo_io_names() -> list[str]:
-    """Names of the neo IO classes a definition may use (sorted).
+def _neo_io_table() -> dict[str, Any]:
+    """``neo.io`` export name -> IO class, for every class in ``neo.io.iolist``.
 
-    This is ``neo.io.iolist`` minus :data:`DENIED_NEO_IOS`. neo is imported
-    on first call only.
+    Classes are keyed by the name ``neo.io`` exports them under, not by
+    ``cls.__name__``: two different classes are both called ``NixIO``
+    (``neo.io.NixIO``, read-write, and ``neo.io.NixIOFr``, read-only).
+    Denied classes are left out under every name they are exported as.
     """
     import neo.io  # type: ignore  # lazy: neo is heavy and only needed for neo readers
 
-    return sorted({cls.__name__ for cls in neo.io.iolist} - set(DENIED_NEO_IOS))
+    iolist = list(neo.io.iolist)
+    denied = {cls for cls in iolist if cls.__name__ in DENIED_NEO_IOS}
+    table: dict[str, Any] = {}
+    for name in dir(neo.io):
+        obj = getattr(neo.io, name, None)
+        if name[:1].isupper() and name not in DENIED_NEO_IOS and any(obj is cls for cls in iolist):
+            if obj not in denied:
+                table[name] = obj
+    return table
+
+
+def neo_io_names() -> list[str]:
+    """Names of the neo IO classes a definition may use (sorted).
+
+    These are the names ``neo.io`` exports the classes in ``neo.io.iolist``
+    under, minus :data:`DENIED_NEO_IOS`. neo is imported on first call only.
+    """
+    return sorted(_neo_io_table())
 
 
 def _neo_io_class(name: str) -> Any:
-    import neo.io  # type: ignore
-
-    for cls in neo.io.iolist:
-        if cls.__name__ == name:
-            return cls
-    return None
+    return _neo_io_table().get(name)
 
 
 def _parameters(func: Any) -> tuple[set[str], bool]:
@@ -486,6 +525,17 @@ def _parameters(func: Any) -> tuple[set[str], bool]:
     return names, var_kw
 
 
+def _parameter_default(func: Any, name: str) -> Any:
+    """Default value of parameter ``name`` of ``func`` (None if unknown or none)."""
+    try:
+        param = inspect.signature(func).parameters.get(name)
+    except (TypeError, ValueError):
+        return None
+    if param is None or param.default is inspect.Parameter.empty:
+        return None
+    return param.default
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Validation
 # ─────────────────────────────────────────────────────────────────────────────
@@ -499,6 +549,10 @@ def _join(path: str, key: str | int) -> str:
 class _Validator:
     def __init__(self) -> None:
         self.problems: list[DefinitionProblem] = []
+        # Roles and capture variables of rules marked ``required: false``: a
+        # loader cannot rely on them, so nothing else may refer to them.
+        self.optional_roles: set[str] = set()
+        self.optional_vars: set[str] = set()
 
     def add(self, path: str, message: str) -> None:
         self.problems.append(DefinitionProblem(path, message))
@@ -539,7 +593,11 @@ class _Validator:
 
     def integer(self, value: object, path: str, *, minimum: int | None = None) -> bool:
         if not _is_int(value):
-            self.add(path, "must be an integer")
+            if isinstance(value, float) and value.is_integer():
+                # JSON Schema counts 32.0 as an integer; this format does not.
+                self.add(path, f"must be a whole number written without a decimal point ({int(value)}, not {value})")
+            else:
+                self.add(path, "must be an integer")
             return False
         if minimum is not None and value < minimum:  # type: ignore[operator]
             self.add(path, f"must be at least {minimum}")
@@ -594,7 +652,7 @@ class _Validator:
             return None
         for key, item in value.items():
             p = _join(path, str(key))
-            if not isinstance(key, str) or not _IDENTIFIER_RE.match(key):
+            if not isinstance(key, str) or not _IDENTIFIER_RE.fullmatch(key):
                 self.add(p, "argument names must be Python identifiers")
             if isinstance(item, float) and not math.isfinite(item):
                 self.add(p, "must be a finite number")
@@ -633,7 +691,7 @@ class _Validator:
             if self.text(name, "name"):
                 if len(name) > NAME_MAX_LENGTH:
                     self.add("name", f"must be at most {NAME_MAX_LENGTH} characters")
-                elif not _NAME_RE.match(name):
+                elif not _NAME_RE.fullmatch(name):
                     self.add("name", "must be kebab-case: lowercase letters and digits separated by '-'")
         if "label" in data:
             self.text(data["label"], "label")
@@ -682,13 +740,14 @@ class _Validator:
             if rule is None:
                 continue
             role = rule.get("role")
+            optional = rule.get("required") is False
             if "role" in rule and self.text(role, f"{p}.role"):
-                if not _ROLE_RE.match(role):
+                if not _ROLE_RE.fullmatch(role):
                     self.add(f"{p}.role", "must be lowercase letters, digits and '_', starting with a letter")
                 elif role in roles:
                     self.add(f"{p}.role", f"role '{role}' is already defined")
             if "pattern" in rule:
-                self.file_pattern(rule["pattern"], f"{p}.pattern", captured)
+                self.file_pattern(rule["pattern"], f"{p}.pattern", captured, optional=optional)
             for key in ("exclude_names", "exclude_dirs"):
                 if key in rule:
                     names = self.string_list(rule[key], f"{p}.{key}")
@@ -706,7 +765,7 @@ class _Validator:
                 if cap is not None:
                     var = cap.get("variable")
                     if "variable" in cap and self.text(var, f"{p}.capture.variable"):
-                        if not _VARIABLE_RE.match(var):
+                        if not _VARIABLE_RE.fullmatch(var):
                             self.add(f"{p}.capture.variable", "must be lowercase letters, digits and '_'")
                         elif var in captured:
                             self.add(f"{p}.capture.variable", f"variable '{var}' is already captured")
@@ -714,6 +773,8 @@ class _Validator:
                             self.add(f"{p}.capture.variable", "'index' is reserved for channel templates")
                         else:
                             captured.append(var)
+                            if optional:
+                                self.optional_vars.add(var)
                     if "split" in cap:
                         self.text(cap["split"], f"{p}.capture.split", allow_empty=True)
                         if cap["split"] == "":
@@ -722,9 +783,11 @@ class _Validator:
                         self.integer(cap["part"], f"{p}.capture.part")
             if isinstance(role, str) and role not in roles:
                 roles[role] = None  # existence is what cross-references need
+                if optional:
+                    self.optional_roles.add(role)
         return roles
 
-    def file_pattern(self, value: object, path: str, captured: list[str]) -> None:
+    def file_pattern(self, value: object, path: str, captured: list[str], *, optional: bool = False) -> None:
         reason = check_relative_glob(value)
         if reason:
             self.add(path, reason)
@@ -734,6 +797,8 @@ class _Validator:
             if var not in captured:
                 known = ", ".join(captured) or "none yet"
                 self.add(path, f"placeholder '{{{var}}}' is not captured by an earlier file rule (captured: {known})")
+            elif var in self.optional_vars and not optional:
+                self.add(path, f"placeholder '{{{var}}}' comes from an optional file rule (required: false)")
         if "{" in _PLACEHOLDER_RE.sub("", value) or "}" in _PLACEHOLDER_RE.sub("", value):
             self.add(path, "has an unmatched '{' or '}'")
 
@@ -741,6 +806,8 @@ class _Validator:
         if self.text(value, path) and value not in roles:
             known = ", ".join(roles) or "none"
             self.add(path, f"must name a role from reader.files (defined: {known})")
+        elif isinstance(value, str) and value in self.optional_roles:
+            self.add(path, f"role '{value}' is optional (required: false); the loader needs this file")
 
     def reader(self, value: object) -> tuple[str | None, dict[str, FileRule | None]]:
         if not isinstance(value, dict):
@@ -787,7 +854,7 @@ class _Validator:
         block_args = self.scalar_args(r["read_block"], "reader.read_block") if "read_block" in r else {}
         path_arg = r.get("path_argument")
         if "path_argument" in r and self.text(path_arg, "reader.path_argument"):
-            if not _IDENTIFIER_RE.match(path_arg):
+            if not _IDENTIFIER_RE.fullmatch(path_arg):
                 self.add("reader.path_argument", "must be a Python identifier")
             elif args and path_arg in args:
                 self.add(f"reader.args.{path_arg}", "is the path argument; the loader supplies the path")
@@ -812,18 +879,35 @@ class _Validator:
             return
         cls = _neo_io_class(io_name)
         init_params, init_var_kw = _parameters(cls.__init__)
-        if path_arg is not None and _IDENTIFIER_RE.match(path_arg) and path_arg not in init_params:
+        if path_arg is not None and _IDENTIFIER_RE.fullmatch(path_arg) and path_arg not in init_params:
             self.add(
                 "reader.path_argument",
                 f"{io_name} has no '{path_arg}' argument (its arguments: {', '.join(sorted(init_params))})",
             )
-        for key, item in args.items():
+        for key in args:
             if key == path_arg:
                 continue  # reported by neo_reader
             if not init_var_kw and key not in init_params:
                 self.add(f"reader.args.{key}", f"{io_name} has no argument '{key}'")
-            elif key == "mode" and item not in READ_ONLY_MODES:
-                self.add(f"reader.args.{key}", f"must open read-only ({', '.join(READ_ONLY_MODES)})")
+            elif _DENIED_ARG_RE.search(key):
+                self.add(
+                    f"reader.args.{key}",
+                    "cannot be set in a definition: it names files, folders or a cache, "
+                    "and the loader alone chooses which files a reader opens",
+                )
+        if "mode" in init_params:
+            read_only = READ_ONLY_MODES_BY_IO.get(io_name, READ_ONLY_MODES)
+            if "mode" in args:
+                if args["mode"] not in read_only:
+                    self.add("reader.args.mode", f"must open read-only ({', '.join(read_only)})")
+            else:
+                default = _parameter_default(cls.__init__, "mode")
+                if default not in read_only:
+                    self.add(
+                        "reader.args.mode",
+                        f"is required: {io_name} opens files as {default!r} by default, "
+                        f"which can write; set it to {read_only[0]!r}",
+                    )
         read_block = getattr(cls, "read_block", None)
         if read_block is None:
             self.add("reader.io", f"{io_name} has no read_block method")
@@ -1088,7 +1172,8 @@ def load_definition(path: str | Path) -> LoaderDefinition:
     """
     path = Path(path)
     try:
-        text = path.read_text(encoding="utf-8")
+        # utf-8-sig: some Windows editors and PowerShell 5.1 write a byte-order mark.
+        text = path.read_text(encoding="utf-8-sig")
     except UnicodeDecodeError as exc:
         raise DefinitionError([DefinitionProblem("", f"file is not UTF-8 text: {exc}")], source=path) from None
     try:
@@ -1122,7 +1207,8 @@ def load_project_definitions(
     Returns:
         ``(definitions, problems)`` where definitions are sorted by file name
         and ``problems`` maps each failing file's path (as ``str``) to its
-        problems. A project without a ``loaders`` folder gives ``([], {})``.
+        problems. A project without a ``loaders`` folder gives ``([], {})``. A
+        ``loaders`` folder that cannot be listed is reported under its own path.
     """
     folder = Path(project_path) / LOADERS_DIRNAME
     if not folder.is_dir():
@@ -1130,7 +1216,13 @@ def load_project_definitions(
 
     loaded: list[LoaderDefinition] = []
     problems: dict[str, list[DefinitionProblem]] = {}
-    for file in sorted(folder.glob("*.json")):
+    try:
+        # os.scandir raises on an unreadable folder; Path.glob would return nothing.
+        with os.scandir(folder) as entries:
+            files = sorted(folder / entry.name for entry in entries if entry.name.endswith(".json"))
+    except OSError as exc:
+        return [], {str(folder): [DefinitionProblem("", f"cannot read folder: {exc}")]}
+    for file in files:
         if not file.is_file():
             continue
         try:
@@ -1260,7 +1352,9 @@ def resolve_files(definition: LoaderDefinition, directory: str | Path) -> Resolv
     Raises:
         FileNotFoundError: a required file is missing or ``directory`` is not a folder.
         ValueError: ``only`` matched several files, a capture failed, or a
-            placeholder refers to a variable from a missing optional file.
+            required file's placeholder has no captured value (validation
+            prevents this for parsed definitions). An optional file whose
+            placeholder has no value is skipped.
     """
     folder = Path(directory)
     if not folder.is_dir():
@@ -1269,6 +1363,8 @@ def resolve_files(definition: LoaderDefinition, directory: str | Path) -> Resolv
     variables: dict[str, str] = {}
     for rule in definition.files:
         missing = [v for v in _PLACEHOLDER_RE.findall(rule.pattern) if v not in variables]
+        if missing and not rule.required:
+            continue  # its variable came from an optional file that is absent
         if missing:
             raise ValueError(f"file rule '{rule.role}' needs '{{{missing[0]}}}', which no located file provided")
         candidates = _candidates(folder, rule, variables)
@@ -1290,9 +1386,10 @@ def resolve_files(definition: LoaderDefinition, directory: str | Path) -> Resolv
 # JSON Schema (documentation and GUI forms)
 # ─────────────────────────────────────────────────────────────────────────────
 
-# ECMA-262 and Python ``re`` agree on this expression.
+# ECMA-262 and Python ``re`` agree on this expression, including for newlines:
+# the control-character lookahead rejects them before ``$`` could differ.
 _GLOB_REGEX = (
-    r"^(?![/~])(?![A-Za-z]:)(?!.*\\)(?!.*\x00)(?!(?:.*/)?\.{1,2}(?:/|$))(?!.*//)(?!.*/$)"
+    r"^(?![/~])(?![A-Za-z]:)(?!.*\\)(?!.*[\x00-\x1f\x7f])(?!(?:.*/)?\.{1,2}(?:/|$))(?!.*//)(?!.*/$)"
     r"(?!(?:.*/)?(?:[^/]*[^/]\*\*|\*\*[^/])).+$"
 )
 

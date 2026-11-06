@@ -63,14 +63,22 @@ must not contain machine paths:
 - **Patterns are relative globs under the recording folder.** Use `/` as the
   separator. A pattern cannot be absolute or start with `~` or a drive letter
   (`C:`). It cannot contain backslashes, empty segments, `.` or `..`
-  segments. `**` must be a whole segment, as in `sub/**/*.ncs`.
+  segments, or control characters such as tabs or newlines. `**` must be a
+  whole segment, as in `sub/**/*.ncs`.
+- **Symbolic links are followed.** A link inside the recording folder (for
+  example to raw files kept on another drive) is matched like any other file,
+  even if it points outside the folder.
 - **Reader arguments are JSON scalars** (string, number, `true`/`false`,
   `null`). A string argument cannot look like a machine path.
 - **The recording path is never written in a definition.** The loader passes
-  it to the reader.
+  it to the reader. Reader arguments that name files, folders or caches (any
+  name containing `file`, `dir`, `path`, `folder`, `cache`, `dll` or `url`,
+  such as `exclude_filename` or `use_cache`) cannot be set.
 - **Strict JSON.** Unknown keys, duplicate keys and `NaN`/`Infinity` are
-  errors, so typos do not go unnoticed. A different `schema` version, such as
-  `ace-loader/2`, is reported as unsupported.
+  errors, so typos do not go unnoticed. Whole numbers are written without a
+  decimal point (`32`, not `32.0`). A UTF-8 byte-order mark at the start of
+  the file is allowed. A different `schema` version, such as `ace-loader/2`,
+  is reported as unsupported.
 
 ## Format reference (`ace-loader/1`)
 
@@ -129,11 +137,11 @@ Only regular files are matched. `pick` values:
 
 | Key | Required | Meaning |
 |-----|----------|---------|
-| `io` | yes | A class name from `neo.io.iolist`, for example `NeuralynxIO`, `IntanIO`, `OpenEphysBinaryIO`. Names are checked against neo's own list and are never imported from arbitrary strings. `PickleIO` and `NeurosharectypesIO` are refused because they can run arbitrary code. |
+| `io` | yes | The name `neo.io` exports a class from `neo.io.iolist` under, for example `NeuralynxIO`, `IntanIO`, `OpenEphysBinaryIO`. Names are checked against neo's own list and are never imported from arbitrary strings. `PickleIO` and `NeurosharectypesIO` are refused because they can run arbitrary code. |
 | `path_argument` | yes | The reader's path parameter, usually `dirname` or `filename`. Checked against the class signature. |
 | `path_from` | yes | What to pass as the path argument: `{"source": "recording_folder"}`, `{"source": "file", "file": "<role>"}` or `{"source": "file_parent", "file": "<role>"}`. |
 | `files` | no | File rules, as above. |
-| `args` | no | Other constructor arguments, as JSON scalars. Names are checked against the class signature. A `mode` argument must be read-only (`r` or `ro`). |
+| `args` | no | Other constructor arguments, as JSON scalars. Names are checked against the class signature. Readers must open files read-only: for a reader with a `mode` argument, `mode` must be read-only (`r` or `ro`; `ro` for `NixIO`), and it must be written out when the reader's default could write (`NixIO` defaults to `rw`). For NIX files, `NixIOFr` is neo's read-only reader. |
 | `read_block` | no | Arguments to `read_block()`, as JSON scalars, for example `{"signal_group_mode": "split-all"}`. |
 
 A neo reader takes its times and channel names from neo, so it needs
@@ -161,7 +169,7 @@ sample 0, then all channels for sample 1, and so on) with
 | `source` | Keys | Meaning |
 |----------|------|---------|
 | `reader` | — | Times come from the neo reader. Only for `neo`. |
-| `clock_file` | `clock_file` (role), `clock_dtype`, `ticks_per_second`, `effective_rate` | The clock file holds one tick count per sample. Seconds are `ticks / ticks_per_second`, computed in float64. `ticks_per_second` is a number, or `{"csv_file": "<role>", "column": N, "header_rows": 0}` to read it from a CSV file (0-based column). `effective_rate` is `{"method": "median_interval", "first_samples": N}`, which sets the channel sampling rate to `1 / median(diff(times[:N]))`. |
+| `clock_file` | `clock_file` (role), `clock_dtype`, `ticks_per_second`, `effective_rate` | The clock file holds one tick count per sample. Seconds are `ticks / ticks_per_second`, computed in float64. `ticks_per_second` is a number, or `{"csv_file": "<role>", "column": N, "header_rows": 0}` to read it from a CSV file (0-based column of the first data row, read as an unsigned integer). `effective_rate` is `{"method": "median_interval", "first_samples": N}`, which sets the channel sampling rate to `1 / median(diff(times[:N]))`, or to `ticks_per_second` when the clock has fewer than two samples. The loaded length is the shorter of the signal and the clock; both are cut to it. |
 | `sample_index` | `sampling_rate_hz` | Times are `arange(n) / sampling_rate_hz`. |
 
 The number of samples loaded is the smaller of the signal length and the clock

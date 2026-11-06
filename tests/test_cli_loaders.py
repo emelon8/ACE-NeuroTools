@@ -213,3 +213,44 @@ def test_main_without_subcommand_still_reaches_config_flow(monkeypatch: pytest.M
     monkeypatch.setattr(banner, "welcome", lambda: None)
     missing = tmp_path / "missing.json"
     assert cli.main(["--config", str(missing), "--yes", "--headless"]) == 1
+
+
+# ── review round 1 regressions ────────────────────────────────────────────────
+
+_PERMISSIONS_APPLY = not (os.name == "nt" or (hasattr(os, "geteuid") and os.geteuid() == 0))
+
+
+@pytest.mark.skipif(not _PERMISSIONS_APPLY, reason="permission bits do not block reads here")
+def test_detect_reports_unreadable_recording_folder(
+    tmp_path: Path, project: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    rec = _touch(tmp_path / "rec", "Events.nev")
+    rec.chmod(0)
+    try:
+        code = cli.main(["loaders", "detect", str(rec), "--project-path", str(project)])
+    finally:
+        rec.chmod(0o755)
+    assert code == 1
+    assert "cannot read folder" in capsys.readouterr().err
+
+
+def test_detect_warns_when_project_folder_is_missing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    rec = _touch(tmp_path / "rec", "Events.nev")
+    code = cli.main(["loaders", "detect", str(rec), "--project-path", str(tmp_path / "nope")])
+    out = capsys.readouterr()
+    assert code == 0  # the built-in Neuralynx loader still matches
+    assert "project folder not found" in out.err
+
+
+@pytest.mark.skipif(not _PERMISSIONS_APPLY, reason="permission bits do not block reads here")
+def test_list_fails_on_unreadable_loaders_folder(project: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    folder = project / "loaders"
+    folder.chmod(0)
+    try:
+        code = cli.main(["loaders", "list", "--project-path", str(project)])
+    finally:
+        folder.chmod(0o755)
+    assert code == 1
+    assert "cannot read folder" in capsys.readouterr().err
