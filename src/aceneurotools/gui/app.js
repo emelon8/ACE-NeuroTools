@@ -23,8 +23,17 @@ function labelledButton(iconName, text, className) {
   button.append(icon(iconName), document.createTextNode(text)); return button;
 }
 const dirty = section => Object.keys(drafts[section]).length > 0 || (section === "parameters" && creating);
+// Unsaved experiment edits; these block crop previews and run reviews (mustSaveFirst).
 const anyDirty = () => dirty("metadata") || dirty("parameters") || (typeof extraUnsaved === "function" && extraUnsaved());
-function canLeave() { return !busy && (!anyDirty() || window.confirm("Leave without saving your changes? Choose Cancel to keep editing.")); }
+// Feature drafts (Study page and others) only matter when navigating away.
+const featuresDirty = () => typeof aceFeatures === "object" && aceFeatures.unsaved();
+function canLeave() {
+  if (busy) return false;
+  if (!anyDirty() && !featuresDirty()) return true;
+  if (!window.confirm("Leave without saving your changes? Choose Cancel to keep editing.")) return false;
+  if (typeof aceFeatures === "object") aceFeatures.discard();  // Leaving abandons feature drafts too.
+  return true;
+}
 function clearError() { $("error").hidden = true; }
 function showError(error) {
   $("error-text").textContent = error.message;
@@ -459,7 +468,8 @@ function renderHomeSidebar() {
 }
 function showHome(projectId = currentProjectId) {
   if (busy) return;
-  if (!$("detail").hidden) { if (!canLeave()) return; resetEditor(); }
+  const onFeaturePage = typeof aceFeatures === "object" && aceFeatures.activePage();
+  if (!$("detail").hidden || onFeaturePage) { if (!canLeave()) return; if (!$("detail").hidden) resetEditor(); }
   clearError(); $("folders").hidden = true; $("detail").hidden = true; $("home").hidden = false;
   if (projectId !== currentProjectId) { selectedItem = null; sortState = {key: "number", dir: 1}; }
   // Runs may have finished elsewhere; refresh list activity when returning to it.
@@ -784,6 +794,8 @@ function renderWorkspace() {
     item.append(element("span", kind === "ep" ? "EP" : "CA", `avatar avatar-${kind}`), body);
     return item;
   }));
+  // Last, so a failing feature cannot stop the core workspace from rendering.
+  if (typeof aceFeatures === "object") aceFeatures.renderWorkspace(workspaceView);
 }
 for (const button of $("workspace-tabs").querySelectorAll("button")) button.onclick = () => setWorkspace(button.dataset.view);
 $("overview-edit").onclick = () => setWorkspace("editor");

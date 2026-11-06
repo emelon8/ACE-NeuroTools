@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Installed `ace-gui` workbench with per-launch API authentication and shared
   CLI/GUI defaults. CSVs remain the settings source of truth.
+- GUI feature registry and run plans: new workbench screens register their own
+  routes and scripts, and reviewed runs describe themselves as a portable plan
+  with equivalent command-line and Python calls. No visible change yet.
 - A noarch conda recipe, menuinst shortcuts and native package smoke checks for
   Windows, Intel Mac, Apple silicon and Linux.
 - Git-tag-derived versions and lab-first conda publishing. EVC, the Box setup

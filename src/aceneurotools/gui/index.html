@@ -7,7 +7,7 @@
 <script src="/theme.js"></script>
 <link rel="stylesheet" href="/style.css">
 <script src="auth.js" defer></script>
-<script src="/app.js" defer></script><script src="/box.js" defer></script><script src="/analysis.js" defer></script><script src="/neurons.js" defer></script><script src="/shell.js" defer></script>
+<script src="/app.js" defer></script><script src="/features.js" defer></script><script src="/box.js" defer></script><script src="/analysis.js" defer></script><script src="/neurons.js" defer></script><script src="/shell.js" defer></script>
 </head>
 <body>
 <svg class="icon-sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
@@ -57,6 +57,7 @@
       <button class="nav-item" id="nav-experiments" type="button" aria-current="page"><svg class="icon"><use href="#i-flask"/></svg><span>Experiments</span></button>
 
       <button class="nav-item" id="box-setup-button" type="button"><svg class="icon"><use href="#i-cloud"/></svg><span>Box connection</span></button>
+      <div id="nav-features" class="nav-features"></div>
       <hr class="nav-divider">
       <p class="nav-section-label">Projects</p>
       <div id="nav-projects" class="nav-projects"></div>
@@ -342,6 +343,7 @@
                 <div id="copy-settings" class="copy-settings" hidden><label for="copy-source">Populate analysis settings from</label><select id="copy-source"></select><button id="apply-source" type="button">Apply to this experiment</button><small>Copies analysis fields from the selected project's default experiment. Review and save the changes below.</small></div>
                 <form id="editor-form"><div id="field-groups"></div><p id="no-fields" class="empty-row" hidden>No fields match this search.</p><div id="save-bar"><span id="save-status" role="status"></span><button id="discard" type="button" disabled>Discard changes</button><button id="save" class="btn-primary" type="submit" disabled>Save changes</button></div></form>
               </section>
+              <div id="feature-panels"></div>
             </div>
             <aside class="sidebar" id="detail-sidebar" aria-label="Experiment details">
               <div class="sidebar-tabs" role="tablist" aria-label="Sidebar sections"><button role="tab" type="button" data-tab="details" aria-selected="true">Details</button><button role="tab" type="button" data-tab="recordings" aria-selected="false">Recordings</button><button role="tab" type="button" data-tab="files" aria-selected="false">Files</button></div>
@@ -361,6 +363,7 @@
           </div>
         </div>
       </section>
+      <div id="feature-pages"></div>
     </main>
   </div>
 </div>

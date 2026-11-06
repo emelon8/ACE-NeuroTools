@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import shutil
@@ -18,6 +19,8 @@ from aceneurotools.gui.recording_scope import apply_scope
 from aceneurotools.gui.run_specs import PIPELINES, effective_parameters
 
 ROOT = Path(__file__).parent.parent
+# A review is valid for 30 minutes; recordings and settings are rechecked at start.
+REVIEW_SECONDS = 1800
 IGNORED = {"saved_movies", ".ace-runs", ".ace-gui-backups", "__pycache__"}
 RAW_SUFFIXES = {
     ".avi",
@@ -110,9 +113,13 @@ class Runs:
             raise ProjectError("Choose a local data base folder.")
         records, raw = [], None
         ephys_records, ephys_raw = [], None
+        # True when a confirmed recording selection excludes files present in the folder.
+        selection_restricted = False
         try:
             raw = recording_path(project, detail["metadata"], base, column)
-            records = apply_scope(raw, inventory(raw))
+            available = inventory(raw)
+            records = apply_scope(raw, available)
+            selection_restricted = records != available
             if not records:
                 blockers.append("No supported recording files were found in this folder.")
             if kind != "ephys" and not any(item["path"].lower().endswith(".avi") for item in records):
@@ -122,7 +129,9 @@ class Runs:
         if kind == "multimodal":
             try:
                 ephys_raw = recording_path(project, detail["metadata"], base, "ephys directory")
-                ephys_records = apply_scope(ephys_raw, inventory(ephys_raw))
+                ephys_available = inventory(ephys_raw)
+                ephys_records = apply_scope(ephys_raw, ephys_available)
+                selection_restricted = selection_restricted or ephys_records != ephys_available
                 if not any(
                     Path(item["path"]).suffix.lower() in {".ncs", ".rhs", ".rhd", ".dat", ".bin", ".raw"}
                     for item in ephys_records
@@ -275,6 +284,7 @@ class Runs:
             "files": records,
             "ephys_recording_path": str(ephys_raw) if ephys_raw else "",
             "ephys_files": ephys_records,
+            "selection_restricted": selection_restricted,
             "input_bytes": size,
             "output_root": str(root),
             "run_id": run_id,
@@ -285,21 +295,29 @@ class Runs:
         token = uuid.uuid4().hex
         with self.lock:
             self.reviews = {
-                key: review for key, review in self.reviews.items() if time.monotonic() - review["time"] < 1800
+                key: review for key, review in self.reviews.items() if time.monotonic() - review["time"] < REVIEW_SECONDS
             }
             self.reviews[token] = {"value": value, "time": time.monotonic()}
         return {**value, "review": token}
+
+    def reviewed(self, project, token):
+        """Return a copy of an unexpired review of one of this project's experiments."""
+        with self.lock:
+            reviewed = self.reviews.get(token) if isinstance(token, str) else None
+            if not reviewed or time.monotonic() - reviewed["time"] >= REVIEW_SECONDS:
+                raise ProjectError("This review expired. Review the experiment again before running.")
+            value = reviewed["value"]
+            if value["project"] != project.id:
+                raise ProjectError("Review the selected project's experiment first.")
+            return copy.deepcopy(value)
 
     def start(self, project, body):
         if body.get("confirmed") is not True:
             raise ProjectError("Review the experiment details and parameters, then confirm before starting.")
         token = body.get("review")
         with self.lock:
-            reviewed = self.reviews.get(token) if isinstance(token, str) else None
-            if not reviewed or time.monotonic() - reviewed["time"] >= 1800:
-                raise ProjectError("This review expired. Review the experiment again before running.")
-            value = reviewed["value"]
-            if value["project"] != project.id or (body.get("number") is not None and body["number"] != value["number"]):
+            value = self.reviewed(project, token)
+            if body.get("number") is not None and body["number"] != value["number"]:
                 raise ProjectError("Review the selected project's experiment first.")
             if value["blockers"]:
                 raise ProjectError("Resolve the problems listed in the review before running.")
