@@ -4,6 +4,11 @@ The ephys pipeline imports supported Neuralynx or RHS2116/ONIX recordings and
 selects a named electrical channel. Artifact removal, filtering and phases are
 optional. See the [GUI guide](../gui.md#review-and-run-an-analysis) for browser use.
 
+!!! tip "Recordings from another acquisition system"
+    To check which loader ACE uses for a recording folder, run
+    `ace-neuro loaders detect /path/to/recording`. If no loader recognises it,
+    follow [Add a recording system ACE doesn't read](loader_definitions.md#add-a-recording-system-ace-doesnt-read).
+
 ## Quick start
 
 Prepare `experiments.csv` and the complete recording as described in
@@ -61,6 +66,9 @@ band-type controls. Direct Python `run()` also leaves plotting off unless enable
 The `ephys directory` in `experiments.csv` is resolved under `data_path`, or used
 directly when absolute. Keep channel, event, and timing files together in their
 acquisition layout. The requested channel must match what the reader imports.
+ACE chooses the reader from the folder's file names: the first built-in loader
+that recognises the folder is used. `ace-neuro loaders detect <folder>` shows
+which one that is, and reports when no loader recognises the folder.
 GUI runs export `ephys.npz` and `ephys-events.json` in a separate run folder,
 with optional arrays identified in the [output inventory](../gui.md#find-and-reopen-results).
 Direct Python `run()` returns `None`. Retrieve the selected channel from

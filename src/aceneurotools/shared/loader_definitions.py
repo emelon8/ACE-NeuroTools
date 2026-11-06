@@ -217,6 +217,7 @@ class Detect:
 
     @property
     def patterns(self) -> tuple[str, ...]:
+        """Every pattern in ``all_of``, ``any_of`` and ``none_of``, without repeats, in that order."""
         seen: dict[str, None] = {}
         for p in (*self.all_of, *self.any_of, *self.none_of):
             seen.setdefault(p, None)
@@ -232,6 +233,14 @@ class Capture:
     part: int
 
     def apply(self, stem: str) -> str:
+        """Return the captured value from a file name without its extension.
+
+        ``stem.split(split)[part]``; for example ``"start-time_7"`` with
+        ``split="_"`` and ``part=-1`` gives ``"7"``.
+
+        Raises:
+            ValueError: the name has too few parts for ``part``.
+        """
         parts = stem.split(self.split)
         try:
             return parts[self.part]
@@ -364,6 +373,12 @@ class ChannelSpec:
     select_by_index: bool = False
 
     def name_for(self, index: int) -> str:
+        """Channel name for a 0-based channel index, for example ``"CH3"`` from ``"CH{index}"``.
+
+        Raises:
+            ValueError: channels are named by the reader (``source: "reader"``),
+                so there is no template.
+        """
         if self.template is None:
             raise ValueError("channel names come from the reader; there is no template")
         return self.template.replace(INDEX_PLACEHOLDER, str(index))
@@ -403,10 +418,12 @@ class LoaderDefinition:
 
     @property
     def backend(self) -> str:
+        """The reader backend: ``"neo"`` or ``"raw_binary"``."""
         return self.reader.backend
 
     @property
     def files(self) -> tuple[FileRule, ...]:
+        """The reader's file rules, in the order they are resolved."""
         return self.reader.files
 
 

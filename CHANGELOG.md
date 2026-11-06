@@ -40,6 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Example definitions reproduce the Neuralynx and RHS2116 loaders. Loading
   channels from a definition is proposed in ADR 0008; analyses still use the
   built-in loaders.
+- A step-by-step guide to adding a recording system ACE doesn't read, with
+  tested worked examples: loader definitions for an Intan `.rhd` system and a
+  flat binary file (`examples/loaders/`), and a Python loader that works with
+  today's pipelines (`examples/custom_ephys_loader.py`).
 
 Representative recording validation is deferred by request. No pilot has been
 published yet; a lab channel and scoped publishing credential must be configured.

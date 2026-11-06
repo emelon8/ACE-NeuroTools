@@ -46,13 +46,14 @@ Shipped examples you can copy from include **UCLA V3** (`UCLADataManager`) and *
 - **Subclass** `EphysDataManager` for your acquisition system’s files (see [Ephys API](../api/ephys.md) and the `aceneurotools.ephys` package).
 - Implement **`can_handle(directory)`** and the import path for your format (`import_ephys_block`, `process_ephys_block_to_channels`, etc., as required by your backend).
 - For **multimodal TTL alignment**, implement **`get_sync_timestamps(channel_name)`** so it returns **frame-acquisition pulse times in the same time base** as the rest of the ephys stream (see existing **Neuralynx** and **RHS2116** managers).
+- A complete, tested example is `examples/custom_ephys_loader.py`, explained step by step in [Analyse recordings now: a Python loader](loader_definitions.md#analyse-recordings-now-a-python-loader). Import your module in the same Python script before running an analysis; `ace-neuro` commands and the workbench do not load your module.
 
 Entry point: **`EphysDataManager.create(ephys_directory=...)`**.
 
 !!! tip "Describe a rig in JSON instead"
     Many ephys loaders are configuration only: how to recognise the folder,
     which reader opens it, where times come from and how sync works. You can
-    write these down as a [loader definition](loader_definitions.md) in
+    write these down as a [loader definition](loader_definitions.md#add-a-recording-system-ace-doesnt-read) in
     `<project>/loaders/<name>.json` and check it with
     `ace-neuro loaders validate` and `ace-neuro loaders detect`. Loading
     channels from a definition is proposed in ADR 0008 and not available
