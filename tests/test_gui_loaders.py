@@ -311,7 +311,12 @@ def test_no_route_accepts_a_path(served, tmp_path):
 def test_deeply_nested_file_is_reported_not_dropped(served):
     folder(served).mkdir()
     (folder(served) / "deep.json").write_text("[" * 100000)
-    status, error = call(served, "/api/loaders", project=served[2].id)
-    assert status == 400 and "nested too deeply" in error["error"]
+    status, result = call(served, "/api/loaders", project=served[2].id)
+    # load_project_definitions currently raises RecursionError here; the page reports
+    # it plainly. If that is fixed upstream, the file is listed as invalid instead.
+    if status == 400:
+        assert "nested too deeply" in result["error"]
+    else:
+        assert status == 200 and not result["definitions"][0]["valid"]
     status, result = call(served, "/api/loaders/definition", project=served[2].id, name="deep")
     assert status == 200 and "invalid JSON" in result["problems"][0]["message"]
