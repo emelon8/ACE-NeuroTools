@@ -56,6 +56,7 @@ const aceFeatures = (() => {
     const entry = pages.get(id);
     if (!entry || busy) return;
     if (!$("detail").hidden) { if (!canLeave()) return; resetEditor(); }
+    else if (activePage !== null && activePage !== id && !canLeave()) return;
     clearError();
     activePage = id;  // Set first: the observer below ignores pages hidden on purpose here.
     for (const core of CORE_PAGES) $(core).hidden = true;
@@ -80,6 +81,8 @@ const aceFeatures = (() => {
   for (const core of CORE_PAGES) observer.observe($(core), {attributes: true, attributeFilter: ["hidden"]});
 
   function addUnsaved(check) { unsavedChecks.push(check); }
+  // Core navigation calls this before replacing a feature page, so its unsaved drafts are confirmed.
+  function canLeavePage() { return activePage === null || canLeave(); }
   function unsaved() { return unsavedChecks.some(check => { try { return Boolean(check()); } catch { return false; } }); }
 
   // Load an HTML fragment declared by a feature into a container.
@@ -107,5 +110,5 @@ const aceFeatures = (() => {
   }
   document.addEventListener("DOMContentLoaded", load);
 
-  return {addWorkspaceView, renderWorkspace, addPage, showPage, hidePages, activePage: () => activePage, addUnsaved, unsaved, fragment, currentProject};
+  return {addWorkspaceView, renderWorkspace, addPage, showPage, hidePages, activePage: () => activePage, addUnsaved, unsaved, canLeavePage, fragment, currentProject};
 })();

@@ -458,7 +458,7 @@ function renderHomeSidebar() {
   } else aside.replaceChildren(sidebarSection("Getting started", element("p", "Open a project folder to list its experiments. Opened projects appear in the navigation for this session.", "muted")));
 }
 function showHome(projectId = currentProjectId) {
-  if (busy) return;
+  if (busy || !aceFeatures.canLeavePage()) return;
   if (!$("detail").hidden) { if (!canLeave()) return; resetEditor(); }
   clearError(); $("folders").hidden = true; $("detail").hidden = true; $("home").hidden = false;
   if (projectId !== currentProjectId) { selectedItem = null; sortState = {key: "number", dir: 1}; }

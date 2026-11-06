@@ -1,0 +1,34 @@
+{
+  "schema": "ace-loader/1",
+  "name": "my-neo-loader",
+  "label": "My acquisition system (neo reader)",
+  "description": "Starting point for a system that a neo reader can open. Choose the reader, then change the detect patterns, the file rule and the sync settings to match your recordings.",
+  "modality": "ephys",
+  "detect": {
+    "any_of": ["*.rhd"]
+  },
+  "reader": {
+    "backend": "neo",
+    "io": "IntanIO",
+    "files": [
+      {"role": "recording", "pattern": "*.rhd", "pick": "only"}
+    ],
+    "path_argument": "filename",
+    "path_from": {"source": "file", "file": "recording"},
+    "args": {},
+    "read_block": {}
+  },
+  "time": {
+    "source": "reader"
+  },
+  "channels": {
+    "source": "reader",
+    "default": "all"
+  },
+  "sync": {
+    "strategy": "digital_threshold",
+    "channel": "DIGITAL-IN-01",
+    "threshold": 0.5,
+    "edge": "rising"
+  }
+}

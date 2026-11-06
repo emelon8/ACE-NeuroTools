@@ -43,6 +43,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Example definitions reproduce the Neuralynx and RHS2116 loaders. Loading
   channels from a definition is proposed in ADR 0008; analyses still use the
   built-in loaders.
+- Workbench **Ephys loaders** page: list built-in loaders and project loader
+  definitions, create one from a neo-reader or raw-binary template, edit it in a
+  form or as JSON with live validation, save or delete with backups and conflict
+  checks, and check which loaders recognise an experiment's ephys folder.
+  Signal preview waits for ADR 0008.
 
 Representative recording validation is deferred by request. No pilot has been
 published yet; a lab channel and scoped publishing credential must be configured.

@@ -7,4 +7,5 @@ Order matters only for browser scripts, which load in this order after the core 
 
 ENABLED = (
     "aceneurotools.gui.run_plan_routes",
+    "aceneurotools.gui.loaders",
 )
