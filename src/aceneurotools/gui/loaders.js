@@ -64,7 +64,7 @@
       closeEditor(); state.projectId = $("loaders-project").value; refresh();
     };
     $("loaders-error-reload").onclick = () => { clearFail(); if (state.open?.name) openDefinition(state.open.name, true); };
-    $("loaders-json").oninput = () => { state.open.text = normalizeText($("loaders-json").value); fillForm(); syncState(); scheduleValidate(); };
+    $("loaders-json").oninput = () => { state.open.text = $("loaders-json").value; fillForm(); syncState(); scheduleValidate(); };
     for (const field of page.querySelectorAll(".loaders-form [data-path]")) field.addEventListener(field.tagName === "SELECT" ? "change" : "input", () => formChanged(field));
     $("loaders-editor").onsubmit = event => { event.preventDefault(); save(); };
     $("loaders-discard").onclick = discard;
@@ -192,8 +192,6 @@
 
   function openEditor(open) {
     closeEditor(); clearFail();
-    open.text = normalizeText(open.text);
-    if (open.saved !== null) open.saved = normalizeText(open.saved);
     state.open = open;
     $("loaders-start").hidden = true; $("loaders-builtin").hidden = true; $("loaders-editor").hidden = false;
     $("loaders-include-label").hidden = false;
