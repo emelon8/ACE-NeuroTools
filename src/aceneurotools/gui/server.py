@@ -47,6 +47,59 @@ STATIC = {
 }
 
 
+# Built-in API routes. Feature routes may not reuse these paths (see ProjectServer).
+BUILTIN_GET_ROUTES = frozenset(
+    {
+        "/api/health",
+        "/api/box/status",
+        "/api/recording",
+        "/api/neuron/export",
+        "/api/projects",
+        "/api/experiment",
+        "/api/runs",
+        "/api/run",
+        "/api/run/file",
+        "/api/run/settings",
+        "/api/neuron/sources",
+        "/api/project/activity",
+        "/api/preview",
+        "/api/folders",
+    }
+)
+# Each path's last segment is the BoxSetup method that handles it.
+BOX_POST_ROUTES = frozenset(
+    {"/api/box/check", "/api/box/connect", "/api/box/location", "/api/box/folders", "/api/box/finish", "/api/box/disconnect"}
+)
+EXPERIMENT_POST_ROUTES = frozenset(
+    {
+        "/api/experiment/save",
+        "/api/run/review",
+        "/api/run/start",
+        "/api/run/import",
+        "/api/run/postprocess",
+        "/api/run/stop",
+        "/api/run/settings/save",
+        "/api/crop/preview",
+        "/api/crop/save",
+        "/api/recording/prepare",
+        "/api/recording/plan",
+        "/api/recording/start",
+        "/api/recording/cancel",
+        "/api/neuron/open",
+        "/api/neuron/component",
+        "/api/neuron/decide",
+        "/api/neuron/export",
+    }
+)
+PROJECT_POST_ROUTES = frozenset(
+    {"/api/projects/open", "/api/projects/default", "/api/experiment/create", "/api/system/pick", "/api/system/open-folder"}
+)
+BUILTIN_ROUTES = frozenset(
+    {("GET", path) for path in BUILTIN_GET_ROUTES}
+    | {("POST", path) for path in BOX_POST_ROUTES | EXPERIMENT_POST_ROUTES | PROJECT_POST_ROUTES}
+)
+
+
 def _feature_manifest(context):
     return {"features": context.server.registry.manifest()}
 
@@ -66,15 +119,15 @@ class ProjectServer(ThreadingHTTPServer):
         overlap = set(self.registry.static) & set(STATIC)
         if overlap:
             raise ValueError(f"Feature files replace core files: {sorted(overlap)}")
+        shadowed = self.registry.routes() & BUILTIN_ROUTES
+        if shadowed:
+            raise ValueError(f"Feature routes replace built-in routes: {sorted(shadowed)}")
         self.box = box_setup if box_setup is not None else BoxSetup()
         self.runs = Runs()
         self.cropping = Cropping()
         self.recordings = Recordings(self.box)
         self.neurons = Neurons()
         self.native = NativeDialogs()
-        self.services = {
-            feature.name: feature.service(self) for feature in self.registry.features if feature.service is not None
-        }
         self.projects: dict[str, Project] = {}
         self.lock = threading.Lock()
         self.startup_error: str | None = None
@@ -84,6 +137,10 @@ class ProjectServer(ThreadingHTTPServer):
                 self.projects[project.id] = project
             except ProjectError as exc:
                 self.startup_error = str(exc)
+        # Services are built last so they can use every attribute above (lock, projects, runs…).
+        self.services = {
+            feature.name: feature.service(self) for feature in self.registry.features if feature.service is not None
+        }
         super().__init__(address, Handler)
 
 
@@ -120,9 +177,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", response.cache)
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("X-Content-Type-Options", "nosniff")
-        if response.download_name is not None:
-            name = response.download_name.replace('"', "").replace("\\", "")
-            self.send_header("Content-Disposition", f'attachment; filename="{name}"')
+        disposition = response.disposition()
+        if disposition is not None:
+            self.send_header("Content-Disposition", disposition)
         self.end_headers()
         if response.body is not None:
             self.wfile.write(response.body)
@@ -154,6 +211,8 @@ class Handler(BaseHTTPRequestHandler):
                 if context.project is not None:
                     # Use the latest saved copy; another request may have replaced it.
                     context.project = self.server.projects[context.project.id]
+                    if context.number is not None and context.number not in context.project.experiments:
+                        raise ProjectError(f"Experiment {context.number} was not found in this project.")
                 result = route.handler(context)
         else:
             result = route.handler(context)
@@ -336,43 +395,9 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"error": "Open the application at its local address to work with projects."}, 403)
             return
         route = urlsplit(self.path).path
-        box_routes = {
-            "/api/box/check": self.server.box.check,
-            "/api/box/connect": self.server.box.connect,
-            "/api/box/location": self.server.box.location,
-            "/api/box/folders": self.server.box.folders,
-            "/api/box/finish": self.server.box.finish,
-            "/api/box/disconnect": self.server.box.disconnect,
-        }
-        experiment_routes = {
-            "/api/experiment/save",
-            "/api/run/review",
-            "/api/run/start",
-            "/api/run/import",
-            "/api/run/postprocess",
-            "/api/run/stop",
-            "/api/run/settings/save",
-            "/api/crop/preview",
-            "/api/crop/save",
-            "/api/recording/prepare",
-            "/api/recording/plan",
-            "/api/recording/start",
-            "/api/recording/cancel",
-            "/api/neuron/open",
-            "/api/neuron/component",
-            "/api/neuron/decide",
-            "/api/neuron/export",
-        }
-        if route not in {
-            "/api/projects/open",
-            "/api/projects/default",
-            "/api/experiment/create",
-            "/api/system/pick",
-            "/api/system/open-folder",
-            *experiment_routes,
-            *box_routes,
-            *self.server.registry.paths("POST"),
-        }:
+        box_routes = {path: getattr(self.server.box, path.rsplit("/", 1)[1]) for path in BOX_POST_ROUTES}
+        experiment_routes = EXPERIMENT_POST_ROUTES
+        if route not in PROJECT_POST_ROUTES | experiment_routes | BOX_POST_ROUTES | self.server.registry.paths("POST"):
             self._json({"error": "Operation not found."}, 404)
             return
         try:

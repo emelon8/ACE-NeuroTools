@@ -46,15 +46,22 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 SCOPES = {"none", "project", "experiment"}
 METHODS = {"GET", "POST"}
 _STATIC_NAME = re.compile(r"[a-z0-9][a-z0-9_-]*\.(js|css|html)")
+_CONTROL = re.compile(r"[\x00-\x1f\x7f]")
+_HEADER_TOKEN = re.compile(r"[!-~]+(?: [!-~]+)*")  # Printable ASCII, single spaces.
 
 
 @dataclass(frozen=True)
 class FileResponse:
-    """A file or bytes response for a feature route (images, downloads, fragments)."""
+    """A file or bytes response for a feature route (images, downloads, fragments).
+
+    Header values are checked here, before any response bytes are sent, so a bad
+    name or type becomes an ordinary 400 instead of a corrupted response.
+    """
 
     content_type: str
     body: bytes | None = None
@@ -65,6 +72,18 @@ class FileResponse:
     def __post_init__(self) -> None:
         if (self.body is None) == (self.path is None):
             raise ValueError("A file response needs exactly one of body or path.")
+        for value in (self.content_type, self.cache):
+            if not _HEADER_TOKEN.fullmatch(value):
+                raise ValueError(f"Invalid response header value: {value!r}")
+        if self.download_name is not None and (not self.download_name.strip() or _CONTROL.search(self.download_name)):
+            raise ValueError("Download names must be non-empty and contain no control characters.")
+
+    def disposition(self) -> str | None:
+        """``Content-Disposition`` with an ASCII fallback and the exact UTF-8 name (RFC 6266)."""
+        if self.download_name is None:
+            return None
+        fallback = "".join(c if c.isascii() and c not in '"\\' else "_" for c in self.download_name)
+        return f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{quote(self.download_name, safe='')}"
 
 
 @dataclass
@@ -163,6 +182,9 @@ class Registry:
 
     def match(self, method: str, path: str) -> Route | None:
         return self._routes.get((method, path))
+
+    def routes(self) -> set[tuple[str, str]]:
+        return set(self._routes)
 
     def paths(self, method: str) -> set[str]:
         return {path for (verb, path) in self._routes if verb == method}

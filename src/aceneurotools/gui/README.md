@@ -23,7 +23,9 @@ or edits throughout `app.js` and `index.html`.
    `aceFeatures` ([features.js](features.js)):
    - `addWorkspaceView` adds a tab beside Overview/Results for the open experiment.
    - `addPage` adds a project-level page to the left navigation.
-   - `addUnsaved` makes navigation warn about unsaved drafts.
+   - `addUnsaved(check, discard)` makes navigation warn about unsaved drafts;
+     `discard` runs if the user leaves anyway. Feature drafts never block the
+     experiment's own crop preview or run review.
    - `fragment` loads one of the feature's HTML files into a container.
 4. Test routes over HTTP against a real `ProjectServer` (see
    `tests/test_gui_routes.py`), and add parity tests whenever the feature
@@ -42,12 +44,17 @@ Hold the server lock (`locked=True`) only for short CSV or JSON writes.
 
 ## Run plans
 
-[run_plan.py](run_plan.py) is the one description of reviewed work, shared by
-single runs, batch queues, Output script and supercomputer export. Build plans
-from `Runs.review` results (`POST /api/run-plan/preview`), never from unreviewed
-settings. A plan records CSV recording values, not this computer's paths, and
-`invocation()` gives the equivalent command line and Python call. When no CLI
-entry point exists for an analysis, `cli` is `None` and `cli_note` says why.
+[run_plan.py](run_plan.py) is the one description of reviewed work for batch
+queues, Output script and supercomputer export (single runs from Review & run
+still go through `Runs.start`). Build plans from current `Runs.review` results
+(`POST /api/run-plan/preview` rejects reviews whose CSVs changed since), never
+from unreviewed settings. Each entry keeps the CSV recording values so exporters
+can resolve them elsewhere; the plan's project path, file list and generated
+commands still use this computer's paths. `invocation()` gives the equivalent
+command line (bash and PowerShell quoting) and Python call; when no CLI entry
+point exists, `cli` is `None` and `cli_note` says why. Its `notes` explain that
+commands read the recording folder directly and warn when a confirmed file
+selection limited the GUI run.
 
 ## Public repository
 

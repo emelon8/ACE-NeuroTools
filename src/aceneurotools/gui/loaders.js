@@ -14,7 +14,7 @@
   };
   const page = aceFeatures.addPage({id: "loaders", label: "Ephys loaders", icon: "i-sliders", render: current => show(current)});
   const changed = () => Boolean(state.open) && state.open.text !== state.open.saved;
-  aceFeatures.addUnsaved(changed);
+  aceFeatures.addUnsaved(changed, closeEditor);
 
   // Leaving the page was confirmed (aceFeatures checks unsaved work), so drop the draft.
   new MutationObserver(() => { if (page.hidden) closeEditor(); }).observe(page, {attributes: true, attributeFilter: ["hidden"]});

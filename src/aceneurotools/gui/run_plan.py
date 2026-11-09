@@ -1,24 +1,31 @@
 """Portable description of reviewed analysis runs, and the commands that reproduce them.
 
-A *run plan* is the shared input for every feature that starts or exports work:
-single runs, batch queues, the Output script view and supercomputer bundles. It is
-built only from reviewed runs (``Runs.review``), so every entry has already passed
-the GUI's input and settings checks.
+A *run plan* is the shared input for features that queue or export work: batch
+runs, the Output script view and supercomputer bundles. (Single runs started from
+Review & run still use ``Runs.start`` directly.) It is built only from reviewed runs
+(``Runs.review``) whose CSV versions still match the project, so every entry has
+passed the GUI's input and settings checks.
 
-The plan records what the CSVs say, not where this computer keeps the recordings:
-``recordings`` holds the experiment's recording columns exactly as saved in
-experiments.csv. Exporters decide how those resolve on another machine.
+Each entry keeps the experiment's recording columns exactly as saved in
+experiments.csv (``recordings``), so exporters can resolve them on another machine.
+The plan itself is not machine-independent: ``project.path``, the reviewed file
+list (sizes, timestamps) and the generated commands use this computer's paths.
 
 Commands come in two forms:
 
 ``cli``
     The existing per-experiment command-line entry point. It reads settings from
-    analysis_parameters.csv, so it reproduces the run when given the same CSVs.
+    analysis_parameters.csv, so it matches the run when given the same CSVs.
     ``None`` when no command-line entry point exists for that analysis; ``cli_note``
     then says why.
 ``python``
     A Python snippet that calls the same public API the GUI worker calls, with the
     reviewed effective settings written out explicitly.
+
+Unlike a GUI run, neither form copies inputs into a private run folder: they read
+the recording folder directly and write outputs where the pipelines normally do.
+``notes`` says so, and warns when the GUI run was limited to a confirmed file
+selection that a command reading the whole folder would not respect.
 
 This module never imports the pipelines or CaImAn; it only needs the shared
 option-name table, so building plans and commands stays fast.
@@ -28,8 +35,8 @@ from __future__ import annotations
 
 import json
 import pprint
+import re
 import shlex
-import subprocess
 from datetime import datetime, timezone
 from typing import Any
 
@@ -62,6 +69,15 @@ NO_CLI = {
     ),
     "preprocess": "Crop and preprocess has no command-line entry point. Use the Python form below.",
 }
+OUTPUTS_NOTE = (
+    "These commands read the recording folder directly and write outputs where the pipelines normally do "
+    "(for example the recording's saved_movies folder), not into a separate ACE run folder."
+)
+SELECTION_NOTE = (
+    "This recording has a confirmed file selection, and the GUI run uses only those files. "
+    "These commands read every file in the recording folder, so their results can differ."
+)
+_POWERSHELL_PLAIN = re.compile(r"[A-Za-z0-9_./:\\=+-]+")
 PIPELINE_CLASSES = {
     "miniscope": ("aceneurotools.pipelines.calcium_imaging", "CalciumImagingPipeline"),
     "ephys": ("aceneurotools.pipelines.ephys", "EphysPipeline"),
@@ -89,6 +105,8 @@ def entry_from_review(review: dict[str, Any]) -> dict[str, Any]:
         "files": review.get("files", []),
         "ephys_files": review.get("ephys_files", []),
         "input_bytes": review.get("input_bytes", 0),
+        "selection_restricted": bool(review.get("selection_restricted", False)),
+        "versions": dict(review.get("versions") or {}),
         "blockers": list(review.get("blockers", [])),
     }
 
@@ -118,8 +136,13 @@ def validate_plan(plan: Any) -> None:
     if not isinstance(plan, dict) or plan.get("schema") != SCHEMA:
         raise ValueError(f"This is not an {SCHEMA} run plan.")
     project = plan.get("project")
-    if not isinstance(project, dict) or not isinstance(project.get("path"), str):
-        raise ValueError("The run plan does not name its project.")
+    if (
+        not isinstance(project, dict)
+        or not isinstance(project.get("path"), str)
+        or not isinstance(project.get("id"), str)
+        or not isinstance(project.get("versions"), dict)
+    ):
+        raise ValueError("The run plan does not name its project and file versions.")
     execution = plan.get("execution")
     if not isinstance(execution, dict) or execution.get("mode") not in EXECUTION_MODES:
         raise ValueError("Choose sequential or parallel execution.")
@@ -143,6 +166,11 @@ def validate_plan(plan: Any) -> None:
         seen.add((number, entry["kind"]))
         if not isinstance(entry.get("parameters"), dict):
             raise ValueError(f"Experiment {number} has no reviewed settings.")
+        if not isinstance(entry.get("label"), str) or not isinstance(entry.get("recordings"), dict):
+            raise ValueError(f"Experiment {number} is missing its analysis name or recording folders.")
+        problems = entry.get("blockers")
+        if not isinstance(problems, list) or not all(isinstance(problem, str) for problem in problems):
+            raise ValueError(f"Experiment {number} has an invalid problem list.")
 
 
 def blockers(plan: dict[str, Any]) -> list[str]:
@@ -237,18 +265,31 @@ def python_snippet(entry: dict[str, Any], *, project_path: str, data_path: str |
 def invocation(
     entry: dict[str, Any], *, project_path: str, data_path: str | None, python: str = "python"
 ) -> dict[str, Any]:
-    """Both reproducible forms of one plan entry, with shell renderings of the command."""
+    """Both reproducible forms of one plan entry, with shell renderings of the command.
+
+    ``cli_posix`` is quoted for bash/zsh and ``cli_powershell`` for Windows PowerShell.
+    (No cmd.exe rendering is offered: its quoting cannot represent every path safely.)
+    """
     argv = cli_argv(entry, project_path=project_path, data_path=data_path, python=python)
+    notes = [OUTPUTS_NOTE]
+    if entry.get("selection_restricted"):
+        notes.insert(0, SELECTION_NOTE)
     return {
         "number": entry["number"],
         "kind": entry["kind"],
         "label": entry["label"],
         "cli": argv,
         "cli_posix": shlex.join(argv) if argv else None,
-        "cli_windows": subprocess.list2cmdline(argv) if argv else None,
+        "cli_powershell": powershell_join(argv) if argv else None,
         "cli_note": NO_CLI.get(entry["kind"]),
         "python": python_snippet(entry, project_path=project_path, data_path=data_path),
+        "notes": notes,
     }
+
+
+def powershell_join(argv: list[str]) -> str:
+    """Quote arguments for PowerShell: single quotes, with embedded quotes doubled."""
+    return " ".join(arg if _POWERSHELL_PLAIN.fullmatch(arg) else "'" + arg.replace("'", "''") + "'" for arg in argv)
 
 
 def _literal(value: Any) -> str:

@@ -52,7 +52,7 @@ document.addEventListener("click", event => {
 
 // Highlight the navigation entry for the visible page.
 function syncNavigation() {
-  if (aceFeatures.activePage()) return;  // A feature page manages its own navigation state.
+  if (typeof aceFeatures === "object" && aceFeatures.activePage()) return;  // A feature page manages its own navigation state.
   $("nav-experiments").setAttribute("aria-current", "page");
   document.body.dataset.view = !$("detail").hidden ? "experiment" : "projects";
 }
@@ -62,19 +62,17 @@ syncNavigation();
 
 $("error-close").onclick = () => { $("error").hidden = true; };
 
-// Dark mode: theme.js applies the saved or system theme; these toggles save a choice.
+// Dark mode: theme.js applies the saved or system theme; the top-bar toggle saves a choice.
 function syncTheme() {
   const dark = document.documentElement.dataset.theme === "dark";
   $("theme-toggle").setAttribute("aria-pressed", dark ? "true" : "false");
   $("theme-toggle").title = dark ? "Switch to light mode" : "Switch to dark mode";
-  $("theme-switch").setAttribute("aria-checked", dark ? "true" : "false");
 }
 function toggleTheme() {
   const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
   document.documentElement.dataset.theme = next; remember("theme", next); syncTheme();
 }
 $("theme-toggle").onclick = toggleTheme;
-$("theme-switch").onclick = toggleTheme;
 document.addEventListener("ace-themechange", syncTheme);
 syncTheme();
 

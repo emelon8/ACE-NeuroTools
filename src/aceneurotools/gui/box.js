@@ -82,7 +82,7 @@ async function showBoxFolderPicker() {
   await loadBoxFolder(boxSuggestedFolder);
 }
 async function openBox(column = null) {
-  if (busy || boxBusy || !aceFeatures.canLeavePage()) return;
+  if (busy || boxBusy || !canLeave()) return;
   boxRecordingColumn = column;
   boxReturn = $("detail").hidden ? "home" : "detail";
   $("open-project").disabled = true;

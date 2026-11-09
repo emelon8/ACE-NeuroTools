@@ -96,11 +96,40 @@ def test_commands_name_the_existing_entry_points():
         "--headless",
     ]
     assert result["cli_posix"].endswith("--project-path '/my project' --data-path '/data root' --headless")
-    assert '"/my project"' in result["cli_windows"]
+    assert "--project-path '/my project'" in result["cli_powershell"]
     assert "--data-path" not in run_plan.cli_argv(entry, project_path="/p", data_path=None)
+    assert result["notes"] == [run_plan.OUTPUTS_NOTE]
     for kind in ["compute", "preprocess"]:
         missing = run_plan.invocation(run_plan.entry_from_review(review(kind)), project_path="/p", data_path="/d")
-        assert missing["cli"] is None and missing["cli_posix"] is None and missing["cli_note"]
+        assert missing["cli"] is None and missing["cli_posix"] is None and missing["cli_powershell"] is None
+        assert missing["cli_note"]
+
+
+def test_powershell_rendering_quotes_shell_metacharacters():
+    argv = ["python", "-m", "mod", "--project-path", r"C:\Data\R&D", "--data-path", r"C:\Bob's %PATH% data"]
+    assert run_plan.powershell_join(argv) == (
+        r"python -m mod --project-path 'C:\Data\R&D' --data-path 'C:\Bob''s %PATH% data'"
+    )
+    assert run_plan.powershell_join(["$env:x", "a;b", "@x"]) == "'$env:x' 'a;b' '@x'"
+
+
+def test_restricted_selection_and_reviewed_versions_travel_with_the_entry():
+    entry = run_plan.entry_from_review(review(selection_restricted=True, versions={"experiments.csv": "v1"}))
+    assert entry["selection_restricted"] is True and entry["versions"] == {"experiments.csv": "v1"}
+    notes = run_plan.invocation(entry, project_path="/p", data_path="/d")["notes"]
+    assert notes == [run_plan.SELECTION_NOTE, run_plan.OUTPUTS_NOTE]
+
+
+@pytest.mark.parametrize("field,value", [("label", None), ("recordings", None), ("blockers", "none"), ("blockers", [1])])
+def test_plan_entries_need_labels_recordings_and_text_problems(field, value):
+    plan = plan_with(review())
+    plan["entries"][0][field] = value
+    with pytest.raises(ValueError):
+        run_plan.validate_plan(plan)
+    plan = plan_with(review())
+    del plan["project"]["versions"]
+    with pytest.raises(ValueError, match="file versions"):
+        run_plan.validate_plan(plan)
 
 
 def run_kwargs(snippet):
@@ -252,7 +281,116 @@ def test_preview_route_builds_a_plan_from_reviews(tmp_path):
             {"project": project.id, "reviews": [reviewed["review"]], "mode": "sequential", "max_concurrent": 3},
         )
         assert status == 400 and "one analysis at a time" in error["error"]
+
+        # A review whose settings were saved again afterwards is rejected, as Start does.
+        status, saved = test_gui_server.request(
+            base,
+            "/api/experiment/save",
+            {
+                "project": project.id,
+                "number": "1",
+                "section": "parameters",
+                "changes": {"unknown_lab_field": "changed"},
+                "versions": project.digests,
+            },
+        )
+        assert status == 200, saved
+        status, error = test_gui_server.request(
+            base, "/api/run-plan/preview", {"project": project.id, "reviews": [reviewed["review"]]}
+        )
+        assert status == 400 and "changed after it was reviewed" in error["error"]
+
+        # A fresh review is accepted, until the CSV changes on disk outside ACE.
+        status, fresh = test_gui_server.request(
+            base,
+            "/api/run/review",
+            {"project": project.id, "number": "1", "kind": "compute", "versions": saved["project"]["versions"]},
+        )
+        assert status == 200, fresh
+        status, result = test_gui_server.request(
+            base, "/api/run-plan/preview", {"project": project.id, "reviews": [fresh["review"]]}
+        )
+        assert status == 200 and result["plan"]["entries"][0]["versions"] == saved["project"]["versions"]
+        with (root / "analysis_parameters.csv").open("a") as handle:
+            handle.write("2,False,edited elsewhere\n")
+        status, error = test_gui_server.request(
+            base, "/api/run-plan/preview", {"project": project.id, "reviews": [fresh["review"]]}
+        )
+        assert status == 409 and error["reload"] is True
     finally:
         server.shutdown()
         server.server_close()
         worker.join(timeout=2)
+
+
+def test_review_reports_when_a_confirmed_selection_limits_the_files(tmp_path):
+    from aceneurotools.gui.runs import Runs
+    from tests.test_gui_analysis import make_recording, payload
+
+    root, _ = make_recording(tmp_path)
+    (root / "raw" / "notes.txt").write_text("not part of the confirmed download")
+    project = Project.open(root)
+    assert Runs().review(project, payload(project, kind="compute"))["selection_restricted"] is False
+    selection = ["0.avi", "metaData.json", "timeStamps.csv"]
+    (root / "raw" / ".ace-box.json").write_text(json.dumps({"selection": selection}))
+    reviewed = Runs().review(project, payload(project, kind="compute"))
+    assert reviewed["selection_restricted"] is True
+    assert sorted(item["path"] for item in reviewed["files"]) == sorted(selection)
+    entry = run_plan.entry_from_review(reviewed)
+    assert run_plan.SELECTION_NOTE in run_plan.invocation(entry, project_path=str(root), data_path=str(root))["notes"]
+
+
+def test_malformed_reviews_and_plans_are_rejected():
+    with pytest.raises(ValueError, match="Unsupported analysis"):
+        run_plan.entry_from_review(review(kind="miniscope") | {"kind": "spikes"})
+    for broken in [None, [], {"schema": "other"}]:
+        with pytest.raises(ValueError, match="run plan"):
+            run_plan.validate_plan(broken)
+    plan = plan_with(review())
+    plan["entries"][0]["kind"] = "spikes"
+    with pytest.raises(ValueError, match="supported analysis"):
+        run_plan.validate_plan(plan)
+    plan = plan_with(review())
+    plan["entries"][0]["parameters"] = None
+    with pytest.raises(ValueError, match="no reviewed settings"):
+        run_plan.validate_plan(plan)
+
+
+def test_preview_rejects_missing_or_too_many_reviews(tmp_path):
+    from tests import test_gui_server
+
+    (tmp_path / "experiments.csv").write_text("line number,id\n1,R1\n")
+    server = ProjectServer(("127.0.0.1", 0), str(tmp_path))
+    worker = threading.Thread(target=server.serve_forever, daemon=True)
+    worker.start()
+    try:
+        base = f"http://127.0.0.1:{server.server_address[1]}"
+        test_gui_server.TOKENS[base] = server.token
+        project = next(iter(server.projects.values()))
+        for reviews in [[], "token", [1], None]:
+            status, error = test_gui_server.request(base, "/api/run-plan/preview", {"project": project.id, "reviews": reviews})
+            assert status == 400 and error["error"] == "Review at least one experiment first."
+        status, error = test_gui_server.request(
+            base, "/api/run-plan/preview", {"project": project.id, "reviews": ["t"] * 501}
+        )
+        assert status == 400 and error["error"] == "Plan at most 500 runs at once."
+    finally:
+        server.shutdown()
+        server.server_close()
+        worker.join(timeout=2)
+
+
+def test_reviews_belong_to_the_project_that_made_them(tmp_path):
+    from aceneurotools.gui.csv_projects import ProjectError
+    from aceneurotools.gui.runs import Runs
+    from tests.test_gui_analysis import make_recording, payload
+
+    first, _ = make_recording(tmp_path / "first")
+    second, _ = make_recording(tmp_path / "second")
+    runs = Runs()
+    token = runs.review(Project.open(first), payload(Project.open(first), kind="compute"))["review"]
+    assert runs.reviewed(Project.open(first), token)["number"] == "1"
+    with pytest.raises(ProjectError, match="selected project's experiment"):
+        runs.reviewed(Project.open(second), token)
+    with pytest.raises(ProjectError, match="expired"):
+        runs.reviewed(Project.open(first), "unknown")

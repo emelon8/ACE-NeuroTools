@@ -23,8 +23,17 @@ function labelledButton(iconName, text, className) {
   button.append(icon(iconName), document.createTextNode(text)); return button;
 }
 const dirty = section => Object.keys(drafts[section]).length > 0 || (section === "parameters" && creating);
-const anyDirty = () => dirty("metadata") || dirty("parameters") || (typeof extraUnsaved === "function" && extraUnsaved()) || aceFeatures.unsaved();
-function canLeave() { return !busy && (!anyDirty() || window.confirm("Leave without saving your changes? Choose Cancel to keep editing.")); }
+// Unsaved experiment edits; these block crop previews and run reviews (mustSaveFirst).
+const anyDirty = () => dirty("metadata") || dirty("parameters") || (typeof extraUnsaved === "function" && extraUnsaved());
+// Feature drafts (Study page and others) only matter when navigating away.
+const featuresDirty = () => typeof aceFeatures === "object" && aceFeatures.unsaved();
+function canLeave() {
+  if (busy) return false;
+  if (!anyDirty() && !featuresDirty()) return true;
+  if (!window.confirm("Leave without saving your changes? Choose Cancel to keep editing.")) return false;
+  if (typeof aceFeatures === "object") aceFeatures.discard();  // Leaving abandons feature drafts too.
+  return true;
+}
 function clearError() { $("error").hidden = true; }
 function showError(error) {
   $("error-text").textContent = error.message;
@@ -458,8 +467,9 @@ function renderHomeSidebar() {
   } else aside.replaceChildren(sidebarSection("Getting started", element("p", "Open a project folder to list its experiments. Opened projects appear in the navigation for this session.", "muted")));
 }
 function showHome(projectId = currentProjectId) {
-  if (busy || !aceFeatures.canLeavePage()) return;
-  if (!$("detail").hidden) { if (!canLeave()) return; resetEditor(); }
+  if (busy) return;
+  const onFeaturePage = typeof aceFeatures === "object" && aceFeatures.activePage();
+  if (!$("detail").hidden || onFeaturePage) { if (!canLeave()) return; if (!$("detail").hidden) resetEditor(); }
   clearError(); $("folders").hidden = true; $("detail").hidden = true; $("home").hidden = false;
   if (projectId !== currentProjectId) { selectedItem = null; sortState = {key: "number", dir: 1}; }
   // Runs may have finished elsewhere; refresh list activity when returning to it.
@@ -776,7 +786,6 @@ function renderWorkspace() {
   $("experiment-attention").replaceChildren(element("p", experiment.parameter_error || (experiment.parameters ? "Experiment details and analysis settings are ready to edit." : `Experiment ${experiment.number} has no analysis settings. Add them in Data & settings.`)));
   if (typeof renderAnalysis === "function") renderAnalysis();
   if (typeof renderNeurons === "function") renderNeurons();
-  aceFeatures.renderWorkspace(workspaceView);
   $("recording-overview").replaceChildren(...experiment.recordings.map(recording => {
     const kind = /electro/i.test(recording.name) ? "ep" : "ca", item = element("div", undefined, "recording-item"), body = element("div", undefined, "recording-body");
     body.append(element("h3", recording.name), element("p", recording.directory || "Local folder not set", recording.directory ? "path" : "muted"));
@@ -785,6 +794,8 @@ function renderWorkspace() {
     item.append(element("span", kind === "ep" ? "EP" : "CA", `avatar avatar-${kind}`), body);
     return item;
   }));
+  // Last, so a failing feature cannot stop the core workspace from rendering.
+  if (typeof aceFeatures === "object") aceFeatures.renderWorkspace(workspaceView);
 }
 for (const button of $("workspace-tabs").querySelectorAll("button")) button.onclick = () => setWorkspace(button.dataset.view);
 $("overview-edit").onclick = () => setWorkspace("editor");

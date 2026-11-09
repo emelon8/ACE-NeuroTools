@@ -159,11 +159,153 @@ def test_errors_and_files_use_the_built_in_conventions(served):
     status, (headers, body) = call(base, server, "/api/probe/image", raw=True)
     assert status == 200 and body == b"\x89PNG fake"
     assert headers["Content-Type"] == "image/png"
-    assert headers["Content-Disposition"] == 'attachment; filename="plot1.png"'
+    assert headers["Content-Disposition"] == "attachment; filename=\"plot_1_.png\"; filename*=UTF-8''plot%221%22.png"
     assert headers["X-Content-Type-Options"] == "nosniff"
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"download_name": "a.txt\r\nX-Injected: yes"},
+        {"download_name": "tab\tname.png"},
+        {"download_name": "  "},
+        {"content_type": "text/plain\r\nX-Injected: yes"},
+        {"content_type": "text/plain; café"},
+    ],
+)
+def test_file_responses_reject_header_injection_before_sending(fields):
+    with pytest.raises(ValueError):
+        FileResponse(**{"content_type": "text/plain", "body": b"x", **fields})
+
+
+def test_unicode_download_names_use_an_ascii_fallback_and_the_exact_name():
+    response = FileResponse("image/png", body=b"x", download_name="café – plot.png")
+    assert response.disposition() == (
+        "attachment; filename=\"caf_ _ plot.png\"; filename*=UTF-8''caf%C3%A9%20%E2%80%93%20plot.png"
+    )
+    response.disposition().encode("latin-1")  # What http.server needs to send it.
+
+
+def test_feature_posts_keep_origin_type_and_size_checks(served):
+    base, server, project = served
+    route = "/api/probe/experiment"
+    payload = {"project": project.id, "number": "1"}
+
+    def raw(headers, data):
+        req = Request(base + route, data=data, headers={"Authorization": "Bearer " + server.token, **headers})
+        try:
+            return urlopen(req, timeout=5).status
+        except HTTPError as error:
+            return error.code
+
+    body = json.dumps(payload).encode()
+    assert raw({"Content-Type": "application/json", "Origin": "http://evil.example"}, body) == 403
+    assert raw({"Content-Type": "text/plain"}, body) == 403
+    large = json.dumps({**payload, "pad": "x" * 300000}).encode()
+    assert raw({"Content-Type": "application/json"}, large) == 400
+    assert raw({"Content-Type": "application/json"}, body) == 200
+
+
+def test_feature_routes_cannot_shadow_built_in_routes():
+    clash = Feature(name="clash", routes=(Route("POST", "/api/run/start", _none),))
+    with pytest.raises(ValueError, match="replace built-in routes"):
+        ProjectServer(("127.0.0.1", 0), None, features=[clash])
+    clash = Feature(name="clash", routes=(Route("GET", "/api/run/file", _none),))
+    with pytest.raises(ValueError, match="replace built-in routes"):
+        ProjectServer(("127.0.0.1", 0), None, features=[clash])
+
+
+def test_feature_services_are_built_after_the_server_state_they_use(tmp_path):
+    (tmp_path / "experiments.csv").write_text("line number,id\n1,R1\n")
+    seen = {}
+
+    def service(server):
+        seen.update(lock=server.lock, projects=len(server.projects), runs=server.runs)
+        return "ready"
+
+    server = ProjectServer(("127.0.0.1", 0), str(tmp_path), features=[Feature(name="queue", service=service)])
+    try:
+        assert server.services == {"queue": "ready"}
+        assert seen["projects"] == 1 and seen["lock"] is server.lock and seen["runs"] is server.runs
+    finally:
+        server.server_close()
 
 
 def test_context_reads_body_for_post_and_query_for_get():
     get = Context(None, "GET", "/api/x", {"a": "1"}, {"a": "body"})
     post = Context(None, "POST", "/api/x", {"a": "query"}, {"a": 2})
     assert get.value("a") == "1" and post.value("a") == 2 and post.value("missing", "d") == "d"
+
+
+def test_declaration_errors_and_helpers():
+    assert FileResponse("text/plain", body=b"x").disposition() is None
+    with pytest.raises(ValueError, match="Unsupported method"):
+        Route("PUT", "/api/x", _none)
+    one = Feature(name="one", scripts=("shared.js",))
+    two = Feature(name="two", scripts=("shared.js",))
+    with pytest.raises(ValueError, match="Browser file registered twice"):
+        Registry([one, two])
+    with pytest.raises(TypeError, match="does not define FEATURE"):
+        load_features(["aceneurotools.gui.fields"])
+
+    class FakeServer:
+        projects = {}
+
+    class FakeProject:
+        id = "p1"
+
+    context = Context(FakeServer(), "POST", "/api/x", {}, {})
+    replacement = FakeProject()
+    context.replace_project(replacement)
+    assert FakeServer.projects == {"p1": replacement} and context.project is replacement
+
+
+def test_file_responses_stream_files_from_disk(tmp_path):
+    payload = b"line one\nline two\n" * 1000
+    source = tmp_path / "result.csv"
+    source.write_bytes(payload)
+    feature = Feature(
+        name="files",
+        routes=(Route("GET", "/api/files/result", lambda context: FileResponse("text/csv", path=source), scope="none"),),
+    )
+    server = ProjectServer(("127.0.0.1", 0), None, features=[feature])
+    worker = threading.Thread(target=server.serve_forever, daemon=True)
+    worker.start()
+    try:
+        base = f"http://127.0.0.1:{server.server_address[1]}"
+        status, (headers, body) = call(base, server, "/api/files/result", raw=True)
+        assert status == 200 and body == payload
+        assert headers["Content-Length"] == str(len(payload)) and headers["Content-Type"] == "text/csv"
+        source.unlink()
+        status, error = call(base, server, "/api/files/result")
+        assert status == 400 and "error" in error, "a missing file is an ordinary error, sent before any headers"
+    finally:
+        server.shutdown()
+        server.server_close()
+        worker.join(timeout=2)
+
+
+def test_locked_routes_recheck_the_experiment_in_the_latest_project(served):
+    """If the project is reloaded without the experiment before the lock is taken, the handler must not run."""
+    base, server, project = served
+    from aceneurotools.gui.csv_projects import Project
+
+    (project.path / "experiments.csv").write_text("line number,id\n2,R2\n")
+    (project.path / "analysis_parameters.csv").write_text("line number,crop\n2,False\n")
+    reloaded = Project.open(project.path)
+    assert "1" not in reloaded.experiments
+
+    class ReloadedDuringRequest(dict):
+        """Scope resolution (get) still sees the old copy; the locked re-fetch ([]) sees the reload."""
+
+        def get(self, key, default=None):
+            return project if key == project.id else default
+
+        def __getitem__(self, key):
+            return reloaded
+
+    server.projects = ReloadedDuringRequest({project.id: project})
+    CALLS.clear()
+    status, error = call(base, server, "/api/probe/experiment", {"project": project.id, "number": "1"})
+    assert status == 400 and "Experiment 1 was not found" in error["error"]
+    assert CALLS == [], "the handler did not run"
