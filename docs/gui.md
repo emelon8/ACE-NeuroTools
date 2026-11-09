@@ -251,6 +251,8 @@ a new definition. Alternatives remain visible even if a built-in loader matches:
 recordings. These are hints, not confirmed formats; binary layout and
 sampling settings must be checked manually. Choose among multiple matches.
 Detection checks files directly in the recording folder and never reads signals.
+The experiment selector is paused while a check is running. Reader suggestions
+use read-only modes where required; they never open recordings during detection.
 Examples of extension hints include Intan (`.rhd`, `.rhs`), Axon (`.abf`),
 Spike2/CED (`.smr`, `.smrx`), Blackrock (`.ns5`, `.nev`), EDF (`.edf`),
 BrainVision (`.vhdr`), Open Ephys (`.oebin`, `.continuous`), NWB (`.nwb`),

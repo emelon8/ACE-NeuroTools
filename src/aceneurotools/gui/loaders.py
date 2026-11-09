@@ -141,7 +141,7 @@ def _read(path: Path) -> bytes | None:
 
 def _decode(content: bytes, path: Path) -> str:
     try:
-        return content.decode("utf-8-sig")
+        return content.decode("utf-8")
     except UnicodeDecodeError:
         raise ProjectError(f"{path.name} is not UTF-8 text. Fix or remove it outside ACE.") from None
 
@@ -164,7 +164,7 @@ def draft_problems(project, text: Any, name: str | None, *, creating: bool) -> t
     """Problems with a definition as it would be saved to ``loaders/<name>.json``."""
     if not isinstance(text, str):
         raise ProjectError("Send the loader definition as JSON text.")
-    data, problems = ld.check_definition_text(text.removeprefix("\ufeff"), file_stem=name)
+    data, problems = ld.check_definition_text(text, file_stem=name)
     found = _problems(problems)
     target = data.get("name") if isinstance(data, dict) else None
     if isinstance(target, str):
@@ -231,7 +231,8 @@ def definition(context):
         raise ProjectError(f"{path.name} is no longer in this project's loaders folder. Refresh the list.")
     text = _decode(content, path)
     _, problems = draft_problems(context.project, text, path.stem, creating=False)
-    return {"name": path.stem, "text": text, "digest": _digest(content), "problems": problems}
+    editor_text = text.removeprefix("\ufeff") if not problems else text
+    return {"name": path.stem, "text": editor_text, "digest": _digest(content), "problems": problems}
 
 
 def schema(context):
@@ -444,9 +445,13 @@ def _suggest_loaders(folder, builtins, definitions):
         argument = next((key for key in path_keys if key in parameters), None)
         if argument is None:
             continue
+        args = {}
+        if "mode" in parameters:
+            read_only = ld.READ_ONLY_MODES_BY_IO.get(name, ld.READ_ONLY_MODES)
+            args["mode"] = read_only[0]
         patterns = sorted("*" + actual for ext in matched for actual in suffixes[ext])
         suggestions.append({"kind": "neo", "name": name, "label": "Create a loader with " + name,
-                            "patterns": patterns, "path_argument": argument,
+                            "patterns": patterns, "path_argument": argument, "args": args,
                             "reason": "Possible reader for " + ", ".join(patterns) + ". File extensions are a hint; confirm the format and settings."})
     binary = sorted(set(suffixes) & {"dat", "bin", "raw"})
     if binary:

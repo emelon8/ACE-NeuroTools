@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Preserve current loader drafts when delayed open or delete requests finish;
+  prevent experiment changes during detection, keep double-BOM validation strict,
+  and prefill safe read-only modes in suggested Neo definitions.
+
 - Keep edits made during a loader save unsaved, ignore stale save responses,
   and accept BOM-prefixed loader JSON without weakening byte conflict checks.
 

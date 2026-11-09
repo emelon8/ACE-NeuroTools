@@ -383,6 +383,7 @@ FORMAT_CASES = [
     (["structure.oebin"], {"OpenEphysBinaryIO"}),
     (["CH1.continuous"], {"OpenEphysIO"}),
     (["recording.nwb"], {"NWBIO"}),
+    (["recording.h5"], {"NixIO", "NixIOFr"}),
     (["recording.plx"], {"PlexonIO"}),
     (["recording.nex"], {"NeuroExplorerIO"}),
     (["recording.wcp"], {"WinWcpIO"}),
@@ -513,3 +514,100 @@ def test_bom_routes_without_socket(tmp_path):
     from aceneurotools.gui.csv_projects import ProjectChangedError
     with pytest.raises(ProjectChangedError):
         loaders.save(Context(name="my-rig", text=text, digest=saved["digest"]))
+
+
+def test_double_bom_file_rejected_consistently(served):
+    path = folder(served)
+    path.mkdir()
+    content = ("\ufeff\ufeff" + definition()).encode("utf-8")
+    (path / "my-rig.json").write_bytes(content)
+    status, result = call(served, "/api/loaders/definition", project=served[2].id, name="my-rig")
+    assert status == 200 and result["problems"]
+    assert result["text"].startswith("\ufeff\ufeff")
+    assert result["digest"] == hashlib.sha256(content).hexdigest()
+    status, listing = call(served, "/api/loaders", project=served[2].id)
+    assert status == 200 and not listing["definitions"][0]["valid"]
+    status, validation = call(served, "/api/loaders/validate", {"project": served[2].id, "text": result["text"], "name": "my-rig"})
+    assert status == 200 and validation["problems"]
+
+
+def test_file_read_and_decode_errors_are_actionable(tmp_path):
+    from aceneurotools.gui.csv_projects import ProjectError
+    (tmp_path / "loaders").mkdir()
+    with pytest.raises(ProjectError, match="Cannot read.*loaders"):
+        loaders._read(tmp_path / "loaders")
+    with pytest.raises(ProjectError, match="not UTF-8"):
+        loaders._decode(b"\xff", tmp_path / "broken.json")
+    with pytest.raises(ProjectError, match="Reload this loader"):
+        loaders._check_version(tmp_path / "absent.json", 5)
+
+
+def test_deep_project_definition_error_and_non_file_entries(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from aceneurotools.gui.csv_projects import ProjectError
+    project = SimpleNamespace(path=str(tmp_path))
+    (tmp_path / "loaders" / "directory.json").mkdir(parents=True)
+    result = loaders.listing(SimpleNamespace(project=project))
+    assert result["definitions"] == []
+    def deep(*args, **kwargs):
+        raise RecursionError()
+    monkeypatch.setattr(loaders.ld, "load_project_definitions", deep)
+    with pytest.raises(ProjectError, match="nested too deeply"):
+        loaders._project_definitions(project)
+    with pytest.raises(ProjectError, match="as JSON text"):
+        loaders.draft_problems(project, {}, None, creating=True)
+
+
+def test_recording_folder_resolution_boundaries(tmp_path):
+    from types import SimpleNamespace
+    project = SimpleNamespace(path=str(tmp_path / "project"), experiments={"1": {}})
+    downloads = tmp_path / "download"
+    recording = downloads / "session"
+    recording.mkdir(parents=True)
+    context = SimpleNamespace(project=project, number="1", server=SimpleNamespace(box=SimpleNamespace(status=lambda: {"download_path": str(downloads)})))
+    for value, expected in [("a;b", "several-directories"), (r"C:\recordings\session", "missing")]:
+        project.experiments["1"]["ephys directory"] = value
+        folder, result = loaders._ephys_folder(context)
+        assert folder is None and result["status"] == expected
+    for value in [str(recording), "session"]:
+        project.experiments["1"]["ephys directory"] = value
+        folder, result = loaders._ephys_folder(context)
+        assert folder == recording.resolve() and result["status"] == "ok"
+
+
+def test_reader_metadata_unavailable_is_not_a_crash(tmp_path, monkeypatch):
+    class Uninspectable:
+        extensions = ["test"]
+    class NoPath:
+        extensions = ["test"]
+        def __init__(self):
+            pass
+    (tmp_path / "data.test").touch()
+    monkeypatch.setattr(loaders.ld, "neo_io_names", lambda: ["Missing", "Uninspectable", "NoPath"])
+    monkeypatch.setattr(loaders.ld, "_neo_io_class", lambda name: {"Missing": None, "Uninspectable": Uninspectable, "NoPath": NoPath}[name])
+    signature = loaders.inspect.signature
+    def inspect_reader(value):
+        if value is Uninspectable.__init__:
+            raise ValueError("signature unavailable")
+        return signature(value)
+    monkeypatch.setattr(loaders.inspect, "signature", inspect_reader)
+    assert loaders._suggest_loaders(tmp_path, [], []) == []
+
+
+def test_detection_reports_reader_errors_and_rejects_nontext_drafts(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from aceneurotools.gui.csv_projects import ProjectError
+    class BrokenReader:
+        @classmethod
+        def can_handle(cls, folder):
+            raise OSError("Cannot inspect recording")
+    monkeypatch.setattr(loaders, "_builtin_classes", lambda: [("Broken", BrokenReader)])
+    monkeypatch.setattr(loaders, "_project_definitions", lambda project: ([], {}))
+    monkeypatch.setattr(loaders.ld, "neo_io_names", lambda: [])
+    project = SimpleNamespace(path=str(tmp_path), experiments={"1": {"ephys directory": str(tmp_path)}})
+    context = SimpleNamespace(project=project, number="1", value=lambda key: None)
+    result = loaders.detect(context)
+    assert result["builtins"] == [{"name": "Broken", "matches": False, "error": "Cannot inspect recording"}]
+    context.value = lambda key: {} if key == "text" else None
+    with pytest.raises(ProjectError, match="as JSON text"):
+        loaders.detect(context)

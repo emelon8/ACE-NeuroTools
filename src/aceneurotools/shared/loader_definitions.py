@@ -1183,6 +1183,7 @@ def _loads(text: str) -> Any:
 def check_definition_text(text: str, *, file_stem: str | None = None) -> tuple[Any, list[DefinitionProblem]]:
     """Parse definition JSON text strictly and validate it, without raising.
 
+    An initial UTF-8 BOM is ignored, as when reading definition files.
     Uses the same strict JSON rules as :func:`load_definition` (no duplicate
     keys, no ``NaN``/``Infinity``). When ``file_stem`` is given, the
     definition's ``name`` must equal it, as for a file ``<file_stem>.json``.
@@ -1192,7 +1193,7 @@ def check_definition_text(text: str, *, file_stem: str | None = None) -> tuple[A
         the text is not JSON; ``problems`` is empty when the definition is valid.
     """
     try:
-        data = _loads(text)
+        data = _loads(text.removeprefix("\ufeff"))
     except (ValueError, RecursionError) as exc:  # json.JSONDecodeError is a ValueError
         return None, [DefinitionProblem("", f"invalid JSON: {exc}")]
     problems = validate_definition(data)

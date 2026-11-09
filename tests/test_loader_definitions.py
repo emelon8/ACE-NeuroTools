@@ -1209,3 +1209,15 @@ def test_resolve_files_skips_optional_rule_whose_variable_is_missing(tmp_path: P
 
     resolved = resolve_files(definition, folder)
     assert resolved.files == {} and resolved.variables == {}
+
+
+def test_text_validation_bom_parity_and_strict_json():
+    raw = _raw(NEURALYNX)
+    raw["description"] = "Preserve \ufeff inside strings"
+    text = json.dumps(raw, ensure_ascii=False)
+    parsed, problems = ld.check_definition_text("\ufeff" + text, file_stem=raw["name"])
+    assert problems == [] and parsed == raw
+    assert "\ufeff" in parsed["description"]
+    assert ld.check_definition_text("\ufeff\ufeff" + text)[1]
+    assert ld.check_definition_text("\ufeff" + text[:-1] + ', "name": "duplicate"}')[1]
+    assert ld.check_definition_text("\ufeff" + text[:-1] + ', "bad": NaN}')[1]

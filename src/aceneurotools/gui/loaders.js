@@ -10,7 +10,7 @@
     list: null,           // Result of GET /api/loaders.
     open: null,           // {name: saved name or null, digest, saved: saved text or null, text}
     problems: [],
-    validateTimer: 0, validateSeq: 0, working: false,
+    validateTimer: 0, validateSeq: 0, editorSeq: 0, working: false,
   };
   const page = aceFeatures.addPage({id: "loaders", label: "Ephys loaders", icon: "i-sliders", render: current => show(current)});
   const changed = () => Boolean(state.open) && state.open.text !== state.open.saved;
@@ -41,12 +41,12 @@
     if (state.working) return;
     const projectId = state.projectId;
     state.working = true; clearFail();
-    for (const id of ["loaders-save", "loaders-delete", "loaders-refresh", "loaders-new", "loaders-detect"]) $(id).disabled = true;
+    for (const id of ["loaders-save", "loaders-delete", "loaders-refresh", "loaders-new", "loaders-detect", "loaders-experiment"]) $(id).disabled = true;
     try { await action(); }
     catch (error) { fail(error); }
     finally {
       state.working = false;
-      for (const id of ["loaders-delete", "loaders-refresh", "loaders-new", "loaders-detect"]) $(id).disabled = false;
+      for (const id of ["loaders-delete", "loaders-refresh", "loaders-new", "loaders-detect", "loaders-experiment"]) $(id).disabled = false;
       syncState();
       if (projectId !== state.projectId) refresh();
     }
@@ -171,6 +171,7 @@
   }
 
   function closeEditor() {
+    state.editorSeq++;
     window.clearTimeout(state.validateTimer); state.validateSeq++;
     state.open = null; state.problems = [];
     if ($("loaders-editor")) { $("loaders-editor").hidden = true; $("loaders-saved").textContent = ""; }
@@ -183,8 +184,14 @@
 
   async function openDefinition(name, force = false) {
     if (!force && !confirmDiscard()) return;
+    const open = state.open, text = open?.text, projectId = state.projectId, editorSeq = state.editorSeq;
+    const current = () => state.projectId === projectId && state.open === open &&
+      state.editorSeq === editorSeq && state.open?.text === text;
     await working(async () => {
-      const result = await request(`/api/loaders/definition?${query({name})}`);
+      let result;
+      try { result = await request(`/api/loaders/definition?${new URLSearchParams({project: projectId, name})}`); }
+      catch (error) { if (current()) throw error; return; }
+      if (!current()) return;
       openEditor({name: result.name, digest: result.digest, saved: result.text, text: result.text});
       showProblems(result.problems);
     });
@@ -359,14 +366,26 @@
   }
 
   function remove() {
-    const open = state.open;
+    const open = state.open, projectId = state.projectId;
     if (!open?.name) return;
     if (!window.confirm(`Delete the loader "${open.name}"? A copy is kept in the project's .ace-gui-backups folder.`)) return;
+    const text = open.text;
+    const current = () => state.open === open && state.projectId === projectId;
     working(async () => {
-      const result = await post("/api/loaders/delete", {project: state.projectId, name: open.name, digest: open.digest});
-      closeEditor(); showStart();
+      let result;
+      try { result = await post("/api/loaders/delete", {project: projectId, name: open.name, digest: open.digest}); }
+      catch (error) { if (current()) throw error; return; }
+      if (!current()) return;
+      let editorSeq;
+      if (open.text !== text) {
+        // Deletion succeeded, but never discard edits typed while it was pending.
+        Object.assign(open, {name: null, digest: null, saved: null});
+        openEditor(open);
+      } else { closeEditor(); showStart(); }
+      editorSeq = state.editorSeq;
       $("loaders-detect-result").replaceChildren(element("p", `Deleted ${result.name}. A copy was kept in ${result.backup}.`, "muted"));
-      await loadList();
+      try { await loadList(); }
+      catch (error) { if (state.projectId === projectId && state.editorSeq === editorSeq) throw error; }
     });
   }
 
@@ -396,6 +415,7 @@
       if (backend === "neo") {
         data.reader.io = suggestion.name;
         data.reader.path_argument = suggestion.path_argument;
+        data.reader.args = suggestion.args || {};
         if (suggestion.path_argument === "dirname") {
           data.reader.path_from = {source: "recording_folder"}; data.reader.files = [];
         }

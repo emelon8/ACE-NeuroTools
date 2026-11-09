@@ -127,3 +127,86 @@ const loadList = () => new Promise((resolve, reject) => {rejectList = reject;});
 })().catch(error => {console.error(error); process.exitCode = 1;});
 '''
     subprocess.run(["node", "-e", harness], check=True, capture_output=True, text=True)
+
+
+@pytest.mark.parametrize("operation", ["open", "delete"])
+@pytest.mark.parametrize("scenario", ["normal", "project", "editor", "closed", "edit", "error", "stale-error", "stale-list-error"])
+def test_open_delete_preserve_current_editor(operation, scenario):
+    source = SCRIPT.read_text()
+    if operation == "open":
+        function = source[source.index("  async function openDefinition("):source.index("  function openEditor(")]
+    else:
+        function = source[source.index("  function remove()"):source.index("  // ── Check against an experiment")]
+    harness = r'''
+const assert = require("node:assert/strict");
+const [operation, scenario] = process.argv.slice(1);
+const original = {name: "rig", text: "old", saved: "old", digest: "digest"};
+const state = {projectId: "p", open: original, editorSeq: 0};
+let task, resolve, reject, opened = 0, shown = 0, messages = 0, listed = 0;
+const window = {confirm: () => true};
+const confirmDiscard = () => true;
+const working = action => {task = action(); return task;};
+const query = extra => new URLSearchParams({project: state.projectId, ...extra}).toString();
+const request = () => new Promise((yes, no) => {resolve = yes; reject = no;});
+const post = (route, body) => {assert.equal(body.project, "p"); return request();};
+const openEditor = open => {state.open = open; opened++; state.editorSeq++;};
+const showProblems = () => {};
+const closeEditor = () => {state.open = null; state.editorSeq++;};
+const showStart = () => shown++;
+const $ = () => ({replaceChildren: () => messages++});
+const element = () => ({});
+const loadList = async () => {
+  listed++;
+  if (scenario === "stale-list-error") {
+    state.projectId = "q"; state.open = {text: "new project draft"};
+    throw new Error("stale list failed");
+  }
+};
+''' + function + r'''
+(async () => {
+  if (operation === "open") task = openDefinition("rig", true); else remove();
+  if (scenario === "project") state.projectId = "q";
+  if (["editor", "stale-error"].includes(scenario)) {state.open = {text: "new draft"}; state.editorSeq++;}
+  if (scenario === "closed") closeEditor();
+  if (scenario === "edit") original.text = "later edit";
+  const before = JSON.stringify(state);
+  if (scenario === "error" || scenario === "stale-error") reject(new Error("request failed"));
+  else resolve({name: "rig", text: "loaded", digest: "new", problems: [], backup: "backup"});
+  if (scenario === "error") {await assert.rejects(task, /request failed/); return;}
+  await task;
+  if (["project", "editor", "closed", "stale-error"].includes(scenario) || (operation === "open" && scenario === "edit")) {
+    assert.equal(JSON.stringify(state), before); assert.equal(opened, 0); assert.equal(shown, 0); assert.equal(messages, 0);
+  } else if (operation === "delete" && scenario === "edit") {
+    assert.equal(state.open.text, "later edit"); assert.equal(state.open.name, null);
+    assert.equal(state.open.digest, null); assert.equal(state.open.saved, null); assert.equal(shown, 0);
+  } else if (scenario === "stale-list-error" && operation === "delete") {
+    assert.equal(state.projectId, "q"); assert.equal(state.open.text, "new project draft");
+  } else if (operation === "open") {
+    assert.equal(state.open.text, "loaded"); assert.equal(opened, 1);
+  } else {
+    assert.equal(state.open, null); assert.equal(shown, 1); assert.equal(listed, 1);
+  }
+})().catch(error => {console.error(error); process.exitCode = 1;});
+'''
+    subprocess.run(["node", "-e", harness, operation, scenario], check=True, capture_output=True, text=True)
+
+
+def test_experiment_selector_disabled_while_detection_pending():
+    source = SCRIPT.read_text()
+    function = source[source.index("  async function working("):source.index("  // ── Page and project")]
+    harness = r'''
+const assert = require("node:assert/strict");
+const state = {working: false, projectId: "p"}, nodes = {};
+const $ = id => nodes[id] ||= {};
+const clearFail = () => {}, syncState = () => {}, refresh = () => {};
+const fail = error => {throw error;};
+let resolve;
+''' + function + r'''
+(async () => {
+  const task = working(() => new Promise(yes => {resolve = yes;}));
+  assert.equal($("loaders-experiment").disabled, true);
+  resolve(); await task;
+  assert.equal($("loaders-experiment").disabled, false);
+})().catch(error => {console.error(error); process.exitCode = 1;});
+'''
+    subprocess.run(["node", "-e", harness], check=True, capture_output=True, text=True)
