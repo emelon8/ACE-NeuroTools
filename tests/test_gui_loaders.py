@@ -464,3 +464,52 @@ def test_real_binary_reader_preserves_layout_scaling_and_time(tmp_path):
     for index, signal in enumerate(signals):
         np.testing.assert_allclose(signal.magnitude[:, 0], raw[:, index] * 0.25 - 1)
         np.testing.assert_allclose(signal.times.magnitude, np.arange(8) / 2000)
+
+
+def test_bom_open_validate_save_and_original_byte_conflict(served):
+    folder(served).mkdir()
+    path = folder(served) / "my-rig.json"
+    text = definition()
+    original = b"\xef\xbb\xbf" + text.encode("utf-8")
+    path.write_bytes(original)
+    status, opened = call(served, "/api/loaders/definition", project=served[2].id, name="my-rig")
+    assert status == 200 and opened["text"] == text and opened["problems"] == []
+    assert opened["digest"] == hashlib.sha256(original).hexdigest()
+    status, checked = call(served, "/api/loaders/validate", {"project": served[2].id, "name": "my-rig", "text": "\ufeff" + text})
+    assert status == 200 and checked["problems"] == []
+    status, saved = save(served, "my-rig", "\ufeff" + text, opened["digest"])
+    assert status == 200 and path.read_bytes() == text.encode("utf-8")
+    assert Path(saved["backup"]).read_bytes() == original
+    assert saved["digest"] == hashlib.sha256(path.read_bytes()).hexdigest()
+    # Changing only the BOM must still be detected as an external modification.
+    path.write_bytes(original)
+    status, _ = save(served, "my-rig", text, saved["digest"])
+    assert status == 409 and path.read_bytes() == original
+
+
+def test_bom_routes_without_socket(tmp_path):
+    """Exercise open/validate/save handlers even when HTTP sockets are unavailable."""
+    from types import SimpleNamespace
+    project = SimpleNamespace(path=str(tmp_path))
+    class Context:
+        def __init__(self, **values):
+            self.project = project
+            self.values = values
+        def value(self, name):
+            return self.values.get(name)
+    path = tmp_path / "loaders" / "my-rig.json"
+    path.parent.mkdir()
+    text = definition()
+    original = b"\xef\xbb\xbf" + text.encode()
+    path.write_bytes(original)
+    opened = loaders.definition(Context(name="my-rig"))
+    assert opened["text"] == text and opened["problems"] == []
+    assert opened["digest"] == hashlib.sha256(original).hexdigest()
+    assert loaders.validate(Context(name="my-rig", text="\ufeff" + text))["valid"]
+    saved = loaders.save(Context(name="my-rig", text="\ufeff" + text, digest=opened["digest"]))
+    assert path.read_bytes() == text.encode()
+    assert Path(saved["backup"]).read_bytes() == original
+    path.write_bytes(original)
+    from aceneurotools.gui.csv_projects import ProjectChangedError
+    with pytest.raises(ProjectChangedError):
+        loaders.save(Context(name="my-rig", text=text, digest=saved["digest"]))

@@ -21,6 +21,7 @@
 
   const project = () => projects.find(item => item.id === state.projectId) || null;
   const query = extra => new URLSearchParams({project: state.projectId, ...extra}).toString();
+  const normalizeText = text => text.replace(/^\uFEFF/, "");
   const lines = text => text.split("\n").map(item => item.trim()).filter(Boolean);
   const SYNC_DEFAULTS = {
     event_labels: sync => ({strategy: "event_labels", labels: Array.isArray(sync.labels) ? sync.labels : []}),
@@ -38,6 +39,7 @@
   const clearFail = () => { $("loaders-error").hidden = true; };
   async function working(action) {
     if (state.working) return;
+    const projectId = state.projectId;
     state.working = true; clearFail();
     for (const id of ["loaders-save", "loaders-delete", "loaders-refresh", "loaders-new", "loaders-detect"]) $(id).disabled = true;
     try { await action(); }
@@ -46,6 +48,7 @@
       state.working = false;
       for (const id of ["loaders-delete", "loaders-refresh", "loaders-new", "loaders-detect"]) $(id).disabled = false;
       syncState();
+      if (projectId !== state.projectId) refresh();
     }
   }
 
@@ -203,7 +206,7 @@
   }
 
   function parsed() {
-    try { const value = JSON.parse(state.open.text); return value && typeof value === "object" && !Array.isArray(value) ? value : null; }
+    try { const value = JSON.parse(normalizeText(state.open.text)); return value && typeof value === "object" && !Array.isArray(value) ? value : null; }
     catch { return null; }
   }
   const at = (object, path) => path.split(".").reduce((value, key) => (value && typeof value === "object" ? value[key] : undefined), object);
@@ -325,15 +328,28 @@
   // ── Save, discard, delete ─────────────────────────────────────────────────
   function save() {
     if (!state.open) return;
-    const data = parsed(), name = state.open.name || (data && typeof data.name === "string" ? data.name : "");
+    const open = state.open, projectId = state.projectId;
+    const submitted = open.text, digest = open.digest;
+    const data = parsed(), name = open.name || (data && typeof data.name === "string" ? data.name : "");
+    const current = () => state.open === open && state.projectId === projectId;
     working(async () => {
-      const result = await post("/api/loaders/save", {project: state.projectId, name, text: state.open.text, digest: state.open.digest});
-      const text = state.open.text.endsWith("\n") ? state.open.text : state.open.text + "\n";
-      Object.assign(state.open, {name: result.name, digest: result.digest, saved: text, text});
-      $("loaders-json").value = text;
-      openEditor({...state.open});
+      let result;
+      try {
+        result = await post("/api/loaders/save", {project: projectId, name, text: submitted, digest});
+      } catch (error) {
+        if (current()) throw error;
+        return;
+      }
+      if (!current()) return;
+      const normalized = normalizeText(submitted);
+      const saved = normalized.endsWith("\n") ? normalized : normalized + "\n";
+      // Only the submitted snapshot reached disk. Keep edits made during POST dirty.
+      if (open.text === submitted) open.text = saved;
+      Object.assign(open, {name: result.name, digest: result.digest, saved});
+      openEditor(open);
       $("loaders-saved").textContent = result.backup ? `Saved. The previous version was kept in ${result.backup}.` : `Saved as loaders/${result.name}.json.`;
-      await loadList();
+      try { await loadList(); }
+      catch (error) { if (current()) throw error; }
     });
   }
 

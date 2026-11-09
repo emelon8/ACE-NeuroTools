@@ -298,3 +298,7 @@ described in [Ephys loader definitions](guides/loader_definitions.md).
 
 Cluster job-script generation and experiment revision history are not connected
 in this installed GUI.
+
+For a complete walkthrough, see [Add a recording system ACE doesn’t read](guides/loader_definitions.md#add-a-recording-system-ace-doesnt-read).
+
+The pending shared change is described in [the BOM integration proposal](adr/0009-loader-editor-bom.md).

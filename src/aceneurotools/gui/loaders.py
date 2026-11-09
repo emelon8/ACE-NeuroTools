@@ -141,7 +141,7 @@ def _read(path: Path) -> bytes | None:
 
 def _decode(content: bytes, path: Path) -> str:
     try:
-        return content.decode("utf-8")
+        return content.decode("utf-8-sig")
     except UnicodeDecodeError:
         raise ProjectError(f"{path.name} is not UTF-8 text. Fix or remove it outside ACE.") from None
 
@@ -164,7 +164,7 @@ def draft_problems(project, text: Any, name: str | None, *, creating: bool) -> t
     """Problems with a definition as it would be saved to ``loaders/<name>.json``."""
     if not isinstance(text, str):
         raise ProjectError("Send the loader definition as JSON text.")
-    data, problems = ld.check_definition_text(text, file_stem=name)
+    data, problems = ld.check_definition_text(text.removeprefix("\ufeff"), file_stem=name)
     found = _problems(problems)
     target = data.get("name") if isinstance(data, dict) else None
     if isinstance(target, str):
@@ -197,7 +197,7 @@ def listing(context):
             label = definition.label if definition else None
             if definition is None and content is not None:
                 try:
-                    raw = json.loads(content.decode("utf-8"))
+                    raw = json.loads(content.decode("utf-8-sig"))
                     label = raw.get("label") if isinstance(raw, dict) and isinstance(raw.get("label"), str) else None
                 except (UnicodeDecodeError, ValueError, RecursionError):
                     label = None
@@ -318,6 +318,7 @@ def save(context):
         raise ProjectError(f"Fix this loader before saving. {shown}{more}")
     _refuse_links(project, path)
     current = _check_version(path, expected)
+    text = text.removeprefix("\ufeff")
     content = text if text.endswith("\n") else text + "\n"
     payload = content.encode("utf-8")
     if current == payload:
