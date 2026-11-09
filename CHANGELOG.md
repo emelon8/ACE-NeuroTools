@@ -62,6 +62,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   form or as JSON with live validation, save or delete with backups and conflict
   checks, and check which loaders recognise an experiment's ephys folder.
   Signal preview waits for ADR 0008.
+- A step-by-step guide to adding a recording system ACE doesn't read, with
+  tested worked examples: loader definitions for an Intan `.rhd` system and a
+  flat binary file (`examples/loaders/`), and a Python loader that works with
+  today's pipelines (`examples/custom_ephys_loader.py`).
 
 Representative recording validation is deferred by request. No pilot has been
 published yet; a lab channel and scoped publishing credential must be configured.

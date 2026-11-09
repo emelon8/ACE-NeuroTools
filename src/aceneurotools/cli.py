@@ -38,6 +38,7 @@ unless ``--config`` is supplied.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -579,6 +580,15 @@ def _loaders_detect(directory: Path, project_path: Path) -> int:
     if not directory.is_dir():
         print(f"ERROR: not a folder: {directory}", file=sys.stderr)
         return 1
+    try:
+        # Globbing an unreadable folder silently finds nothing; say why instead.
+        with os.scandir(directory):
+            pass
+    except OSError as exc:
+        print(f"ERROR: cannot read folder {directory}: {exc.strerror or exc}", file=sys.stderr)
+        return 1
+    if not project_path.is_dir():
+        print(f"WARNING: project folder not found: {project_path}", file=sys.stderr)
 
     builtin = [(name, cls) for name, cls in _builtin_ephys_loaders() if cls.can_handle(directory)]
     print(f"Recording folder: {directory}")

@@ -508,6 +508,10 @@ def test_neo_reader_with_filename_argument_and_scalar_args() -> None:
         ("**a/b", False),
         ("***", False),
         ("a\x00b", False),
+        ("a\nb", False),
+        ("x.nev\n", False),
+        ("a\tb", False),
+        ("a\x7fb", False),
     ],
 )
 def test_relative_glob_rule_and_schema_regex_agree(pattern: str, ok: bool) -> None:
@@ -541,6 +545,7 @@ def test_load_definition_requires_matching_file_name(tmp_path: Path) -> None:
         ("{not json", "invalid JSON"),
         ('{"schema": "ace-loader/1", "schema": "ace-loader/1"}', "duplicate key 'schema'"),
         ('{"x": NaN}', "NaN is not valid JSON"),
+        ("[" * 100_000, "nested too deeply"),
     ],
 )
 def test_load_definition_rejects_bad_json(tmp_path: Path, text: str, fragment: str) -> None:
@@ -581,6 +586,16 @@ def test_project_definitions_report_bad_files(tmp_path: Path) -> None:
     assert set(problems) == {str(folder / "broken.json"), str(folder / "renamed.json")}
     assert "invalid JSON" in problems[str(folder / "broken.json")][0].message
     assert [p.path for p in problems[str(folder / "renamed.json")]] == ["name"]
+
+
+def test_project_definitions_report_deeply_nested_file(tmp_path: Path) -> None:
+    folder = tmp_path / "loaders"
+    _write(folder / "neuralynx.json", _raw(NEURALYNX))
+    _write(folder / "deep.json", "[" * 100_000)
+
+    definitions, problems = load_project_definitions(tmp_path)
+    assert [d.name for d in definitions] == ["neuralynx"]
+    assert "nested too deeply" in problems[str(folder / "deep.json")][0].message
 
 
 def test_project_definitions_reject_duplicate_names(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -888,3 +903,309 @@ def test_schema_agrees_with_validator_on_invalid_cases(
     # (neo names, cross-references, backend combinations) are validator-only
     # and are expected to pass the schema.
     assert _schema_valid(doc, schema, schema) is not expressible
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Review round 1 regressions
+# ─────────────────────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize(
+    "key,value",
+    [
+        ("use_cache", True),  # neo unpickles its cache with joblib
+        ("cache_path", "rel/dir"),
+        ("exclude_filename", "x.ncs"),
+        ("include_filenames", "x.ncs"),
+    ],
+)
+def test_neo_args_that_name_files_or_caches_are_refused(key: str, value: Any) -> None:
+    doc = _mutated(NEURALYNX, _set("reader.args", {key: value}))
+    problems = validate_definition(doc)
+    assert _paths(problems) == [f"reader.args.{key}"]
+    assert "cannot be set" in problems[0].message
+
+
+def test_neo_kwargs_reader_args_are_also_checked_for_paths() -> None:
+    doc = _mutated(
+        NEURALYNX,
+        _set("reader.io", "BlackrockIO"),  # takes **kargs
+        _set("reader.path_argument", "filename"),
+        _set("reader.path_from", {"source": "file", "file": "events"}),
+        _set("reader.read_block", {}),
+        _set("reader.args", {"nsx_override": None, "dirname_extra": "x", "nsx_to_load": 5}),
+    )
+    assert _paths(validate_definition(doc)) == ["reader.args.dirname_extra"]
+
+
+def test_neo_io_names_use_neo_export_names() -> None:
+    import neo.io
+
+    names = ld.neo_io_names()
+    assert len(names) == len(set(names))
+    assert {"NixIO", "NixIOFr"} <= set(names)
+    assert ld._neo_io_class("NixIO") is neo.io.NixIO
+    assert ld._neo_io_class("NixIOFr") is neo.io.NixIOFr
+    assert ld._neo_io_class("NixIO") is not ld._neo_io_class("NixIOFr")
+    assert not set(DENIED_IO_NAMES) & set(names)
+    assert "NeuroshareIO" not in names  # alias of a denied class
+
+
+DENIED_IO_NAMES = tuple(ld.DENIED_NEO_IOS)
+
+
+def _nix(**args: Any) -> dict[str, Any]:
+    return _mutated(
+        NEURALYNX,
+        _set("reader.io", "NixIO"),
+        _set("reader.path_argument", "filename"),
+        _set("reader.path_from", {"source": "file", "file": "events"}),
+        _set("reader.read_block", {}),
+        _set("reader.args", args),
+    )
+
+
+def test_neo_reader_whose_default_mode_writes_needs_explicit_read_only_mode() -> None:
+    problems = validate_definition(_nix())
+    assert _paths(problems) == ["reader.args.mode"]
+    assert "'rw'" in problems[0].message and "'ro'" in problems[0].message
+
+
+@pytest.mark.parametrize("mode,ok", [("ro", True), ("r", False), ("rw", False), ("ow", False)])
+def test_nixio_mode_must_be_its_read_only_value(mode: str, ok: bool) -> None:
+    assert (validate_definition(_nix(mode=mode)) == []) is ok
+
+
+def test_read_only_reader_without_mode_needs_none() -> None:
+    doc = _mutated(
+        NEURALYNX,
+        _set("reader.io", "NixIOFr"),
+        _set("reader.path_argument", "filename"),
+        _set("reader.path_from", {"source": "file", "file": "events"}),
+        _set("reader.read_block", {}),
+    )
+    assert validate_definition(doc) == []
+
+
+@pytest.mark.parametrize(
+    "mutation,path",
+    [
+        (_set("name", "rhs2116\n"), "name"),
+        (_set("reader.files[0].role", "start_time\n"), "reader.files[0].role"),
+        (_set("reader.files[0].capture.variable", "suffix\n"), "reader.files[0].capture.variable"),
+    ],
+)
+def test_identifiers_with_trailing_newline_are_refused(mutation: Mutation, path: str) -> None:
+    assert path in _paths(validate_definition(_mutated(RHS2116, mutation)))
+
+
+def test_argument_names_with_trailing_newline_are_refused() -> None:
+    doc = _mutated(NEURALYNX, _set("reader.path_argument", "dirname\n"))
+    assert "reader.path_argument" in _paths(validate_definition(doc))
+    doc = _mutated(NEURALYNX, _set("reader.read_block", {"lazy\n": False}))
+    assert "reader.read_block.lazy\n" in _paths(validate_definition(doc))
+
+
+@pytest.mark.parametrize(
+    "file_index,path,fragment",
+    [
+        (2, "reader.signal_file", "role 'ac' is optional"),
+        (1, "time.clock_file", "role 'clock' is optional"),
+        (0, "time.ticks_per_second.csv_file", "role 'start_time' is optional"),
+        (0, "reader.files[1].pattern", "placeholder '{suffix}' comes from an optional file rule"),
+    ],
+)
+def test_references_to_optional_files_are_refused(file_index: int, path: str, fragment: str) -> None:
+    doc = _mutated(RHS2116, _set(f"reader.files[{file_index}].required", False))
+    problems = validate_definition(doc)
+    assert any(p.path == path and fragment in p.message for p in problems), problems
+
+
+def test_optional_file_may_use_a_variable_from_another_optional_file() -> None:
+    doc = _mutated(
+        RHS2116,
+        _set("reader.files[0].required", False),
+        _set("reader.files[3].required", False),
+    )
+    assert "reader.files[3].pattern" not in _paths(validate_definition(doc))
+
+
+def test_huge_integer_is_reported_at_its_path_with_other_problems() -> None:
+    doc = _mutated(RHS2116, _set("reader.gain", 10**400), _set("reader.channel_count", "x"))
+    problems = validate_definition(doc)
+    assert sorted(_paths(problems)) == ["reader.channel_count", "reader.gain"]
+    assert any(p.path == "reader.gain" and "finite number" in p.message for p in problems)
+
+
+def test_integral_float_gets_a_specific_message() -> None:
+    problems = validate_definition(_mutated(RHS2116, _set("reader.channel_count", 32.0)))
+    assert _paths(problems) == ["reader.channel_count"]
+    assert "32, not 32.0" in problems[0].message
+
+
+def test_load_definition_accepts_utf8_byte_order_mark(tmp_path: Path) -> None:
+    path = tmp_path / "neuralynx.json"
+    path.write_text("﻿" + NEURALYNX.read_text(), encoding="utf-8")
+    assert load_definition(path) == load_definition(NEURALYNX)
+
+
+@pytest.mark.skipif(os.name == "nt" or (hasattr(os, "geteuid") and os.geteuid() == 0),
+                    reason="permission bits do not block reads here")
+def test_unreadable_loaders_folder_is_reported(tmp_path: Path) -> None:
+    folder = tmp_path / "loaders"
+    _write(folder / "neuralynx.json", _raw(NEURALYNX))
+    folder.chmod(0)
+    try:
+        definitions, problems = load_project_definitions(tmp_path)
+    finally:
+        folder.chmod(0o755)
+    assert definitions == []
+    assert list(problems) == [str(folder)]
+    assert "cannot read folder" in problems[str(folder)][0].message
+
+
+def test_project_definitions_ignore_non_json_and_hidden_temporary_files(tmp_path: Path) -> None:
+    folder = tmp_path / "loaders"
+    _write(folder / "neuralynx.json", _raw(NEURALYNX))
+    _write(folder / ".neuralynx.json.tmp", "{")
+    assert [d.name for d in load_project_definitions(tmp_path)[0]] == ["neuralynx"]
+
+
+def test_rhs2116_manager_channel_selection_matches_select_by_index(rhs2116_dir: Path) -> None:
+    """``select_by_index`` means a channel may be requested by name, index or index text."""
+    from aceneurotools.ephys.rhs2116_data_manager import RHS2116DataManager
+
+    definition = load_definition(RHS2116)
+    assert definition.channels.select_by_index is True
+    manager = RHS2116DataManager(
+        ephys_directory=str(rhs2116_dir), auto_import_ephys_block=True, auto_process_block=False,
+        auto_compute_phases=False, level="WARNING",
+    )
+    manager.process_ephys_block_to_channels(channels=[0, "5", definition.channels.name_for(7)])
+    assert sorted(manager.channels) == sorted(definition.channels.name_for(i) for i in (0, 5, 7))
+
+
+def test_rhs2116_single_clock_sample_rate_falls_back_to_ticks_per_second(rhs2116_dir: Path) -> None:
+    """The documented EffectiveRate fallback, checked against the manager."""
+    from aceneurotools.ephys.rhs2116_data_manager import RHS2116DataManager
+
+    np.zeros(1, dtype=np.uint64).tofile(rhs2116_dir / "rhs2116pair-clock_7.raw")
+    manager = RHS2116DataManager(
+        ephys_directory=str(rhs2116_dir), auto_import_ephys_block=True, auto_process_block=True,
+        auto_compute_phases=False, level="WARNING",
+    )
+    reference = _reference_raw_binary_load(load_definition(RHS2116), rhs2116_dir)
+    for name, (signal, rate, times) in reference.items():
+        channel = manager.channels[name]
+        assert rate == channel.sampling_rate == 30000.0
+        assert signal.shape == channel.signal.shape == (1,)
+        np.testing.assert_array_equal(times, channel.time_vector)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Shape errors and defensive branches (each line asserted)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize(
+    "base,mutation,path,fragment",
+    [
+        (RHS2116, _set("schema", 5), "schema", "must be the string"),
+        (RHS2116, _set("label", 5), "label", "must be a string"),
+        (RHS2116, _set("detect", "x"), "detect", "must be an object"),
+        (RHS2116, _set("detect.any_of", "x"), "detect.any_of", "must be a list of strings"),
+        (RHS2116, _set("detect.any_of", [""]), "detect.any_of[0]", "must be a non-empty string"),
+        (RHS2116, _set("reader", "x"), "reader", "must be an object"),
+        (RHS2116, _set("reader.files", "x"), "reader.files", "must be a list of file rules"),
+        (RHS2116, _set("reader.files[1]", 5), "reader.files[1]", "must be an object"),
+        (RHS2116, _set("reader.files[1].capture", {"variable": "suffix", "split": "_", "part": 0}),
+         "reader.files[1].capture.variable", "already captured"),
+        (RHS2116, _set("reader.gain", "x"), "reader.gain", "must be a finite number"),
+        (RHS2116, _set("time", "x"), "time", "must be an object"),
+        (RHS2116, _set("channels", "x"), "channels", "must be an object"),
+        (RHS2116, _set("channels.template", "A{index}}"), "channels.template", "unmatched"),
+        (RHS2116, _set("sync", "x"), "sync", "must be an object"),
+        (NEURALYNX, _set("reader.args", "x"), "reader.args", "must be an object of argument names"),
+        (NEURALYNX, _set("reader.args", {"t_start": float("nan")}), "reader.args.t_start", "finite number"),
+        (NEURALYNX, _set("reader.path_from", "x"), "reader.path_from", "must be an object"),
+        (NEURALYNX, _delete("reader.io"), "reader.io", "is required"),
+        (NEURALYNX, _set("channels", {"source": "template", "template": "C{index}", "default": "none"}),
+         "channels.source", "neo readers name channels themselves"),
+    ],
+)
+def test_shape_errors_are_reported_at_their_path(
+    base: Path, mutation: Mutation, path: str, fragment: str
+) -> None:
+    problems = validate_definition(_mutated(base, mutation))
+    assert any(p.path == path and fragment in p.message for p in problems), problems
+
+
+def test_check_relative_glob_rejects_non_strings() -> None:
+    assert check_relative_glob(5) == "must be a string"
+
+
+def test_name_for_needs_a_template() -> None:
+    with pytest.raises(ValueError, match="no template"):
+        load_definition(NEURALYNX).channels.name_for(0)
+
+
+def test_signature_helpers_tolerate_uninspectable_callables() -> None:
+    assert ld._parameters(object()) == (set(), True)
+    assert ld._parameter_default(object(), "mode") is None
+    assert ld._parameter_default(lambda mode: mode, "mode") is None  # no default
+    assert ld._parameter_default(lambda other=1: other, "mode") is None  # no such parameter
+    assert ld._parameter_default(lambda mode="ro": mode, "mode") == "ro"
+
+
+def test_neo_io_without_read_block_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    class NoReadBlock:
+        def __init__(self, dirname: str) -> None: ...
+
+    monkeypatch.setattr(ld, "_neo_io_class", lambda name: NoReadBlock)
+    problems = validate_definition(_raw(NEURALYNX))
+    assert [(p.path, p.message) for p in problems] == [("reader.io", "NeuralynxIO has no read_block method")]
+
+
+@pytest.mark.skipif(os.name == "nt" or (hasattr(os, "geteuid") and os.geteuid() == 0),
+                    reason="permission bits do not block reads here")
+def test_unreadable_definition_file_is_reported(tmp_path: Path) -> None:
+    path = _write(tmp_path / "loaders" / "neuralynx.json", _raw(NEURALYNX))
+    path.chmod(0)
+    try:
+        definitions, problems = load_project_definitions(tmp_path)
+    finally:
+        path.chmod(0o644)
+    assert definitions == []
+    assert "cannot read file" in problems[str(path)][0].message
+
+
+def test_pick_rejects_unknown_mode(tmp_path: Path) -> None:
+    import dataclasses
+
+    rule = dataclasses.replace(load_definition(RHS2116).files[1], pick="newest")
+    with pytest.raises(ValueError, match="unknown pick mode 'newest'"):
+        ld._pick(rule, [tmp_path / "a"], tmp_path)
+
+
+def test_resolve_files_required_rule_without_its_variable_raises(rhs2116_dir: Path) -> None:
+    import dataclasses
+
+    definition = load_definition(RHS2116)
+    files = list(definition.files)
+    files[1] = dataclasses.replace(files[1], pattern="rhs2116pair-clock_{nope}.raw")
+    hand_built = dataclasses.replace(
+        definition, reader=dataclasses.replace(definition.reader, files=tuple(files))
+    )
+    with pytest.raises(ValueError, match="needs '\\{nope\\}'"):
+        resolve_files(hand_built, rhs2116_dir)
+
+
+def test_resolve_files_skips_optional_rule_whose_variable_is_missing(tmp_path: Path) -> None:
+    import dataclasses
+
+    base = load_definition(RHS2116)
+    start_time, dc = base.files[0], base.files[3]  # dc's pattern uses {suffix} from start_time
+    files = (dataclasses.replace(start_time, required=False), dataclasses.replace(dc, required=False))
+    definition = dataclasses.replace(base, reader=dataclasses.replace(base.reader, files=files))
+    folder = _make_layout(tmp_path / "rec", ["rhs2116pair-dc_7.raw"])  # no start-time CSV
+
+    resolved = resolve_files(definition, folder)
+    assert resolved.files == {} and resolved.variables == {}
