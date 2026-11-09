@@ -22,6 +22,7 @@ change to the core ephys loaders proposed in ADR 0008, so it is not offered here
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import os
 import re
@@ -409,6 +410,51 @@ def _matches(definition, folder: Path) -> list[dict[str, Any]]:
     return found
 
 
+def _suggest_loaders(folder, builtins, definitions):
+    """Recommend configured loaders first and retain ambiguous file-type alternatives.
+
+    Filename hints never prove a format and never open recordings or instantiate IOs.
+    Only files directly in the experiment recording folder are inspected.
+    """
+    configured = [
+        {"kind": kind, "name": item["name"], "label": item.get("label") or item["name"],
+         "reason": "Matches this loader's filename rules. Confirm the acquisition format before using it."}
+        for kind, items in (("builtin", builtins), ("project", definitions))
+        for item in items if item["matches"]
+    ]
+    suffixes = {}
+    for path in folder.iterdir():
+        if path.is_file() and path.suffix:
+            suffixes.setdefault(path.suffix.lower().lstrip("."), set()).add(path.suffix)
+    suggestions = list(configured)
+    for name in ld.neo_io_names():
+        cls = ld._neo_io_class(name)
+        if cls is None:
+            continue
+        extensions = {str(ext).lower().lstrip(".") for ext in getattr(cls, "extensions", ())}
+        matched = sorted(set(suffixes) & extensions - {""})
+        if not matched:
+            continue
+        try:
+            parameters = inspect.signature(cls.__init__).parameters
+        except (ValueError, TypeError):
+            continue
+        path_keys = ("dirname", "filename") if getattr(cls, "mode", None) == "dir" else ("filename", "dirname")
+        argument = next((key for key in path_keys if key in parameters), None)
+        if argument is None:
+            continue
+        patterns = sorted("*" + actual for ext in matched for actual in suffixes[ext])
+        suggestions.append({"kind": "neo", "name": name, "label": "Create a loader with " + name,
+                            "patterns": patterns, "path_argument": argument,
+                            "reason": "Possible reader for " + ", ".join(patterns) + ". File extensions are a hint; confirm the format and settings."})
+    binary = sorted(set(suffixes) & {"dat", "bin", "raw"})
+    if binary:
+        suggestions.append({"kind": "raw_binary", "name": "raw-binary", "label": "Create a raw binary loader",
+                            "patterns": sorted("*" + actual for ext in binary for actual in suffixes[ext]),
+                            "reason": "Possible binary recording. Confirm it is interleaved raw data; sample type, channel count, scaling and sampling rate cannot be inferred from the extension."})
+    return suggestions
+
+
 def detect(context):
     """Which loaders recognise the experiment's ephys folder. Body: ``number``; optional draft ``text``.
 
@@ -454,6 +500,7 @@ def detect(context):
             "definitions": project_results,
             "skipped": sorted(Path(key).name for key in problems),
             "draft": draft,
+            "suggestions": _suggest_loaders(folder, builtins, project_results),
         }
     )
     return result

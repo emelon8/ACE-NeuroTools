@@ -320,3 +320,147 @@ def test_deeply_nested_file_is_reported_not_dropped(served):
         assert status == 200 and not result["definitions"][0]["valid"]
     status, result = call(served, "/api/loaders/definition", project=served[2].id, name="deep")
     assert status == 200 and "invalid JSON" in result["problems"][0]["message"]
+
+
+def test_suggestions_prefer_configured_loaders(tmp_path, monkeypatch):
+    monkeypatch.setattr(loaders.ld, "neo_io_names", lambda: [])
+    builtin = {"name": "KnownSystem", "matches": True}
+    own = {"name": "my-rig", "label": "My rig", "matches": True}
+    result = loaders._suggest_loaders(tmp_path, [builtin], [own])
+    assert [(item["kind"], item["name"]) for item in result] == [("builtin", "KnownSystem"), ("project", "my-rig")]
+
+
+def test_suggestions_match_neo_metadata_without_reading_data(tmp_path, monkeypatch):
+    class Reader:
+        extensions = ["rhd"]
+        def __init__(self, filename):
+            pytest.fail("Detection must never instantiate a reader")
+    monkeypatch.setattr(loaders.ld, "neo_io_names", lambda: ["ExampleIO"])
+    monkeypatch.setattr(loaders.ld, "_neo_io_class", lambda name: Reader)
+    (tmp_path / "session.RHD").write_bytes(b"not a recording")
+    result = loaders._suggest_loaders(tmp_path, [], [])
+    assert len(result) == 1
+    assert result[0]["kind"] == "neo" and result[0]["name"] == "ExampleIO"
+    assert result[0]["path_argument"] == "filename"
+    assert result[0]["patterns"] == ["*.RHD"]
+
+
+def test_suggestions_keep_binary_ambiguity_and_unknown_files(tmp_path, monkeypatch):
+    class Reader:
+        extensions = ["dat"]
+        def __init__(self, dirname):
+            pytest.fail("No IO construction")
+    monkeypatch.setattr(loaders.ld, "neo_io_names", lambda: ["ExampleIO"])
+    monkeypatch.setattr(loaders.ld, "_neo_io_class", lambda name: Reader)
+    (tmp_path / "unknown.xyz").touch()
+    assert loaders._suggest_loaders(tmp_path, [], []) == []
+    (tmp_path / "recording.dat").touch()
+    result = loaders._suggest_loaders(tmp_path, [], [])
+    assert {item["kind"] for item in result} == {"neo", "raw_binary"}
+    assert next(item for item in result if item["kind"] == "neo")["path_argument"] == "dirname"
+    assert "cannot be inferred" in next(item for item in result if item["kind"] == "raw_binary")["reason"]
+
+
+def test_detect_returns_configured_suggestions(served):
+    save(served, "my-rig", definition())
+    status, result = call(served, "/api/loaders/detect", {"project": served[2].id, "number": "1"})
+    assert status == 200
+    assert [item["kind"] for item in result["suggestions"][:2]] == ["builtin", "project"]
+    assert {item["name"] for item in result["suggestions"][:2]} == {"NeuralynxDataManager", "my-rig"}
+
+
+FORMAT_CASES = [
+    (["session.rhd"], {"IntanIO"}),
+    (["session.rhs"], {"IntanIO"}),
+    (["recording.abf"], {"AxonIO"}),
+    (["recording.ABF"], {"AxonIO"}),
+    (["recording.smr"], {"Spike2IO", "CedIO"}),
+    (["recording.smrx"], {"CedIO"}),
+    (["session.ns5"], {"BlackrockIO"}),
+    (["session.nev"], {"NeuralynxDataManager", "BlackrockIO"}),
+    (["recording.edf"], {"EDFIO"}),
+    (["recording.vhdr", "recording.eeg", "recording.vmrk"], {"BrainVisionIO"}),
+    (["structure.oebin"], {"OpenEphysBinaryIO"}),
+    (["CH1.continuous"], {"OpenEphysIO"}),
+    (["recording.nwb"], {"NWBIO"}),
+    (["recording.plx"], {"PlexonIO"}),
+    (["recording.nex"], {"NeuroExplorerIO"}),
+    (["recording.wcp"], {"WinWcpIO"}),
+    (["recording.TRC"], {"MicromedIO"}),
+    (["recording.bin"], {"raw-binary"}),
+    (["recording.raw"], {"RHS2116DataManager", "raw-binary"}),
+    (["recording.dat"], {"IntanIO", "raw-binary"}),
+    (["recording.xyz"], set()),
+    ([], set()),
+]
+
+
+@pytest.mark.parametrize("filenames,expected", FORMAT_CASES)
+def test_real_reader_format_suggestions(tmp_path, filenames, expected):
+    for name in filenames:
+        (tmp_path / name).touch()
+    builtins = [{"name": name, "matches": bool(cls.can_handle(tmp_path))}
+                for name, cls in loaders._builtin_classes()]
+    result = loaders._suggest_loaders(tmp_path, builtins, [])
+    names = {item["name"] for item in result}
+    assert expected <= names
+    if not expected:
+        assert not result
+    if any(item["matches"] for item in builtins):
+        assert result[0]["kind"] == "builtin"
+    for item in result:
+        if item["kind"] in {"neo", "raw_binary"}:
+            assert all(list(tmp_path.glob(pattern)) for pattern in item["patterns"])
+        if item["name"] == "NeuralynxIO":
+            assert item["path_argument"] == "dirname"
+
+
+def test_browser_suggestion_drafts_validate_with_real_readers(tmp_path):
+    import subprocess
+    suggestions = []
+    for index, (filenames, _) in enumerate(FORMAT_CASES):
+        folder = tmp_path / str(index)
+        folder.mkdir()
+        for name in filenames:
+            (folder / name).touch()
+        suggestions.extend(item for item in loaders._suggest_loaders(folder, [], [])
+                           if item["kind"] in {"neo", "raw_binary"})
+    templates = {key: json.loads((loaders.TEMPLATES_DIR / name).read_text())
+                 for key, name in [("neo", "neo-reader.json"), ("raw_binary", "raw-binary.json")]}
+    # Execute the actual browser draft builder so this test catches UI/schema drift.
+    script = Path(loaders.__file__).with_suffix(".js").read_text()
+    function = script[script.index("  function suggestionAction("):script.index("  function suggestionCards(")]
+    harness = """
+const fs = require("fs");
+const {suggestions, templates} = JSON.parse(fs.readFileSync(0, "utf8"));
+const state = {working: false};
+const confirmDiscard = () => true;
+const templateFor = key => JSON.parse(JSON.stringify(templates[key]));
+const drafts = [];
+const startFrom = template => drafts.push(JSON.parse(template.text));
+""" + function + """
+for (const suggestion of suggestions) suggestionAction(suggestion);
+console.log(JSON.stringify(drafts));
+"""
+    result = subprocess.run(["node", "-e", harness], input=json.dumps({"suggestions": suggestions, "templates": templates}),
+                            text=True, capture_output=True, check=True)
+    drafts = json.loads(result.stdout)
+    assert len(drafts) == len(suggestions) and len(drafts) >= 20
+    for draft in drafts:
+        assert validate_definition(draft) == [], draft["reader"]
+
+
+def test_real_binary_reader_preserves_layout_scaling_and_time(tmp_path):
+    import numpy as np
+    import neo
+    raw = (np.arange(24, dtype=np.int16) - 12).reshape(8, 3)
+    path = tmp_path / "recording.bin"
+    raw.tofile(path)
+    reader = neo.io.RawBinarySignalIO(filename=str(path), dtype="int16", nb_channel=3,
+                                      sampling_rate=2000, signal_gain=0.25, signal_offset=-1)
+    block = reader.read_block(signal_group_mode="split-all")
+    signals = block.segments[0].analogsignals
+    assert len(signals) == 3
+    for index, signal in enumerate(signals):
+        np.testing.assert_allclose(signal.magnitude[:, 0], raw[:, index] * 0.25 - 1)
+        np.testing.assert_allclose(signal.times.magnitude, np.arange(8) / 2000)

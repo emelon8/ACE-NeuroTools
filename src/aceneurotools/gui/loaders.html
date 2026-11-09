@@ -32,6 +32,18 @@
     </div>
 
     <div class="loaders-main">
+      <section id="loaders-check" class="card">
+        <h2 class="card-title">Find a loader for your recording</h2>
+        <p class="muted loaders-help">Choose an experiment to detect configured loaders or get suggestions for a new one. Only names are checked; no recording is read.</p>
+        <div class="input-row">
+          <label class="visually-hidden" for="loaders-experiment">Experiment</label>
+          <select id="loaders-experiment"></select>
+          <button id="loaders-detect" type="button"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>Check</button>
+        </div>
+        <label class="loaders-include" id="loaders-include-label" hidden><input id="loaders-include" type="checkbox" checked> Include the loader I am editing, as it is now</label>
+        <div id="loaders-detect-result" class="loaders-detect" role="status"></div>
+      </section>
+
       <section id="loaders-start" class="card">
         <h2 class="card-title">Start a new loader</h2>
         <p class="muted">Choose a starting point. You can change everything before saving.</p>
@@ -106,23 +118,16 @@
             <button id="loaders-discard" type="button">Discard changes</button>
             <button id="loaders-preview" type="button" disabled aria-describedby="loaders-preview-note"><svg class="icon" aria-hidden="true"><use href="#i-play"/></svg>Preview signal</button>
           </div>
-          <button id="loaders-delete" class="btn-danger-text" type="button">Delete loader</button>
+          <div class="loaders-secondary-actions">
+            <button id="loaders-delete" class="btn-danger-text" type="button">Delete loader</button>
+            <button id="loaders-back" type="button">Cancel</button>
+          </div>
         </div>
         <p id="loaders-preview-note" class="muted loaders-help"></p>
         <p id="loaders-saved" class="muted loaders-help" role="status"></p>
       </form>
 
-      <section id="loaders-check" class="card">
-        <h2 class="card-title">Check against an experiment</h2>
-        <p class="muted loaders-help">See which loaders recognise an experiment's ephys folder. Only names are checked; no recording is read.</p>
-        <div class="input-row">
-          <label class="visually-hidden" for="loaders-experiment">Experiment</label>
-          <select id="loaders-experiment"></select>
-          <button id="loaders-detect" type="button"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>Check</button>
-        </div>
-        <label class="loaders-include" id="loaders-include-label" hidden><input id="loaders-include" type="checkbox" checked> Include the loader I am editing, as it is now</label>
-        <div id="loaders-detect-result" class="loaders-detect" role="status"></div>
-      </section>
+
     </div>
   </div>
 </div>

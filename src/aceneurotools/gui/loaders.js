@@ -52,8 +52,10 @@
   // ── Page and project ──────────────────────────────────────────────────────
   async function prepare() {
     await aceFeatures.fragment("loaders.html", page);
-    $("loaders-refresh").onclick = () => working(loadList);
-    $("loaders-new").onclick = () => { if (confirmDiscard()) { closeEditor(); showStart(); } };
+    $("loaders-refresh").onclick = () => working(async () => { await loadList(); await detect(); });
+    $("loaders-experiment").onchange = () => working(detect);
+    $("loaders-new").onclick = backToTemplates;
+    $("loaders-back").onclick = backToTemplates;
     $("loaders-project").onchange = () => {
       if (!confirmDiscard()) { $("loaders-project").value = state.projectId; return; }
       closeEditor(); state.projectId = $("loaders-project").value; refresh();
@@ -105,7 +107,7 @@
     }));
     $("loaders-detect-result").replaceChildren();
     if (!state.open) showStart();
-    working(loadList);
+    working(async () => { await loadList(); if ($("loaders-experiment").value) await detect(); });
   }
 
   // ── List ──────────────────────────────────────────────────────────────────
@@ -157,6 +159,12 @@
   // ── Editor ────────────────────────────────────────────────────────────────
   function confirmDiscard() {
     return !changed() || window.confirm("Discard your unsaved changes to this loader?");
+  }
+
+  function backToTemplates() {
+    if (state.working || !confirmDiscard()) return;
+    closeEditor(); clearFail(); showStart();
+    $("loaders-templates").querySelector("button")?.focus();
   }
 
   function closeEditor() {
@@ -357,11 +365,53 @@
     return text ? [element("span", text, "loaders-hits")] : [];
   }
 
+  function suggestionAction(suggestion) {
+    if (state.working || !confirmDiscard()) return;
+    if (suggestion.kind === "builtin") {
+      const entry = state.list?.builtins.find(item => item.name === suggestion.name);
+      if (entry) { closeEditor(); showBuiltin(entry); }
+    } else if (suggestion.kind === "project") {
+      openDefinition(suggestion.name, true);
+    } else {
+      const backend = suggestion.kind === "neo" ? "neo" : "raw_binary";
+      const data = templateFor(backend);
+      if (!data) return;
+      data.detect = {any_of: suggestion.patterns};
+      if (backend === "neo") {
+        data.reader.io = suggestion.name;
+        data.reader.path_argument = suggestion.path_argument;
+        if (suggestion.path_argument === "dirname") {
+          data.reader.path_from = {source: "recording_folder"}; data.reader.files = [];
+        }
+      }
+      if (data.reader.files.length) data.reader.files[0].pattern = suggestion.patterns[0];
+      startFrom({text: JSON.stringify(data, null, 2) + "\n"});
+    }
+  }
+
+  function suggestionCards(suggestions) {
+    const box = element("div");
+    box.append(element("h3", suggestions.length ? "Suggested next step" : "No recognised loader or file type"));
+    if (!suggestions.length) box.append(element("p", "Choose Neo reader or Raw binary file below using your acquisition system documentation. No settings have been guessed.", "muted"));
+    if (suggestions.length > 1) box.append(element("p", "Several options match. Review them and choose; ACE has not selected a loader.", "muted"));
+    for (const suggestion of suggestions) {
+      const card = element("div", undefined, "notice");
+      const button = element("button", suggestion.kind === "builtin" ? "View configured loader" : suggestion.kind === "project" ? "Open saved loader" : suggestion.label);
+      button.type = "button"; button.onclick = () => suggestionAction(suggestion);
+      card.append(element("strong", suggestion.label), element("p", suggestion.reason), button);
+      if (suggestion.kind === "project") card.append(element("p", "This definition is configured, but using it in analyses still requires the pending loader integration.", "muted"));
+      box.append(card);
+    }
+    return box;
+  }
+
   async function detect() {
     const number = $("loaders-experiment").value;
     if (!number) { fail(new Error("This project has no experiments to check.")); return; }
     const include = state.open && !$("loaders-include-label").hidden && $("loaders-include").checked;
-    const result = await post("/api/loaders/detect", {project: state.projectId, number, ...(include ? {text: state.open.text} : {})});
+    const projectId = state.projectId;
+    const result = await post("/api/loaders/detect", {project: projectId, number, ...(include ? {text: state.open.text} : {})});
+    if (projectId !== state.projectId || number !== $("loaders-experiment").value) return;
     const out = $("loaders-detect-result");
     if (result.status !== "ok") {
       const notice = element("div", undefined, "notice");
@@ -369,7 +419,7 @@
       if (result.checked?.length) notice.append(element("p", `Looked in: ${result.checked.join("; ")}`));
       out.replaceChildren(notice); return;
     }
-    const nodes = [element("p", `Folder: ${result.folder}`, "muted")];
+    const nodes = [suggestionCards(result.suggestions || []), element("p", `Folder: ${result.folder}`, "muted")];
     nodes.push(element("h3", "Built-in loaders"));
     const builtins = element("ul");
     builtins.append(...result.builtins.map(item => matchLine(item.name, item.matches, item.error ? [element("span", `Check failed: ${item.error}`, "loaders-hits")] : [])));
