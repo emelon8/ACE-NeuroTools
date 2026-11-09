@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep edits made during a loader save unsaved, ignore stale save responses,
+  and accept BOM-prefixed loader JSON without weakening byte conflict checks.
+
 - Keep alternative reader suggestions visible for ambiguous `.nev` and `.raw`
   recordings, and use directory paths for folder-based Neo readers.
 
