@@ -1,0 +1,34 @@
+{
+  "schema": "ace-loader/1",
+  "name": "intan-rhd",
+  "label": "Intan RHD recording (.rhd)",
+  "description": "Worked example for a system without a built-in loader: one Intan .rhd file per recording, opened with neo's IntanIO. The imaging frame TTL is wired to a digital input; replace DIGITAL-IN-01 with that channel's name.",
+  "modality": "ephys",
+  "detect": {
+    "all_of": ["*.rhd"]
+  },
+  "reader": {
+    "backend": "neo",
+    "io": "IntanIO",
+    "files": [
+      {"role": "recording", "pattern": "*.rhd", "pick": "only"}
+    ],
+    "path_argument": "filename",
+    "path_from": {"source": "file", "file": "recording"},
+    "args": {},
+    "read_block": {"signal_group_mode": "split-all"}
+  },
+  "time": {
+    "source": "reader"
+  },
+  "channels": {
+    "source": "reader",
+    "default": "none"
+  },
+  "sync": {
+    "strategy": "digital_threshold",
+    "channel": "DIGITAL-IN-01",
+    "threshold": 0.5,
+    "edge": "rising"
+  }
+}

@@ -21,6 +21,7 @@
 
   const project = () => projects.find(item => item.id === state.projectId) || null;
   const query = extra => new URLSearchParams({project: state.projectId, ...extra}).toString();
+  const normalizeText = text => text.replace(/^\uFEFF/, "");
   const lines = text => text.split("\n").map(item => item.trim()).filter(Boolean);
   const SYNC_DEFAULTS = {
     event_labels: sync => ({strategy: "event_labels", labels: Array.isArray(sync.labels) ? sync.labels : []}),
@@ -38,6 +39,7 @@
   const clearFail = () => { $("loaders-error").hidden = true; };
   async function working(action) {
     if (state.working) return;
+    const projectId = state.projectId;
     state.working = true; clearFail();
     for (const id of ["loaders-save", "loaders-delete", "loaders-refresh", "loaders-new", "loaders-detect"]) $(id).disabled = true;
     try { await action(); }
@@ -46,20 +48,23 @@
       state.working = false;
       for (const id of ["loaders-delete", "loaders-refresh", "loaders-new", "loaders-detect"]) $(id).disabled = false;
       syncState();
+      if (projectId !== state.projectId) refresh();
     }
   }
 
   // ── Page and project ──────────────────────────────────────────────────────
   async function prepare() {
     await aceFeatures.fragment("loaders.html", page);
-    $("loaders-refresh").onclick = () => working(loadList);
-    $("loaders-new").onclick = () => { if (confirmDiscard()) { closeEditor(); showStart(); } };
+    $("loaders-refresh").onclick = () => working(async () => { await loadList(); await detect(); });
+    $("loaders-experiment").onchange = () => working(detect);
+    $("loaders-new").onclick = backToTemplates;
+    $("loaders-back").onclick = backToTemplates;
     $("loaders-project").onchange = () => {
       if (!confirmDiscard()) { $("loaders-project").value = state.projectId; return; }
       closeEditor(); state.projectId = $("loaders-project").value; refresh();
     };
     $("loaders-error-reload").onclick = () => { clearFail(); if (state.open?.name) openDefinition(state.open.name, true); };
-    $("loaders-json").oninput = () => { state.open.text = $("loaders-json").value; fillForm(); syncState(); scheduleValidate(); };
+    $("loaders-json").oninput = () => { state.open.text = normalizeText($("loaders-json").value); fillForm(); syncState(); scheduleValidate(); };
     for (const field of page.querySelectorAll(".loaders-form [data-path]")) field.addEventListener(field.tagName === "SELECT" ? "change" : "input", () => formChanged(field));
     $("loaders-editor").onsubmit = event => { event.preventDefault(); save(); };
     $("loaders-discard").onclick = discard;
@@ -105,7 +110,7 @@
     }));
     $("loaders-detect-result").replaceChildren();
     if (!state.open) showStart();
-    working(loadList);
+    working(async () => { await loadList(); if ($("loaders-experiment").value) await detect(); });
   }
 
   // ── List ──────────────────────────────────────────────────────────────────
@@ -159,6 +164,12 @@
     return !changed() || window.confirm("Discard your unsaved changes to this loader?");
   }
 
+  function backToTemplates() {
+    if (state.working || !confirmDiscard()) return;
+    closeEditor(); clearFail(); showStart();
+    $("loaders-templates").querySelector("button")?.focus();
+  }
+
   function closeEditor() {
     window.clearTimeout(state.validateTimer); state.validateSeq++;
     state.open = null; state.problems = [];
@@ -181,6 +192,8 @@
 
   function openEditor(open) {
     closeEditor(); clearFail();
+    open.text = normalizeText(open.text);
+    if (open.saved !== null) open.saved = normalizeText(open.saved);
     state.open = open;
     $("loaders-start").hidden = true; $("loaders-builtin").hidden = true; $("loaders-editor").hidden = false;
     $("loaders-include-label").hidden = false;
@@ -195,7 +208,7 @@
   }
 
   function parsed() {
-    try { const value = JSON.parse(state.open.text); return value && typeof value === "object" && !Array.isArray(value) ? value : null; }
+    try { const value = JSON.parse(normalizeText(state.open.text)); return value && typeof value === "object" && !Array.isArray(value) ? value : null; }
     catch { return null; }
   }
   const at = (object, path) => path.split(".").reduce((value, key) => (value && typeof value === "object" ? value[key] : undefined), object);
@@ -317,15 +330,28 @@
   // ── Save, discard, delete ─────────────────────────────────────────────────
   function save() {
     if (!state.open) return;
-    const data = parsed(), name = state.open.name || (data && typeof data.name === "string" ? data.name : "");
+    const open = state.open, projectId = state.projectId;
+    const submitted = open.text, digest = open.digest;
+    const data = parsed(), name = open.name || (data && typeof data.name === "string" ? data.name : "");
+    const current = () => state.open === open && state.projectId === projectId;
     working(async () => {
-      const result = await post("/api/loaders/save", {project: state.projectId, name, text: state.open.text, digest: state.open.digest});
-      const text = state.open.text.endsWith("\n") ? state.open.text : state.open.text + "\n";
-      Object.assign(state.open, {name: result.name, digest: result.digest, saved: text, text});
-      $("loaders-json").value = text;
-      openEditor({...state.open});
+      let result;
+      try {
+        result = await post("/api/loaders/save", {project: projectId, name, text: submitted, digest});
+      } catch (error) {
+        if (current()) throw error;
+        return;
+      }
+      if (!current()) return;
+      const normalized = normalizeText(submitted);
+      const saved = normalized.endsWith("\n") ? normalized : normalized + "\n";
+      // Only the submitted snapshot reached disk. Keep edits made during POST dirty.
+      if (open.text === submitted) open.text = saved;
+      Object.assign(open, {name: result.name, digest: result.digest, saved});
+      openEditor(open);
       $("loaders-saved").textContent = result.backup ? `Saved. The previous version was kept in ${result.backup}.` : `Saved as loaders/${result.name}.json.`;
-      await loadList();
+      try { await loadList(); }
+      catch (error) { if (current()) throw error; }
     });
   }
 
@@ -357,11 +383,53 @@
     return text ? [element("span", text, "loaders-hits")] : [];
   }
 
+  function suggestionAction(suggestion) {
+    if (state.working || !confirmDiscard()) return;
+    if (suggestion.kind === "builtin") {
+      const entry = state.list?.builtins.find(item => item.name === suggestion.name);
+      if (entry) { closeEditor(); showBuiltin(entry); }
+    } else if (suggestion.kind === "project") {
+      openDefinition(suggestion.name, true);
+    } else {
+      const backend = suggestion.kind === "neo" ? "neo" : "raw_binary";
+      const data = templateFor(backend);
+      if (!data) return;
+      data.detect = {any_of: suggestion.patterns};
+      if (backend === "neo") {
+        data.reader.io = suggestion.name;
+        data.reader.path_argument = suggestion.path_argument;
+        if (suggestion.path_argument === "dirname") {
+          data.reader.path_from = {source: "recording_folder"}; data.reader.files = [];
+        }
+      }
+      if (data.reader.files.length) data.reader.files[0].pattern = suggestion.patterns[0];
+      startFrom({text: JSON.stringify(data, null, 2) + "\n"});
+    }
+  }
+
+  function suggestionCards(suggestions) {
+    const box = element("div");
+    box.append(element("h3", suggestions.length ? "Suggested next step" : "No recognised loader or file type"));
+    if (!suggestions.length) box.append(element("p", "Choose Neo reader or Raw binary file below using your acquisition system documentation. No settings have been guessed.", "muted"));
+    if (suggestions.length > 1) box.append(element("p", "Several options match. Review them and choose; ACE has not selected a loader.", "muted"));
+    for (const suggestion of suggestions) {
+      const card = element("div", undefined, "notice");
+      const button = element("button", suggestion.kind === "builtin" ? "View configured loader" : suggestion.kind === "project" ? "Open saved loader" : suggestion.label);
+      button.type = "button"; button.onclick = () => suggestionAction(suggestion);
+      card.append(element("strong", suggestion.label), element("p", suggestion.reason), button);
+      if (suggestion.kind === "project") card.append(element("p", "This definition is configured, but using it in analyses still requires the pending loader integration.", "muted"));
+      box.append(card);
+    }
+    return box;
+  }
+
   async function detect() {
     const number = $("loaders-experiment").value;
     if (!number) { fail(new Error("This project has no experiments to check.")); return; }
     const include = state.open && !$("loaders-include-label").hidden && $("loaders-include").checked;
-    const result = await post("/api/loaders/detect", {project: state.projectId, number, ...(include ? {text: state.open.text} : {})});
+    const projectId = state.projectId;
+    const result = await post("/api/loaders/detect", {project: projectId, number, ...(include ? {text: state.open.text} : {})});
+    if (projectId !== state.projectId || number !== $("loaders-experiment").value) return;
     const out = $("loaders-detect-result");
     if (result.status !== "ok") {
       const notice = element("div", undefined, "notice");
@@ -369,7 +437,7 @@
       if (result.checked?.length) notice.append(element("p", `Looked in: ${result.checked.join("; ")}`));
       out.replaceChildren(notice); return;
     }
-    const nodes = [element("p", `Folder: ${result.folder}`, "muted")];
+    const nodes = [suggestionCards(result.suggestions || []), element("p", `Folder: ${result.folder}`, "muted")];
     nodes.push(element("h3", "Built-in loaders"));
     const builtins = element("ul");
     builtins.append(...result.builtins.map(item => matchLine(item.name, item.matches, item.error ? [element("span", `Check failed: ${item.error}`, "loaders-hits")] : [])));

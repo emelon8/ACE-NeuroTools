@@ -243,12 +243,24 @@ folder, which reader opens it, and how it synchronises with imaging. Choose
     loaders that is under review (ADR 0008). Until then the **Preview signal**
     button stays unavailable and analyses use the built-in loaders.
 
+The page automatically checks the selected experiment's recording folder.
+Matching built-in or saved loaders are suggested first. File extensions
+are compared with installed Neo readers and common binary extensions to suggest
+a new definition. Alternatives remain visible even if a built-in loader matches:
+`.nev` can mean Neuralynx or Blackrock, and `.raw` is also used by generic binary
+recordings. These are hints, not confirmed formats; binary layout and
+sampling settings must be checked manually. Choose among multiple matches.
+Detection checks files directly in the recording folder and never reads signals.
+
 1. The page lists the **built-in** loaders and the loaders saved in this
    project's `loaders` folder, with **Valid** or the number of problems.
 2. Choose **New loader** and a starting point: **Neo reader** (a system a
    [neo](https://neo.readthedocs.io) reader can open) or **Raw binary file**
    (one interleaved binary file). Give it a name such as `my-rig`; it is saved as
    `loaders/my-rig.json`.
+   Use **Cancel** to return to the choices. Confirm discarding
+   an unsaved draft when prompted; saved definitions are kept.
+
 3. Fill in the form: the patterns that recognise the recording folder, the
    reader, and the sync method. Everything else is in the **Full definition
    (JSON)** box below the form. Problems appear next to the fields and under the
@@ -257,7 +269,7 @@ folder, which reader opens it, and how it synchronises with imaging. Choose
    copied to `.ace-gui-backups` in the project. If the file changed in another
    window or program since you opened it, ACE refuses the save; choose **Load the
    saved version** and apply your changes again.
-5. Under **Check against an experiment**, choose an experiment and **Check** to
+5. Under **Find a loader for your recording**, choose an experiment and **Check** to
    see which loaders recognise its ephys folder. Only file names are checked; no
    recording is read. Leave **Include the loader I am editing** ticked to test a
    draft before saving it.
@@ -280,3 +292,5 @@ described in [Ephys loader definitions](guides/loader_definitions.md).
 
 Cluster job-script generation and experiment revision history are not connected
 in this installed GUI.
+
+For a complete walkthrough, see [Add a recording system ACE doesn’t read](guides/loader_definitions.md#add-a-recording-system-ace-doesnt-read).

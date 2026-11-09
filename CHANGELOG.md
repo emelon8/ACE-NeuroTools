@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep alternative reader suggestions visible for ambiguous `.nev` and `.raw`
+  recordings, and use directory paths for folder-based Neo readers.
+
+- Suggest configured ephys loaders automatically for the selected recording, or
+  offer new Neo/raw binary definitions based on file extensions. Suggestions do
+  not select a loader or change analysis results.
+
+- Add a Cancel button to the loader editor so a mistaken template
+  choice can be changed, with confirmation before discarding drafts. Analysis
+  results are unchanged.
+
 - Align bundled CSV example rows with their headers and allow local recording
   checks when optional Box columns are absent.
 - Report a missing explicit CLI configuration as an error without launching setup.

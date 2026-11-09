@@ -34,6 +34,7 @@ fieldset.field-group:disabled .fields-grid { opacity: .55; }
 .loaders-problems code { margin-right: 6px; }
 
 .loaders-actions { justify-content: space-between; }
+.loaders-secondary-actions { margin-left: auto; }
 #loaders-preview-note { margin-top: 8px; }
 #loaders-saved:empty, #loaders-preview-note:empty { display: none; }
 
