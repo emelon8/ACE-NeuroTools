@@ -67,6 +67,36 @@ Filtering is off unless `filter_type` is supplied, and event-phase analysis is
 conditional on the requested events/phases. The steps below describe capabilities,
 not a promise that every output is computed for every run.
 
+## Export a calcium + ephys movie
+
+After a multimodal run, `create_ca_ephys_movie` (in
+`aceneurotools.multimodal.calcium_ephys_visualizer`) draws calcium frames with the
+ephys trace, and optionally mean fluorescence and an infusion marker, on top.
+Choose one movie with `movie_num` or a period with `time_range` (seconds):
+
+```python
+from aceneurotools.multimodal.calcium_ephys_visualizer import create_ca_ephys_movie
+
+dm = pipeline.calcium_imaging_pipeline.calcium_imaging_data_manager
+channel = pipeline.ephys_pipeline.ephys_data_manager.get_channel("YourChannel")
+path = create_ca_ephys_movie(dm, pipeline.ephys_idx_all_TTL_events, channel,
+                             movie_num=3, save_movie=True, headless=True)
+```
+
+- Movies are found by their exact name (`3.avi`) in the calcium imaging directory
+  or its subfolders, never by prefix. A missing movie raises `FileNotFoundError`.
+  If the same name exists in two folders (for example a behavior camera's movie),
+  it raises `ValueError`; set `calcium imaging directory` to the miniscope folder.
+- `save_movie=True` writes `saved_movies/miniscope_ephys_movie3.mp4` (or
+  `miniscope_ephys_<start>-<end>s.mp4` for a time range), or to `output_path` if
+  given, and returns the path. Saving MP4 files needs ffmpeg; save errors are
+  raised.
+- `headless=True` never opens windows: it crops only with saved or supplied
+  coordinates, does not play the movie, and raises errors instead of printing them.
+  Without it, the movie plays in a window as before.
+- If no event label starts with "start", the infusion marker is skipped with a
+  warning.
+
 ## Data Requirements
 
 The `experiments.csv` must contain both:

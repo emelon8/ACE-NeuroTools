@@ -7,9 +7,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from aceneurotools.calcium_imaging.calcium_imaging_preprocessor import CalciumImagingPreprocessor
-from aceneurotools.multimodal.miniscope_ephys_alignment_utils import find_ca_movie_filenums
+from aceneurotools.multimodal.miniscope_ephys_alignment_utils import find_ca_movie_filenums, find_numbered_movies
 from aceneurotools.shared.misc_functions import get_coords_dict_from_analysis_params
-from aceneurotools.shared.path_finder import PathFinder
 
 if TYPE_CHECKING:
     from aceneurotools.ephys.channel import Channel
@@ -33,29 +32,41 @@ def create_ca_ephys_movie(
     time_stamps: bool = True,
     playback_interval: int = 33,
     play_movie: bool = True,
-    save_movie: bool = False
-) -> None:
+    save_movie: bool = False,
+    headless: bool = False,
+    output_path: str | None = None
+) -> str | None:
 
     """
     Accepts a list/integer for time_range or movie_num but only one parameter should have a value
     Display a calcium imaging movie that has a specific ephys signal overlayed. Which miniscope video is displayed depends on time_range or movie_num
     Which ephys channel signal is displayed depends on which channel object is passed in.
-    
+
     channel_object expects you to have already prepared it for visualization before being passed in (applied filters etc)
     time_range: A time range of which movies you want displayed
     movie_num: An integer if you just want to dispay a specific movie (ie. pass in 0 if you want to see 'miniscope_dir/Miniscope/0.avi')
-    save_movie: saves the movie to the 'saved_movies' folder in your miniscope directory
+    save_movie: saves the movie to the 'saved_movies' folder in your miniscope directory, named after
+        the movie number or time range (for example 'miniscope_ephys_movie3.mp4'), or to output_path
+    headless: never open windows: draw on an off-screen figure, crop only with saved or supplied
+        coordinates, do not play the movie, and raise errors instead of printing them
+    output_path: where to save the movie (overrides the default name when save_movie is True)
+    Movies are found by exact name ('<n>.avi') in the calcium imaging directory or its subfolders;
+    a missing movie or a name found in more than one folder is an error.
+    Returns the saved movie path when save_movie is True, otherwise None.
     """
 
+    def stop(message):
+        if headless:
+            raise ValueError(message)
+        print(message)
+
     if miniscope_dm.metadata is None:
-        print("Error: Miniscope metadata is missing. Cannot proceed.")
-        return
+        return stop("Error: Miniscope metadata is missing. Cannot proceed.")
 
     miniscope_dir_path = str(miniscope_dm.metadata['calcium imaging directory'])
 
     if not plot_ephys and not plot_mean_fluorescence:
-        print('Note: you have chosen not to overlay an ephys signal nor the mean fluroescence.')
-        return
+        return stop('Note: you have chosen not to overlay an ephys signal nor the mean fluroescence.')
 
     if type(time_range) == list:
         if movie_num != None:
@@ -63,17 +74,12 @@ def create_ca_ephys_movie(
         movie_filepaths_in_range, movie_frames = find_ca_movie_filenums(channel_object, ephys_idx_all_TTL_events, miniscope_dm, time_range)
         movie = cm.load_movie_chain(movie_filepaths_in_range)
     elif type(movie_num) == int:
-        movie_filepaths = PathFinder.find(miniscope_dir_path, suffix='.avi', prefix=str(movie_num))
-        if movie_filepaths is None or len(movie_filepaths) == 0:
-            print(f"Error: Could not find movie {movie_num}.avi in {miniscope_dir_path}")
-            return
-        movie = cm.load(str(movie_filepaths[0]))
+        movie = cm.load(find_numbered_movies(miniscope_dir_path, [movie_num])[0])
         movie_frames = np.zeros(2, dtype=int)
         movie_frames[0] = movie_num * int(miniscope_dm.metadata.get('framesPerFile', 1000)) # Start frame of movieNum
         movie_frames[1] = (movie_num + 1) * int(miniscope_dm.metadata.get('framesPerFile', 1000)) - 1 # End frame of movieNum
     else:
-        print('Please provide either a time range or a movie number!')
-        return
+        return stop('Please provide either a time range or a movie number!')
 
     # Crop the movie if desired.
     if crop:
@@ -86,7 +92,7 @@ def create_ca_ephys_movie(
             coords_dict, _ = get_coords_dict_from_analysis_params(miniscope_dm)
         preprocessor = CalciumImagingPreprocessor(miniscope_dm)
         projections = preprocessor.compute_projections(movie)
-        final_coords = preprocessor.get_crop_coordinates(coords_dict, projections, movie.shape[1], movie.shape[2])
+        final_coords = preprocessor.get_crop_coordinates(coords_dict, projections, movie.shape[1], movie.shape[2], headless=headless)
         if final_coords is not None:
             movie, _ = preprocessor.crop_movie(movie, final_coords)
 
@@ -112,13 +118,29 @@ def create_ca_ephys_movie(
         vmax = movie.mean() + movie.std()*4
         print('vmax = ' + str(vmax))
     if mark_start_systemic:
-        sys_start_idx = np.where(np.char.find(channel_object.events['labels'], 'start') == 0)[0][0]
+        # Labels as strings, so a recording without events gives an empty match instead of an error.
+        labels = np.asarray((getattr(channel_object, 'events', None) or {}).get('labels', []), dtype=str)
+        start_events = np.where(np.char.find(labels, 'start') == 0)[0]
+        if len(start_events) == 0:
+            print('Warning: no event label starts with "start"; the infusion marker is not drawn.')
+            mark_start_systemic = False
+    if mark_start_systemic:
+        sys_start_idx = start_events[0]
         print('''Found event labeled: "''' + channel_object.events['labels'][sys_start_idx] + '''" at ''' + str(channel_object.events['timestamps'][sys_start_idx]) + ' s.')
         t_ephys_sys_start_idx = np.abs(channel_object.time_vector - channel_object.events['timestamps'][sys_start_idx]).argmin()
 
-    # Set up the plot
-    fig, ax = plt.subplots(figsize=(5.4,5.4))
-    plt.subplots_adjust(0,0,1,1)
+    # Set up the plot. Headless exports draw on an off-screen figure that pyplot never manages,
+    # so no window can open whatever backend is active.
+    if headless:
+        from matplotlib.backends.backend_agg import FigureCanvasAgg
+        from matplotlib.figure import Figure
+
+        fig = Figure(figsize=(5.4,5.4))
+        FigureCanvasAgg(fig)
+        ax = fig.add_subplot()
+    else:
+        fig, ax = plt.subplots(figsize=(5.4,5.4))
+    fig.subplots_adjust(0,0,1,1)
 
     def update(frame):
         """Update function for animation - renders a single frame.
@@ -179,11 +201,20 @@ def create_ca_ephys_movie(
     ani = animation.FuncAnimation(fig, update, frames=len(movie), interval=playback_interval, repeat=False)
 
     # Display the animation
-    if play_movie:
+    if play_movie and not headless:
         plt.show()
 
     # Save the animation
+    saved_path = None
     if save_movie:
-        dir_str = os.path.join(miniscope_dir_path, 'saved_movies')
-        ani.save(os.path.join(dir_str, 'miniscope_ephys_animation' + '.mp4'), dpi=300)
+        if output_path is None:
+            if type(time_range) == list:
+                label = f'{float(time_range[0]):g}-{float(time_range[1]):g}s'
+            else:
+                label = f'movie{movie_num}'
+            output_path = os.path.join(miniscope_dir_path, 'saved_movies', f'miniscope_ephys_{label}.mp4')
+        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+        ani.save(output_path, dpi=300)
+        saved_path = str(output_path)
+    return saved_path
 
