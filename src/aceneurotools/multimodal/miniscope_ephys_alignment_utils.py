@@ -1,3 +1,4 @@
+import os
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -219,14 +220,39 @@ def find_ca_movie_filenums(
     print('The first movie in the sequence is ' + str(first_movie) + '.avi.')
     print('The last movie in the sequence is ' + str(last_movie) + '.avi.')
 
-    movie_range = tuple([str(x) for x in range(first_movie, last_movie+1)])
     cal_imaging_dir = str(miniscope_dm.metadata.get('calcium imaging directory', '')) if miniscope_dm.metadata else ''
-    movie_file_paths_in_this_range = PathFinder.find(directory=cal_imaging_dir, suffix=".avi", prefix=movie_range, file_and_directory=False)
-
-    # Ensure movie_file_paths_in_this_range is a list of strings
-    if movie_file_paths_in_this_range is None:
+    if not cal_imaging_dir:
         return [], movie_frames
-    if isinstance(movie_file_paths_in_this_range, list):
-        return [str(p) for p in movie_file_paths_in_this_range], movie_frames
-    return [str(movie_file_paths_in_this_range)], movie_frames
+    return find_numbered_movies(cal_imaging_dir, range(first_movie, last_movie + 1)), movie_frames
+
+
+def find_numbered_movies(directory: str, numbers) -> list[str]:
+    """Return the path of ``<n>.avi`` for each number, in the order given.
+
+    Searches ``directory`` and its subfolders (skipping ``saved_movies``) like the
+    calcium imaging movie loader, but matches whole file names only, so movie 1 is
+    never ``10.avi``. A missing movie raises ``FileNotFoundError``; a name found in
+    more than one folder (for example a behavior camera's movie) raises ``ValueError``
+    instead of guessing.
+    """
+    found = PathFinder.find(directory=directory, suffix=".avi") or []
+    by_name: dict[str, list[str]] = {}
+    for path in found:
+        by_name.setdefault(os.path.basename(str(path)), []).append(str(path))
+    paths, missing = [], []
+    for number in numbers:
+        name = f"{int(number)}.avi"
+        matches = sorted(by_name.get(name, []))
+        if not matches:
+            missing.append(name)
+        elif len(matches) > 1:
+            raise ValueError(
+                f"{name} was found in more than one folder: {', '.join(matches)}. "
+                "Set 'calcium imaging directory' to the folder that holds the miniscope movies."
+            )
+        else:
+            paths.append(matches[0])
+    if missing:
+        raise FileNotFoundError(f"Movie file(s) not found in {directory}: {', '.join(missing)}")
+    return paths
 
