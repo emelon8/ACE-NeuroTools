@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
+from aceneurotools.calcium_imaging.motion_correction_record import MOTION_CORRECTION_SHIFTS_FILENAME
 from aceneurotools.gui.run_outputs import OutputInventory, ephys_outputs
 from aceneurotools.gui.run_worker import execute
 from aceneurotools.gui.runs import inventory
@@ -178,7 +179,7 @@ def test_inventory_reports_a_written_motion_correction_shifts_file(worker_case, 
 
     root, manifest, dm = worker_case
     manifest["parameters"]["apply_motion_correction"] = True
-    shifts = root / "recording" / "saved_movies" / "motion_correction_shifts.npz"
+    shifts = root / "recording" / "saved_movies" / MOTION_CORRECTION_SHIFTS_FILENAME
 
     class WritesShifts(miniscope.CalciumImagingPipeline):
         def run(self, **params):
@@ -194,7 +195,7 @@ def test_inventory_reports_a_written_motion_correction_shifts_file(worker_case, 
     assert entries["motion_correction_shifts"] == {
         "name": "motion_correction_shifts",
         "status": "exported",
-        "file": "recording/saved_movies/motion_correction_shifts.npz",
+        "file": f"recording/saved_movies/{MOTION_CORRECTION_SHIFTS_FILENAME}",
     }
 
 

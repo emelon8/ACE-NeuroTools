@@ -156,6 +156,30 @@ def test_cnmfe_review_names_the_motion_correction_shifts_destination(recording, 
         assert label not in review["destinations"]
 
 
+def test_review_destination_matches_where_the_core_writes_the_shifts(recording):
+    """Drift guard (AGENTS.md rule 2): the GUI names the path the core processor actually writes."""
+    from types import SimpleNamespace
+
+    from aceneurotools.calcium_imaging.calcium_imaging_processor import CalciumImagingProcessor
+
+    root, frames = recording
+    project = Project.open(root)
+    project.parameters["1"]["apply_motion_correction"] = "True"
+    review = Runs().review(project, payload(project, kind="miniscope"))
+    destination = review["destinations"]["Motion-correction shifts (when written)"]
+    # GUI runs point the core at the run's recording copy.
+    recording_copy = Path(review["directory"]) / "recording"
+    manager = SimpleNamespace(
+        metadata={"calcium imaging directory": str(recording_copy)},
+        opts_caiman=SimpleNamespace(get=lambda group, key: False),
+        fr=20.0,
+    )
+    written = CalciumImagingProcessor._save_motion_correction_shifts(
+        object.__new__(CalciumImagingProcessor), manager, SimpleNamespace(shifts_rig=[[0.0, 0.0]])
+    )
+    assert written == destination
+
+
 def test_changed_recording_and_missing_data_block_execution(recording):
     root, frames = recording
     project = Project.open(root)

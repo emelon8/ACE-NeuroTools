@@ -9,12 +9,14 @@ Shifts and templates are stored as float32 to keep piecewise-rigid files small
 motion settings that define the patch grid (``strides``, ``overlaps``,
 ``max_shifts``, ``upsample_factor_grid`` and ``shifts_opencv``; with a
 template's shape they locate each patch), the movie the shifts were computed
-from and the time the file was written (UTC). Attributes that are missing,
-empty or not numeric are skipped rather than failing the run; their names are
-listed in ``skipped_attributes``.
+from and the time the file was written (UTC). Attributes that are missing or
+empty are left out. Values that cannot be stored as numbers are also left out,
+and their names are listed in ``skipped_attributes``; neither fails the run.
 
-The file is written to a temporary file in the same directory and then renamed
-over the destination, so a failed write leaves any earlier file intact.
+The file is written to a temporary file in the same directory, flushed to disk
+and then renamed over the destination, so a save that fails with an error leaves
+any earlier file intact. A process killed outright during the save can leave a
+hidden ``.motion_correction_shifts.npz.*.tmp`` file behind.
 """
 
 from __future__ import annotations
@@ -106,9 +108,10 @@ def save_motion_correction_shifts(
 ) -> str:
     """Write the motion-correction shifts and templates to ``directory/filename``.
 
-    The file is written to a temporary file first and then renamed, so a failed
-    write never leaves a partial file at ``directory/filename``. The name is used
-    exactly as given (no ``.npz`` suffix is added).
+    The file is written to a temporary file first, flushed to disk and then
+    renamed, so a save that fails with an error never leaves a partial file at
+    ``directory/filename``. The name is used exactly as given (no ``.npz`` suffix
+    is added).
 
     Returns:
         The written file path.
@@ -121,6 +124,8 @@ def save_motion_correction_shifts(
     try:
         with open(temporary, "xb") as stream:
             np.savez_compressed(stream, **arrays)
+            stream.flush()
+            os.fsync(stream.fileno())
         os.replace(temporary, target)
     except BaseException:
         with contextlib.suppress(OSError):

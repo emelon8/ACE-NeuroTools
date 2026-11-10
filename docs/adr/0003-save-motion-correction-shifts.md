@@ -41,8 +41,9 @@ movie path and a UTC `saved_at` time to
 folder that already receives `estimates.hdf5` (`_save_processed_data`, line 492).
 Values that cannot be stored as numbers are left out and named in
 `skipped_attributes`, so the file always loads without pickle. The file is
-written to a temporary file in the same folder and renamed over the destination,
-so a failed write leaves any earlier file intact.
+written to a temporary file in the same folder, flushed to disk and renamed over
+the destination, so a save that fails with an error leaves any earlier file
+intact.
 The writer and a reader live in a new CaImAn-free module,
 `calcium_imaging/motion_correction_record.py`, so reports and tests can use them
 without CaImAn. The path is stored on the data manager and on
@@ -102,16 +103,18 @@ Piecewise shift arrays can be large. Outputs are overwritten on repeated runs; c
   listed values (ragged shifts, int64 overflow, non-numeric `border_to_0` and frame
   rate) with pickle-free loading; any `fname` shape; exact filenames; a failed
   write keeps the earlier file and leaves no temporary file; ordinary file
-  permissions; real CaImAn correction for rigid, piecewise and upsampled-grid runs,
-  checking recovered shifts, saved piecewise values and that the saved settings
-  reproduce the patch count; the processor writes the file, passes the corrected
+  permissions (POSIX only); real CaImAn correction for rigid, piecewise and
+  upsampled-grid runs, checking recovered shifts, the documented axis of
+  `x_shifts_els`/`y_shifts_els`, saved piecewise values and that the saved
+  settings reproduce the patch count; the processor writes the file, passes the corrected
   movie and unchanged border to CNMF-E, leaves the `MotionCorrect` object
   unchanged, warns and continues on any save failure or missing recording folder,
   writes nothing without metadata, and resets the path for a reused data manager.
 - `tests/test_gui_run_outputs.py`: the inventory reports a written file as
   exported and an unwritten one as not computed with the right reason.
 - `tests/test_gui_analysis.py`: the run review names the shifts destination only
-  when motion correction is enabled.
+  when motion correction is enabled, and that destination equals the path the
+  core processor writes for a GUI run (drift guard, AGENTS.md rule 2).
 
 ## Verification
 
@@ -174,10 +177,10 @@ index 636358d..2c2d60b 100644
  | `preprocessing.npz` | Preprocessing image/timing summaries |
  | `postprocessing.npz`, `components.npz` | Available cell signals and footprints |
 diff --git a/docs/guides/calcium_imaging.md b/docs/guides/calcium_imaging.md
-index 75b419d..132a2d6 100644
+index 75b419d..5ec907f 100644
 --- a/docs/guides/calcium_imaging.md
 +++ b/docs/guides/calcium_imaging.md
-@@ -77,6 +77,35 @@ saving is enabled. GUI runs place that recording copy under
+@@ -77,6 +77,38 @@ saving is enabled. GUI runs place that recording copy under
  events and available diagnostics; consult [Results](../gui.md#find-and-reopen-results).
  Those GUI exports are not automatically written by direct pipeline calls.
  
@@ -190,11 +193,11 @@ index 75b419d..132a2d6 100644
 +
 +| Key | Contents | Present |
 +| --- | --- | --- |
-+| `shifts_rig` | Rigid shift per frame, float32, shape `(frames, 2)`. Column 0 is the row (vertical) axis, column 1 the column (horizontal) axis. Values are the correction CaImAn applied, the negative of the movement. | Always, after motion correction |
-+| `x_shifts_els`, `y_shifts_els` | Piecewise shift per frame and patch, float32, shape `(frames, patches)` | `pw_rigid` runs |
++| `shifts_rig` | Rigid shift per frame, float32, shape `(frames, 2)`. Column 0 is the row (vertical) axis, column 1 the column (horizontal) axis. Values are the correction CaImAn computed, the negative of the movement. For rigid runs this is the correction applied to the movie; for `pw_rigid` runs it comes from the rigid pass CaImAn uses to build the template, and the movie is corrected with the piecewise shifts. | Always, after motion correction |
++| `x_shifts_els`, `y_shifts_els` | Piecewise shift per frame and patch, float32, shape `(frames, patches)`. Following CaImAn's naming, `x_shifts_els` is the **row** (vertical) axis and `y_shifts_els` the column (horizontal) axis; same sign as `shifts_rig`. Patches are ordered row by row over the patch grid. | `pw_rigid` runs |
 +| `total_template_rig`, `total_template_els` | Rigid and piecewise templates, float32 | Rigid always; piecewise for `pw_rigid` runs |
 +| `strides`, `overlaps`, `max_shifts`, `upsample_factor_grid`, `shifts_opencv` | Motion settings that locate each patch. With `shifts_opencv` false, CaImAn reports piecewise shifts on a grid refined by `upsample_factor_grid` | Always |
-+| `border_to_0` | Border width CaImAn set to zero, in pixels | Always |
++| `border_to_0` | CaImAn's largest shift rounded up, in pixels. It is not necessarily what was zeroed: before CNMF-E the pipeline zeroes `border_pix` pixels (saved in `opts_caiman.json`), which is this value unless `border_nan` is `'copy'` (CaImAn's default), in which case no border is zeroed | Always |
 +| `pw_rigid` | Whether piecewise-rigid correction was requested | Always |
 +| `frame_rate` | Frame rate in Hz | When the recording's frame rate is known |
 +| `source_movie` | Path of the movie the shifts were computed from | Always |
@@ -206,9 +209,12 @@ index 75b419d..132a2d6 100644
 +or one whose save fails, leaves an earlier file in place, so compare `saved_at`
 +with the time of the run, or use the path the run reports in
 +`ProcessingResult.motion_correction_shifts_filepath`, which is `None` when that
-+run did not write the file. The file is written to a temporary file and then
-+renamed, so a failed save never leaves a partial file. If it cannot be written
-+for any reason, the run prints a warning and continues.
++run did not write the file. The file is written to a temporary file, flushed to
++disk and then renamed, so a save that fails with an error never leaves a partial
++file; a run killed outright during the save can leave a hidden
++`.motion_correction_shifts.npz.*.tmp` file in `saved_movies/`, which is safe to
++delete. If the file cannot be written for any reason, the run prints a warning
++and continues.
 +
  The core pipeline computes projection phases and spectra before filtering;
  those describe the unfiltered projection even if `inline=True` replaces the
@@ -287,10 +293,10 @@ index afb56b1..581d6c8 100644
          root = getattr(tkinter, '_default_root', None)
 diff --git a/src/aceneurotools/calcium_imaging/motion_correction_record.py b/src/aceneurotools/calcium_imaging/motion_correction_record.py
 new file mode 100644
-index 0000000..664f29f
+index 0000000..fa6cc62
 --- /dev/null
 +++ b/src/aceneurotools/calcium_imaging/motion_correction_record.py
-@@ -0,0 +1,135 @@
+@@ -0,0 +1,140 @@
 +"""Persist motion-correction shifts so they can be inspected after a run.
 +
 +CaImAn's ``MotionCorrect`` object holds the per-frame shifts and templates only
@@ -302,12 +308,14 @@ index 0000000..664f29f
 +motion settings that define the patch grid (``strides``, ``overlaps``,
 +``max_shifts``, ``upsample_factor_grid`` and ``shifts_opencv``; with a
 +template's shape they locate each patch), the movie the shifts were computed
-+from and the time the file was written (UTC). Attributes that are missing,
-+empty or not numeric are skipped rather than failing the run; their names are
-+listed in ``skipped_attributes``.
++from and the time the file was written (UTC). Attributes that are missing or
++empty are left out. Values that cannot be stored as numbers are also left out,
++and their names are listed in ``skipped_attributes``; neither fails the run.
 +
-+The file is written to a temporary file in the same directory and then renamed
-+over the destination, so a failed write leaves any earlier file intact.
++The file is written to a temporary file in the same directory, flushed to disk
++and then renamed over the destination, so a save that fails with an error leaves
++any earlier file intact. A process killed outright during the save can leave a
++hidden ``.motion_correction_shifts.npz.*.tmp`` file behind.
 +"""
 +
 +from __future__ import annotations
@@ -399,9 +407,10 @@ index 0000000..664f29f
 +) -> str:
 +    """Write the motion-correction shifts and templates to ``directory/filename``.
 +
-+    The file is written to a temporary file first and then renamed, so a failed
-+    write never leaves a partial file at ``directory/filename``. The name is used
-+    exactly as given (no ``.npz`` suffix is added).
++    The file is written to a temporary file first, flushed to disk and then
++    renamed, so a save that fails with an error never leaves a partial file at
++    ``directory/filename``. The name is used exactly as given (no ``.npz`` suffix
++    is added).
 +
 +    Returns:
 +        The written file path.
@@ -414,6 +423,8 @@ index 0000000..664f29f
 +    try:
 +        with open(temporary, "xb") as stream:
 +            np.savez_compressed(stream, **arrays)
++            stream.flush()
++            os.fsync(stream.fileno())
 +        os.replace(temporary, target)
 +    except BaseException:
 +        with contextlib.suppress(OSError):
@@ -467,25 +478,33 @@ index b3facf2..451171a 100644
          neuron_count=len(ids) if ids is not None else None,
          inline_requested=params.get("inline"),
 diff --git a/src/aceneurotools/gui/runs.py b/src/aceneurotools/gui/runs.py
-index ca3afaf..3fd6658 100644
+index ca3afaf..d324046 100644
 --- a/src/aceneurotools/gui/runs.py
 +++ b/src/aceneurotools/gui/runs.py
-@@ -252,6 +252,10 @@ class Runs:
+@@ -14,6 +14,7 @@ import uuid
+ from datetime import datetime, timezone
+ from pathlib import Path
+ 
++from aceneurotools.calcium_imaging.motion_correction_record import MOTION_CORRECTION_SHIFTS_FILENAME
+ from aceneurotools.gui.csv_projects import ProjectError
+ from aceneurotools.gui.recording_scope import apply_scope
+ from aceneurotools.gui.run_specs import PIPELINES, effective_parameters
+@@ -252,6 +253,10 @@ class Runs:
                      / "saved_movies"
                      / str(params.get("save_CNMFE_estimates_filename", "estimates.hdf5"))
                  )
 +            if params.get("apply_motion_correction"):
 +                destinations["Motion-correction shifts (when written)"] = str(
-+                    directory / "recording" / "saved_movies" / "motion_correction_shifts.npz"
++                    directory / "recording" / "saved_movies" / MOTION_CORRECTION_SHIFTS_FILENAME
 +                )
              if params.get("save_CNMFE_params"):
                  destinations["CaImAn parameters"] = str(directory / "recording" / "saved_movies" / "opts_caiman.json")
          if kind == "multimodal":
 diff --git a/tests/test_gui_analysis.py b/tests/test_gui_analysis.py
-index f74d988..6b98308 100644
+index f74d988..242c76f 100644
 --- a/tests/test_gui_analysis.py
 +++ b/tests/test_gui_analysis.py
-@@ -142,6 +142,20 @@ def test_cnmfe_review_names_exact_destinations_and_respects_disabled_outputs(rec
+@@ -142,6 +142,44 @@ def test_cnmfe_review_names_exact_destinations_and_respects_disabled_outputs(rec
      assert "Neuron estimates" not in review["destinations"]
  
  
@@ -503,14 +522,46 @@ index f74d988..6b98308 100644
 +        assert label not in review["destinations"]
 +
 +
++def test_review_destination_matches_where_the_core_writes_the_shifts(recording):
++    """Drift guard (AGENTS.md rule 2): the GUI names the path the core processor actually writes."""
++    from types import SimpleNamespace
++
++    from aceneurotools.calcium_imaging.calcium_imaging_processor import CalciumImagingProcessor
++
++    root, frames = recording
++    project = Project.open(root)
++    project.parameters["1"]["apply_motion_correction"] = "True"
++    review = Runs().review(project, payload(project, kind="miniscope"))
++    destination = review["destinations"]["Motion-correction shifts (when written)"]
++    # GUI runs point the core at the run's recording copy.
++    recording_copy = Path(review["directory"]) / "recording"
++    manager = SimpleNamespace(
++        metadata={"calcium imaging directory": str(recording_copy)},
++        opts_caiman=SimpleNamespace(get=lambda group, key: False),
++        fr=20.0,
++    )
++    written = CalciumImagingProcessor._save_motion_correction_shifts(
++        object.__new__(CalciumImagingProcessor), manager, SimpleNamespace(shifts_rig=[[0.0, 0.0]])
++    )
++    assert written == destination
++
++
  def test_changed_recording_and_missing_data_block_execution(recording):
      root, frames = recording
      project = Project.open(root)
 diff --git a/tests/test_gui_run_outputs.py b/tests/test_gui_run_outputs.py
-index cf7b574..210cd79 100644
+index cf7b574..e4be3d2 100644
 --- a/tests/test_gui_run_outputs.py
 +++ b/tests/test_gui_run_outputs.py
-@@ -171,3 +171,41 @@ def test_numeric_object_diagnostics_are_exported_without_pickle(tmp_path):
+@@ -6,6 +6,7 @@ from types import SimpleNamespace
+ import numpy as np
+ import pytest
+ 
++from aceneurotools.calcium_imaging.motion_correction_record import MOTION_CORRECTION_SHIFTS_FILENAME
+ from aceneurotools.gui.run_outputs import OutputInventory, ephys_outputs
+ from aceneurotools.gui.run_worker import execute
+ from aceneurotools.gui.runs import inventory
+@@ -171,3 +172,41 @@ def test_numeric_object_diagnostics_are_exported_without_pickle(tmp_path):
          np.testing.assert_array_equal(saved["neurons_sn"], [119.5, 116.25])
          assert saved["neurons_sn"].dtype.kind == "f"
          np.testing.assert_array_equal(saved["g"], [[0.8], [0.9]])
@@ -521,7 +572,7 @@ index cf7b574..210cd79 100644
 +
 +    root, manifest, dm = worker_case
 +    manifest["parameters"]["apply_motion_correction"] = True
-+    shifts = root / "recording" / "saved_movies" / "motion_correction_shifts.npz"
++    shifts = root / "recording" / "saved_movies" / MOTION_CORRECTION_SHIFTS_FILENAME
 +
 +    class WritesShifts(miniscope.CalciumImagingPipeline):
 +        def run(self, **params):
@@ -537,7 +588,7 @@ index cf7b574..210cd79 100644
 +    assert entries["motion_correction_shifts"] == {
 +        "name": "motion_correction_shifts",
 +        "status": "exported",
-+        "file": "recording/saved_movies/motion_correction_shifts.npz",
++        "file": f"recording/saved_movies/{MOTION_CORRECTION_SHIFTS_FILENAME}",
 +    }
 +
 +
@@ -554,10 +605,10 @@ index cf7b574..210cd79 100644
 +    assert "does not retain" not in entry["reason"]
 diff --git a/tests/test_motion_correction_record.py b/tests/test_motion_correction_record.py
 new file mode 100644
-index 0000000..d954f5c
+index 0000000..346c442
 --- /dev/null
 +++ b/tests/test_motion_correction_record.py
-@@ -0,0 +1,356 @@
+@@ -0,0 +1,360 @@
 +"""Motion-correction shifts are saved during processing and read back unchanged."""
 +
 +import os
@@ -699,6 +750,7 @@ index 0000000..d954f5c
 +    assert sorted(p.name for p in tmp_path.iterdir()) == [MOTION_CORRECTION_SHIFTS_FILENAME]
 +
 +
++@pytest.mark.skipif(os.name == "nt", reason="POSIX permission bits and umask")
 +def test_the_written_file_has_ordinary_permissions(tmp_path):
 +    previous = os.umask(0o022)
 +    try:
@@ -760,6 +812,9 @@ index 0000000..d954f5c
 +        assert saved["total_template_els"].shape == saved["total_template_rig"].shape == (64, 64)
 +        for name in ["x_shifts_els", "y_shifts_els"]:
 +            np.testing.assert_allclose(saved[name], np.asarray(mc.__dict__[name], dtype=np.float32))
++        # CaImAn's naming: x_shifts_els is the row axis, y_shifts_els the column axis (as documented).
++        assert np.max(np.abs(saved["x_shifts_els"].mean(axis=1) + known[:, 0])) < 0.5
++        assert np.max(np.abs(saved["y_shifts_els"].mean(axis=1) + known[:, 1])) < 0.5
 +        # The saved settings alone locate every patch the shifts belong to.
 +        centers = get_patch_centers(
 +            saved["total_template_rig"].shape,

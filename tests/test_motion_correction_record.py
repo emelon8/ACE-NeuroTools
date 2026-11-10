@@ -139,6 +139,7 @@ def test_a_failed_write_keeps_the_earlier_file_and_leaves_no_temporary(tmp_path,
     assert sorted(p.name for p in tmp_path.iterdir()) == [MOTION_CORRECTION_SHIFTS_FILENAME]
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX permission bits and umask")
 def test_the_written_file_has_ordinary_permissions(tmp_path):
     previous = os.umask(0o022)
     try:
@@ -200,6 +201,9 @@ def test_real_motion_correction_shifts_recover_the_injected_motion(tmp_path, mon
         assert saved["total_template_els"].shape == saved["total_template_rig"].shape == (64, 64)
         for name in ["x_shifts_els", "y_shifts_els"]:
             np.testing.assert_allclose(saved[name], np.asarray(mc.__dict__[name], dtype=np.float32))
+        # CaImAn's naming: x_shifts_els is the row axis, y_shifts_els the column axis (as documented).
+        assert np.max(np.abs(saved["x_shifts_els"].mean(axis=1) + known[:, 0])) < 0.5
+        assert np.max(np.abs(saved["y_shifts_els"].mean(axis=1) + known[:, 1])) < 0.5
         # The saved settings alone locate every patch the shifts belong to.
         centers = get_patch_centers(
             saved["total_template_rig"].shape,
