@@ -340,7 +340,7 @@ contain machine paths:
   separator. A pattern cannot be absolute or start with `~` or a drive letter
   (`C:`). It cannot contain backslashes, empty segments, `.` or `..`
   segments, or control characters such as tabs or newlines. `**` must be a
-  whole segment, as in `sub/**/*.ncs`.
+  whole segment, as in `sub/**/*.ncs`. A pattern has at most 32 segments.
 - **Symbolic links are followed.** A link inside the recording folder (for
   example to raw files kept on another drive) is matched like any other file,
   even if it points outside the folder.

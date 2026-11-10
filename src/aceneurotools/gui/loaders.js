@@ -135,6 +135,7 @@
     const own = definitions.map(entry => {
       const [text, kind] = !entry.editable ? ["Rename file", "warn"] : entry.valid ? ["Valid", "ok"] : [`${entry.problems.length || 1} problem${entry.problems.length === 1 ? "" : "s"}`, "bad"];
       const row = item(entry.name, entry.label || entry.file, element("span", text, `status status-${kind}`), entry.name === openName, () => {
+        if (state.working) return;  // a pending save or delete finishes first
         if (!entry.editable) { fail(new Error(`${entry.file} cannot be opened here because its name is not a valid loader name. Rename the file using lowercase letters, digits and hyphens.`), "This file needs a new name"); return; }
         if (entry.name !== openName && confirmDiscard()) openDefinition(entry.name, true);
       });
@@ -142,6 +143,7 @@
     });
     $("loaders-project-list").replaceChildren(...(own.length ? own : [element("li", exists ? "No loader definitions yet." : "No loaders folder yet. Saving a loader creates it.", "loaders-empty")]));
     $("loaders-builtin-list").replaceChildren(...builtins.map(entry => item(entry.name, entry.description, element("span", "Built in", "tag"), false, () => {
+      if (state.working) return;  // closing the editor now would hide the pending result
       if (confirmDiscard()) { closeEditor(); showBuiltin(entry); }
     })));
   }

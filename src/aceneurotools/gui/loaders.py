@@ -202,7 +202,10 @@ def listing(context):
                     label = raw.get("label") if isinstance(raw, dict) and isinstance(raw.get("label"), str) else None
                 except (UnicodeDecodeError, ValueError, RecursionError):
                     label = None
-            editable = bool(re.fullmatch(ld.NAME_PATTERN, path.stem)) and len(path.stem) <= ld.NAME_MAX_LENGTH
+            try:
+                editable = check_name(path.stem) == path.stem  # the rule the open and delete routes apply
+            except ProjectError:
+                editable = False
             entries.append(
                 {
                     "name": path.stem,
@@ -488,9 +491,10 @@ def detect(context):
     if text is not None:
         if not isinstance(text, str):
             raise ProjectError("Send the loader definition as JSON text.")
-        data, draft_issues = ld.check_definition_text(text)
+        # The same checks as validate and save, so a draft that cannot be saved is never shown as valid.
+        data, draft_issues = draft_problems(context.project, text, None, creating=False)
         if draft_issues:
-            draft = {"valid": False, "problems": _problems(draft_issues)}
+            draft = {"valid": False, "problems": draft_issues}
         else:
             parsed = ld.parse_definition(data)
             draft = {

@@ -43,8 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `<project>/loaders/<name>.json` (schema `ace-loader/1`), with validation,
   folder detection, a JSON Schema and `ace-neuro loaders list|validate|detect`.
   Example definitions reproduce the Neuralynx and RHS2116 loaders. Definitions
-  must open readers read-only and cannot name files, folders, caches or
-  Windows device names; built-in loader names such as `neuralynx` are reserved.
+  must open readers read-only, cannot name files, folders, caches or
+  Windows device names, and use file patterns of at most 32 segments; built-in loader names such as `neuralynx` are reserved.
   Loading channels from a definition is proposed in ADR 0008; analyses still
   use the built-in loaders, and analysis results are unchanged.
 - Workbench **Ephys loaders** page: list built-in loaders and project loader

@@ -622,3 +622,25 @@ def test_detection_reports_reader_errors_and_rejects_nontext_drafts(tmp_path, mo
     context.value = lambda key: {} if key == "text" else None
     with pytest.raises(ProjectError, match="as JSON text"):
         loaders.detect(context)
+
+
+@pytest.mark.parametrize("name,problem", [("neuralynx", "built-in loader"), ("nul", "reserved device name")])
+def test_detect_draft_uses_the_same_checks_as_validate(served, name, problem):
+    draft = definition(name)
+    status, checked = call(served, "/api/loaders/validate", {"project": served[2].id, "text": draft})
+    assert status == 200 and not checked["valid"]
+    status, result = call(served, "/api/loaders/detect", {"project": served[2].id, "number": "1", "text": draft})
+    assert status == 200 and result["draft"]["valid"] is False
+    assert result["draft"]["problems"] == checked["problems"]
+    assert any(problem in item["message"] for item in result["draft"]["problems"])
+
+
+def test_device_named_file_is_listed_as_needing_a_new_name(served):
+    folder(served).mkdir()
+    (folder(served) / "con.json").write_text(definition("con"))
+    status, result = call(served, "/api/loaders", project=served[2].id)
+    assert status == 200
+    (entry,) = [item for item in result["definitions"] if item["name"] == "con"]
+    assert entry["editable"] is False and entry["valid"] is False
+    status, result = call(served, "/api/loaders/definition", project=served[2].id, name="con")
+    assert status == 400 and "reserved device name" in result["error"]

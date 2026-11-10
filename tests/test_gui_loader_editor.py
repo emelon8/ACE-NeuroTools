@@ -359,3 +359,37 @@ console.log(JSON.stringify({allowed: canLeaveForBox(), asked, discarded}));
     import json
 
     assert json.loads(result.stdout) == {"allowed": allowed, "asked": asked, "discarded": discarded}
+
+
+
+@pytest.mark.parametrize("kind", ["builtin", "project"])
+def test_list_clicks_wait_for_pending_save(kind):
+    source = SCRIPT.read_text()
+    functions = _between(source, "  function item(", "  function showStart()")
+    harness = r"""
+const assert = require("node:assert/strict");
+const kind = process.argv[1];
+const state = {working: true, open: {name: "rig", text: "edited"}, list: {
+  definitions: [{name: "other", file: "loaders/other.json", editable: true, valid: true, problems: []}],
+  builtins: [{name: "NeuralynxDataManager", description: "Neuralynx"}], folder_exists: true}};
+const buttons = [], lists = {};
+const element = (tag, text, cls) => { const node = {tag, text, cls, append() {}, setAttribute() {}}; if (tag === "button") buttons.push(node); return node; };
+const $ = id => lists[id] ||= {replaceChildren(...items) { this.items = items; }};
+let asked = 0, closed = 0, shown = 0, opened = 0, failed = 0;
+const confirmDiscard = () => { asked++; return true; };
+const closeEditor = () => { closed++; state.open = null; };
+const showBuiltin = () => { shown++; };
+const openDefinition = () => { opened++; };
+const fail = () => { failed++; };
+""" + functions + r"""
+renderList();
+const button = buttons[kind === "builtin" ? 1 : 0];
+button.onclick();
+assert.deepEqual({asked, closed, shown, opened, failed}, {asked: 0, closed: 0, shown: 0, opened: 0, failed: 0});
+assert.equal(state.open.text, "edited");
+state.working = false;
+button.onclick();
+assert.equal(asked, 1);
+if (kind === "builtin") { assert.equal(closed, 1); assert.equal(shown, 1); } else assert.equal(opened, 1);
+"""
+    subprocess.run(["node", "-e", harness, kind], check=True, capture_output=True, text=True)

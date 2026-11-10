@@ -120,6 +120,9 @@ WINDOWS_DEVICE_NAME_PATTERN = r"^(?:con|prn|aux|nul|com[0-9]|lpt[0-9])$"
 ROLE_PATTERN = r"^[a-z][a-z0-9_]*$"
 VARIABLE_PATTERN = r"^[a-z][a-z0-9_]*$"
 INDEX_PLACEHOLDER = "{index}"
+#: Most '/'-separated segments a pattern may have. pathlib.Path.glob builds one
+#: nested selector per segment, so a few hundred raise RecursionError.
+MAX_GLOB_SEGMENTS = 32
 
 _NAME_RE = re.compile(NAME_PATTERN)
 _WINDOWS_DEVICE_RE = re.compile(WINDOWS_DEVICE_NAME_PATTERN)
@@ -468,8 +471,8 @@ def check_relative_glob(pattern: object) -> str | None:
 
     Patterns are evaluated with :meth:`pathlib.Path.glob` under the recording
     folder. They must use ``/`` separators and may not be absolute, start with
-    ``~`` or a drive letter, contain backslashes, or have empty, ``.`` or
-    ``..`` segments.
+    ``~`` or a drive letter, contain backslashes, have empty, ``.`` or ``..``
+    segments, or have more than :data:`MAX_GLOB_SEGMENTS` segments.
     """
     if not isinstance(pattern, str):
         return "must be a string"
@@ -492,6 +495,8 @@ def check_relative_glob(pattern: object) -> str | None:
         return "must not contain '.' segments"
     if "" in segments:
         return "must not contain empty segments ('//' or a trailing '/')"
+    if len(segments) > MAX_GLOB_SEGMENTS:
+        return f"must have at most {MAX_GLOB_SEGMENTS} '/'-separated segments"
     if any("**" in seg and seg != "**" for seg in segments):
         return "'**' must be a whole segment, as in 'sub/**/file.ext'"
     return None
@@ -1467,7 +1472,7 @@ def resolve_files(definition: LoaderDefinition, directory: str | Path) -> Resolv
 # the control-character lookahead rejects them before ``$`` could differ.
 _GLOB_REGEX = (
     r"^(?![/~])(?![A-Za-z]:)(?!.*\\)(?!.*[\x00-\x1f\x7f])(?!(?:.*/)?\.{1,2}(?:/|$))(?!.*//)(?!.*/$)"
-    r"(?!(?:.*/)?(?:[^/]*[^/]\*\*|\*\*[^/])).+$"
+    r"(?!(?:.*/)?(?:[^/]*[^/]\*\*|\*\*[^/]))(?!(?:[^/]*/){32}).+$"
 )
 
 

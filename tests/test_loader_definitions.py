@@ -512,6 +512,11 @@ def test_neo_reader_with_filename_argument_and_scalar_args() -> None:
         ("x.nev\n", False),
         ("a\tb", False),
         ("a\x7fb", False),
+        ("/".join(["x"] * 32), True),
+        ("/".join(["x"] * 31) + "/*.nev", True),
+        ("/".join(["x"] * 33), False),
+        ("/".join(["**"] * 33), False),
+        ("/".join(["x"] * 1200), False),
     ],
 )
 def test_relative_glob_rule_and_schema_regex_agree(pattern: str, ok: bool) -> None:
@@ -1312,3 +1317,16 @@ def test_schema_agrees_on_windows_device_names(name: str, ok: bool) -> None:
     doc = _mutated(NEURALYNX, _set("name", name))
     assert _schema_valid(doc, schema, schema) is ok
     assert (validate_definition(doc) == []) is ok
+
+
+def test_deep_patterns_are_refused_before_matching_can_overflow(tmp_path: Path) -> None:
+    deep = "/".join(["x"] * 300)  # pathlib.Path.glob raised RecursionError on this
+    problems = validate_definition(_mutated(NEURALYNX, _set("detect", {"any_of": [deep]})))
+    assert _paths(problems) == ["detect.any_of[0]"]
+    assert "at most 32" in problems[0].message
+    # A hand-built definition is re-checked before globbing, so it fails cleanly.
+    with pytest.raises(ValueError, match="at most 32"):
+        definition_matches(ld.Detect(any_of=(deep,)), tmp_path)
+    # The limit itself still matches normally.
+    limit = "/".join(["x"] * ld.MAX_GLOB_SEGMENTS)
+    assert definition_matches(ld.Detect(any_of=(limit,)), tmp_path) is False
