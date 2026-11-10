@@ -210,3 +210,52 @@ let resolve;
 })().catch(error => {console.error(error); process.exitCode = 1;});
 '''
     subprocess.run(["node", "-e", harness], check=True, capture_output=True, text=True)
+
+
+@pytest.mark.parametrize("scenario", ["empty", "single", "multiple"])
+def test_suggestion_dropdown_selection_and_actions(scenario):
+    source = SCRIPT.read_text()
+    function = source[source.index("  function suggestionCards("):source.index("  async function detect()")]
+    harness = r'''
+const assert = require("node:assert/strict");
+const scenario = process.argv[1];
+const nodes = [];
+const element = (tag, text, cls) => {
+  const node = {tag, textContent: text || "", className: cls || "", children: [], value: "",
+    append(...children) {this.children.push(...children);},
+    setAttribute(key, value) {this[key] = value;}};
+  nodes.push(node); return node;
+};
+const actions = [];
+const suggestionAction = item => actions.push(item.name);
+const builtin = {kind: "builtin", name: "known", label: "Known system", reason: "Recognised"};
+const saved = {kind: "project", name: "saved", label: "Saved rig", reason: "Configured"};
+const neo = {kind: "neo", name: "IntanIO", label: "Create with IntanIO", reason: "File extension hint"};
+''' + function + r'''
+const options = scenario === "empty" ? [] : scenario === "single" ? [builtin] : [builtin, saved, neo];
+suggestionCards(options);
+const select = nodes.find(node => node.tag === "select");
+const button = nodes.find(node => node.tag === "button");
+if (scenario === "empty") {
+  assert.equal(select, undefined); assert.equal(button, undefined);
+} else {
+  const reason = nodes.find(node => node.id === "loaders-suggestion-reason");
+  assert.equal(select["aria-describedby"], reason.id);
+  if (scenario === "single") {
+    assert.equal(select.value, "0"); assert.equal(button.disabled, false);
+    assert.equal(button.textContent, "View configured loader"); button.onclick();
+    assert.deepEqual(actions, ["known"]);
+  } else {
+    assert.equal(select.value, ""); assert.equal(button.disabled, true);
+    button.onclick(); assert.deepEqual(actions, []);
+    for (const [index, label] of [[0, "View configured loader"], [1, "Open saved loader"], [2, "Create loader"]]) {
+      select.value = String(index); select.onchange();
+      assert.equal(button.disabled, false); assert.equal(button.textContent, label);
+      assert.ok(reason.textContent.includes(options[index].reason)); button.onclick();
+    }
+    assert.deepEqual(actions, ["known", "saved", "IntanIO"]);
+    assert.equal(nodes.filter(node => node.tag === "button").length, 1);
+  }
+}
+'''
+    subprocess.run(["node", "-e", harness, scenario], check=True, capture_output=True, text=True)

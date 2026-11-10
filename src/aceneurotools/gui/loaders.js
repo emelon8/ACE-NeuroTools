@@ -428,16 +428,37 @@
   function suggestionCards(suggestions) {
     const box = element("div");
     box.append(element("h3", suggestions.length ? "Suggested next step" : "No recognised loader or file type"));
-    if (!suggestions.length) box.append(element("p", "Choose Neo reader or Raw binary file below using your acquisition system documentation. No settings have been guessed.", "muted"));
-    if (suggestions.length > 1) box.append(element("p", "Several options match. Review them and choose; ACE has not selected a loader.", "muted"));
-    for (const suggestion of suggestions) {
-      const card = element("div", undefined, "notice");
-      const button = element("button", suggestion.kind === "builtin" ? "View configured loader" : suggestion.kind === "project" ? "Open saved loader" : suggestion.label);
-      button.type = "button"; button.onclick = () => suggestionAction(suggestion);
-      card.append(element("strong", suggestion.label), element("p", suggestion.reason), button);
-      if (suggestion.kind === "project") card.append(element("p", "This definition is configured, but using it in analyses still requires the pending loader integration.", "muted"));
-      box.append(card);
+    if (!suggestions.length) {
+      box.append(element("p", "Choose Neo reader or Raw binary file below using your acquisition system documentation. No settings have been guessed.", "muted"));
+      return box;
     }
+    const label = element("label", "Loader option"); label.htmlFor = "loaders-suggestion";
+    const select = element("select"); select.id = "loaders-suggestion";
+    select.setAttribute("aria-describedby", "loaders-suggestion-reason");
+    if (suggestions.length > 1) {
+      const placeholder = element("option", "Choose a loader…");
+      placeholder.value = ""; placeholder.disabled = true; select.append(placeholder);
+    }
+    suggestions.forEach((suggestion, index) => {
+      const suffix = suggestion.kind === "builtin" ? " (built in)" : suggestion.kind === "project" ? " (saved)" : "";
+      const option = element("option", suggestion.label + suffix); option.value = String(index); select.append(option);
+    });
+    select.value = suggestions.length === 1 ? "0" : "";
+    const button = element("button"); button.type = "button";
+    const reason = element("p", undefined, "muted"); reason.id = "loaders-suggestion-reason";
+    reason.setAttribute("aria-live", "polite");
+    let selected = null;
+    const update = () => {
+      selected = select.value === "" ? null : suggestions[Number(select.value)];
+      button.disabled = !selected;
+      button.textContent = selected?.kind === "builtin" ? "View configured loader" : selected?.kind === "project" ? "Open saved loader" : "Create loader";
+      reason.textContent = selected ? selected.reason + (selected.kind === "project" ? " This definition is configured, but using it in analyses still requires the pending loader integration." : "") : "Several options match. Choose one to see its details; ACE has not selected a loader.";
+    };
+    select.onchange = update;
+    button.onclick = () => { if (selected) suggestionAction(selected); };
+    const controls = element("div", undefined, "input-row loaders-suggestion");
+    controls.append(select, button); box.append(label, controls, reason);
+    update();
     return box;
   }
 

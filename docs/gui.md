@@ -249,7 +249,10 @@ are compared with installed Neo readers and common binary extensions to suggest
 a new definition. Alternatives remain visible even if a built-in loader matches:
 `.nev` can mean Neuralynx or Blackrock, and `.raw` is also used by generic binary
 recordings. These are hints, not confirmed formats; binary layout and
-sampling settings must be checked manually. Choose among multiple matches.
+sampling settings must be checked manually. Choose an option from the
+**Loader option** dropdown under **Suggested next step** to see its explanation,
+then choose **View configured loader**, **Open saved loader**, or **Create loader**.
+When several options match, none is selected automatically.
 Detection checks files directly in the recording folder and never reads signals.
 The experiment selector is paused while a check is running. Reader suggestions
 use read-only modes where required; they never open recordings during detection.

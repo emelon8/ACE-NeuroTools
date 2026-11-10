@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Show suggested loaders in a dropdown with the selected explanation and one
+  action button, instead of a stack of cards. Analysis results are unchanged.
+
 - Preserve current loader drafts when delayed open or delete requests finish;
   prevent experiment changes during detection, keep double-BOM validation strict,
   and prefill safe read-only modes in suggested Neo definitions.

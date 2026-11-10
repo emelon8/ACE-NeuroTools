@@ -46,6 +46,8 @@ fieldset.field-group:disabled .fields-grid { opacity: .55; }
 .loaders-detect li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 13px; }
 .loaders-detect .loaders-hits { flex-basis: 100%; color: var(--ink-3); font-size: 12px; }
 .loaders-detect .notice { margin-bottom: 0; }
+.loaders-suggestion { flex-wrap: wrap; }
+.loaders-suggestion select { flex: 1; min-width: 0; }
 
 @media (max-width: 1024px) {
   .loaders-layout { grid-template-columns: minmax(0, 1fr); }
