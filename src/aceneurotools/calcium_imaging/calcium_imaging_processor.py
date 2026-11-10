@@ -9,6 +9,11 @@ import numpy as np
 
 import aceneurotools.shared.misc_functions as misc_functions
 from aceneurotools.calcium_imaging.calcium_imaging_data_manager import CalciumImagingDataManager
+from aceneurotools.calcium_imaging.cnmfe_tuning import (
+    cnmfe_patch_geometry,
+    compute_cnmfe_tuning_images,
+    quilt_display_limits,
+)
 from aceneurotools.calcium_imaging.pipeline_results import ProcessingResult
 from aceneurotools.shared.exceptions import ProcessingError
 
@@ -238,23 +243,21 @@ class CalciumImagingProcessor:
 
         if plot_params:
             #calculate min correlation/min pnr and plot them
-            gsig_tmp = (3,3)
-            correlation_image, peak_to_noise_ratio = cm.summary_images.correlation_pnr(images[::max(T//1000, 1)], gSig=gsig_tmp[0], swap_dim=False)
+            correlation_image, peak_to_noise_ratio = compute_cnmfe_tuning_images(images)
             if hasattr(dm, 'diag_logger') and dm.diag_logger is not None: dm.diag_logger.pause_timer()
             cm.utils.visualization.inspect_correlation_pnr(correlation_image, peak_to_noise_ratio)
             plt.show(block=True)
             if hasattr(dm, 'diag_logger') and dm.diag_logger is not None: dm.diag_logger.resume_timer()
 
             #Calculate stride/overlap and plot them
-            cnmfe_patch_width = dm.opts_caiman.get('patch', 'rf') * 2 + 1
-            cnmfe_patch_overlap = dm.opts_caiman.get('patch', 'stride') + 1
-            cnmfe_patch_stride = cnmfe_patch_width - cnmfe_patch_overlap
-            print(f'Patch width: {cnmfe_patch_width} , Stride: {cnmfe_patch_stride}, Overlap: {cnmfe_patch_overlap}')
+            patches = cnmfe_patch_geometry(dm.opts_caiman.get('patch', 'rf'), dm.opts_caiman.get('patch', 'stride'))
+            print(f'Patch width: {patches.width} , Stride: {patches.stride}, Overlap: {patches.overlap}')
 
             if hasattr(dm, 'diag_logger') and dm.diag_logger is not None: dm.diag_logger.pause_timer()
-            patch_ax = cm.utils.visualization.view_quilt(correlation_image, cnmfe_patch_stride, cnmfe_patch_overlap, vmin=np.percentile(np.ravel(correlation_image), 50),
-                                                         vmax=np.percentile(np.ravel(correlation_image), 99.5), color='yellow', figsize=(4,4))
-            patch_ax.set_title(f'CNMFE Patch Width {cnmfe_patch_width}, Overlap {cnmfe_patch_overlap}')
+            vmin, vmax = quilt_display_limits(correlation_image)
+            patch_ax = cm.utils.visualization.view_quilt(correlation_image, patches.stride, patches.overlap, vmin=vmin,
+                                                         vmax=vmax, color='yellow', figsize=(4,4))
+            patch_ax.set_title(f'CNMFE Patch Width {patches.width}, Overlap {patches.overlap}')
             plt.show(block=True)
             if hasattr(dm, 'diag_logger') and dm.diag_logger is not None: dm.diag_logger.resume_timer()
 

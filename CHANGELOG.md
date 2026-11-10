@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `aceneurotools.calcium_imaging.cnmfe_tuning` computes the CNMF-E tuning images,
+  patch layout and display limits shown by `plot_params` without opening windows.
 - Installed `ace-gui` workbench with per-launch API authentication and shared
   CLI/GUI defaults. CSVs remain the settings source of truth.
 - GUI feature registry and run plans: new workbench screens register their own
