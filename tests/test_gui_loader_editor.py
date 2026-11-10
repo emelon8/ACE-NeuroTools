@@ -259,3 +259,103 @@ if (scenario === "empty") {
 }
 '''
     subprocess.run(["node", "-e", harness, scenario], check=True, capture_output=True, text=True)
+
+
+BOX_SCRIPT = Path(__file__).parents[1] / "src/aceneurotools/gui/box.js"
+
+
+def _between(source, start, end):
+    return source[source.index(start):source.index(end, source.index(start))]
+
+
+@pytest.mark.parametrize("scenario", ["stale", "current", "stale-error"])
+def test_validation_response_for_changed_text_is_ignored(scenario):
+    source = SCRIPT.read_text()
+    functions = _between(source, "  function scheduleValidate(", "  function fieldFor(")
+    harness = r'''
+const assert = require("node:assert/strict");
+const scenario = process.argv[1];
+const state = {open: {name: "rig", text: "T1"}, projectId: "p", validateTimer: 0, validateSeq: 0};
+const nodes = {}, $ = id => nodes[id] ||= {textContent: "", className: ""};
+let timer = null, pending = [], shown = [];
+const window = {clearTimeout: () => { timer = null; }, setTimeout: fn => { timer = fn; return 1; }};
+const post = (route, body) => new Promise((yes, no) => pending.push({body, yes, no}));
+const showProblems = problems => shown.push(problems);
+''' + functions + r'''
+(async () => {
+  const first = validate();  // checks "T1"
+  if (scenario !== "current") { state.open.text = "T2"; scheduleValidate(); }  // the user keeps typing
+  const request = pending.shift();
+  assert.equal(request.body.text, "T1");
+  if (scenario === "stale-error") request.no(new Error("network")); else request.yes({problems: []});
+  await first;
+  if (scenario === "current") { assert.deepEqual(shown, [[]]); return; }
+  assert.deepEqual(shown, []);  // nothing shown for text the editor no longer holds
+  assert.equal(nodes["loaders-check-state"].textContent, "Checking…");
+  const second = timer();
+  const latest = pending.shift();
+  assert.equal(latest.body.text, "T2");
+  latest.yes({problems: [{path: "name", message: "bad"}]});
+  await second;
+  assert.deepEqual(shown, [[{path: "name", message: "bad"}]]);
+})().catch(error => {console.error(error); process.exitCode = 1;});
+'''
+    subprocess.run(["node", "-e", harness, scenario], check=True, capture_output=True, text=True)
+
+
+def test_discard_is_blocked_while_save_is_pending():
+    source = SCRIPT.read_text()
+    functions = _between(source, "  async function working(", "  // ── Page and project") + _between(source, "  function discard()", "  function remove()")
+    harness = r'''
+const assert = require("node:assert/strict");
+const state = {working: false, projectId: "p", open: {name: "rig", text: "edited", saved: "saved"}};
+const nodes = {}, $ = id => nodes[id] ||= {disabled: false};
+let confirms = 0, opened = 0, release;
+const clearFail = () => {}, fail = error => { throw error; }, syncState = () => {}, refresh = () => {};
+const confirmDiscard = () => { confirms++; return true; };
+const openEditor = open => { opened++; state.open = open; };
+''' + functions + r'''
+(async () => {
+  const task = working(() => new Promise(yes => { release = yes; }));  // a save in flight
+  assert.equal(nodes["loaders-discard"].disabled, true);
+  discard();
+  assert.equal(confirms, 0); assert.equal(opened, 0); assert.equal(state.open.text, "edited");
+  release(); await task;
+  discard();  // after the save finishes, discarding works again
+  assert.equal(confirms, 1); assert.equal(state.open.text, "saved");
+})().catch(error => {console.error(error); process.exitCode = 1;});
+'''
+    subprocess.run(["node", "-e", harness], check=True, capture_output=True, text=True)
+
+
+@pytest.mark.parametrize(
+    "csv_dirty,feature_dirty,answer,allowed,discarded,asked",
+    [
+        (True, False, False, True, False, False),  # experiment drafts survive Box; no question
+        (False, False, False, True, False, False),
+        (False, True, False, False, False, True),  # unsaved loader draft: Cancel keeps it
+        (True, True, True, True, True, True),  # OK abandons feature drafts only
+    ],
+)
+def test_box_asks_only_about_feature_drafts(csv_dirty, feature_dirty, answer, allowed, discarded, asked):
+    source = BOX_SCRIPT.read_text()
+    assert "if (busy || boxBusy || !canLeaveForBox()) return;" in source
+    function = _between(source, "function canLeaveForBox()", "async function openBox(")
+    harness = r'''
+const assert = require("node:assert/strict");
+const [csvDirty, featureDirty, answer] = process.argv.slice(1).map(value => value === "true");
+let asked = false, discarded = false;
+const anyDirty = () => csvDirty;
+const featuresDirty = () => featureDirty;
+const window = {confirm: () => { asked = true; return answer; }};
+const aceFeatures = {discard: () => { discarded = true; }};
+''' + function + r'''
+console.log(JSON.stringify({allowed: canLeaveForBox(), asked, discarded}));
+'''
+    result = subprocess.run(
+        ["node", "-e", harness, str(csv_dirty).lower(), str(feature_dirty).lower(), str(answer).lower()],
+        check=True, capture_output=True, text=True,
+    )
+    import json
+
+    assert json.loads(result.stdout) == {"allowed": allowed, "asked": asked, "discarded": discarded}

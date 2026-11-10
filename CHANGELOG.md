@@ -9,27 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Show suggested loaders in a dropdown with the selected explanation and one
-  action button, instead of a stack of cards. Analysis results are unchanged.
-
-- Preserve current loader drafts when delayed open or delete requests finish;
-  prevent experiment changes during detection, keep double-BOM validation strict,
-  and prefill safe read-only modes in suggested Neo definitions.
-
-- Keep edits made during a loader save unsaved, ignore stale save responses,
-  and accept BOM-prefixed loader JSON without weakening byte conflict checks.
-
-- Keep alternative reader suggestions visible for ambiguous `.nev` and `.raw`
-  recordings, and use directory paths for folder-based Neo readers.
-
-- Suggest configured ephys loaders automatically for the selected recording, or
-  offer new Neo/raw binary definitions based on file extensions. Suggestions do
-  not select a loader or change analysis results.
-
-- Add a Cancel button to the loader editor so a mistaken template
-  choice can be changed, with confirmation before discarding drafts. Analysis
-  results are unchanged.
-
 - Remove the duplicate dark-mode switch from the bottom of the GUI navigation;
   the top-bar toggle remains (reported by @Aathok-Git).
 - Align bundled CSV example rows with their headers and allow local recording
@@ -63,14 +42,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ephys loader definitions: describe an acquisition system in
   `<project>/loaders/<name>.json` (schema `ace-loader/1`), with validation,
   folder detection, a JSON Schema and `ace-neuro loaders list|validate|detect`.
-  Example definitions reproduce the Neuralynx and RHS2116 loaders. Loading
-  channels from a definition is proposed in ADR 0008; analyses still use the
-  built-in loaders.
+  Example definitions reproduce the Neuralynx and RHS2116 loaders. Definitions
+  must open readers read-only and cannot name files, folders, caches or
+  Windows device names; built-in loader names such as `neuralynx` are reserved.
+  Loading channels from a definition is proposed in ADR 0008; analyses still
+  use the built-in loaders, and analysis results are unchanged.
 - Workbench **Ephys loaders** page: list built-in loaders and project loader
   definitions, create one from a neo-reader or raw-binary template, edit it in a
   form or as JSON with live validation, save or delete with backups and conflict
-  checks, and check which loaders recognise an experiment's ephys folder.
-  Signal preview waits for ADR 0008.
+  checks, and check which loaders recognise an experiment's ephys folder. The
+  page suggests existing loaders, or a new neo or raw-binary definition, from
+  the recording's file names; suggestions never select a loader. Cancel and
+  Discard ask before dropping a draft, and opening Box connection asks before
+  dropping an unsaved loader draft. Signal preview waits for ADR 0008.
 - A step-by-step guide to adding a recording system ACE doesn't read, with
   tested worked examples: loader definitions for an Intan `.rhd` system and a
   flat binary file (`examples/loaders/`), and a Python loader that works with

@@ -270,7 +270,9 @@ checked and real-recording validation before use.
    (one interleaved binary file). Give it a name such as `my-rig`; it is saved as
    `loaders/my-rig.json`.
    Use **Cancel** to return to the choices. Confirm discarding
-   an unsaved draft when prompted; saved definitions are kept.
+   an unsaved draft when prompted; saved definitions are kept. Opening
+   **Box connection** with an unsaved loader draft also asks first; unsaved
+   experiment edits are kept while Box is open.
 
 3. Fill in the form: the patterns that recognise the recording folder, the
    reader, and the sync method. Everything else is in the **Full definition
@@ -285,7 +287,8 @@ checked and real-recording validation before use.
    recording is read. Leave **Include the loader I am editing** ticked to test a
    draft before saving it.
 
-Project loaders cannot reuse the names of built-in loaders. The format is
+Project loaders cannot reuse the names of built-in loaders (such as `neuralynx`),
+and cannot be named after Windows devices (such as `nul`). The format is
 described in [Ephys loader definitions](guides/loader_definitions.md).
 
 ## If something goes wrong
@@ -306,4 +309,4 @@ in this installed GUI.
 
 For a complete walkthrough, see [Add a recording system ACE doesn’t read](guides/loader_definitions.md#add-a-recording-system-ace-doesnt-read).
 
-The pending shared change is described in [the BOM integration proposal](adr/0009-loader-editor-bom.md).
+The shared loader-definition code in this page is a core change under maintainer review; see [the loader definitions proposal](adr/0009-loader-definitions.md).

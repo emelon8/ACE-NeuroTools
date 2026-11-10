@@ -522,6 +522,22 @@ def _builtin_ephys_loaders() -> list[tuple[str, type[EphysDataManager]]]:
     ]
 
 
+def _reserved_names_for(name: str, cls: type) -> list[str]:
+    """Names a project definition may not use because they refer to this built-in.
+
+    The registered name and its short form (``neuralynx`` for
+    ``NeuralynxDataManager``), lowercased. The workbench lists these per loader.
+    """
+    names = {name.lower(), cls.__name__.lower()}
+    names |= {value.removesuffix("datamanager") for value in names}
+    return sorted(value for value in names if value)
+
+
+def _reserved_loader_names() -> set[str]:
+    """Every name reserved by a built-in ephys loader; project definitions may not use them."""
+    return {value for name, cls in _builtin_ephys_loaders() for value in _reserved_names_for(name, cls)}
+
+
 def _loaders_list(project_path: Path) -> int:
     from aceneurotools.shared.loader_definitions import LOADERS_DIRNAME, load_project_definitions
 
@@ -534,7 +550,7 @@ def _loaders_list(project_path: Path) -> int:
     if not folder.is_dir():
         print(f"Project definitions: none ({folder} does not exist)")
         return 0
-    definitions, problems = load_project_definitions(project_path)
+    definitions, problems = load_project_definitions(project_path, reserved_names=_reserved_loader_names())
     print(f"Project definitions in {folder}:")
     if not definitions:
         print("  (no valid definitions)")
@@ -552,10 +568,16 @@ def _loaders_list(project_path: Path) -> int:
 def _loaders_validate(files: list[str]) -> int:
     from aceneurotools.shared.loader_definitions import DefinitionError, load_definition
 
+    from aceneurotools.shared.loader_definitions import DefinitionProblem
+
+    reserved = _reserved_loader_names()
     failed = 0
     for file in files:
         try:
             definition = load_definition(file)
+            if definition.name in reserved:
+                problem = DefinitionProblem("name", f"'{definition.name}' is already used by a built-in loader")
+                raise DefinitionError([problem], source=Path(file))
         except DefinitionError as exc:
             _print_problems(file, exc.problems)
             failed += 1
@@ -601,7 +623,7 @@ def _loaders_detect(directory: Path, project_path: Path) -> int:
     elif len(builtin) > 1:
         print(f"  EphysDataManager.create() currently uses the first: {builtin[0][0]}")
 
-    definitions, problems = load_project_definitions(project_path)
+    definitions, problems = load_project_definitions(project_path, reserved_names=_reserved_loader_names())
     matched = [d for d in definitions if definition_matches(d, directory)]
     print()
     print(f"Project definitions that match ({project_path}):")

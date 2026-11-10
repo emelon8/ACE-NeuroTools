@@ -1,6 +1,6 @@
 {
   "schema": "ace-loader/1",
-  "name": "neuralynx",
+  "name": "neuralynx-example",
   "label": "Neuralynx Cheetah (.ncs + Events.nev)",
   "description": "Reproduces the built-in NeuralynxDataManager: NeuralynxIO on the folder holding Events.nev, split-all signal groups, frame-sync TTL on port 0.",
   "modality": "ephys",

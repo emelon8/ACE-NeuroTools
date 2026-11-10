@@ -1,6 +1,6 @@
 {
   "schema": "ace-loader/1",
-  "name": "rhs2116",
+  "name": "rhs2116-example",
   "label": "Intan RHS2116 pair (ONIX raw binary)",
   "description": "Reproduces the built-in RHS2116DataManager: 32 AC channels of uint16 at 0.195 uV/bit, times from the shared hardware clock.",
   "modality": "ephys",

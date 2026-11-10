@@ -37,8 +37,8 @@ from aceneurotools.shared.loader_definitions import (
 )
 
 EXAMPLES = Path(__file__).parent / "data" / "loaders"
-NEURALYNX = EXAMPLES / "neuralynx.json"
-RHS2116 = EXAMPLES / "rhs2116.json"
+NEURALYNX = EXAMPLES / "neuralynx-example.json"
+RHS2116 = EXAMPLES / "rhs2116-example.json"
 
 
 def _raw(path: Path) -> dict[str, Any]:
@@ -549,7 +549,7 @@ def test_load_definition_requires_matching_file_name(tmp_path: Path) -> None:
     ],
 )
 def test_load_definition_rejects_bad_json(tmp_path: Path, text: str, fragment: str) -> None:
-    path = _write(tmp_path / "neuralynx.json", text)
+    path = _write(tmp_path / "neuralynx-example.json", text)
     with pytest.raises(DefinitionError) as info:
         load_definition(path)
     (problem,) = info.value.problems
@@ -557,7 +557,7 @@ def test_load_definition_rejects_bad_json(tmp_path: Path, text: str, fragment: s
 
 
 def test_load_definition_rejects_non_utf8(tmp_path: Path) -> None:
-    path = tmp_path / "neuralynx.json"
+    path = tmp_path / "neuralynx-example.json"
     path.write_bytes(b"\xff\xfe{")
     with pytest.raises(DefinitionError, match="UTF-8"):
         load_definition(path)
@@ -574,15 +574,15 @@ def test_project_without_loaders_folder(tmp_path: Path) -> None:
 
 def test_project_definitions_report_bad_files(tmp_path: Path) -> None:
     folder = tmp_path / "loaders"
-    _write(folder / "neuralynx.json", _raw(NEURALYNX))
-    _write(folder / "rhs2116.json", _raw(RHS2116))
+    _write(folder / "neuralynx-example.json", _raw(NEURALYNX))
+    _write(folder / "rhs2116-example.json", _raw(RHS2116))
     _write(folder / "broken.json", "{")
     _write(folder / "renamed.json", _raw(NEURALYNX))
     _write(folder / "notes.txt", "ignored")
     (folder / "folder.json").mkdir()
 
     definitions, problems = load_project_definitions(tmp_path)
-    assert [d.name for d in definitions] == ["neuralynx", "rhs2116"]
+    assert [d.name for d in definitions] == ["neuralynx-example", "rhs2116-example"]
     assert set(problems) == {str(folder / "broken.json"), str(folder / "renamed.json")}
     assert "invalid JSON" in problems[str(folder / "broken.json")][0].message
     assert [p.path for p in problems[str(folder / "renamed.json")]] == ["name"]
@@ -590,11 +590,11 @@ def test_project_definitions_report_bad_files(tmp_path: Path) -> None:
 
 def test_project_definitions_report_deeply_nested_file(tmp_path: Path) -> None:
     folder = tmp_path / "loaders"
-    _write(folder / "neuralynx.json", _raw(NEURALYNX))
+    _write(folder / "neuralynx-example.json", _raw(NEURALYNX))
     _write(folder / "deep.json", "[" * 100_000)
 
     definitions, problems = load_project_definitions(tmp_path)
-    assert [d.name for d in definitions] == ["neuralynx"]
+    assert [d.name for d in definitions] == ["neuralynx-example"]
     assert "nested too deeply" in problems[str(folder / "deep.json")][0].message
 
 
@@ -620,7 +620,7 @@ def test_project_definitions_reject_duplicate_names(tmp_path: Path, monkeypatch:
 
 
 def test_project_definitions_reject_reserved_names(tmp_path: Path) -> None:
-    _write(tmp_path / "loaders" / "neuralynx.json", _raw(NEURALYNX))
+    _write(tmp_path / "loaders" / "neuralynx.json", json.dumps(_mutated(NEURALYNX, _set("name", "neuralynx"))))
     definitions, problems = load_project_definitions(tmp_path, reserved_names={"neuralynx"})
     assert definitions == []
     (problem,) = problems[str(tmp_path / "loaders" / "neuralynx.json")]
@@ -934,7 +934,90 @@ def test_neo_kwargs_reader_args_are_also_checked_for_paths() -> None:
         _set("reader.read_block", {}),
         _set("reader.args", {"nsx_override": None, "dirname_extra": "x", "nsx_to_load": 5}),
     )
-    assert _paths(validate_definition(doc)) == ["reader.args.dirname_extra"]
+    # nsx_override names a file prefix; dirname_extra is not a BlackrockRawIO argument.
+    assert sorted(_paths(validate_definition(doc))) == ["reader.args.dirname_extra", "reader.args.nsx_override"]
+
+
+def _blackrock(args: dict[str, Any], io: str = "BlackrockIO") -> dict[str, Any]:
+    return _mutated(
+        NEURALYNX,
+        _set("reader.io", io),
+        _set("reader.path_argument", "filename"),
+        _set("reader.path_from", {"source": "file", "file": "events"}),
+        _set("reader.read_block", {}),
+        _set("reader.args", args),
+    )
+
+
+@pytest.mark.parametrize("key", ["nsx_override", "nev_override"])
+def test_kwargs_reader_override_file_arguments_are_refused(key: str) -> None:
+    problems = validate_definition(_blackrock({key: "other/recording"}))
+    assert _paths(problems) == [f"reader.args.{key}"]
+    assert "cannot be set" in problems[0].message
+
+
+def test_kwargs_reader_args_are_checked_against_the_rawio_parameters() -> None:
+    # BlackrockIO and Spike2IO take **kwargs only to pass them to their rawio class.
+    assert validate_definition(_blackrock({"nsx_to_load": 5, "load_nev": True})) == []
+    assert validate_definition(_blackrock({"take_ideal_sampling_rate": True}, io="Spike2IO")) == []
+    problems = validate_definition(_blackrock({"anything_goes": 1}, io="Spike2IO"))
+    assert _paths(problems) == ["reader.args.anything_goes"]
+    assert "has no argument" in problems[0].message
+
+
+def test_init_parameters_keep_kwargs_when_no_rawio_base() -> None:
+    import neo.io
+
+    names, var_kw = ld._init_parameters(neo.io.NWBIO)  # **annotations, BaseIO only
+    assert {"filename", "mode"} <= names and var_kw
+    names, var_kw = ld._init_parameters(neo.io.BlackrockIO)
+    assert {"filename", "nsx_to_load", "nsx_override"} <= names and not var_kw
+    names, var_kw = ld._init_parameters(neo.io.IntanIO)  # no **kwargs at all
+    assert not var_kw
+
+
+@pytest.mark.parametrize("key", ["filename", "cache_path", "nsx_override"])
+def test_read_block_arguments_that_name_files_are_refused(key: str) -> None:
+    doc = _mutated(
+        NEURALYNX,
+        _set("reader.io", "NWBIO"),  # read_block takes **kwargs
+        _set("reader.path_argument", "filename"),
+        _set("reader.path_from", {"source": "file", "file": "events"}),
+        _set("reader.args", {}),
+        _set("reader.read_block", {key: "x"}),
+    )
+    problems = validate_definition(doc)
+    assert _paths(problems) == [f"reader.read_block.{key}"]
+    assert "cannot be set" in problems[0].message
+
+
+@pytest.mark.parametrize("mode,ok", [("r", True), ("ro", False), ("w", False)])
+def test_nwbio_mode_must_be_r(mode: str, ok: bool) -> None:
+    # neo's NWBIO raises "`mode` at init needs to be set to 'r'" for anything else.
+    doc = _mutated(
+        NEURALYNX,
+        _set("reader.io", "NWBIO"),
+        _set("reader.path_argument", "filename"),
+        _set("reader.path_from", {"source": "file", "file": "events"}),
+        _set("reader.read_block", {}),
+        _set("reader.args", {"mode": mode}),
+    )
+    problems = validate_definition(doc)
+    assert (problems == []) is ok
+    if not ok:
+        assert _paths(problems) == ["reader.args.mode"] and "(r)" in problems[0].message
+
+
+@pytest.mark.parametrize("name", ["con", "prn", "aux", "nul", "com0", "com1", "lpt9"])
+def test_windows_device_names_are_refused(name: str) -> None:
+    problems = validate_definition(_mutated(NEURALYNX, _set("name", name)))
+    assert _paths(problems) == ["name"]
+    assert "reserved device name on Windows" in problems[0].message
+
+
+@pytest.mark.parametrize("name", ["con1", "nul-rig", "com10", "lpt", "console"])
+def test_names_near_windows_device_names_are_allowed(name: str) -> None:
+    assert validate_definition(_mutated(NEURALYNX, _set("name", name))) == []
 
 
 def test_neo_io_names_use_neo_export_names() -> None:
@@ -1043,7 +1126,7 @@ def test_integral_float_gets_a_specific_message() -> None:
 
 
 def test_load_definition_accepts_utf8_byte_order_mark(tmp_path: Path) -> None:
-    path = tmp_path / "neuralynx.json"
+    path = tmp_path / "neuralynx-example.json"
     path.write_text("﻿" + NEURALYNX.read_text(), encoding="utf-8")
     assert load_definition(path) == load_definition(NEURALYNX)
 
@@ -1052,7 +1135,7 @@ def test_load_definition_accepts_utf8_byte_order_mark(tmp_path: Path) -> None:
                     reason="permission bits do not block reads here")
 def test_unreadable_loaders_folder_is_reported(tmp_path: Path) -> None:
     folder = tmp_path / "loaders"
-    _write(folder / "neuralynx.json", _raw(NEURALYNX))
+    _write(folder / "neuralynx-example.json", _raw(NEURALYNX))
     folder.chmod(0)
     try:
         definitions, problems = load_project_definitions(tmp_path)
@@ -1065,9 +1148,9 @@ def test_unreadable_loaders_folder_is_reported(tmp_path: Path) -> None:
 
 def test_project_definitions_ignore_non_json_and_hidden_temporary_files(tmp_path: Path) -> None:
     folder = tmp_path / "loaders"
-    _write(folder / "neuralynx.json", _raw(NEURALYNX))
-    _write(folder / ".neuralynx.json.tmp", "{")
-    assert [d.name for d in load_project_definitions(tmp_path)[0]] == ["neuralynx"]
+    _write(folder / "neuralynx-example.json", _raw(NEURALYNX))
+    _write(folder / ".neuralynx-example.json.tmp", "{")
+    assert [d.name for d in load_project_definitions(tmp_path)[0]] == ["neuralynx-example"]
 
 
 def test_rhs2116_manager_channel_selection_matches_select_by_index(rhs2116_dir: Path) -> None:
@@ -1167,7 +1250,7 @@ def test_neo_io_without_read_block_is_refused(monkeypatch: pytest.MonkeyPatch) -
 @pytest.mark.skipif(os.name == "nt" or (hasattr(os, "geteuid") and os.geteuid() == 0),
                     reason="permission bits do not block reads here")
 def test_unreadable_definition_file_is_reported(tmp_path: Path) -> None:
-    path = _write(tmp_path / "loaders" / "neuralynx.json", _raw(NEURALYNX))
+    path = _write(tmp_path / "loaders" / "neuralynx-example.json", _raw(NEURALYNX))
     path.chmod(0)
     try:
         definitions, problems = load_project_definitions(tmp_path)
@@ -1221,3 +1304,11 @@ def test_text_validation_bom_parity_and_strict_json():
     assert ld.check_definition_text("\ufeff\ufeff" + text)[1]
     assert ld.check_definition_text("\ufeff" + text[:-1] + ', "name": "duplicate"}')[1]
     assert ld.check_definition_text("\ufeff" + text[:-1] + ', "bad": NaN}')[1]
+
+
+@pytest.mark.parametrize("name,ok", [("nul", False), ("com1", False), ("nul-rig", True), ("com10", True)])
+def test_schema_agrees_on_windows_device_names(name: str, ok: bool) -> None:
+    schema = definition_json_schema()
+    doc = _mutated(NEURALYNX, _set("name", name))
+    assert _schema_valid(doc, schema, schema) is ok
+    assert (validate_definition(doc) == []) is ok

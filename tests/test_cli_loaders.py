@@ -44,21 +44,21 @@ def _touch(folder: Path, *names: str) -> Path:
 # ── validate ──────────────────────────────────────────────────────────────────
 
 def test_validate_examples_ok(capsys: pytest.CaptureFixture[str]) -> None:
-    files = [str(EXAMPLES / "neuralynx.json"), str(EXAMPLES / "rhs2116.json")]
+    files = [str(EXAMPLES / "neuralynx-example.json"), str(EXAMPLES / "rhs2116-example.json")]
     assert cli.main(["loaders", "validate", *files]) == 0
     out, err = capsys.readouterr()
-    assert f"{files[0]}: ok (neuralynx, neo)" in out
-    assert f"{files[1]}: ok (rhs2116, raw_binary)" in out
+    assert f"{files[0]}: ok (neuralynx-example, neo)" in out
+    assert f"{files[1]}: ok (rhs2116-example, raw_binary)" in out
     assert err == ""
 
 
 def test_validate_reports_each_problem(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    doc = json.loads((EXAMPLES / "neuralynx.json").read_text())
+    doc = json.loads((EXAMPLES / "neuralynx-example.json").read_text())
     doc["reader"]["io"] = "NoSuchIO"
     doc["lable"] = "typo"
-    bad = tmp_path / "neuralynx.json"
+    bad = tmp_path / "neuralynx-example.json"
     bad.write_text(json.dumps(doc))
-    good = str(EXAMPLES / "rhs2116.json")
+    good = str(EXAMPLES / "rhs2116-example.json")
 
     assert cli.main(["loaders", "validate", good, str(bad)]) == 1
     out, err = capsys.readouterr()
@@ -106,15 +106,15 @@ def test_list_defaults_to_current_directory(project: Path, monkeypatch: pytest.M
     monkeypatch.chdir(project)
     assert cli.main(["loaders", "list"]) == 0
     out, _ = capsys.readouterr()
-    assert "neuralynx  [neo]" in out
-    assert "rhs2116  [raw_binary]" in out
+    assert "neuralynx-example  [neo]" in out
+    assert "rhs2116-example  [raw_binary]" in out
 
 
 def test_list_reports_bad_files(project: Path, capsys: pytest.CaptureFixture[str]) -> None:
     (project / "loaders" / "broken.json").write_text('{"schema": "ace-loader/9"}')
     assert cli.main(["loaders", "list", "--project-path", str(project)]) == 1
     out, err = capsys.readouterr()
-    assert "neuralynx  [neo]" in out
+    assert "neuralynx-example  [neo]" in out
     broken = project / "loaders" / "broken.json"
     assert f"{broken}: schema: unsupported version 'ace-loader/9'" in err
 
@@ -137,7 +137,7 @@ def test_detect_neuralynx_folder(project: Path, tmp_path: Path, capsys: pytest.C
     out, err = capsys.readouterr()
     builtin, _, defs = out.partition("Project definitions that match")
     assert "NeuralynxDataManager" in builtin and "RHS2116DataManager" not in builtin
-    assert "neuralynx  [neo]  matched: *.nev (1)" in defs
+    assert "neuralynx-example  [neo]  matched: *.nev (1)" in defs
     assert "rhs2116" not in defs
     assert "Several" not in out
     assert err == ""
@@ -150,7 +150,7 @@ def test_detect_rhs2116_folder(project: Path, tmp_path: Path, capsys: pytest.Cap
     out, _ = capsys.readouterr()
     builtin, _, defs = out.partition("Project definitions that match")
     assert "RHS2116DataManager" in builtin and "NeuralynxDataManager" not in builtin
-    assert "rhs2116  [raw_binary]  matched: *.raw (3)" in defs
+    assert "rhs2116-example  [raw_binary]  matched: *.raw (3)" in defs
 
 
 def test_detect_ambiguous_folder(project: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -180,7 +180,7 @@ def test_detect_skips_invalid_definitions(project: Path, tmp_path: Path, capsys:
     rec = _touch(tmp_path / "rec", "Events.nev")
     assert cli.main(["loaders", "detect", str(rec), "--project-path", str(project)]) == 0
     out, err = capsys.readouterr()
-    assert "neuralynx  [neo]" in out
+    assert "neuralynx-example  [neo]" in out
     assert "Skipped 1 invalid definition file(s)" in err
     assert "broken.json: (document): a loader definition must be a JSON object" in err
 
@@ -254,3 +254,48 @@ def test_list_fails_on_unreadable_loaders_folder(project: Path, capsys: pytest.C
         folder.chmod(0o755)
     assert code == 1
     assert "cannot read folder" in capsys.readouterr().err
+
+
+# ── Built-in names are reserved, as in the workbench ─────────────────────────
+
+def _reserved_copy(folder: Path, name: str = "neuralynx") -> Path:
+    doc = json.loads((EXAMPLES / "neuralynx-example.json").read_text())
+    doc["name"] = name
+    path = folder / f"{name}.json"
+    path.write_text(json.dumps(doc))
+    return path
+
+
+@pytest.mark.parametrize("name", ["neuralynx", "rhs2116", "neuralynxdatamanager"])
+def test_validate_refuses_built_in_loader_names(tmp_path: Path, name: str, capsys: pytest.CaptureFixture[str]) -> None:
+    path = _reserved_copy(tmp_path, name)
+    assert cli.main(["loaders", "validate", str(path)]) == 1
+    _, err = capsys.readouterr()
+    assert f"{path}: name: '{name}' is already used by a built-in loader" in err
+
+
+def test_list_refuses_built_in_loader_names(project: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    path = _reserved_copy(project / "loaders")
+    assert cli.main(["loaders", "list", "--project-path", str(project)]) == 1
+    out, err = capsys.readouterr()
+    assert "neuralynx-example  [neo]" in out
+    assert "\n  neuralynx  [neo]" not in out
+    assert f"{path}: name: 'neuralynx' is already used by a built-in loader" in err
+
+
+def test_detect_skips_built_in_loader_names(project: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _reserved_copy(project / "loaders")
+    rec = _touch(tmp_path / "rec", "Events.nev")
+    assert cli.main(["loaders", "detect", str(rec), "--project-path", str(project)]) == 0
+    out, err = capsys.readouterr()
+    assert "neuralynx-example  [neo]  matched" in out
+    assert "\n  neuralynx  [neo]" not in out
+    assert "Skipped 1 invalid definition file(s)" in err and "already used by a built-in loader" in err
+
+
+def test_cli_and_workbench_reserve_the_same_names() -> None:
+    from aceneurotools.gui import loaders as gui_loaders
+
+    gui_loaders._builtins_cache = None
+    assert cli._reserved_loader_names() == gui_loaders.reserved_names()
+    assert {"neuralynx", "neuralynxdatamanager", "rhs2116", "rhs2116datamanager"} <= cli._reserved_loader_names()

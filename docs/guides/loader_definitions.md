@@ -35,8 +35,10 @@ describe your acquisition system without writing a Python subclass of
       `experiments.csv` does not name one, loading stops with an error that
       lists the matches. A new `ephys loader` column in `experiments.csv`
       selects one explicitly. The column does not exist yet.
-    - **Name clashes with built-in loaders.** Whether project definitions may
-      reuse built-in loader names such as `neuralynx` is still to be decided.
+    - **Name clashes with built-in loaders.** For now, project definitions
+      cannot use built-in loader names such as `neuralynx` or `rhs2116`.
+      `ace-neuro loaders` and the workbench both refuse them. The proposal may
+      relax this once a loader can be chosen explicitly.
 
     **To analyse recordings from a new system today**, write a
     [Python loader](#analyse-recordings-now-a-python-loader). You can write
@@ -316,14 +318,23 @@ ace-neuro loaders validate /path/to/project/loaders/my-rig.json
 ace-neuro loaders detect /path/to/recording --project-path /path/to/project
 ```
 
-`--project-path` defaults to the current directory. `detect` exits with 1 when
-nothing matches. When several built-in loaders match, it shows which one
+`--project-path` defaults to the current directory. Exit codes:
+
+- `list` exits with 1 when any file in `loaders/` has a problem, or the folder
+  cannot be read. Problems are printed to stderr.
+- `validate` exits with 1 when any file is invalid or cannot be read.
+- `detect` exits with 1 when no built-in loader or project definition
+  matches, or when the recording folder is missing or cannot be read. It warns,
+  but continues, when the project folder does not exist.
+
+`detect` skips invalid project definitions and lists them on stderr. When several built-in loaders match, it shows which one
 `EphysDataManager.create()` uses today: the first in registration order.
 
 ## Portability rules
 
-Definitions are copied into run plans and may run on other computers, so they
-must not contain machine paths:
+Definitions are meant to travel with a project to other computers, for
+example to a cluster once analyses can use them (ADR 0008), so they must not
+contain machine paths:
 
 - **Patterns are relative globs under the recording folder.** Use `/` as the
   separator. A pattern cannot be absolute or start with `~` or a drive letter
@@ -337,8 +348,9 @@ must not contain machine paths:
   `null`). A string argument cannot look like a machine path.
 - **The recording path is never written in a definition.** The loader passes
   it to the reader. Reader arguments that name files, folders or caches (any
-  name containing `file`, `dir`, `path`, `folder`, `cache`, `dll` or `url`,
-  such as `exclude_filename` or `use_cache`) cannot be set.
+  name containing `file`, `dir`, `path`, `folder`, `cache`, `dll`, `url` or
+  `override`, such as `exclude_filename`, `use_cache` or `nsx_override`) cannot
+  be set, in `args` or in `read_block`.
 - **Strict JSON.** Unknown keys, duplicate keys and `NaN`/`Infinity` are
   errors, so typos do not go unnoticed. Whole numbers are written without a
   decimal point (`32`, not `32.0`). A UTF-8 byte-order mark at the start of
@@ -352,7 +364,7 @@ must not contain machine paths:
 | Key | Required | Meaning |
 |-----|----------|---------|
 | `schema` | yes | Always `"ace-loader/1"`. |
-| `name` | yes | Kebab-case identifier (`my-rig`), at most 64 characters. Must equal the file name without `.json`. |
+| `name` | yes | Kebab-case identifier (`my-rig`), at most 64 characters. Must equal the file name without `.json`. Cannot be a Windows device name (`con`, `prn`, `aux`, `nul`, `com0`–`com9`, `lpt0`–`lpt9`) or a built-in loader name (`neuralynx`, `rhs2116`). |
 | `label` | yes | Human-readable name shown in lists. |
 | `description` | no | Free text. |
 | `modality` | yes | `"ephys"`. Calcium imaging is not covered by this version. |
@@ -406,7 +418,7 @@ Only regular files are matched. `pick` values:
 | `path_argument` | yes | The reader's path parameter, usually `dirname` or `filename`. Checked against the class signature. |
 | `path_from` | yes | What to pass as the path argument: `{"source": "recording_folder"}`, `{"source": "file", "file": "<role>"}` or `{"source": "file_parent", "file": "<role>"}`. |
 | `files` | no | File rules, as above. |
-| `args` | no | Other constructor arguments, as JSON scalars. Names are checked against the class signature. Readers must open files read-only: for a reader with a `mode` argument, `mode` must be read-only (`r` or `ro`; `ro` for `NixIO`), and it must be written out when the reader's default could write (`NixIO` defaults to `rw`). For NIX files, `NixIOFr` is neo's read-only reader. |
+| `args` | no | Other constructor arguments, as JSON scalars. Names are checked against the class signature; for readers such as `BlackrockIO` that pass `**kwargs` on, against the underlying rawio class. Readers must open files read-only: for a reader with a `mode` argument, `mode` must be read-only (`r` or `ro`; `ro` for `NixIO`, `r` for `NWBIO`), and it must be written out when the reader's default could write (`NixIO` defaults to `rw`). For NIX files, `NixIOFr` is neo's read-only reader. |
 | `read_block` | no | Arguments to `read_block()`, as JSON scalars, for example `{"signal_group_mode": "split-all"}`. |
 
 A neo reader takes its times and channel names from neo, so it needs
@@ -459,7 +471,9 @@ length.
 
 ## Examples: the built-in loaders
 
-These two definitions are in the repository at `tests/data/loaders/`. Tests
+These two definitions are in the repository at `tests/data/loaders/`. Their
+names end in `-example` because built-in loader names are reserved; rename a
+copy before adapting it for your project. Tests
 check them against the built-in managers: detection gives the same result as
 `can_handle`, the same files are found, the same sync events are selected,
 and RHS2116 channels match bit for bit.
@@ -467,7 +481,7 @@ and RHS2116 channels match bit for bit.
 ### Neuralynx
 
 ```json
---8<-- "tests/data/loaders/neuralynx.json"
+--8<-- "tests/data/loaders/neuralynx-example.json"
 ```
 
 - `detect` matches `NeuralynxDataManager.can_handle`: any `*.nev` file directly in
@@ -482,7 +496,7 @@ and RHS2116 channels match bit for bit.
 ### RHS2116
 
 ```json
---8<-- "tests/data/loaders/rhs2116.json"
+--8<-- "tests/data/loaders/rhs2116-example.json"
 ```
 
 - `detect` matches `RHS2116DataManager.can_handle`: any `*.raw` file. This is

@@ -100,12 +100,12 @@ CLOCK_DTYPES = ("uint32", "uint64", "int32", "int64", "float64")
 OUTPUT_DTYPES = ("float32", "float64")
 READ_ONLY_MODES = ("r", "ro")
 #: Read-only ``mode`` values for neo IOs that accept only some of READ_ONLY_MODES.
-READ_ONLY_MODES_BY_IO: Mapping[str, tuple[str, ...]] = {"NixIO": ("ro",)}
+READ_ONLY_MODES_BY_IO: Mapping[str, tuple[str, ...]] = {"NixIO": ("ro",), "NWBIO": ("r",)}
 
 #: neo reader arguments a definition may not set: they name files, folders or
 #: caches (neo's cache is unpickled with joblib), and the loader alone decides
 #: which files a reader opens.
-_DENIED_ARG_RE = re.compile(r"file|dir|path|folder|cache|dll|url", re.IGNORECASE)
+_DENIED_ARG_RE = re.compile(r"file|dir|path|folder|cache|dll|url|override", re.IGNORECASE)
 
 #: neo IO classes a definition may not name, with the reason.
 DENIED_NEO_IOS: Mapping[str, str] = {
@@ -115,11 +115,14 @@ DENIED_NEO_IOS: Mapping[str, str] = {
 
 NAME_PATTERN = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
 NAME_MAX_LENGTH = 64
+#: Names Windows reserves for devices: ``loaders/nul.json`` is not an ordinary file there.
+WINDOWS_DEVICE_NAME_PATTERN = r"^(?:con|prn|aux|nul|com[0-9]|lpt[0-9])$"
 ROLE_PATTERN = r"^[a-z][a-z0-9_]*$"
 VARIABLE_PATTERN = r"^[a-z][a-z0-9_]*$"
 INDEX_PLACEHOLDER = "{index}"
 
 _NAME_RE = re.compile(NAME_PATTERN)
+_WINDOWS_DEVICE_RE = re.compile(WINDOWS_DEVICE_NAME_PATTERN)
 _ROLE_RE = re.compile(ROLE_PATTERN)
 _VARIABLE_RE = re.compile(VARIABLE_PATTERN)
 _PLACEHOLDER_RE = re.compile(r"\{([^{}]*)\}")
@@ -544,6 +547,24 @@ def _parameters(func: Any) -> tuple[set[str], bool]:
     return names, var_kw
 
 
+def _init_parameters(cls: Any) -> tuple[set[str], bool]:
+    """Named ``__init__`` parameters of a neo IO and whether it accepts other names.
+
+    IOs such as ``BlackrockIO`` take ``**kwargs`` only to pass them to the rawio
+    class they inherit from, so that class's parameters are the real ones.
+    """
+    names, var_kw = _parameters(cls.__init__)
+    if not var_kw:
+        return names, var_kw
+    from neo.rawio.baserawio import BaseRawIO  # type: ignore
+
+    for base in cls.__mro__[1:]:
+        if "__init__" in vars(base) and isinstance(base, type) and issubclass(base, BaseRawIO):
+            base_names, base_var_kw = _parameters(base.__init__)
+            return names | base_names, base_var_kw
+    return names, var_kw
+
+
 def _parameter_default(func: Any, name: str) -> Any:
     """Default value of parameter ``name`` of ``func`` (None if unknown or none)."""
     try:
@@ -712,6 +733,8 @@ class _Validator:
                     self.add("name", f"must be at most {NAME_MAX_LENGTH} characters")
                 elif not _NAME_RE.fullmatch(name):
                     self.add("name", "must be kebab-case: lowercase letters and digits separated by '-'")
+                elif _WINDOWS_DEVICE_RE.fullmatch(name):
+                    self.add("name", f"'{name}' is a reserved device name on Windows; choose another name")
         if "label" in data:
             self.text(data["label"], "label")
         if "description" in data:
@@ -897,7 +920,7 @@ class _Validator:
             self.add("reader.io", f"'{io_name}' is not a neo IO in neo.io.iolist{extra}")
             return
         cls = _neo_io_class(io_name)
-        init_params, init_var_kw = _parameters(cls.__init__)
+        init_params, init_var_kw = _init_parameters(cls)
         if path_arg is not None and _IDENTIFIER_RE.fullmatch(path_arg) and path_arg not in init_params:
             self.add(
                 "reader.path_argument",
@@ -935,6 +958,12 @@ class _Validator:
         for key in block_args:
             if not block_var_kw and key not in block_params:
                 self.add(f"reader.read_block.{key}", f"{io_name}.read_block has no argument '{key}'")
+            elif _DENIED_ARG_RE.search(key):
+                self.add(
+                    f"reader.read_block.{key}",
+                    "cannot be set in a definition: it names files, folders or a cache, "
+                    "and the loader alone chooses which files a reader opens",
+                )
 
     def time(self, value: object, backend: str | None, roles: Mapping[str, object]) -> None:
         if not isinstance(value, dict):
@@ -1481,7 +1510,12 @@ def definition_json_schema() -> dict[str, Any]:
         **closed(
             {
                 "schema": {"const": SCHEMA},
-                "name": {"type": "string", "pattern": NAME_PATTERN, "maxLength": NAME_MAX_LENGTH},
+                "name": {
+                    "type": "string",
+                    "pattern": NAME_PATTERN,
+                    "maxLength": NAME_MAX_LENGTH,
+                    "not": {"pattern": WINDOWS_DEVICE_NAME_PATTERN},
+                },
                 "label": {"type": "string", "minLength": 1, "pattern": r"\S"},
                 "description": {"type": "string"},
                 "modality": {"const": "ephys"},

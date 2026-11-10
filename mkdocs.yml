@@ -107,4 +107,4 @@ nav:
       - Release checklist: releasing.md
       - Backend checks: backend_testing.md
       - Build and publish docs: deployment.md
-      - Loader editor BOM proposal: adr/0009-loader-editor-bom.md
+      - Loader definitions proposal: adr/0009-loader-definitions.md

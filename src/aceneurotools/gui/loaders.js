@@ -41,7 +41,7 @@
     if (state.working) return;
     const projectId = state.projectId;
     state.working = true; clearFail();
-    for (const id of ["loaders-save", "loaders-delete", "loaders-refresh", "loaders-new", "loaders-detect", "loaders-experiment"]) $(id).disabled = true;
+    for (const id of ["loaders-save", "loaders-discard", "loaders-delete", "loaders-refresh", "loaders-new", "loaders-detect", "loaders-experiment"]) $(id).disabled = true;
     try { await action(); }
     catch (error) { fail(error); }
     finally {
@@ -290,6 +290,7 @@
   // ── Validation (debounced; the server is the only validator) ──────────────
   function scheduleValidate(delay = 400) {
     window.clearTimeout(state.validateTimer);
+    state.validateSeq++;  // A check still in flight is for text that has since changed.
     $("loaders-check-state").textContent = "Checking…"; $("loaders-check-state").className = "loaders-check-state";
     state.validateTimer = window.setTimeout(validate, delay);
   }
@@ -361,7 +362,8 @@
   }
 
   function discard() {
-    if (!state.open?.name || !confirmDiscard()) return;
+    // While a save or delete is pending, the file may already have changed; discarding then would hide it.
+    if (state.working || !state.open?.name || !confirmDiscard()) return;
     openEditor({...state.open, text: state.open.saved});
   }
 

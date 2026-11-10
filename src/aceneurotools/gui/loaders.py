@@ -71,13 +71,12 @@ def _builtin_classes() -> list[tuple[str, type]]:
 def _reserved(name: str, cls: type) -> list[str]:
     """Names a project definition may not use because they refer to this built-in.
 
-    Whether definitions may reuse built-in names is undecided (ADR 0008), so the
-    workbench refuses the registered name and its short form (``neuralynx`` for
-    ``NeuralynxDataManager``), case-insensitively.
+    The same rule as ``ace-neuro loaders``: the registered name and its short
+    form (``neuralynx`` for ``NeuralynxDataManager``), case-insensitively.
     """
-    names = {name.lower(), cls.__name__.lower()}
-    names |= {value.removesuffix("datamanager") for value in names}
-    return sorted(value for value in names if value)
+    from aceneurotools.cli import _reserved_names_for
+
+    return _reserved_names_for(name, cls)
 
 
 def builtin_loaders() -> list[dict[str, Any]]:
@@ -123,6 +122,8 @@ def check_name(value: Any) -> str:
             "Loader names use lowercase letters and digits separated by hyphens, for example my-rig "
             f"(at most {ld.NAME_MAX_LENGTH} characters)."
         )
+    if re.fullmatch(ld.WINDOWS_DEVICE_NAME_PATTERN, value):
+        raise ProjectError(f"'{value}' is a reserved device name on Windows. Choose another loader name.")
     return value
 
 

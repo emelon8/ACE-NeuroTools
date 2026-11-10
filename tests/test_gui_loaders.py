@@ -20,7 +20,7 @@ FIXTURES = Path(__file__).parent / "data" / "loaders"
 
 
 def definition(name="my-rig", **changes):
-    data = json.loads((FIXTURES / "neuralynx.json").read_text())
+    data = json.loads((FIXTURES / "neuralynx-example.json").read_text())
     data["name"] = name
     data["label"] = "My rig"
     data.update(changes)
@@ -98,7 +98,9 @@ def test_list_shows_builtins_and_project_definitions(served):
     folder(served).mkdir()
     (folder(served) / "my-rig.json").write_text(definition())
     (folder(served) / "broken.json").write_text("{not json")
-    (folder(served) / "neuralynx.json").write_text((FIXTURES / "neuralynx.json").read_text())
+    reserved = json.loads((FIXTURES / "neuralynx-example.json").read_text())
+    reserved["name"] = "neuralynx"
+    (folder(served) / "neuralynx.json").write_text(json.dumps(reserved))
     (folder(served) / "Bad Name.json").write_text(definition())
     status, result = call(served, "/api/loaders", project=served[2].id)
     assert status == 200
@@ -222,6 +224,15 @@ def test_save_refuses_invalid_reserved_and_bad_names(served):
         assert status == 400 and "Loader names" in error["error"], name
     assert not folder(served).exists() or not list(folder(served).iterdir())
     assert not (Path(served[2].path).parent / "escape.json").exists()
+
+
+@pytest.mark.parametrize("name", ["nul", "con", "com1", "lpt9"])
+def test_save_and_open_refuse_windows_device_names(served, name):
+    status, error = save(served, name, definition(name))
+    assert status == 400 and "reserved device name on Windows" in error["error"]
+    status, error = call(served, "/api/loaders/definition", project=served[2].id, name=name)
+    assert status == 400 and "reserved device name on Windows" in error["error"]
+    assert not folder(served).exists() or not list(folder(served).iterdir())
 
 
 def test_save_refuses_linked_files(served, tmp_path):

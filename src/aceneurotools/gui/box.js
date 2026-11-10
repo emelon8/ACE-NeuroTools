@@ -81,8 +81,16 @@ async function showBoxFolderPicker() {
   $("box-folder-link").value = boxSuggestedFolder;
   await loadBoxFolder(boxSuggestedFolder);
 }
+// Box hides the page but keeps experiment drafts, and closing it returns to them;
+// only feature drafts (such as the loader editor) would be lost.
+function canLeaveForBox() {
+  if (!featuresDirty()) return true;
+  if (!window.confirm("Leave without saving your changes? Choose Cancel to keep editing.")) return false;
+  aceFeatures.discard();
+  return true;
+}
 async function openBox(column = null) {
-  if (busy || boxBusy || !canLeave()) return;
+  if (busy || boxBusy || !canLeaveForBox()) return;
   boxRecordingColumn = column;
   boxReturn = $("detail").hidden ? "home" : "detail";
   $("open-project").disabled = true;
