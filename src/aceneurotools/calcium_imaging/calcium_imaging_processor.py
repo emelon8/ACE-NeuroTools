@@ -191,6 +191,8 @@ class CalciumImagingProcessor:
             Updated data_manager with motion-corrected memory map.
         """
         motion_correction_object = None
+        #a reused data manager must not report an earlier run's shifts file
+        data_manager.motion_correction_shifts_filepath = None
         if apply_motion_correction:
             #apply motion correction
             motion_correction_object, data_manager.opts_caiman = self._apply_motion_correction(data_manager.opts_caiman, dview)
@@ -209,16 +211,20 @@ class CalciumImagingProcessor:
         return data_manager
 
     def _save_motion_correction_shifts(self, dm: CalciumImagingDataManager, mc: Any) -> str | None:
-        """Save motion-correction shifts next to the estimates; return the path, or None without metadata."""
+        """Save motion-correction shifts next to the estimates; return the path, or None if not written.
+
+        The record is optional output: any failure to build or write it prints a
+        warning and returns None, so the scientific run continues.
+        """
         if dm.metadata is None:
             return None
-        save_dir = os.path.join(str(dm.metadata['calcium imaging directory']), "saved_movies")
         try:
+            save_dir = os.path.join(str(dm.metadata['calcium imaging directory']), "saved_movies")
             filepath = save_motion_correction_shifts(
                 mc, save_dir, pw_rigid=bool(dm.opts_caiman.get('motion', 'pw_rigid')), frame_rate=dm.fr
             )
-        except OSError as exc:
-            print(f"Warning: motion-correction shifts could not be saved: {exc}")
+        except Exception as exc:  # optional output must never stop processing
+            print(f"Warning: motion-correction shifts could not be saved: {exc!r}")
             return None
         print(f"Saved motion-correction shifts to {filepath}")
         return filepath

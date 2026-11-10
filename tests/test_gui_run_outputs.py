@@ -171,3 +171,41 @@ def test_numeric_object_diagnostics_are_exported_without_pickle(tmp_path):
         np.testing.assert_array_equal(saved["neurons_sn"], [119.5, 116.25])
         assert saved["neurons_sn"].dtype.kind == "f"
         np.testing.assert_array_equal(saved["g"], [[0.8], [0.9]])
+
+
+def test_inventory_reports_a_written_motion_correction_shifts_file(worker_case, monkeypatch):
+    from aceneurotools.pipelines import calcium_imaging as miniscope
+
+    root, manifest, dm = worker_case
+    manifest["parameters"]["apply_motion_correction"] = True
+    shifts = root / "recording" / "saved_movies" / "motion_correction_shifts.npz"
+
+    class WritesShifts(miniscope.CalciumImagingPipeline):
+        def run(self, **params):
+            # The core writes the file into the run's recording copy during motion correction.
+            shifts.parent.mkdir(parents=True, exist_ok=True)
+            np.savez(shifts, shifts_rig=np.zeros((20, 2), dtype=np.float32))
+            dm.motion_correction_shifts_filepath = str(shifts)
+            return super().run(**params)
+
+    monkeypatch.setattr(miniscope, "CalciumImagingPipeline", WritesShifts)
+    execute(manifest)
+    entries = {item["name"]: item for item in json.loads((root / "output-inventory.json").read_text())["outputs"]}
+    assert entries["motion_correction_shifts"] == {
+        "name": "motion_correction_shifts",
+        "status": "exported",
+        "file": "recording/saved_movies/motion_correction_shifts.npz",
+    }
+
+
+@pytest.mark.parametrize("apply", [False, True])
+def test_inventory_marks_unwritten_motion_correction_shifts_not_computed(worker_case, apply):
+    root, manifest, dm = worker_case
+    manifest["parameters"]["apply_motion_correction"] = apply
+    dm.motion_correction_shifts_filepath = None
+    execute(manifest)
+    entries = {item["name"]: item for item in json.loads((root / "output-inventory.json").read_text())["outputs"]}
+    entry = entries["motion_correction_shifts"]
+    assert entry["status"] == "not_computed"
+    assert ("apply_motion_correction disabled" in entry["reason"]) is (not apply)
+    assert "does not retain" not in entry["reason"]

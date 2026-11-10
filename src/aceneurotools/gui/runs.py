@@ -252,6 +252,10 @@ class Runs:
                     / "saved_movies"
                     / str(params.get("save_CNMFE_estimates_filename", "estimates.hdf5"))
                 )
+            if params.get("apply_motion_correction"):
+                destinations["Motion-correction shifts (when written)"] = str(
+                    directory / "recording" / "saved_movies" / "motion_correction_shifts.npz"
+                )
             if params.get("save_CNMFE_params"):
                 destinations["CaImAn parameters"] = str(directory / "recording" / "saved_movies" / "opts_caiman.json")
         if kind == "multimodal":
