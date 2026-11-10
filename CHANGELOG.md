@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Save motion-correction shifts, templates and patch settings to
+  `saved_movies/motion_correction_shifts.npz` whenever motion correction runs, and
+  report the file in `ProcessingResult.motion_correction_shifts_filepath`.
 - Installed `ace-gui` workbench with per-launch API authentication and shared
   CLI/GUI defaults. CSVs remain the settings source of truth.
 - GUI feature registry and run plans: new workbench screens register their own

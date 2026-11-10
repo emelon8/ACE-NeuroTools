@@ -9,6 +9,7 @@ import numpy as np
 
 import aceneurotools.shared.misc_functions as misc_functions
 from aceneurotools.calcium_imaging.calcium_imaging_data_manager import CalciumImagingDataManager
+from aceneurotools.calcium_imaging.motion_correction_record import save_motion_correction_shifts
 from aceneurotools.calcium_imaging.pipeline_results import ProcessingResult
 from aceneurotools.shared.exceptions import ProcessingError
 
@@ -159,6 +160,7 @@ class CalciumImagingProcessor:
             opts_caiman_filepath=getattr(self.data_manager, 'opts_caiman_filepath', None),
             opts_caiman=self.data_manager.opts_caiman,
             motion_corrected_movie_filepath=getattr(self.data_manager, 'motion_corrected_movie_filepath', None),
+            motion_correction_shifts_filepath=getattr(self.data_manager, 'motion_correction_shifts_filepath', None),
         )
 
         return self.data_manager
@@ -192,6 +194,8 @@ class CalciumImagingProcessor:
         if apply_motion_correction:
             #apply motion correction
             motion_correction_object, data_manager.opts_caiman = self._apply_motion_correction(data_manager.opts_caiman, dview)
+            #keep the shifts and templates on disk for later, non-blocking inspection
+            data_manager.motion_correction_shifts_filepath = self._save_motion_correction_shifts(data_manager, motion_correction_object)
             #save the mmap file to disk and add that filepath to opts_caiman
             data_manager.opts_caiman = self._add_temp_mmap_to_opts_caiman(motion_correction_object.mmap_file, data_manager.opts_caiman, data_manager.opts_caiman.get('patch', 'border_pix'))
             #save the mmap file stored in motion_correction_object to data_manager
@@ -203,6 +207,21 @@ class CalciumImagingProcessor:
             self.inspect_motion_correction(motion_correction_object, data_manager.opts_caiman, self.preprocessed_movie, self.data_manager.fr)
 
         return data_manager
+
+    def _save_motion_correction_shifts(self, dm: CalciumImagingDataManager, mc: Any) -> str | None:
+        """Save motion-correction shifts next to the estimates; return the path, or None without metadata."""
+        if dm.metadata is None:
+            return None
+        save_dir = os.path.join(str(dm.metadata['calcium imaging directory']), "saved_movies")
+        try:
+            filepath = save_motion_correction_shifts(
+                mc, save_dir, pw_rigid=bool(dm.opts_caiman.get('motion', 'pw_rigid')), frame_rate=dm.fr
+            )
+        except OSError as exc:
+            print(f"Warning: motion-correction shifts could not be saved: {exc}")
+            return None
+        print(f"Saved motion-correction shifts to {filepath}")
+        return filepath
 
     def cleanup_tkinter(self) -> None:
         """Destroy any active Tkinter root and set the interactive matplotlib backend."""

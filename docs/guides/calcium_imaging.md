@@ -77,6 +77,17 @@ saving is enabled. GUI runs place that recording copy under
 events and available diagnostics; consult [Results](../gui.md#find-and-reopen-results).
 Those GUI exports are not automatically written by direct pipeline calls.
 
+When motion correction runs (`apply_motion_correction`), the per-frame shifts
+are also saved to `saved_movies/motion_correction_shifts.npz`, so the
+correction can be inspected later without running it again. The file holds the
+rigid shifts, the piecewise shifts when `pw_rigid` is on, the templates, the patch
+settings (`strides`, `overlaps`, `max_shifts`), the frame rate and the movie the
+shifts came from (`source_movie`). Read it with
+`aceneurotools.calcium_imaging.motion_correction_record.load_motion_correction_shifts`.
+A later run without motion correction leaves an earlier file in place; check
+`source_movie` to see which run wrote it. If the file cannot be written, the run
+prints a warning and continues.
+
 The core pipeline computes projection phases and spectra before filtering;
 those describe the unfiltered projection even if `inline=True` replaces the
 final projection with its filtered version. `inline=False` retains the original
