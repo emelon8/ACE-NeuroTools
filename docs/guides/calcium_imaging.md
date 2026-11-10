@@ -15,6 +15,9 @@ optional for modality commands but is needed to store overrides.
 python -m aceneurotools.pipelines.calcium_imaging --line-num 96 --project-path /my/project --data-path /my/raw_data --headless
 ```
 
+To run several experiments in one command, use `--line-nums`; see
+[Run several experiments](../getting_started.md#run-several-experiments).
+
 Replace the paths and experiment ID. The command enables extraction and saves
 estimates by default, selects `0.avi`, and does not enable motion correction by
 default. Set `filenames=[]` in saved settings to process all supported movies.

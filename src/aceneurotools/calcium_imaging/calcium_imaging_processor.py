@@ -111,45 +111,49 @@ class CalciumImagingProcessor:
             print('Setting up cluster for caiman parallel processing on your computer')
             c, dview, n_processes = cm.cluster.setup_cluster(backend='multiprocessing', n_processes=n_processes, single_thread=False)
 
-        #Apply motion correction, then saves a memory map to opts_caiman to prepare for CNMFE.
-        self.data_manager = self.motion_correction_manager(self.data_manager, dview, apply_motion_correction, inspect_motion_correction)
-
-        #Prepare additional analysis parameters for CNMFE
-        self.data_manager, images = self.cnmfe_parameter_handler(self.data_manager, plot_params=plot_params)
-
-        #intialize CNMFE object
-        self.data_manager.CNMFE_obj = cm.source_extraction.cnmf.CNMF(n_processes=n_processes, dview=dview, Ain=None, params=self.data_manager.opts_caiman)
-
-        #reupdate data_manager.movie with motion-corrected movie, otherwise the movie returned below is the same if you did not motion correct
-        self.data_manager.movie = cm.movie(images, fr=self.data_manager.fr)
-
-        #run CNMFE. Do not run unless you have optimal parameters or the neuron estimates will be junk
-        if run_CNMFE:
-            print('Running CNMFE...')
-            try:
-                self.data_manager.CNMFE_obj.fit(images)
-            except (ValueError, MemoryError, RuntimeError) as e:
-                print('CNMFE failed to run. Please check the parameters and try again.')
-                print('No estimates were saved to disk. Do not continue to post-processing or multimodal analysis')
-                raise ProcessingError(f"CNMFE failed: {e}") from e
-
-            if save_estimates:
-                # Store quality evidence with the fitted estimates for later review.
-                # The CNN footprint classifier is not intended for one-photon CNMF-E data.
-                try:
-                    quality_params = self.data_manager.CNMFE_obj.params
-                    quality_params.set('quality', {'min_SNR': 3, 'rval_thr': 0.85, 'use_cnn': False})
-                    self.data_manager.CNMFE_obj.estimates.evaluate_components(images, quality_params, dview=dview)
-                except Exception as exc:
-                    print(f'Warning: component quality scores could not be computed: {exc}')
-
-        #save results 'estimates' to disk and update data_manager with their filepaths
-        self.data_manager = self._save_processed_data(self.data_manager, save_estimates, save_CNMFE_estimates_filename, save_CNMFE_params)
-
+        # Stop the CaImAn worker pool even when processing fails, so a failed run
+        # does not leave workers behind (CaImAn refuses to start a new pool while
+        # they are alive, which would fail every later run in the same process).
         try:
-            cm.stop_server(dview=dview)
-        except (OSError, AttributeError) as e:
-            print(f"Warning: could not stop CaImAn processing server: {e}")
+            #Apply motion correction, then saves a memory map to opts_caiman to prepare for CNMFE.
+            self.data_manager = self.motion_correction_manager(self.data_manager, dview, apply_motion_correction, inspect_motion_correction)
+
+            #Prepare additional analysis parameters for CNMFE
+            self.data_manager, images = self.cnmfe_parameter_handler(self.data_manager, plot_params=plot_params)
+
+            #intialize CNMFE object
+            self.data_manager.CNMFE_obj = cm.source_extraction.cnmf.CNMF(n_processes=n_processes, dview=dview, Ain=None, params=self.data_manager.opts_caiman)
+
+            #reupdate data_manager.movie with motion-corrected movie, otherwise the movie returned below is the same if you did not motion correct
+            self.data_manager.movie = cm.movie(images, fr=self.data_manager.fr)
+
+            #run CNMFE. Do not run unless you have optimal parameters or the neuron estimates will be junk
+            if run_CNMFE:
+                print('Running CNMFE...')
+                try:
+                    self.data_manager.CNMFE_obj.fit(images)
+                except (ValueError, MemoryError, RuntimeError) as e:
+                    print('CNMFE failed to run. Please check the parameters and try again.')
+                    print('No estimates were saved to disk. Do not continue to post-processing or multimodal analysis')
+                    raise ProcessingError(f"CNMFE failed: {e}") from e
+
+                if save_estimates:
+                    # Store quality evidence with the fitted estimates for later review.
+                    # The CNN footprint classifier is not intended for one-photon CNMF-E data.
+                    try:
+                        quality_params = self.data_manager.CNMFE_obj.params
+                        quality_params.set('quality', {'min_SNR': 3, 'rval_thr': 0.85, 'use_cnn': False})
+                        self.data_manager.CNMFE_obj.estimates.evaluate_components(images, quality_params, dview=dview)
+                    except Exception as exc:
+                        print(f'Warning: component quality scores could not be computed: {exc}')
+
+            #save results 'estimates' to disk and update data_manager with their filepaths
+            self.data_manager = self._save_processed_data(self.data_manager, save_estimates, save_CNMFE_estimates_filename, save_CNMFE_params)
+        finally:
+            try:
+                cm.stop_server(dview=dview)
+            except (OSError, AttributeError) as e:
+                print(f"Warning: could not stop CaImAn processing server: {e}")
 
         # Capture outputs in a structured result for callers that prefer the
         # dataclass API over interrogating data_manager directly.
