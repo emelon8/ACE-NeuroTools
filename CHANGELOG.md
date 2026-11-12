@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Remove the duplicate dark-mode switch from the bottom of the GUI navigation;
   the top-bar toggle remains (reported by @Aathok-Git).
+- Stop CaImAn's worker pool when a calcium run fails, so later runs in the same
+  Python session no longer fail with "A cluster is already running".
 - Align bundled CSV example rows with their headers and allow local recording
   checks when optional Box columns are absent.
 - Report a missing explicit CLI configuration as an error without launching setup.
@@ -39,6 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   patch layout and display limits shown by `plot_params` without opening windows,
   for example in a notebook. Analysis results are unchanged. With `plot_params`
   on, unusable `rf`/`stride` settings now stop the run with a clear error.
+- `--line-nums` (and `--fail-fast`) for the calcium imaging, ephys and multimodal
+  commands: run several experiments in one command, continue past failures, print
+  a summary with each failure's cause, and exit 1 if any failed or was not run.
+  `--line-num` is unchanged, and analysis results are unchanged. The CaImAn worker
+  pool is now stopped when calcium processing fails, too.
 - Installed `ace-gui` workbench with per-launch API authentication and shared
   CLI/GUI defaults. CSVs remain the settings source of truth.
 - GUI feature registry and run plans: new workbench screens register their own

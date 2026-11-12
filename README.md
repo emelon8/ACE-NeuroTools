@@ -72,6 +72,8 @@ For command-line analysis, replace the paths and ID with your own:
 python -m aceneurotools.pipelines.calcium_imaging --line-num 96 --project-path /path/to/project --data-path /path/to/raw_data --headless
 python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /path/to/project --data-path /path/to/raw_data --headless
 python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /path/to/project --data-path /path/to/raw_data --headless
+# Several experiments in one command; failures are reported and the rest still run:
+python -m aceneurotools.pipelines.ephys --line-nums 96 97 101 --project-path /path/to/project --data-path /path/to/raw_data --headless
 ```
 
 The ID matches the `line number` column; it is not a spreadsheet row position.
