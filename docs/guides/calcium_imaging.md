@@ -68,6 +68,38 @@ invalid/missing crop until it is saved or disabled.
 Use the [API](../api/calcium_imaging.md) for full details. GUI separate-window
 plots and component-selection dialogs are disabled; use embedded Crop/Neurons.
 
+### Tuning CNMF-E settings
+
+With `plot_params` on (desktop runs only; headless and GUI runs turn it off),
+the run shows two windows before CNMF-E and continues when you close each one:
+
+1. The correlation and peak-to-noise-ratio images, computed with a fixed
+   Gaussian kernel half-size of 3 pixels on every frame of movies shorter than
+   2000 frames, and on every `frames // 1000`-th frame of longer ones. Use the
+   sliders to find where neurons are clearest, then set `min_corr` and `min_pnr`
+   slightly below those values.
+2. The patch layout from `rf` and `stride`: patches are `2 * rf + 1` pixels
+   wide and overlap by `stride + 1` pixels. Choose values so that each patch
+   holds at least 3-4 neuron diameters and at least one neuron fits in the
+   overlap. `stride` must be smaller than `2 * rf`.
+
+To compute the same values without windows, for example in a notebook or to try
+other kernel sizes, use `aceneurotools.calcium_imaging.cnmfe_tuning`:
+
+```python
+from aceneurotools.calcium_imaging.cnmfe_tuning import (
+    cnmfe_patch_geometry,
+    compute_cnmfe_tuning_images,
+    quilt_display_limits,
+)
+
+# images: the motion-corrected movie, frames first: (frames, height, width).
+# CalciumImagingProcessor.cnmfe_parameter_handler returns it as its second value.
+correlation, peak_to_noise = compute_cnmfe_tuning_images(images, gsig=[5, 5])
+patches = cnmfe_patch_geometry(rf=40, stride=20)  # width 81, overlap 21, step 60
+vmin, vmax = quilt_display_limits(correlation)
+```
+
 ## Outputs and interpretation
 
 Successful saved extraction normally creates `saved_movies/estimates.hdf5` within

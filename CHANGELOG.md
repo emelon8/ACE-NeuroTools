@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   report the file in `ProcessingResult.motion_correction_shifts_filepath` and in
   the GUI's output inventory and run review. Analysis results are unchanged. If
   the file cannot be written, the run prints a warning and continues.
+- `aceneurotools.calcium_imaging.cnmfe_tuning` computes the CNMF-E tuning images,
+  patch layout and display limits shown by `plot_params` without opening windows,
+  for example in a notebook. Analysis results are unchanged. With `plot_params`
+  on, unusable `rf`/`stride` settings now stop the run with a clear error.
 - Installed `ace-gui` workbench with per-launch API authentication and shared
   CLI/GUI defaults. CSVs remain the settings source of truth.
 - GUI feature registry and run plans: new workbench screens register their own
