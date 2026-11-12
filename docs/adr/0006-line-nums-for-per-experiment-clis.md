@@ -101,7 +101,8 @@ equivalent of the GUI's sequential batch queue.
 - `tests/test_cli_line_nums.py`: exclusive and repeatable flags, negative IDs,
   `--fail-fast` rules, per-experiment saved settings, new instances and copied
   defaults, failures with their causes (also without `--headless`), fail-fast and
-  stopped-batch summaries, invalid paths reported once, merged stdout/stderr order
+  stopped-batch summaries (including a stop while closing figures), invalid paths
+  reported once and an empty `--data-path` ignored as for one experiment, merged stdout/stderr order
   (in a subprocess), freeing a failed experiment, closing figures, unchanged
   `--line-num` behavior, and that each command passes its own pipeline, defaults
   and settings loader.
@@ -508,7 +509,7 @@ index f247c65..51aedc5 100644
 +if __name__ == "__main__":
 +    main()
 diff --git a/src/aceneurotools/shared/cli_utils.py b/src/aceneurotools/shared/cli_utils.py
-index 4c38152..6312bcc 100644
+index 4c38152..f7d95e6 100644
 --- a/src/aceneurotools/shared/cli_utils.py
 +++ b/src/aceneurotools/shared/cli_utils.py
 @@ -2,14 +2,20 @@
@@ -592,10 +593,9 @@ index 4c38152..6312bcc 100644
 +    line_nums: list[int],
 +    completed: list[int],
 +    failed: list[tuple[int, str]],
++    not_run: list[int],
 +    stopped: tuple[int | None, BaseException] | None = None,
 +) -> int:
-+    processed = len(completed) + len(failed) + (1 if stopped else 0)
-+    not_run = line_nums[processed:]
 +    print(f"\nCompleted {len(completed)} of {len(line_nums)} experiments.", flush=True)
 +    for line_num, summary in failed:
 +        print(f"  Failed: {line_num} — {summary}", file=sys.stderr)
@@ -672,7 +672,8 @@ index 4c38152..6312bcc 100644
 +        return 0
 +
 +    try:
-+        validate_common_inputs(line_num=0, project_path=project_path, data_path=data_path)
++        # An empty --data-path is ignored, as build_run_params does for each experiment.
++        validate_common_inputs(line_num=0, project_path=project_path, data_path=data_path or None)
 +    except ConfigurationError as exc:
 +        print_cli_error(exc)
 +        print(f"No experiments were run ({len(line_nums)} requested).", file=sys.stderr)
@@ -681,9 +682,10 @@ index 4c38152..6312bcc 100644
 +    completed: list[int] = []
 +    failed: list[tuple[int, str]] = []
 +    current: int | None = None
++    attempted = 0  # Experiments started so far; the rest have not run.
 +    try:
 +        for index, line_num in enumerate(line_nums, start=1):
-+            current = line_num
++            attempted, current = index, line_num
 +            print(f"\n[{index}/{len(line_nums)}] Experiment {line_num}", flush=True)
 +            try:
 +                pipeline_cls().run(**prepare(line_num))
@@ -694,7 +696,6 @@ index 4c38152..6312bcc 100644
 +                print_cli_error(exc, include_cause=True)
 +                failed.append((line_num, _failure_summary(exc)))
 +                if fail_fast:
-+                    current = None
 +                    break
 +            else:
 +                completed.append(line_num)
@@ -704,9 +705,9 @@ index 4c38152..6312bcc 100644
 +                    sys.modules["matplotlib.pyplot"].close("all")
 +            current = None
 +    except BaseException as exc:
-+        _print_batch_summary(line_nums, completed, failed, stopped=(current, exc))
++        _print_batch_summary(line_nums, completed, failed, line_nums[attempted:], stopped=(current, exc))
 +        raise
-+    return _print_batch_summary(line_nums, completed, failed)
++    return _print_batch_summary(line_nums, completed, failed, line_nums[attempted:])
 diff --git a/tests/test_calcium_imaging_processor_cleanup.py b/tests/test_calcium_imaging_processor_cleanup.py
 new file mode 100644
 index 0000000..6679182
@@ -834,10 +835,10 @@ index 0000000..6679182
 +    assert events == [("save",), ("stop", "worker-pool")]
 diff --git a/tests/test_cli_line_nums.py b/tests/test_cli_line_nums.py
 new file mode 100644
-index 0000000..4d66ac7
+index 0000000..3d29b68
 --- /dev/null
 +++ b/tests/test_cli_line_nums.py
-@@ -0,0 +1,371 @@
+@@ -0,0 +1,413 @@
 +"""Per-experiment CLIs accept one or several experiments with explicit failure handling."""
 +
 +import argparse
@@ -1048,6 +1049,27 @@ index 0000000..4d66ac7
 +    assert "Not run after the stop: 4" in captured.err
 +
 +
++@pytest.mark.parametrize(("failing", "fail_fast"), [(set(), False), ({10}, False), ({10}, True)])
++def test_a_cleanup_error_after_an_experiment_lists_the_rest_as_not_run(tmp_path, monkeypatch, capsys, failing, fail_fast):
++    import matplotlib
++
++    matplotlib.use("Agg")
++    import matplotlib.pyplot as plt
++
++    def broken_close(which):
++        raise RuntimeError("figure cleanup failed")
++
++    monkeypatch.setattr(plt, "close", broken_close)
++    FakePipeline.failing = failing
++    with pytest.raises(RuntimeError, match="figure cleanup failed"):
++        run(tmp_path, [10, 20, 30], fail_fast=fail_fast)
++    assert [call["line_num"] for call in FakePipeline.calls] == [10]
++    captured = capsys.readouterr()
++    assert f"Completed {0 if failing else 1} of 3 experiments." in captured.out
++    assert "Stopped at 10 by RuntimeError: figure cleanup failed" in captured.err
++    assert "Not run after the stop: 20 30" in captured.err
++
++
 +def test_a_batch_failure_shows_its_cause_even_without_headless(tmp_path, capsys):
 +    def wrapped(pipeline, line_num, filter_range):
 +        try:
@@ -1060,6 +1082,21 @@ index 0000000..4d66ac7
 +    err = capsys.readouterr().err
 +    assert err.count("Cause: memmap missing") == 2
 +    assert "Failed: 1 — DataNotFoundError: Calcium imaging processing stage failed. (cause: RuntimeError: memmap missing)" in err
++
++
++def test_an_empty_data_path_is_ignored_in_a_batch_as_for_one_experiment(tmp_path):
++    assert run_pipeline_for_experiments(
++        pipeline_name="ephys",
++        pipeline_cls=FakePipeline,
++        defaults={"channel_name": "CH1", "filter_range": [0.5, 4]},
++        line_nums=[1, 2],
++        project_path=str(tmp_path),
++        data_path="",
++        headless=True,
++        csv_loader=lambda line_num, project_path: {},
++        batch=True,
++    ) == 0
++    assert [call["line_num"] for call in FakePipeline.calls] == [1, 2]
 +
 +
 +def test_invalid_paths_are_reported_once_and_nothing_runs(tmp_path, capsys):
@@ -1111,7 +1148,12 @@ index 0000000..4d66ac7
 +    source_root = str(Path(aceneurotools.__file__).resolve().parents[1])
 +    environment = {**os.environ, "PYTHONPATH": os.pathsep.join([source_root, os.environ.get("PYTHONPATH", "")])}
 +    result = subprocess.run(
-+        [sys.executable, "-c", script], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=environment
++        [sys.executable, "-c", script],
++        stdout=subprocess.PIPE,
++        stderr=subprocess.STDOUT,
++        text=True,
++        env=environment,
++        timeout=120,
 +    )
 +    assert result.returncode == 1
 +    lines = [line for line in result.stdout.splitlines() if line.strip()]
@@ -1124,7 +1166,8 @@ index 0000000..4d66ac7
 +        "Completed 1 of 2 experiments.",
 +        "  Failed: 1 — DataNotFoundError: recording 1 missing",
 +    ]
-+    positions = [next(i for i, line in enumerate(lines) if line.startswith(text)) for text in order]
++    positions = [next((i for i, line in enumerate(lines) if line.startswith(text)), None) for text in order]
++    assert None not in positions, result.stdout
 +    assert positions == sorted(positions), result.stdout
 +
 +

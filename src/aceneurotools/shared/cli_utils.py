@@ -201,10 +201,9 @@ def _print_batch_summary(
     line_nums: list[int],
     completed: list[int],
     failed: list[tuple[int, str]],
+    not_run: list[int],
     stopped: tuple[int | None, BaseException] | None = None,
 ) -> int:
-    processed = len(completed) + len(failed) + (1 if stopped else 0)
-    not_run = line_nums[processed:]
     print(f"\nCompleted {len(completed)} of {len(line_nums)} experiments.", flush=True)
     for line_num, summary in failed:
         print(f"  Failed: {line_num} — {summary}", file=sys.stderr)
@@ -281,7 +280,8 @@ def run_pipeline_for_experiments(
         return 0
 
     try:
-        validate_common_inputs(line_num=0, project_path=project_path, data_path=data_path)
+        # An empty --data-path is ignored, as build_run_params does for each experiment.
+        validate_common_inputs(line_num=0, project_path=project_path, data_path=data_path or None)
     except ConfigurationError as exc:
         print_cli_error(exc)
         print(f"No experiments were run ({len(line_nums)} requested).", file=sys.stderr)
@@ -290,9 +290,10 @@ def run_pipeline_for_experiments(
     completed: list[int] = []
     failed: list[tuple[int, str]] = []
     current: int | None = None
+    attempted = 0  # Experiments started so far; the rest have not run.
     try:
         for index, line_num in enumerate(line_nums, start=1):
-            current = line_num
+            attempted, current = index, line_num
             print(f"\n[{index}/{len(line_nums)}] Experiment {line_num}", flush=True)
             try:
                 pipeline_cls().run(**prepare(line_num))
@@ -303,7 +304,6 @@ def run_pipeline_for_experiments(
                 print_cli_error(exc, include_cause=True)
                 failed.append((line_num, _failure_summary(exc)))
                 if fail_fast:
-                    current = None
                     break
             else:
                 completed.append(line_num)
@@ -313,6 +313,6 @@ def run_pipeline_for_experiments(
                     sys.modules["matplotlib.pyplot"].close("all")
             current = None
     except BaseException as exc:
-        _print_batch_summary(line_nums, completed, failed, stopped=(current, exc))
+        _print_batch_summary(line_nums, completed, failed, line_nums[attempted:], stopped=(current, exc))
         raise
-    return _print_batch_summary(line_nums, completed, failed)
+    return _print_batch_summary(line_nums, completed, failed, line_nums[attempted:])

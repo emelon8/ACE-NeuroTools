@@ -208,6 +208,27 @@ def test_a_stopped_batch_still_prints_what_ran(tmp_path, capsys, error, describe
     assert "Not run after the stop: 4" in captured.err
 
 
+@pytest.mark.parametrize(("failing", "fail_fast"), [(set(), False), ({10}, False), ({10}, True)])
+def test_a_cleanup_error_after_an_experiment_lists_the_rest_as_not_run(tmp_path, monkeypatch, capsys, failing, fail_fast):
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    def broken_close(which):
+        raise RuntimeError("figure cleanup failed")
+
+    monkeypatch.setattr(plt, "close", broken_close)
+    FakePipeline.failing = failing
+    with pytest.raises(RuntimeError, match="figure cleanup failed"):
+        run(tmp_path, [10, 20, 30], fail_fast=fail_fast)
+    assert [call["line_num"] for call in FakePipeline.calls] == [10]
+    captured = capsys.readouterr()
+    assert f"Completed {0 if failing else 1} of 3 experiments." in captured.out
+    assert "Stopped at 10 by RuntimeError: figure cleanup failed" in captured.err
+    assert "Not run after the stop: 20 30" in captured.err
+
+
 def test_a_batch_failure_shows_its_cause_even_without_headless(tmp_path, capsys):
     def wrapped(pipeline, line_num, filter_range):
         try:
@@ -220,6 +241,21 @@ def test_a_batch_failure_shows_its_cause_even_without_headless(tmp_path, capsys)
     err = capsys.readouterr().err
     assert err.count("Cause: memmap missing") == 2
     assert "Failed: 1 — DataNotFoundError: Calcium imaging processing stage failed. (cause: RuntimeError: memmap missing)" in err
+
+
+def test_an_empty_data_path_is_ignored_in_a_batch_as_for_one_experiment(tmp_path):
+    assert run_pipeline_for_experiments(
+        pipeline_name="ephys",
+        pipeline_cls=FakePipeline,
+        defaults={"channel_name": "CH1", "filter_range": [0.5, 4]},
+        line_nums=[1, 2],
+        project_path=str(tmp_path),
+        data_path="",
+        headless=True,
+        csv_loader=lambda line_num, project_path: {},
+        batch=True,
+    ) == 0
+    assert [call["line_num"] for call in FakePipeline.calls] == [1, 2]
 
 
 def test_invalid_paths_are_reported_once_and_nothing_runs(tmp_path, capsys):
@@ -271,7 +307,12 @@ def test_merged_logs_keep_the_summary_in_order(tmp_path):
     source_root = str(Path(aceneurotools.__file__).resolve().parents[1])
     environment = {**os.environ, "PYTHONPATH": os.pathsep.join([source_root, os.environ.get("PYTHONPATH", "")])}
     result = subprocess.run(
-        [sys.executable, "-c", script], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=environment
+        [sys.executable, "-c", script],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        env=environment,
+        timeout=120,
     )
     assert result.returncode == 1
     lines = [line for line in result.stdout.splitlines() if line.strip()]
@@ -284,7 +325,8 @@ def test_merged_logs_keep_the_summary_in_order(tmp_path):
         "Completed 1 of 2 experiments.",
         "  Failed: 1 — DataNotFoundError: recording 1 missing",
     ]
-    positions = [next(i for i, line in enumerate(lines) if line.startswith(text)) for text in order]
+    positions = [next((i for i, line in enumerate(lines) if line.startswith(text)), None) for text in order]
+    assert None not in positions, result.stdout
     assert positions == sorted(positions), result.stdout
 
 
