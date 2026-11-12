@@ -15,7 +15,7 @@ Both files, when present, must have a `line number` column. It is the experiment
 
 ## Getting Started: The Templates
 
-When starting a new project, utilize our provided templates as a starting point. These templates contain all necessary headers in the expected format. 
+When starting a new project, utilize our provided templates as a starting point. These templates contain all necessary headers in the expected format.
 
 You can find the templates in the [source code repository](https://github.com/emelon8/ACE-NeuroTools/tree/main/src/aceneurotools/shared/metadata_templates).
 
@@ -30,7 +30,8 @@ While ACE-NeuroTools is flexible, we highly recommend keeping your CSV files sep
 my_awesome_project/
 ├── data/
 │   ├── experiments.csv             # Your copied template
-│   └── analysis_parameters.csv     # Your copied template 
+│   ├── analysis_parameters.csv     # Your copied template
+│   └── loaders/                    # Optional: ephys loader definitions (*.json)
 └── raw_data/
     ├── Rat01/
     │   └── 2024_01_01/
@@ -38,6 +39,10 @@ my_awesome_project/
     │       └── Ephys/
     └── Rat02/
 ```
+
+The optional `loaders/` folder sits next to `experiments.csv` and holds
+[ephys loader definitions](loader_definitions.md) for acquisition systems ACE
+does not read out of the box.
 
 ### Absolute vs. Relative Paths
 

@@ -107,7 +107,7 @@ local_scheme = "no-local-version"
 where = ["src"]
 
 [tool.setuptools.package-data]
-aceneurotools = ["py.typed", "shared/metadata_templates/*.csv", "gui/*.html", "gui/*.js", "gui/*.css", "gui/assets/*"]
+aceneurotools = ["py.typed", "shared/metadata_templates/*.csv", "shared/loader_templates/*.json", "gui/*.html", "gui/*.js", "gui/*.css", "gui/assets/*"]
 
 
 # Pytest

@@ -10,6 +10,9 @@ This section details the shared data structures and configuration utilities of t
 
 ::: aceneurotools.shared.config_utils.parse_analysis_params
 
+## Ephys loader definitions
+::: aceneurotools.shared.loader_definitions
+
 ## Path Resolution
 ::: aceneurotools.shared.paths
 

@@ -230,6 +230,67 @@ indexes `C`, first indexes `np.diff(C, n=1)`, and second indexes `np.diff(C, n=2
 no frame offset is added. `neuron_ids` maps exported rows to original zero-based
 component IDs; displayed neuron numbers start at 1.
 
+## Describe an ephys acquisition system
+
+If your electrophysiology recordings come from a system ACE does not read yet,
+you can describe it as a **loader definition**: how to recognise its recording
+folder, which reader opens it, and how it synchronises with imaging. Choose
+**Ephys loaders** in the left navigation.
+
+!!! info "Definitions are not used by analyses yet"
+    ACE can list, check and save definitions now. Reading signals from a
+    definition, and using it in analyses, needs a change to the core ephys
+    loaders that is under review (ADR 0008). Until then the **Preview signal**
+    button stays unavailable and analyses use the built-in loaders.
+
+The page automatically checks the selected experiment's recording folder.
+Matching built-in or saved loaders are suggested first. File extensions
+are compared with installed Neo readers and common binary extensions to suggest
+a new definition. Alternatives remain visible even if a built-in loader matches:
+`.nev` can mean Neuralynx or Blackrock, and `.raw` is also used by generic binary
+recordings. These are hints, not confirmed formats; binary layout and
+sampling settings must be checked manually. Choose an option from the
+**Loader option** dropdown under **Suggested next step** to see its explanation,
+then choose **View configured loader**, **Open saved loader**, or **Create loader**.
+When several options match, none is selected automatically.
+Detection checks files directly in the recording folder and never reads signals.
+The experiment selector is paused while a check is running. Reader suggestions
+use read-only modes where required; they never open recordings during detection.
+Examples of extension hints include Intan (`.rhd`, `.rhs`), Axon (`.abf`),
+Spike2/CED (`.smr`, `.smrx`), Blackrock (`.ns5`, `.nev`), EDF (`.edf`),
+BrainVision (`.vhdr`), Open Ephys (`.oebin`, `.continuous`), NWB (`.nwb`),
+Plexon (`.plx`), and NeuroExplorer (`.nex`). Available suggestions depend on
+the installed Neo readers. A suggested definition still needs its settings
+checked and real-recording validation before use.
+
+1. The page lists the **built-in** loaders and the loaders saved in this
+   project's `loaders` folder, with **Valid** or the number of problems.
+2. Choose **New loader** and a starting point: **Neo reader** (a system a
+   [neo](https://neo.readthedocs.io) reader can open) or **Raw binary file**
+   (one interleaved binary file). Give it a name such as `my-rig`; it is saved as
+   `loaders/my-rig.json`.
+   Use **Cancel** to return to the choices. Confirm discarding
+   an unsaved draft when prompted; saved definitions are kept. Opening
+   **Box connection** with an unsaved loader draft also asks first; unsaved
+   experiment edits are kept while Box is open.
+
+3. Fill in the form: the patterns that recognise the recording folder, the
+   reader, and the sync method. Everything else is in the **Full definition
+   (JSON)** box below the form. Problems appear next to the fields and under the
+   JSON as you type. Saving is possible once there are none.
+4. Choose **Save**. When you change a saved loader, the previous version is
+   copied to `.ace-gui-backups` in the project. If the file changed in another
+   window or program since you opened it, ACE refuses the save; choose **Load the
+   saved version** and apply your changes again.
+5. Under **Find a loader for your recording**, choose an experiment and **Check** to
+   see which loaders recognise its ephys folder. Only file names are checked; no
+   recording is read. Leave **Include the loader I am editing** ticked to test a
+   draft before saving it.
+
+Project loaders cannot reuse the names of built-in loaders (such as `neuralynx`),
+and cannot be named after Windows devices (such as `nul`). The format is
+described in [Ephys loader definitions](guides/loader_definitions.md).
+
 ## If something goes wrong
 
 | Problem | Next step |
@@ -240,7 +301,12 @@ component IDs; displayed neuron numbers start at 1.
 | Preview will not load | Save pending edits and check that the recording has its metadata, timestamps, and readable movies. Include the exact error when [reporting a problem](gui_installation.md#report-an-installation-problem). |
 | Settings changed elsewhere | Keep a copy of any draft you need, reload the project, and apply your edits to the current version. |
 | Run failed | Select it in Results and include the error, `run.log`, experiment ID, and chosen analysis in your problem report. |
+| Loader save refused as changed | The loader file was edited elsewhere. Copy your JSON if you need it, choose **Load the saved version**, and apply your edits again. |
 | Neurons list is empty | Check that extraction succeeded and estimates saving was enabled; a cropped movie alone contains no extracted cells. |
 
 Cluster job-script generation and experiment revision history are not connected
 in this installed GUI.
+
+For a complete walkthrough, see [Add a recording system ACE doesn’t read](guides/loader_definitions.md#add-a-recording-system-ace-doesnt-read).
+
+The shared loader-definition code in this page is a core change under maintainer review; see [the loader definitions proposal](adr/0009-loader-definitions.md).

@@ -1,0 +1,39 @@
+{
+  "schema": "ace-loader/1",
+  "name": "my-raw-binary-loader",
+  "label": "My acquisition system (raw binary)",
+  "description": "Starting point for one interleaved binary file (all channels for sample 0, then all channels for sample 1, and so on). Set the sample type, channel count, scaling and sampling rate from your system's documentation.",
+  "modality": "ephys",
+  "detect": {
+    "all_of": ["*.dat"]
+  },
+  "reader": {
+    "backend": "raw_binary",
+    "files": [
+      {"role": "signal", "pattern": "*.dat", "pick": "only"}
+    ],
+    "signal_file": "signal",
+    "dtype": "int16",
+    "channel_count": 16,
+    "gain": 1.0,
+    "offset": 0.0,
+    "byte_offset": 0,
+    "output_dtype": "float32"
+  },
+  "time": {
+    "source": "sample_index",
+    "sampling_rate_hz": 30000
+  },
+  "channels": {
+    "source": "template",
+    "template": "CH{index}",
+    "select_by_index": true,
+    "default": "all"
+  },
+  "sync": {
+    "strategy": "digital_threshold",
+    "channel": "CH15",
+    "threshold": 0.5,
+    "edge": "rising"
+  }
+}

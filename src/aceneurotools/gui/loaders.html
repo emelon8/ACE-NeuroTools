@@ -1,0 +1,133 @@
+<div class="actionbar">
+  <div class="actionbar-title"><p class="eyebrow" id="loaders-project-name">Project</p><h1>Ephys loaders</h1></div>
+  <div class="actionbar-actions">
+    <label class="visually-hidden" for="loaders-project">Project</label>
+    <select id="loaders-project" hidden></select>
+    <button id="loaders-refresh" type="button"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg>Refresh</button>
+    <button id="loaders-new" class="btn-primary" type="button"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>New loader</button>
+  </div>
+</div>
+<div class="page-body">
+  <p class="status-strip loaders-intro">A loader tells ACE how to recognise and read an electrophysiology recording folder. Built-in loaders cover the systems ACE already supports. Definitions you add here are saved in this project's <code>loaders</code> folder. ACE can check them against your recordings, but analyses do not use them yet.</p>
+  <div id="loaders-error" class="notice notice-error" role="alert" tabindex="-1" hidden>
+    <strong id="loaders-error-heading">Could not complete this action</strong>
+    <p id="loaders-error-text"></p>
+    <button id="loaders-error-reload" type="button" hidden>Load the saved version</button>
+  </div>
+  <div id="loaders-empty" class="empty-state" hidden>
+    <svg class="empty-icon" aria-hidden="true"><use href="#i-folder"/></svg>
+    <h2>Open a project first</h2>
+    <p>Loader definitions belong to a project. Open a project folder, then come back to this page.</p>
+  </div>
+  <div id="loaders-layout" class="loaders-layout" hidden>
+    <div class="loaders-side">
+      <section class="card">
+        <h2 class="card-title">This project</h2>
+        <ul id="loaders-project-list" class="loaders-items" aria-label="Loaders in this project"></ul>
+      </section>
+      <section class="card">
+        <h2 class="card-title">Built in</h2>
+        <ul id="loaders-builtin-list" class="loaders-items" aria-label="Built-in loaders"></ul>
+      </section>
+    </div>
+
+    <div class="loaders-main">
+      <section id="loaders-check" class="card">
+        <h2 class="card-title">Find a loader for your recording</h2>
+        <p class="muted loaders-help">Choose an experiment to detect configured loaders or get suggestions for a new one. Only names are checked; no recording is read.</p>
+        <div class="input-row">
+          <label class="visually-hidden" for="loaders-experiment">Experiment</label>
+          <select id="loaders-experiment"></select>
+          <button id="loaders-detect" type="button"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>Check</button>
+        </div>
+        <label class="loaders-include" id="loaders-include-label" hidden><input id="loaders-include" type="checkbox" checked> Include the loader I am editing, as it is now</label>
+        <div id="loaders-detect-result" class="loaders-detect" role="status"></div>
+      </section>
+
+      <section id="loaders-start" class="card">
+        <h2 class="card-title">Start a new loader</h2>
+        <p class="muted">Choose a starting point. You can change everything before saving.</p>
+        <div id="loaders-templates" class="loaders-templates"></div>
+      </section>
+
+      <section id="loaders-builtin" class="card" hidden>
+        <div class="card-header"><div><h2 class="card-title" id="loaders-builtin-name"></h2><p class="muted" id="loaders-builtin-class"></p></div><span class="tag">Built in</span></div>
+        <dl class="props props-inline" id="loaders-builtin-props"></dl>
+        <p class="muted">Built-in loaders are part of ACE and cannot be edited here. Project loaders cannot reuse their names.</p>
+      </section>
+
+      <form id="loaders-editor" class="card" hidden novalidate>
+        <div class="card-header">
+          <div><h2 class="card-title" id="loaders-editor-title">New loader</h2><p class="muted" id="loaders-editor-file"></p></div>
+          <span id="loaders-editor-state" class="status"></span>
+        </div>
+
+        <fieldset class="field-group loaders-form" id="loaders-form">
+          <h3>About this loader</h3>
+          <p id="loaders-form-blocked" class="notice" hidden>The JSON below cannot be read, so these fields are paused. Fix the JSON to use them again.</p>
+          <div class="fields-grid">
+            <div class="field"><label for="loaders-f-name">Name</label><input id="loaders-f-name" data-path="name" autocomplete="off" spellcheck="false"><small id="loaders-f-name-hint">Lowercase letters and digits separated by hyphens. The file is saved as loaders/&lt;name&gt;.json.</small></div>
+            <div class="field"><label for="loaders-f-label">Display name</label><input id="loaders-f-label" data-path="label" autocomplete="off"></div>
+            <div class="field wide"><label for="loaders-f-description">Description</label><textarea id="loaders-f-description" data-path="description" rows="2"></textarea></div>
+          </div>
+        </fieldset>
+
+        <fieldset class="field-group loaders-form">
+          <h3>Recognise the recording folder</h3>
+          <p class="muted loaders-help">One pattern per line, relative to the recording folder, for example <code>*.rhd</code> or <code>sub/**/*.ncs</code>. Only file and folder names are checked; no file is opened.</p>
+          <div class="fields-grid">
+            <div class="field"><label for="loaders-f-all">Must contain every one of</label><textarea id="loaders-f-all" data-path="detect.all_of" rows="3" spellcheck="false"></textarea></div>
+            <div class="field"><label for="loaders-f-any">Must contain at least one of</label><textarea id="loaders-f-any" data-path="detect.any_of" rows="3" spellcheck="false"></textarea></div>
+            <div class="field"><label for="loaders-f-none">Must not contain</label><textarea id="loaders-f-none" data-path="detect.none_of" rows="3" spellcheck="false"></textarea></div>
+          </div>
+        </fieldset>
+
+        <fieldset class="field-group loaders-form">
+          <h3>Reader</h3>
+          <div class="fields-grid">
+            <div class="field"><label for="loaders-f-backend">How the data is read</label><select id="loaders-f-backend" data-path="reader.backend"><option value="neo">Neo reader</option><option value="raw_binary">Raw binary file</option></select><small>Changing this replaces the reader, time and channel settings with a starting point.</small></div>
+            <div class="field" id="loaders-io-field"><label for="loaders-f-io">Neo reader</label><select id="loaders-f-io" data-path="reader.io"></select></div>
+            <div class="field" id="loaders-dtype-field"><label for="loaders-f-dtype">Sample type on disk</label><select id="loaders-f-dtype" data-path="reader.dtype"></select></div>
+            <div class="field" id="loaders-count-field"><label for="loaders-f-count">Number of channels</label><input id="loaders-f-count" data-path="reader.channel_count" inputmode="numeric" autocomplete="off"></div>
+          </div>
+          <p class="muted loaders-help">File rules, reader arguments, scaling, timing and channel names are edited in the JSON below.</p>
+        </fieldset>
+
+        <fieldset class="field-group loaders-form">
+          <h3>Synchronisation with imaging</h3>
+          <div class="fields-grid">
+            <div class="field"><label for="loaders-f-sync">Sync method</label><select id="loaders-f-sync" data-path="sync.strategy"><option value="event_labels">Recorded events with these labels</option><option value="digital_threshold">Threshold crossings on a channel</option><option value="shared_clock">Shared hardware clock (no sync pulses)</option></select></div>
+            <div class="field wide" id="loaders-labels-field"><label for="loaders-f-labels">Event labels (one per line)</label><textarea id="loaders-f-labels" data-path="sync.labels" rows="2" spellcheck="false"></textarea></div>
+            <div class="field" id="loaders-channel-field"><label for="loaders-f-channel">Sync channel</label><input id="loaders-f-channel" data-path="sync.channel" autocomplete="off" spellcheck="false"></div>
+            <div class="field" id="loaders-threshold-field"><label for="loaders-f-threshold">Threshold</label><input id="loaders-f-threshold" data-path="sync.threshold" inputmode="decimal" autocomplete="off"></div>
+            <div class="field" id="loaders-edge-field"><label for="loaders-f-edge">Edge</label><select id="loaders-f-edge" data-path="sync.edge"><option value="rising">Rising</option><option value="falling">Falling</option><option value="both">Both</option></select></div>
+          </div>
+        </fieldset>
+
+        <div class="field-group">
+          <h3><label for="loaders-json">Full definition (JSON)</label></h3>
+          <p class="muted loaders-help">Everything above is also here. Edit the JSON directly for settings without a field. See the loader definitions guide for every setting.</p>
+          <textarea id="loaders-json" class="loaders-json" rows="20" spellcheck="false" autocomplete="off" aria-describedby="loaders-check-state"></textarea>
+          <p id="loaders-check-state" class="loaders-check-state" role="status"></p>
+          <ul id="loaders-problems" class="loaders-problems" aria-label="Problems"></ul>
+        </div>
+
+        <div class="card-actions loaders-actions">
+          <div>
+            <button id="loaders-save" class="btn-primary" type="submit">Save</button>
+            <button id="loaders-discard" type="button">Discard changes</button>
+            <button id="loaders-preview" type="button" disabled aria-describedby="loaders-preview-note"><svg class="icon" aria-hidden="true"><use href="#i-play"/></svg>Preview signal</button>
+          </div>
+          <div class="loaders-secondary-actions">
+            <button id="loaders-delete" class="btn-danger-text" type="button">Delete loader</button>
+            <button id="loaders-back" type="button">Cancel</button>
+          </div>
+        </div>
+        <p id="loaders-preview-note" class="muted loaders-help"></p>
+        <p id="loaders-saved" class="muted loaders-help" role="status"></p>
+      </form>
+
+
+    </div>
+  </div>
+</div>

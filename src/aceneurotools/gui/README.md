@@ -31,6 +31,13 @@ or edits throughout `app.js` and `index.html`.
    `tests/test_gui_routes.py`), and add parity tests whenever the feature
    reproduces a CLI or pipeline call.
 
+`features.js` checks a feature page's `addUnsaved` drafts before core
+navigation (Experiments, a project, Box connection or another page) replaces it,
+so a page may discard its draft once it is hidden.
+[loaders.py](loaders.py) is a complete example: a project page with a fragment,
+a stylesheet, locked saves with per-file digests and backups, and an unlocked
+experiment-scope check.
+
 Feature routes keep the server's protections: local origin only, the launch
 token on every `/api/` request, JSON POST bodies, and the same 400/409 errors.
 Hold the server lock (`locked=True`) only for short CSV or JSON writes.

@@ -22,6 +22,11 @@ Usage
     # Skip path-confirmation prompt (useful in automated scripts)
     ace-neuro --yes
 
+    # Ephys loader definitions (<project>/loaders/*.json)
+    ace-neuro loaders list --project-path /your/project
+    ace-neuro loaders validate loaders/my-rig.json
+    ace-neuro loaders detect /path/to/recording --project-path /your/project
+
 First-time setup::
 
     python -m aceneurotools.init --project-path /your/project
@@ -33,12 +38,15 @@ unless ``--config`` is supplied.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from aceneurotools.ephys.ephys_data_manager import EphysDataManager
     from aceneurotools.multimodal.lab_config import LabConfig
+    from aceneurotools.shared.loader_definitions import DefinitionProblem
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Terminal layout constants
@@ -409,6 +417,9 @@ Examples:
 
 First-time setup:
   python -m aceneurotools.init --project-path C:\\path\\to\\project
+
+Loader definitions:
+  ace-neuro loaders --help
 """,
     )
     parser.add_argument(
@@ -461,7 +472,187 @@ First-time setup:
             "the fields you need to fill in before running the pipeline."
         ),
     )
+    commands = parser.add_subparsers(dest="command", metavar="COMMAND")
+    _add_loaders_parser(commands)
     return parser
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# `ace-neuro loaders` — ephys loader definitions
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _add_loaders_parser(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    loaders = commands.add_parser(
+        "loaders",
+        help="List, validate and test ephys loader definitions (<project>/loaders/*.json).",
+        description=(
+            "Ephys loader definitions describe an acquisition system in "
+            "<project>/loaders/<name>.json. See docs/guides/loader_definitions.md."
+        ),
+    )
+    actions = loaders.add_subparsers(dest="loaders_command", metavar="ACTION", required=True)
+
+    project_help = "Project folder containing loaders/ (default: current directory)."
+
+    listing = actions.add_parser("list", help="List built-in loaders and the project's definitions.")
+    listing.add_argument("--project-path", metavar="P", default=None, help=project_help)
+
+    validate = actions.add_parser("validate", help="Check definition files; exit 1 on any problem.")
+    validate.add_argument("files", nargs="+", metavar="FILE", help="Definition files to check.")
+
+    detect = actions.add_parser("detect", help="Show which loaders recognise a recording folder.")
+    detect.add_argument("directory", metavar="DIR", help="Recording folder to test.")
+    detect.add_argument("--project-path", metavar="P", default=None, help=project_help)
+
+
+def _print_problems(file: str | Path, problems: list[DefinitionProblem]) -> None:
+    """Print problems to stderr as ``file: path: message``."""
+    for problem in problems:
+        print(f"{file}: {problem.path or '(document)'}: {problem.message}", file=sys.stderr)
+
+
+def _builtin_ephys_loaders() -> list[tuple[str, type[EphysDataManager]]]:
+    """Registered ``EphysDataManager`` subclasses, in factory order."""
+    import aceneurotools.ephys  # noqa: F401  (registers the built-in managers)
+    from aceneurotools.ephys.ephys_data_manager import EphysDataManager
+
+    return [
+        (getattr(cls, "loader_name", None) or cls.__name__, cls)
+        for cls in EphysDataManager._registry
+    ]
+
+
+def _reserved_names_for(name: str, cls: type) -> list[str]:
+    """Names a project definition may not use because they refer to this built-in.
+
+    The registered name and its short form (``neuralynx`` for
+    ``NeuralynxDataManager``), lowercased. The workbench lists these per loader.
+    """
+    names = {name.lower(), cls.__name__.lower()}
+    names |= {value.removesuffix("datamanager") for value in names}
+    return sorted(value for value in names if value)
+
+
+def _reserved_loader_names() -> set[str]:
+    """Every name reserved by a built-in ephys loader; project definitions may not use them."""
+    return {value for name, cls in _builtin_ephys_loaders() for value in _reserved_names_for(name, cls)}
+
+
+def _loaders_list(project_path: Path) -> int:
+    from aceneurotools.shared.loader_definitions import LOADERS_DIRNAME, load_project_definitions
+
+    print("Built-in ephys loaders (checked in this order):")
+    for name, cls in _builtin_ephys_loaders():
+        print(f"  {name}  ({cls.__module__}.{cls.__qualname__})")
+
+    folder = project_path / LOADERS_DIRNAME
+    print()
+    if not folder.is_dir():
+        print(f"Project definitions: none ({folder} does not exist)")
+        return 0
+    definitions, problems = load_project_definitions(project_path, reserved_names=_reserved_loader_names())
+    print(f"Project definitions in {folder}:")
+    if not definitions:
+        print("  (no valid definitions)")
+    for d in definitions:
+        print(f"  {d.name}  [{d.backend}]  {d.label}")
+    if problems:
+        print()
+        print(f"{len(problems)} definition file(s) have problems:", file=sys.stderr)
+        for file, file_problems in problems.items():
+            _print_problems(file, file_problems)
+        return 1
+    return 0
+
+
+def _loaders_validate(files: list[str]) -> int:
+    from aceneurotools.shared.loader_definitions import DefinitionError, load_definition
+
+    from aceneurotools.shared.loader_definitions import DefinitionProblem
+
+    reserved = _reserved_loader_names()
+    failed = 0
+    for file in files:
+        try:
+            definition = load_definition(file)
+            if definition.name in reserved:
+                problem = DefinitionProblem("name", f"'{definition.name}' is already used by a built-in loader")
+                raise DefinitionError([problem], source=Path(file))
+        except DefinitionError as exc:
+            _print_problems(file, exc.problems)
+            failed += 1
+        except OSError as exc:
+            print(f"{file}: (document): cannot read file: {exc.strerror or exc}", file=sys.stderr)
+            failed += 1
+        else:
+            print(f"{file}: ok ({definition.name}, {definition.backend})")
+    if failed:
+        print(f"{failed} of {len(files)} file(s) invalid", file=sys.stderr)
+        return 1
+    return 0
+
+
+def _loaders_detect(directory: Path, project_path: Path) -> int:
+    from aceneurotools.shared.loader_definitions import (
+        definition_matches,
+        load_project_definitions,
+        matching_files,
+    )
+
+    if not directory.is_dir():
+        print(f"ERROR: not a folder: {directory}", file=sys.stderr)
+        return 1
+    try:
+        # Globbing an unreadable folder silently finds nothing; say why instead.
+        with os.scandir(directory):
+            pass
+    except OSError as exc:
+        print(f"ERROR: cannot read folder {directory}: {exc.strerror or exc}", file=sys.stderr)
+        return 1
+    if not project_path.is_dir():
+        print(f"WARNING: project folder not found: {project_path}", file=sys.stderr)
+
+    builtin = [(name, cls) for name, cls in _builtin_ephys_loaders() if cls.can_handle(directory)]
+    print(f"Recording folder: {directory}")
+    print()
+    print("Built-in loaders whose can_handle() matches:")
+    for name, _ in builtin:
+        print(f"  {name}")
+    if not builtin:
+        print("  (none)")
+    elif len(builtin) > 1:
+        print(f"  EphysDataManager.create() currently uses the first: {builtin[0][0]}")
+
+    definitions, problems = load_project_definitions(project_path, reserved_names=_reserved_loader_names())
+    matched = [d for d in definitions if definition_matches(d, directory)]
+    print()
+    print(f"Project definitions that match ({project_path}):")
+    for d in matched:
+        hits = matching_files(d, directory)
+        shown = ", ".join(f"{pattern} ({len(paths)})" for pattern, paths in hits.items() if paths)
+        print(f"  {d.name}  [{d.backend}]  matched: {shown}")
+    if not matched:
+        print("  (none)")
+    elif len(matched) > 1:
+        print(
+            "  Several definitions match. Loading would need an explicit choice "
+            "(an 'ephys loader' column in experiments.csv is proposed in ADR 0008)."
+        )
+    if problems:
+        print(file=sys.stderr)
+        print(f"Skipped {len(problems)} invalid definition file(s):", file=sys.stderr)
+        for file, file_problems in problems.items():
+            _print_problems(file, file_problems)
+    return 0 if (builtin or matched) else 1
+
+
+def _run_loaders(args: argparse.Namespace) -> int:
+    project_path = Path(args.project_path) if getattr(args, "project_path", None) else Path.cwd()
+    if args.loaders_command == "list":
+        return _loaders_list(project_path)
+    if args.loaders_command == "validate":
+        return _loaders_validate(args.files)
+    return _loaders_detect(Path(args.directory), project_path)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -472,6 +663,9 @@ def main(argv: list[str] | None = None) -> int:
     """Entry point for the ``ace-neuro`` command."""
     parser = _build_parser()
     args = parser.parse_args(argv)
+
+    if args.command == "loaders":
+        return _run_loaders(args)
 
     # ── Print banner ──────────────────────────────────────────────────────────
     from aceneurotools.shared.banner import welcome

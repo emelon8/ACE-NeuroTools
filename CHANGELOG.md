@@ -44,6 +44,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Windows, Intel Mac, Apple silicon and Linux.
 - Git-tag-derived versions and lab-first conda publishing. EVC, the Box setup
   wizard and cluster export remain separate follow-ups.
+- Ephys loader definitions: describe an acquisition system in
+  `<project>/loaders/<name>.json` (schema `ace-loader/1`), with validation,
+  folder detection, a JSON Schema and `ace-neuro loaders list|validate|detect`.
+  Example definitions reproduce the Neuralynx and RHS2116 loaders. Definitions
+  must open readers read-only, cannot name files, folders, caches or
+  Windows device names, and use file patterns of at most 32 segments; built-in loader names such as `neuralynx` are reserved.
+  Loading channels from a definition is proposed in ADR 0008; analyses still
+  use the built-in loaders, and analysis results are unchanged.
+- Workbench **Ephys loaders** page: list built-in loaders and project loader
+  definitions, create one from a neo-reader or raw-binary template, edit it in a
+  form or as JSON with live validation, save or delete with backups and conflict
+  checks, and check which loaders recognise an experiment's ephys folder. The
+  page suggests existing loaders, or a new neo or raw-binary definition, from
+  the recording's file names; suggestions never select a loader. Cancel and
+  Discard ask before dropping a draft, and opening Box connection asks before
+  dropping an unsaved loader draft. Signal preview waits for ADR 0008.
+- A step-by-step guide to adding a recording system ACE doesn't read, with
+  tested worked examples: loader definitions for an Intan `.rhd` system and a
+  flat binary file (`examples/loaders/`), and a Python loader that works with
+  today's pipelines (`examples/custom_ephys_loader.py`).
 
 Representative recording validation is deferred by request. No pilot has been
 published yet; a lab channel and scoped publishing credential must be configured.

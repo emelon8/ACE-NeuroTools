@@ -1,0 +1,40 @@
+{
+  "schema": "ace-loader/1",
+  "name": "neuralynx-example",
+  "label": "Neuralynx Cheetah (.ncs + Events.nev)",
+  "description": "Reproduces the built-in NeuralynxDataManager: NeuralynxIO on the folder holding Events.nev, split-all signal groups, frame-sync TTL on port 0.",
+  "modality": "ephys",
+  "detect": {
+    "any_of": ["*.nev"]
+  },
+  "reader": {
+    "backend": "neo",
+    "io": "NeuralynxIO",
+    "files": [
+      {
+        "role": "events",
+        "pattern": "**/Events*.nev",
+        "exclude_dirs": ["saved_movies"],
+        "pick": "oldest_modified"
+      }
+    ],
+    "path_argument": "dirname",
+    "path_from": {"source": "file_parent", "file": "events"},
+    "args": {},
+    "read_block": {"signal_group_mode": "split-all"}
+  },
+  "time": {
+    "source": "reader"
+  },
+  "channels": {
+    "source": "reader",
+    "default": "none"
+  },
+  "sync": {
+    "strategy": "event_labels",
+    "labels": [
+      "TTL Input on AcqSystem1_0 board 0 port 0 value (0x0001).",
+      "TTL Input on AcqSystem1_0 board 0 port 0 value (0x0000)."
+    ]
+  }
+}

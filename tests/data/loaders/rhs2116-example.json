@@ -1,0 +1,48 @@
+{
+  "schema": "ace-loader/1",
+  "name": "rhs2116-example",
+  "label": "Intan RHS2116 pair (ONIX raw binary)",
+  "description": "Reproduces the built-in RHS2116DataManager: 32 AC channels of uint16 at 0.195 uV/bit, times from the shared hardware clock.",
+  "modality": "ephys",
+  "detect": {
+    "any_of": ["*.raw"]
+  },
+  "reader": {
+    "backend": "raw_binary",
+    "files": [
+      {
+        "role": "start_time",
+        "pattern": "start-time_*.csv",
+        "exclude_names": ["*miniscope*"],
+        "pick": "first_listed",
+        "capture": {"variable": "suffix", "split": "_", "part": -1}
+      },
+      {"role": "clock", "pattern": "rhs2116pair-clock_{suffix}.raw"},
+      {"role": "ac", "pattern": "rhs2116pair-ac_{suffix}.raw"},
+      {"role": "dc", "pattern": "rhs2116pair-dc_{suffix}.raw"}
+    ],
+    "signal_file": "ac",
+    "dtype": "uint16",
+    "channel_count": 32,
+    "byte_offset": 0,
+    "gain": 0.195,
+    "offset": -6389.76,
+    "output_dtype": "float32"
+  },
+  "time": {
+    "source": "clock_file",
+    "clock_file": "clock",
+    "clock_dtype": "uint64",
+    "ticks_per_second": {"csv_file": "start_time", "column": 1, "header_rows": 0},
+    "effective_rate": {"method": "median_interval", "first_samples": 10000}
+  },
+  "channels": {
+    "source": "template",
+    "template": "RHS2116_AC_{index}",
+    "select_by_index": true,
+    "default": "all"
+  },
+  "sync": {
+    "strategy": "shared_clock"
+  }
+}
