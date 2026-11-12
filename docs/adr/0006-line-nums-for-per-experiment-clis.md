@@ -87,20 +87,153 @@ Focused regression tests: `tests/test_calcium_imaging_processor_cleanup.py`, `te
 
 ## Verification
 
-The exact implementation patch below is taken from the reviewed verification branch against base `ded08fd`. The proposal remains `status: proposed`; publication as a draft PR is not maintainer approval.
+The exact implementation patch below is the full change against base `78acb6b` (main after PRs #152 and #153), excluding this ADR. The proposal remains `status: proposed`; publication as a draft PR is not maintainer approval.
 
 Focused tests are rerun during PR preparation, with exact results recorded in the PR description. Earlier full-suite attempts were interrupted because this environment denied localhost socket creation; the same restriction reproduced on unchanged main. No green full-suite result is claimed. Full tests, changed-line coverage, strict documentation build and representative recording checks remain prerequisites for merge.
 
 ## Diff
 
-The exact source and test patch follows. README, changelog and guide updates are included in the PR diff rather than duplicated here.
-
 ```diff
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 0b97636..2f317e2 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
+ 
+ - Remove the duplicate dark-mode switch from the bottom of the GUI navigation;
+   the top-bar toggle remains (reported by @Aathok-Git).
++- Stop CaImAn's worker pool when a calcium run fails, so later runs in the same
++  Python session no longer fail with "A cluster is already running".
+ - Align bundled CSV example rows with their headers and allow local recording
+   checks when optional Box columns are absent.
+ - Report a missing explicit CLI configuration as an error without launching setup.
+@@ -39,6 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
+   patch layout and display limits shown by `plot_params` without opening windows,
+   for example in a notebook. Analysis results are unchanged. With `plot_params`
+   on, unusable `rf`/`stride` settings now stop the run with a clear error.
++- `--line-nums` (and `--fail-fast`) for the calcium imaging, ephys and multimodal
++  commands: run several experiments in one command, continue past failures, and
++  exit 1 if any failed.
+ - Installed `ace-gui` workbench with per-launch API authentication and shared
+   CLI/GUI defaults. CSVs remain the settings source of truth.
+ - GUI feature registry and run plans: new workbench screens register their own
+diff --git a/README.md b/README.md
+index c4252c8..f670e87 100644
+--- a/README.md
++++ b/README.md
+@@ -72,6 +72,8 @@ For command-line analysis, replace the paths and ID with your own:
+ python -m aceneurotools.pipelines.calcium_imaging --line-num 96 --project-path /path/to/project --data-path /path/to/raw_data --headless
+ python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /path/to/project --data-path /path/to/raw_data --headless
+ python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /path/to/project --data-path /path/to/raw_data --headless
++# Several experiments in one command; failures are reported and the rest still run:
++python -m aceneurotools.pipelines.ephys --line-nums 96 97 101 --project-path /path/to/project --data-path /path/to/raw_data --headless
+ ```
+ 
+ The ID matches the `line number` column; it is not a spreadsheet row position.
+diff --git a/docs/api/shared.md b/docs/api/shared.md
+index bc435bd..1746ca7 100644
+--- a/docs/api/shared.md
++++ b/docs/api/shared.md
+@@ -10,6 +10,17 @@ This section details the shared data structures and configuration utilities of t
+ 
+ ::: aceneurotools.shared.config_utils.parse_analysis_params
+ 
++## Command-line helpers
++Shared by the per-experiment commands (`--line-num`, `--line-nums`, `--fail-fast`).
++
++::: aceneurotools.shared.cli_utils.add_experiment_arguments
++
++::: aceneurotools.shared.cli_utils.parse_experiment_args
++
++::: aceneurotools.shared.cli_utils.selected_line_nums
++
++::: aceneurotools.shared.cli_utils.run_pipeline_for_experiments
++
+ ## Path Resolution
+ ::: aceneurotools.shared.paths
+ 
+diff --git a/docs/getting_started.md b/docs/getting_started.md
+index 957e907..3efa16a 100644
+--- a/docs/getting_started.md
++++ b/docs/getting_started.md
+@@ -79,6 +79,30 @@ These examples need actual electrical channels and, for combined recordings,
+ verified synchronization information. See the [ephys](guides/ephys.md) and
+ [alignment](guides/multimodal.md) guides before running them.
+ 
++### Run several experiments
++
++Each of these commands also accepts `--line-nums` with several IDs. They run one
++after another in the same process, each with its own saved settings:
++
++```sh
++python -m aceneurotools.pipelines.calcium_imaging --line-nums 96 97 101 --project-path /path/to/project --data-path /path/to/raw_data --headless
++```
++
++- Use either `--line-num` or `--line-nums`, not both. Repeated IDs run once.
++- A failed experiment is reported and the next one runs. Add `--fail-fast` to stop
++  at the first failure instead (`--fail-fast` is only accepted with `--line-nums`).
++- At the end the command prints `Completed X of N experiments.`, then each failure
++  as `Failed: <ID> — <error type>: <message>`, and any IDs not run after
++  `--fail-fast`.
++- The exit code is `1` if any experiment failed or was not run, and `0` otherwise,
++  so scripts and job schedulers can detect partial failures. With `--line-num` the
++  exit code is unchanged.
++- Errors other than settings or recording problems (for example a programming error
++  or Ctrl+C) stop the whole command.
++
++To keep each experiment fully separate, for example on a cluster, run one
++`--line-num` command per experiment instead.
++
+ ## 3. Passing parameters into the pipelines
+ 
+ | Entry point | Effective settings |
+diff --git a/docs/guides/calcium_imaging.md b/docs/guides/calcium_imaging.md
+index 306e7e7..a1015d4 100644
+--- a/docs/guides/calcium_imaging.md
++++ b/docs/guides/calcium_imaging.md
+@@ -15,6 +15,9 @@ optional for modality commands but is needed to store overrides.
+ python -m aceneurotools.pipelines.calcium_imaging --line-num 96 --project-path /my/project --data-path /my/raw_data --headless
+ ```
+ 
++To run several experiments in one command, use `--line-nums`; see
++[Run several experiments](../getting_started.md#run-several-experiments).
++
+ Replace the paths and experiment ID. The command enables extraction and saves
+ estimates by default, selects `0.avi`, and does not enable motion correction by
+ default. Set `filenames=[]` in saved settings to process all supported movies.
+diff --git a/docs/guides/ephys.md b/docs/guides/ephys.md
+index aa20279..aed868f 100644
+--- a/docs/guides/ephys.md
++++ b/docs/guides/ephys.md
+@@ -15,6 +15,9 @@ not exist in your recording.
+ python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /my/project --data-path /my/raw_data --headless
+ ```
+ 
++To run several experiments in one command, use `--line-nums`; see
++[Run several experiments](../getting_started.md#run-several-experiments).
++
+ `analysis_parameters.csv` is optional for this command; absent settings use
+ command defaults. Filtering and phase calculation are off by default. The command
+ normally requests channel/spectrogram plots, but headless mode suppresses them.
+diff --git a/docs/guides/multimodal.md b/docs/guides/multimodal.md
+index 31d4bbf..9883082 100644
+--- a/docs/guides/multimodal.md
++++ b/docs/guides/multimodal.md
+@@ -21,6 +21,9 @@ python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /my/pr
+ 
+ # Run in headless mode
+ python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /my/project --data-path /my/raw_data --headless
++
++# Run several experiments one after another (see "Run several experiments" in Getting started)
++python -m aceneurotools.pipelines.multimodal --line-nums 97 98 --project-path /my/project --data-path /my/raw_data --headless
+ ```
+ 
+ ### Python API
 diff --git a/src/aceneurotools/calcium_imaging/calcium_imaging_processor.py b/src/aceneurotools/calcium_imaging/calcium_imaging_processor.py
-index afb56b1..fdae1e8 100644
+index 15f1c35..c169f53 100644
 --- a/src/aceneurotools/calcium_imaging/calcium_imaging_processor.py
 +++ b/src/aceneurotools/calcium_imaging/calcium_imaging_processor.py
-@@ -111,45 +111,49 @@ class CalciumImagingProcessor:
+@@ -117,45 +117,49 @@ class CalciumImagingProcessor:
              print('Setting up cluster for caiman parallel processing on your computer')
              c, dview, n_processes = cm.cluster.setup_cluster(backend='multiprocessing', n_processes=n_processes, single_thread=False)
  
