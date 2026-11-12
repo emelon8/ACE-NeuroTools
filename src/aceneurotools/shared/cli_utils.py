@@ -66,7 +66,7 @@ def validate_common_inputs(*, line_num: Any, project_path: Any, data_path: Any =
         raise ConfigurationError(
             "line_num must be a non-negative integer.",
             stage="validate_cli_inputs",
-            hint="Pass --line-num with a valid experiment row number.",
+            hint="Pass --line-num or --line-nums with valid experiment row numbers.",
         )
     if not isinstance(project_path, (str, Path)) or not str(project_path).strip():
         raise ConfigurationError(
@@ -158,12 +158,16 @@ def apply_headless_policy(*, pipeline_name: str, run_params: dict[str, Any]) -> 
 
 
 def add_experiment_arguments(parser: argparse.ArgumentParser) -> None:
-    """Add ``--line-num`` / ``--line-nums`` (one is required) and ``--fail-fast``."""
+    """Add ``--line-num`` / ``--line-nums`` (one is required) and ``--fail-fast``.
+
+    ``--line-nums`` may be repeated; the values are added together.
+    """
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--line-num', type=int,
                        help="Experiment line number from experiments.csv")
-    group.add_argument('--line-nums', type=int, nargs='+', metavar='N',
-                       help="Several experiment line numbers, run one after another with each experiment's saved settings")
+    group.add_argument('--line-nums', type=int, nargs='+', action='extend', metavar='N',
+                       help="Several experiment line numbers, run one after another with each experiment's "
+                            "saved settings (repeating the flag adds more)")
     parser.add_argument('--fail-fast', action='store_true',
                         help="With --line-nums, stop at the first experiment that fails")
 
@@ -173,6 +177,8 @@ def parse_experiment_args(parser: argparse.ArgumentParser, argv: list[str] | Non
     args = parser.parse_args(argv)
     if args.fail_fast and args.line_nums is None:
         parser.error("--fail-fast applies only with --line-nums")
+    if args.line_nums is not None and any(line_num < 0 for line_num in args.line_nums):
+        parser.error("--line-nums takes non-negative experiment row numbers")
     return args
 
 
@@ -181,6 +187,36 @@ def selected_line_nums(args: argparse.Namespace) -> list[int]:
     if args.line_num is not None:
         return [args.line_num]
     return list(dict.fromkeys(args.line_nums))
+
+
+def _failure_summary(error: BaseException) -> str:
+    text = f"{type(error).__name__}: {error}" if str(error) else type(error).__name__
+    cause = error.__cause__
+    if cause is not None:
+        text += f" (cause: {type(cause).__name__}: {cause})" if str(cause) else f" (cause: {type(cause).__name__})"
+    return text
+
+
+def _print_batch_summary(
+    line_nums: list[int],
+    completed: list[int],
+    failed: list[tuple[int, str]],
+    stopped: tuple[int | None, BaseException] | None = None,
+) -> int:
+    processed = len(completed) + len(failed) + (1 if stopped else 0)
+    not_run = line_nums[processed:]
+    print(f"\nCompleted {len(completed)} of {len(line_nums)} experiments.", flush=True)
+    for line_num, summary in failed:
+        print(f"  Failed: {line_num} — {summary}", file=sys.stderr)
+    if stopped:
+        line_num, error = stopped
+        where = f" at {line_num}" if line_num is not None else ""
+        print(f"  Stopped{where} by {_failure_summary(error)}", file=sys.stderr)
+    if not_run:
+        reason = "the stop" if stopped else "--fail-fast"
+        print(f"  Not run after {reason}: {' '.join(map(str, not_run))}", file=sys.stderr)
+    sys.stderr.flush()
+    return 1 if failed or not_run else 0
 
 
 def run_pipeline_for_experiments(
@@ -201,11 +237,20 @@ def run_pipeline_for_experiments(
     ``batch`` is False for ``--line-num``, which keeps the original
     single-experiment behavior: invalid settings raise, and a run error exits 1
     when headless or is re-raised. ``batch`` is True for ``--line-nums``, even
-    with one experiment: each experiment gets a new pipeline instance, a fresh
-    copy of the defaults and its own saved settings. A failed experiment is
-    reported and the next one runs (unless ``fail_fast``); the exit code is 1
-    when any experiment failed or was not run. Only the error text of a failure
-    is kept, so a failed experiment's data can be freed before the next one.
+    with one experiment:
+
+    - The project and data paths are checked once; if they are invalid, nothing runs
+      and the exit code is 1.
+    - Each experiment gets a new pipeline instance, a fresh copy of the defaults and
+      its own saved settings.
+    - A failed experiment (an error in ``RUN_ERRORS``) is reported with its cause and
+      the next one runs, unless ``fail_fast``. The exit code is 1 when any experiment
+      failed or was not run.
+    - Any other exception, including ``KeyboardInterrupt``, stops the command: the
+      summary so far is printed and the exception is re-raised.
+
+    Only the error text of a failure is kept, so a failed experiment's data can be
+    freed before the next one.
     """
     if not batch and len(line_nums) != 1:
         raise ValueError("A single-experiment run needs exactly one line number.")
@@ -235,29 +280,39 @@ def run_pipeline_for_experiments(
             raise
         return 0
 
+    try:
+        validate_common_inputs(line_num=0, project_path=project_path, data_path=data_path)
+    except ConfigurationError as exc:
+        print_cli_error(exc)
+        print(f"No experiments were run ({len(line_nums)} requested).", file=sys.stderr)
+        return 1
+
     completed: list[int] = []
     failed: list[tuple[int, str]] = []
-    for index, line_num in enumerate(line_nums, start=1):
-        print(f"\n[{index}/{len(line_nums)}] Experiment {line_num}", flush=True)
-        try:
-            pipeline_cls().run(**prepare(line_num))
-        except RUN_ERRORS as exc:
-            print(f"Experiment {line_num} failed:", file=sys.stderr)
-            print_cli_error(exc, include_cause=headless)
-            failed.append((line_num, f"{type(exc).__name__}: {exc}"))
-            if fail_fast:
-                break
-        else:
-            completed.append(line_num)
-        finally:
-            # Release figures between experiments; each run can create many.
-            if "matplotlib.pyplot" in sys.modules:
-                sys.modules["matplotlib.pyplot"].close("all")
-
-    not_run = line_nums[len(completed) + len(failed):]
-    print(f"\nCompleted {len(completed)} of {len(line_nums)} experiments.")
-    for line_num, summary in failed:
-        print(f"  Failed: {line_num} — {summary}", file=sys.stderr)
-    if not_run:
-        print(f"  Not run after --fail-fast: {' '.join(map(str, not_run))}", file=sys.stderr)
-    return 1 if failed or not_run else 0
+    current: int | None = None
+    try:
+        for index, line_num in enumerate(line_nums, start=1):
+            current = line_num
+            print(f"\n[{index}/{len(line_nums)}] Experiment {line_num}", flush=True)
+            try:
+                pipeline_cls().run(**prepare(line_num))
+            except RUN_ERRORS as exc:
+                sys.stdout.flush()  # Keep merged stdout/stderr logs in order.
+                print(f"Experiment {line_num} failed:", file=sys.stderr)
+                # A batch never re-raises a run error, so always show its cause here.
+                print_cli_error(exc, include_cause=True)
+                failed.append((line_num, _failure_summary(exc)))
+                if fail_fast:
+                    current = None
+                    break
+            else:
+                completed.append(line_num)
+            finally:
+                # Release figures between experiments; each run can create many.
+                if "matplotlib.pyplot" in sys.modules:
+                    sys.modules["matplotlib.pyplot"].close("all")
+            current = None
+    except BaseException as exc:
+        _print_batch_summary(line_nums, completed, failed, stopped=(current, exc))
+        raise
+    return _print_batch_summary(line_nums, completed, failed)

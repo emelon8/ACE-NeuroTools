@@ -108,3 +108,12 @@ def test_quality_scores_are_computed_inside_the_cleanup_block(processor, monkeyp
     else:
         assert fitted.calls == expected + [("evaluate", (3, 4, 4), True, "worker-pool")]
     assert stops == ["worker-pool"]
+
+
+def test_successful_run_saves_results_before_stopping_the_worker_pool(processor, monkeypatch):
+    processor, stops = processor
+    events = []
+    monkeypatch.setattr(module.cm, "stop_server", lambda dview=None: events.append(("stop", dview)))
+    monkeypatch.setattr(processor, "_save_processed_data", lambda dm, *args: events.append(("save",)) or dm)
+    processor.process_calcium_movie(parallel=True, run_CNMFE=False)
+    assert events == [("save",), ("stop", "worker-pool")]

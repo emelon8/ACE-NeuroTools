@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Accept several experiments in the per-experiment commands
@@ -22,13 +22,19 @@ start one Python process per experiment, re-importing CaImAn each time.
 
 ## Proposed change
 
-Add three helpers to `shared/cli_utils.py` and use them in all three commands:
+Add four helpers and an error list to `shared/cli_utils.py` and use them in all
+three commands:
 
 - `add_experiment_arguments(parser)`: a required, mutually exclusive
-  `--line-num N` / `--line-nums N [N ...]` pair, plus `--fail-fast`.
+  `--line-num N` / `--line-nums N [N ...]` pair (repeating `--line-nums` adds
+  more), plus `--fail-fast`.
+- `parse_experiment_args(parser, argv)`: parses and rejects `--fail-fast` without
+  `--line-nums` and negative `--line-nums` values.
 - `selected_line_nums(args)`: the requested experiments in order, repeats
   removed.
 - `run_pipeline_for_experiments(...)`: runs the pipeline and returns the exit code.
+- `RUN_ERRORS`: the errors a batch reports per experiment (`AceNeuroError`,
+  `FileNotFoundError`, `ValueError`).
 
 The ephys and multimodal commands move into `main(argv=None)` functions, as
 calcium imaging already has, so tests can call them directly.
@@ -38,12 +44,14 @@ Failure handling:
 | Case | Behavior |
 | --- | --- |
 | `--line-num N` (one experiment) | Unchanged: invalid settings raise; a run error prints, then exits 1 when headless or is re-raised. |
-| `--line-nums` | Each experiment gets a new pipeline instance and its own saved settings. A settings or run error (`AceNeuroError`, `FileNotFoundError`, `ValueError`) is printed and the next experiment runs. Other exceptions, including `KeyboardInterrupt`, stop the command as before. |
+| `--line-nums` | The project and data paths are checked once; if they are invalid nothing runs and the exit code is 1. Each experiment gets a new pipeline instance and its own saved settings. A settings or run error (`RUN_ERRORS`) is printed with its cause and the next experiment runs. Other exceptions, including `KeyboardInterrupt`, stop the command after printing the summary so far. |
 | `--line-nums --fail-fast` | Stops at the first failure and lists experiments not run. |
 | Exit code with `--line-nums` | 1 when any experiment failed or was not run, headless or not, so schedulers and scripts can detect partial failure. |
 
-A summary (`Completed X of N experiments`, then each failure) is printed at the
-end. Open matplotlib figures are closed between experiments.
+A summary (`Completed X of N experiments`, then each failure with its cause,
+then any experiments not run) is printed at the end. Standard output is flushed
+before each error message so logs that merge both streams stay in order. Open
+matplotlib figures are closed between experiments.
 
 ## Compatibility
 
@@ -73,23 +81,44 @@ Simpler plain-shell and scheduler exports from the GUI (one command per
 analysis, or one job-array task per experiment chunk) and a command-line
 equivalent of the GUI's sequential batch queue.
 
-## Implementation reviewed in this proposal
-
-Add batch experiment selection and failure summaries. Always shut down the CaImAn worker pool on success and failure, isolate mutable defaults and avoid retaining failed pipeline objects through exceptions. Pipeline numerical calculations are unchanged.
-
 ## Risks
 
-Experiments share one process and module-level state. Cleanup now also runs on failure. Review exit codes, fail-fast behavior, exception boundaries and repeated experiment handling; separate processes remain the isolation alternative.
+- Experiments share one process. Module-level state, the loaded CaImAn module
+  and matplotlib's backend carry over: calcium processing switches matplotlib to
+  an interactive backend, and if an experiment fails before postprocessing
+  switches it back, the next experiment starts with that backend. Single runs
+  already behave this way.
+- Errors outside `RUN_ERRORS` (for example a `TypeError` from malformed saved
+  settings, or a locked CSV file) stop the whole batch rather than one
+  experiment; the summary so far is printed first.
+- Calcium processing now stops the CaImAn worker pool after a failure too. For
+  serial runs this means CaImAn's `stop_server` also runs after a failure, as it
+  already did after a success.
+- Users who need full isolation should keep running one experiment per process.
 
 ## Tests
 
-Focused regression tests: `tests/test_calcium_imaging_processor_cleanup.py`, `tests/test_cli_line_nums.py`.
+- `tests/test_cli_line_nums.py`: exclusive and repeatable flags, negative IDs,
+  `--fail-fast` rules, per-experiment saved settings, new instances and copied
+  defaults, failures with their causes (also without `--headless`), fail-fast and
+  stopped-batch summaries, invalid paths reported once, merged stdout/stderr order
+  (in a subprocess), freeing a failed experiment, closing figures, unchanged
+  `--line-num` behavior, and that each command passes its own pipeline, defaults
+  and settings loader.
+- `tests/test_calcium_imaging_processor_cleanup.py`: the worker pool is stopped
+  once after success and after a failure at every stage, results are saved before
+  it is stopped, a failing stop is only a warning, and quality scoring still runs
+  inside the cleanup block.
 
 ## Verification
 
-The exact implementation patch below is the code and test change (`src/` and `tests/`) against base `78acb6b` (main after PRs #152 and #153); the documentation changes are in the PR. The proposal remains `status: proposed`; publication as a draft PR is not maintainer approval.
-
-Focused tests are rerun during PR preparation, with exact results recorded in the PR description. Earlier full-suite attempts were interrupted because this environment denied localhost socket creation; the same restriction reproduced on unchanged main. No green full-suite result is claimed. Full tests, changed-line coverage, strict documentation build and representative recording checks remain prerequisites for merge.
+The patch below is the code and test change (`src/` and `tests/`) against base
+`78acb6b` (main after PRs #152 and #153); the documentation changes are in the
+PR. It was accepted when PR #154 was merged after adversarial review. The review
+ran the full default suite (`pytest tests -m "not slow"`), changed-line coverage,
+documentation coverage, the documentation link check and the strict MkDocs build;
+the results are in the PR. Representative recording validation is handled
+separately by the lab, as `AGENTS.md` describes.
 
 ## Diff
 
@@ -479,7 +508,7 @@ index f247c65..51aedc5 100644
 +if __name__ == "__main__":
 +    main()
 diff --git a/src/aceneurotools/shared/cli_utils.py b/src/aceneurotools/shared/cli_utils.py
-index 4c38152..1b3d57b 100644
+index 4c38152..6312bcc 100644
 --- a/src/aceneurotools/shared/cli_utils.py
 +++ b/src/aceneurotools/shared/cli_utils.py
 @@ -2,14 +2,20 @@
@@ -504,19 +533,32 @@ index 4c38152..1b3d57b 100644
  
  
  def run_allowed_keys(run_callable: Callable[..., Any]) -> set[str]:
-@@ -149,3 +155,109 @@ def apply_headless_policy(*, pipeline_name: str, run_params: dict[str, Any]) ->
+@@ -60,7 +66,7 @@ def validate_common_inputs(*, line_num: Any, project_path: Any, data_path: Any =
+         raise ConfigurationError(
+             "line_num must be a non-negative integer.",
+             stage="validate_cli_inputs",
+-            hint="Pass --line-num with a valid experiment row number.",
++            hint="Pass --line-num or --line-nums with valid experiment row numbers.",
+         )
+     if not isinstance(project_path, (str, Path)) or not str(project_path).strip():
+         raise ConfigurationError(
+@@ -149,3 +155,164 @@ def apply_headless_policy(*, pipeline_name: str, run_params: dict[str, Any]) ->
          run_params["plot_params"] = False
  
      return run_params
 +
 +
 +def add_experiment_arguments(parser: argparse.ArgumentParser) -> None:
-+    """Add ``--line-num`` / ``--line-nums`` (one is required) and ``--fail-fast``."""
++    """Add ``--line-num`` / ``--line-nums`` (one is required) and ``--fail-fast``.
++
++    ``--line-nums`` may be repeated; the values are added together.
++    """
 +    group = parser.add_mutually_exclusive_group(required=True)
 +    group.add_argument('--line-num', type=int,
 +                       help="Experiment line number from experiments.csv")
-+    group.add_argument('--line-nums', type=int, nargs='+', metavar='N',
-+                       help="Several experiment line numbers, run one after another with each experiment's saved settings")
++    group.add_argument('--line-nums', type=int, nargs='+', action='extend', metavar='N',
++                       help="Several experiment line numbers, run one after another with each experiment's "
++                            "saved settings (repeating the flag adds more)")
 +    parser.add_argument('--fail-fast', action='store_true',
 +                        help="With --line-nums, stop at the first experiment that fails")
 +
@@ -526,6 +568,8 @@ index 4c38152..1b3d57b 100644
 +    args = parser.parse_args(argv)
 +    if args.fail_fast and args.line_nums is None:
 +        parser.error("--fail-fast applies only with --line-nums")
++    if args.line_nums is not None and any(line_num < 0 for line_num in args.line_nums):
++        parser.error("--line-nums takes non-negative experiment row numbers")
 +    return args
 +
 +
@@ -534,6 +578,36 @@ index 4c38152..1b3d57b 100644
 +    if args.line_num is not None:
 +        return [args.line_num]
 +    return list(dict.fromkeys(args.line_nums))
++
++
++def _failure_summary(error: BaseException) -> str:
++    text = f"{type(error).__name__}: {error}" if str(error) else type(error).__name__
++    cause = error.__cause__
++    if cause is not None:
++        text += f" (cause: {type(cause).__name__}: {cause})" if str(cause) else f" (cause: {type(cause).__name__})"
++    return text
++
++
++def _print_batch_summary(
++    line_nums: list[int],
++    completed: list[int],
++    failed: list[tuple[int, str]],
++    stopped: tuple[int | None, BaseException] | None = None,
++) -> int:
++    processed = len(completed) + len(failed) + (1 if stopped else 0)
++    not_run = line_nums[processed:]
++    print(f"\nCompleted {len(completed)} of {len(line_nums)} experiments.", flush=True)
++    for line_num, summary in failed:
++        print(f"  Failed: {line_num} — {summary}", file=sys.stderr)
++    if stopped:
++        line_num, error = stopped
++        where = f" at {line_num}" if line_num is not None else ""
++        print(f"  Stopped{where} by {_failure_summary(error)}", file=sys.stderr)
++    if not_run:
++        reason = "the stop" if stopped else "--fail-fast"
++        print(f"  Not run after {reason}: {' '.join(map(str, not_run))}", file=sys.stderr)
++    sys.stderr.flush()
++    return 1 if failed or not_run else 0
 +
 +
 +def run_pipeline_for_experiments(
@@ -554,11 +628,20 @@ index 4c38152..1b3d57b 100644
 +    ``batch`` is False for ``--line-num``, which keeps the original
 +    single-experiment behavior: invalid settings raise, and a run error exits 1
 +    when headless or is re-raised. ``batch`` is True for ``--line-nums``, even
-+    with one experiment: each experiment gets a new pipeline instance, a fresh
-+    copy of the defaults and its own saved settings. A failed experiment is
-+    reported and the next one runs (unless ``fail_fast``); the exit code is 1
-+    when any experiment failed or was not run. Only the error text of a failure
-+    is kept, so a failed experiment's data can be freed before the next one.
++    with one experiment:
++
++    - The project and data paths are checked once; if they are invalid, nothing runs
++      and the exit code is 1.
++    - Each experiment gets a new pipeline instance, a fresh copy of the defaults and
++      its own saved settings.
++    - A failed experiment (an error in ``RUN_ERRORS``) is reported with its cause and
++      the next one runs, unless ``fail_fast``. The exit code is 1 when any experiment
++      failed or was not run.
++    - Any other exception, including ``KeyboardInterrupt``, stops the command: the
++      summary so far is printed and the exception is re-raised.
++
++    Only the error text of a failure is kept, so a failed experiment's data can be
++    freed before the next one.
 +    """
 +    if not batch and len(line_nums) != 1:
 +        raise ValueError("A single-experiment run needs exactly one line number.")
@@ -588,38 +671,48 @@ index 4c38152..1b3d57b 100644
 +            raise
 +        return 0
 +
++    try:
++        validate_common_inputs(line_num=0, project_path=project_path, data_path=data_path)
++    except ConfigurationError as exc:
++        print_cli_error(exc)
++        print(f"No experiments were run ({len(line_nums)} requested).", file=sys.stderr)
++        return 1
++
 +    completed: list[int] = []
 +    failed: list[tuple[int, str]] = []
-+    for index, line_num in enumerate(line_nums, start=1):
-+        print(f"\n[{index}/{len(line_nums)}] Experiment {line_num}", flush=True)
-+        try:
-+            pipeline_cls().run(**prepare(line_num))
-+        except RUN_ERRORS as exc:
-+            print(f"Experiment {line_num} failed:", file=sys.stderr)
-+            print_cli_error(exc, include_cause=headless)
-+            failed.append((line_num, f"{type(exc).__name__}: {exc}"))
-+            if fail_fast:
-+                break
-+        else:
-+            completed.append(line_num)
-+        finally:
-+            # Release figures between experiments; each run can create many.
-+            if "matplotlib.pyplot" in sys.modules:
-+                sys.modules["matplotlib.pyplot"].close("all")
-+
-+    not_run = line_nums[len(completed) + len(failed):]
-+    print(f"\nCompleted {len(completed)} of {len(line_nums)} experiments.")
-+    for line_num, summary in failed:
-+        print(f"  Failed: {line_num} — {summary}", file=sys.stderr)
-+    if not_run:
-+        print(f"  Not run after --fail-fast: {' '.join(map(str, not_run))}", file=sys.stderr)
-+    return 1 if failed or not_run else 0
++    current: int | None = None
++    try:
++        for index, line_num in enumerate(line_nums, start=1):
++            current = line_num
++            print(f"\n[{index}/{len(line_nums)}] Experiment {line_num}", flush=True)
++            try:
++                pipeline_cls().run(**prepare(line_num))
++            except RUN_ERRORS as exc:
++                sys.stdout.flush()  # Keep merged stdout/stderr logs in order.
++                print(f"Experiment {line_num} failed:", file=sys.stderr)
++                # A batch never re-raises a run error, so always show its cause here.
++                print_cli_error(exc, include_cause=True)
++                failed.append((line_num, _failure_summary(exc)))
++                if fail_fast:
++                    current = None
++                    break
++            else:
++                completed.append(line_num)
++            finally:
++                # Release figures between experiments; each run can create many.
++                if "matplotlib.pyplot" in sys.modules:
++                    sys.modules["matplotlib.pyplot"].close("all")
++            current = None
++    except BaseException as exc:
++        _print_batch_summary(line_nums, completed, failed, stopped=(current, exc))
++        raise
++    return _print_batch_summary(line_nums, completed, failed)
 diff --git a/tests/test_calcium_imaging_processor_cleanup.py b/tests/test_calcium_imaging_processor_cleanup.py
 new file mode 100644
-index 0000000..5340440
+index 0000000..6679182
 --- /dev/null
 +++ b/tests/test_calcium_imaging_processor_cleanup.py
-@@ -0,0 +1,110 @@
+@@ -0,0 +1,119 @@
 +"""The CaImAn worker pool is stopped whether calcium processing succeeds or fails."""
 +
 +from types import SimpleNamespace
@@ -730,12 +823,21 @@ index 0000000..5340440
 +    else:
 +        assert fitted.calls == expected + [("evaluate", (3, 4, 4), True, "worker-pool")]
 +    assert stops == ["worker-pool"]
++
++
++def test_successful_run_saves_results_before_stopping_the_worker_pool(processor, monkeypatch):
++    processor, stops = processor
++    events = []
++    monkeypatch.setattr(module.cm, "stop_server", lambda dview=None: events.append(("stop", dview)))
++    monkeypatch.setattr(processor, "_save_processed_data", lambda dm, *args: events.append(("save",)) or dm)
++    processor.process_calcium_movie(parallel=True, run_CNMFE=False)
++    assert events == [("save",), ("stop", "worker-pool")]
 diff --git a/tests/test_cli_line_nums.py b/tests/test_cli_line_nums.py
 new file mode 100644
-index 0000000..279a82b
+index 0000000..4d66ac7
 --- /dev/null
 +++ b/tests/test_cli_line_nums.py
-@@ -0,0 +1,247 @@
+@@ -0,0 +1,371 @@
 +"""Per-experiment CLIs accept one or several experiments with explicit failure handling."""
 +
 +import argparse
@@ -828,6 +930,15 @@ index 0000000..279a82b
 +    capsys.readouterr()
 +
 +
++def test_repeated_line_nums_add_up_and_negative_ids_are_rejected(capsys):
++    args = parse_experiment_args(parser(), ["--line-nums", "1", "2", "--line-nums", "3", "1"])
++    assert selected_line_nums(args) == [1, 2, 3]
++    with pytest.raises(SystemExit) as raised:
++        parse_experiment_args(parser(), ["--line-nums", "3", "-1"])
++    assert raised.value.code == 2
++    assert "--line-nums takes non-negative experiment row numbers" in capsys.readouterr().err
++
++
 +def test_fail_fast_is_rejected_without_line_nums(capsys):
 +    with pytest.raises(SystemExit) as raised:
 +        parse_experiment_args(parser(), ["--line-num", "1", "--fail-fast"])
@@ -916,6 +1027,107 @@ index 0000000..279a82b
 +    assert [call["line_num"] for call in FakePipeline.calls] == [1]
 +
 +
++@pytest.mark.parametrize(
++    ("error", "described"),
++    [(TypeError("programming error"), "TypeError: programming error"), (KeyboardInterrupt(), "KeyboardInterrupt")],
++)
++def test_a_stopped_batch_still_prints_what_ran(tmp_path, capsys, error, described):
++    FakePipeline.failing = {1}
++
++    def stop_at_three(pipeline, line_num, filter_range):
++        if line_num == 3:
++            raise error
++
++    FakePipeline.hook = stop_at_three
++    with pytest.raises(type(error)):
++        run(tmp_path, [1, 2, 3, 4])
++    captured = capsys.readouterr()
++    assert "Completed 1 of 4 experiments." in captured.out
++    assert "Failed: 1 — DataNotFoundError: recording 1 missing" in captured.err
++    assert f"Stopped at 3 by {described}" in captured.err
++    assert "Not run after the stop: 4" in captured.err
++
++
++def test_a_batch_failure_shows_its_cause_even_without_headless(tmp_path, capsys):
++    def wrapped(pipeline, line_num, filter_range):
++        try:
++            raise RuntimeError("memmap missing")
++        except RuntimeError as cause:
++            raise DataNotFoundError("Calcium imaging processing stage failed.") from cause
++
++    FakePipeline.hook = wrapped
++    assert run(tmp_path, [1, 2], headless=False) == 1
++    err = capsys.readouterr().err
++    assert err.count("Cause: memmap missing") == 2
++    assert "Failed: 1 — DataNotFoundError: Calcium imaging processing stage failed. (cause: RuntimeError: memmap missing)" in err
++
++
++def test_invalid_paths_are_reported_once_and_nothing_runs(tmp_path, capsys):
++    missing = tmp_path / "missing"
++    assert run_pipeline_for_experiments(
++        pipeline_name="ephys",
++        pipeline_cls=FakePipeline,
++        defaults={"channel_name": "CH1", "filter_range": [0.5, 4]},
++        line_nums=[1, 2, 3],
++        project_path=str(missing),
++        data_path=None,
++        headless=True,
++        csv_loader=lambda line_num, project_path: {},
++        batch=True,
++    ) == 1
++    assert FakePipeline.calls == []
++    err = capsys.readouterr().err
++    assert err.count("project_path does not exist") == 1
++    assert "No experiments were run (3 requested)." in err
++
++
++def test_merged_logs_keep_the_summary_in_order(tmp_path):
++    """Progress, failures and the summary appear in order when stdout and stderr share a pipe."""
++    import os
++    import subprocess
++    import textwrap
++    from pathlib import Path
++
++    import aceneurotools
++
++    script = textwrap.dedent(
++        f"""
++        from aceneurotools.shared.cli_utils import run_pipeline_for_experiments
++        from aceneurotools.shared.exceptions import DataNotFoundError
++
++        class Pipeline:
++            def run(self, line_num, project_path, data_path=None, headless=False):
++                print(f"working on {{line_num}}")
++                if line_num == 1:
++                    raise DataNotFoundError("recording 1 missing")
++
++        raise SystemExit(run_pipeline_for_experiments(
++            pipeline_name="compute", pipeline_cls=Pipeline, defaults={{}}, line_nums=[1, 2],
++            project_path={str(tmp_path)!r}, data_path=None, headless=True,
++            csv_loader=lambda line_num, project_path: {{}}, batch=True,
++        ))
++        """
++    )
++    source_root = str(Path(aceneurotools.__file__).resolve().parents[1])
++    environment = {**os.environ, "PYTHONPATH": os.pathsep.join([source_root, os.environ.get("PYTHONPATH", "")])}
++    result = subprocess.run(
++        [sys.executable, "-c", script], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=environment
++    )
++    assert result.returncode == 1
++    lines = [line for line in result.stdout.splitlines() if line.strip()]
++    order = [
++        "[1/2] Experiment 1",
++        "working on 1",
++        "Experiment 1 failed:",
++        "[2/2] Experiment 2",
++        "working on 2",
++        "Completed 1 of 2 experiments.",
++        "  Failed: 1 — DataNotFoundError: recording 1 missing",
++    ]
++    positions = [next(i for i, line in enumerate(lines) if line.startswith(text)) for text in order]
++    assert positions == sorted(positions), result.stdout
++
++
 +def test_single_experiment_keeps_previous_failure_behavior(tmp_path, capsys):
 +    assert run(tmp_path, [4], batch=False) == 0
 +    assert [call["line_num"] for call in FakePipeline.calls] == [4]
@@ -963,6 +1175,20 @@ index 0000000..279a82b
 +        ([6], False, False),
 +    ]
 +    assert seen[0]["headless"] is True and seen[1]["headless"] is False
++    pipeline_class = {
++        "calcium_imaging": "CalciumImagingPipeline",
++        "ephys": "EphysPipeline",
++        "multimodal": "MultimodalPipeline",
++    }[module]
++    from aceneurotools.shared.config_utils import load_analysis_params
++    from aceneurotools.shared.pipeline_defaults import pipeline_defaults
++
++    for kwargs in seen:
++        assert kwargs["pipeline_name"] == module
++        assert kwargs["pipeline_cls"] is getattr(target, pipeline_class)
++        assert kwargs["defaults"] == pipeline_defaults(module)
++        assert kwargs["csv_loader"] is load_analysis_params
++        assert kwargs["project_path"] == str(tmp_path) and kwargs["data_path"] is None
 +
 +
 +@pytest.mark.parametrize("module", MODULES)

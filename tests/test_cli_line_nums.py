@@ -90,6 +90,15 @@ def test_line_num_and_line_nums_are_exclusive_and_one_is_required(capsys):
     capsys.readouterr()
 
 
+def test_repeated_line_nums_add_up_and_negative_ids_are_rejected(capsys):
+    args = parse_experiment_args(parser(), ["--line-nums", "1", "2", "--line-nums", "3", "1"])
+    assert selected_line_nums(args) == [1, 2, 3]
+    with pytest.raises(SystemExit) as raised:
+        parse_experiment_args(parser(), ["--line-nums", "3", "-1"])
+    assert raised.value.code == 2
+    assert "--line-nums takes non-negative experiment row numbers" in capsys.readouterr().err
+
+
 def test_fail_fast_is_rejected_without_line_nums(capsys):
     with pytest.raises(SystemExit) as raised:
         parse_experiment_args(parser(), ["--line-num", "1", "--fail-fast"])
@@ -178,6 +187,107 @@ def test_errors_outside_run_failures_stop_the_batch(tmp_path):
     assert [call["line_num"] for call in FakePipeline.calls] == [1]
 
 
+@pytest.mark.parametrize(
+    ("error", "described"),
+    [(TypeError("programming error"), "TypeError: programming error"), (KeyboardInterrupt(), "KeyboardInterrupt")],
+)
+def test_a_stopped_batch_still_prints_what_ran(tmp_path, capsys, error, described):
+    FakePipeline.failing = {1}
+
+    def stop_at_three(pipeline, line_num, filter_range):
+        if line_num == 3:
+            raise error
+
+    FakePipeline.hook = stop_at_three
+    with pytest.raises(type(error)):
+        run(tmp_path, [1, 2, 3, 4])
+    captured = capsys.readouterr()
+    assert "Completed 1 of 4 experiments." in captured.out
+    assert "Failed: 1 — DataNotFoundError: recording 1 missing" in captured.err
+    assert f"Stopped at 3 by {described}" in captured.err
+    assert "Not run after the stop: 4" in captured.err
+
+
+def test_a_batch_failure_shows_its_cause_even_without_headless(tmp_path, capsys):
+    def wrapped(pipeline, line_num, filter_range):
+        try:
+            raise RuntimeError("memmap missing")
+        except RuntimeError as cause:
+            raise DataNotFoundError("Calcium imaging processing stage failed.") from cause
+
+    FakePipeline.hook = wrapped
+    assert run(tmp_path, [1, 2], headless=False) == 1
+    err = capsys.readouterr().err
+    assert err.count("Cause: memmap missing") == 2
+    assert "Failed: 1 — DataNotFoundError: Calcium imaging processing stage failed. (cause: RuntimeError: memmap missing)" in err
+
+
+def test_invalid_paths_are_reported_once_and_nothing_runs(tmp_path, capsys):
+    missing = tmp_path / "missing"
+    assert run_pipeline_for_experiments(
+        pipeline_name="ephys",
+        pipeline_cls=FakePipeline,
+        defaults={"channel_name": "CH1", "filter_range": [0.5, 4]},
+        line_nums=[1, 2, 3],
+        project_path=str(missing),
+        data_path=None,
+        headless=True,
+        csv_loader=lambda line_num, project_path: {},
+        batch=True,
+    ) == 1
+    assert FakePipeline.calls == []
+    err = capsys.readouterr().err
+    assert err.count("project_path does not exist") == 1
+    assert "No experiments were run (3 requested)." in err
+
+
+def test_merged_logs_keep_the_summary_in_order(tmp_path):
+    """Progress, failures and the summary appear in order when stdout and stderr share a pipe."""
+    import os
+    import subprocess
+    import textwrap
+    from pathlib import Path
+
+    import aceneurotools
+
+    script = textwrap.dedent(
+        f"""
+        from aceneurotools.shared.cli_utils import run_pipeline_for_experiments
+        from aceneurotools.shared.exceptions import DataNotFoundError
+
+        class Pipeline:
+            def run(self, line_num, project_path, data_path=None, headless=False):
+                print(f"working on {{line_num}}")
+                if line_num == 1:
+                    raise DataNotFoundError("recording 1 missing")
+
+        raise SystemExit(run_pipeline_for_experiments(
+            pipeline_name="compute", pipeline_cls=Pipeline, defaults={{}}, line_nums=[1, 2],
+            project_path={str(tmp_path)!r}, data_path=None, headless=True,
+            csv_loader=lambda line_num, project_path: {{}}, batch=True,
+        ))
+        """
+    )
+    source_root = str(Path(aceneurotools.__file__).resolve().parents[1])
+    environment = {**os.environ, "PYTHONPATH": os.pathsep.join([source_root, os.environ.get("PYTHONPATH", "")])}
+    result = subprocess.run(
+        [sys.executable, "-c", script], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=environment
+    )
+    assert result.returncode == 1
+    lines = [line for line in result.stdout.splitlines() if line.strip()]
+    order = [
+        "[1/2] Experiment 1",
+        "working on 1",
+        "Experiment 1 failed:",
+        "[2/2] Experiment 2",
+        "working on 2",
+        "Completed 1 of 2 experiments.",
+        "  Failed: 1 — DataNotFoundError: recording 1 missing",
+    ]
+    positions = [next(i for i, line in enumerate(lines) if line.startswith(text)) for text in order]
+    assert positions == sorted(positions), result.stdout
+
+
 def test_single_experiment_keeps_previous_failure_behavior(tmp_path, capsys):
     assert run(tmp_path, [4], batch=False) == 0
     assert [call["line_num"] for call in FakePipeline.calls] == [4]
@@ -225,6 +335,20 @@ def test_real_entry_points_pass_the_selection_and_mode(module, monkeypatch, tmp_
         ([6], False, False),
     ]
     assert seen[0]["headless"] is True and seen[1]["headless"] is False
+    pipeline_class = {
+        "calcium_imaging": "CalciumImagingPipeline",
+        "ephys": "EphysPipeline",
+        "multimodal": "MultimodalPipeline",
+    }[module]
+    from aceneurotools.shared.config_utils import load_analysis_params
+    from aceneurotools.shared.pipeline_defaults import pipeline_defaults
+
+    for kwargs in seen:
+        assert kwargs["pipeline_name"] == module
+        assert kwargs["pipeline_cls"] is getattr(target, pipeline_class)
+        assert kwargs["defaults"] == pipeline_defaults(module)
+        assert kwargs["csv_loader"] is load_analysis_params
+        assert kwargs["project_path"] == str(tmp_path) and kwargs["data_path"] is None
 
 
 @pytest.mark.parametrize("module", MODULES)
