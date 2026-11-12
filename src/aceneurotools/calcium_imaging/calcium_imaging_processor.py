@@ -221,8 +221,9 @@ class CalciumImagingProcessor:
         """
         -This is an important step before CNMFE. It handles the most important CNMFE parameters.
 
-        -It uses the 'gsig_tmp' below to make the first plot. Adjust this value until the plot shown does not merge any neurons,
-        then update 'gsig' in analysis_parameters.csv with the best 'gsig_tmp' value
+        -The first plot always uses a Gaussian kernel half-size of 3 pixels (``cnmfe_tuning.TUNING_GSIG``). To try other
+        values, call ``cnmfe_tuning.compute_cnmfe_tuning_images(images, gsig=...)`` yourself (for example in a notebook) and
+        adjust it until the plot shown does not merge any neurons, then update 'gSig' in analysis_parameters.csv
 
         -First, this function calculates correlation and peak to noise ratios and plots them. Use the sliders to adjust 'vmax' until neurons are most visible,
         then adjust 'min_corr' and 'min_pnr' in analysis_parameters.csv to values slightly below those vmax values

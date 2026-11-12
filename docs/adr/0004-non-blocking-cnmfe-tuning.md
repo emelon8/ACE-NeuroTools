@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Compute CNMF-E tuning images without opening windows
@@ -30,12 +30,32 @@ interactive backend before CNMF-E.
 
 ## Proposed change
 
-Add `calcium_imaging/cnmfe_tuning.py` with pure functions:
-`cnmfe_patch_geometry(rf, stride)`, `tuning_frame_step(n_frames)`,
-`compute_cnmfe_tuning_images(images, gsig=(3, 3))` and
-`quilt_display_limits(correlation_image)`. CaImAn is imported only inside
-`compute_cnmfe_tuning_images`. `cnmfe_parameter_handler` calls these functions
-and keeps every window, message and pause exactly as before.
+Add `calcium_imaging/cnmfe_tuning.py`, which computes the tuning values without
+opening windows:
+
+- `TUNING_GSIG = 3` and `TUNING_MAX_FRAMES = 1000`, the values the inline code used.
+- `CNMFEPatchGeometry(width, stride, overlap)` and
+  `cnmfe_patch_geometry(rf, stride)`: width `2 * rf + 1`, overlap `stride + 1`,
+  step `width - overlap`.
+- `tuning_frame_step(n_frames, max_frames=TUNING_MAX_FRAMES)`:
+  `max(n_frames // max_frames, 1)`.
+- `compute_cnmfe_tuning_images(images, gsig=TUNING_GSIG, max_frames=TUNING_MAX_FRAMES)`:
+  CaImAn's `correlation_pnr` on every step-th frame. `gsig` is one whole number
+  or a `(rows, columns)` pair such as the CNMF-E `gSig` setting; a pair is passed
+  to CaImAn as a list, the only sequence type CaImAn recognizes.
+- `quilt_display_limits(correlation_image)`: the 50th and 99.5th percentiles.
+
+Every function checks its inputs and raises `ValueError` for values the old
+arithmetic could not use: `rf` must be a positive whole number, `stride` a
+non-negative whole number smaller than `2 * rf` (otherwise patches cannot
+advance), frame counts non-negative and `max_frames` positive whole numbers.
+Importing the module does not import CaImAn; only
+`compute_cnmfe_tuning_images` does. The functions run synchronously.
+
+`cnmfe_parameter_handler` calls these functions and keeps every window, message,
+pause and timer call in the same order. Its docstring now tells users to call
+`compute_cnmfe_tuning_images(images, gsig=...)` to try other kernel sizes,
+because the inline `gsig_tmp` variable it used to mention no longer exists.
 
 ## Compatibility
 
@@ -43,39 +63,57 @@ and keeps every window, message and pause exactly as before.
   `images.shape[0]` equals the `T` returned by `cm.load_memmap` because `images` is
   reshaped to `(T,) + dims`. Quilt limits are passed as Python floats instead of
   NumPy floats, with identical values.
-- CLI, notebook and `plot_params` behavior are unchanged; CNMF-E inputs are not
-  affected.
+- Runs without `plot_params`, and runs with valid patch settings, behave as
+  before. With `plot_params` on and an unusable `rf`/`stride` (missing, a list,
+  or `stride >= 2 * rf`), the run now stops with a `ValueError` after the first
+  window. Before, it failed with a `TypeError` or drew a meaningless quilt, and
+  CaImAn itself cannot build patches when `stride == 2 * rf`.
 - New public names only; nothing is removed.
 
 ## Alternatives
 
-- Leave the core as is and keep a copy of the arithmetic in the GUI with a test
-  that fails when the two drift (the GUI plan's fallback).
+- Leave the core as is. A GUI tuning step would then have to copy this
+  arithmetic and add a test that fails when the copy drifts (AGENTS.md rule 2).
 - Also return the figures. Rejected: the GUI renders its own images, and CaImAn's
   interactive figure helpers are not needed for the values.
 
 ## Unblocks
 
-The GUI "Tune CNMF-E" step can call these functions on a preprocessed sample
-instead of copying them, and its drift test can be removed.
-
-## Implementation reviewed in this proposal
-
-Expose reusable tuning computation independently of interactive plotting. Existing numerical behavior is intended to remain unchanged; GUI callers must supply equivalent inputs.
+A GUI "Tune CNMF-E" step can call these functions on a preprocessed sample
+instead of copying the arithmetic.
 
 ## Risks
 
-Shared computation does not guarantee equivalent GUI and CLI inputs. Frame subsampling and tuning argument semantics retain compatibility constraints that reviewers should check.
+- A caller that tunes on a short sample movie samples frames differently from a
+  full run, because the frame step depends on the movie length.
+- The tuning images always use `TUNING_GSIG` in the interactive step; trying the
+  user's `gSig` means calling `compute_cnmfe_tuning_images` directly.
+- The new input checks reject `rf`/`stride` forms that CaImAn's CNMF-E itself
+  accepts (per-axis lists, `rf=None` for no patches). The interactive step could
+  never draw those, so only callers of the new functions see the difference.
 
 ## Tests
 
-Focused regression tests: `tests/test_cnmfe_tuning.py`.
+`tests/test_cnmfe_tuning.py`:
+
+- the defaults, and that importing the module does not import CaImAn;
+- patch geometry, frame step and quilt limits against the previous inline
+  arithmetic, including NumPy integers, and every rejected input;
+- `compute_cnmfe_tuning_images` forwards the frame target and kernel size
+  (single numbers and pairs, passed as a list) and matches a direct CaImAn call;
+- the processor's `plot_params` branch: the exact order of computation, timer
+  pauses, both blocking windows, the quilt arguments, title and printed line;
+  that it stops on invalid patch settings after the first window; and that
+  nothing is drawn without `plot_params`.
 
 ## Verification
 
-The exact implementation patch below is taken from the reviewed verification branch against base `ded08fd`. The proposal remains `status: proposed`; publication as a draft PR is not maintainer approval.
-
-Focused tests are rerun during PR preparation, with exact results recorded in the PR description. Earlier full-suite attempts were interrupted because this environment denied localhost socket creation; the same restriction reproduced on unchanged main. No green full-suite result is claimed. Full tests, changed-line coverage, strict documentation build and representative recording checks remain prerequisites for merge.
+The patch below is the full change against base `ded08fd`, excluding this ADR.
+It was accepted when PR #153 was merged after adversarial review. The review ran
+the full default suite (`pytest tests -m "not slow"`), changed-line coverage,
+documentation coverage, the documentation link check and the strict MkDocs
+build; the results are in the PR. Representative recording validation is
+handled separately by the lab, as `AGENTS.md` describes.
 
 ## Diff
 
