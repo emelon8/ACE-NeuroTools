@@ -90,7 +90,7 @@ which returns a dictionary of arrays:
 | `x_shifts_els`, `y_shifts_els` | Piecewise shift per frame and patch, float32, shape `(frames, patches)`. Following CaImAn's naming, `x_shifts_els` is the **row** (vertical) axis and `y_shifts_els` the column (horizontal) axis; same sign as `shifts_rig`. Patches are ordered row by row over the patch grid. | `pw_rigid` runs |
 | `total_template_rig`, `total_template_els` | Rigid and piecewise templates, float32 | Rigid always; piecewise for `pw_rigid` runs |
 | `strides`, `overlaps`, `max_shifts`, `upsample_factor_grid`, `shifts_opencv` | Motion settings that locate each patch. With `shifts_opencv` false, CaImAn reports piecewise shifts on a grid refined by `upsample_factor_grid` | Always |
-| `border_to_0` | CaImAn's largest shift rounded up, in pixels. It is not necessarily what was zeroed: before CNMF-E the pipeline zeroes `border_pix` pixels (saved in `opts_caiman.json`), which is this value unless `border_nan` is `'copy'` (CaImAn's default), in which case no border is zeroed | Always |
+| `border_to_0` | CaImAn's largest shift rounded up, in pixels. It is not necessarily the border the pipeline replaced: before CNMF-E the pipeline fills a border `border_pix` pixels wide with the movie's minimum value (`border_pix` is in `opts_caiman.json` when `save_CNMFE_params` is on). `border_pix` is this value unless `border_nan` is `'copy'` (CaImAn's default), in which case it is 0 and the border is left as it is | Always |
 | `pw_rigid` | Whether piecewise-rigid correction was requested | Always |
 | `frame_rate` | Frame rate in Hz | When the recording's frame rate is known |
 | `source_movie` | Path of the movie the shifts were computed from | Always |

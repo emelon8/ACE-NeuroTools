@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Save motion-correction shifts for later inspection
@@ -110,23 +110,22 @@ Piecewise shift arrays can be large. Outputs are overwritten on repeated runs; c
   movie and unchanged border to CNMF-E, leaves the `MotionCorrect` object
   unchanged, warns and continues on any save failure or missing recording folder,
   writes nothing without metadata, and resets the path for a reused data manager.
-- `tests/test_gui_run_outputs.py`: the inventory reports a written file as
-  exported and an unwritten one as not computed with the right reason.
+- `tests/test_gui_run_outputs.py`: in a real worker run, the real data manager
+  and processor write the file into the run's recording copy, and the inventory
+  reports it as exported (drift guard, AGENTS.md rule 2); an unwritten file is
+  reported as not computed with the right reason.
 - `tests/test_gui_analysis.py`: the run review names the shifts destination only
   when motion correction is enabled, and that destination equals the path the
-  core processor writes for a GUI run (drift guard, AGENTS.md rule 2).
+  core processor writes into the run's recording copy.
 
 ## Verification
 
 The patch below is the full change against base `ded08fd`, excluding this ADR.
-The proposal remains `status: proposed`; publication as a draft PR is not
-maintainer approval.
-
-During review round 1 the full default suite
-(`pytest tests -m "not slow"`), changed-line coverage, documentation coverage,
-the documentation link check and the strict MkDocs build were run; the exact
-results are in the PR. Representative recording checks remain a prerequisite
-for merge.
+It was accepted when PR #152 was merged, after three adversarial review rounds.
+Each round ran the full default suite (`pytest tests -m "not slow"`),
+changed-line coverage, documentation coverage, the documentation link check and
+the strict MkDocs build; the results are in the PR. Representative recording
+validation is handled separately by the lab, as `AGENTS.md` describes.
 
 ## Diff
 
@@ -177,7 +176,7 @@ index 636358d..2c2d60b 100644
  | `preprocessing.npz` | Preprocessing image/timing summaries |
  | `postprocessing.npz`, `components.npz` | Available cell signals and footprints |
 diff --git a/docs/guides/calcium_imaging.md b/docs/guides/calcium_imaging.md
-index 75b419d..5ec907f 100644
+index 75b419d..0a9a455 100644
 --- a/docs/guides/calcium_imaging.md
 +++ b/docs/guides/calcium_imaging.md
 @@ -77,6 +77,38 @@ saving is enabled. GUI runs place that recording copy under
@@ -197,7 +196,7 @@ index 75b419d..5ec907f 100644
 +| `x_shifts_els`, `y_shifts_els` | Piecewise shift per frame and patch, float32, shape `(frames, patches)`. Following CaImAn's naming, `x_shifts_els` is the **row** (vertical) axis and `y_shifts_els` the column (horizontal) axis; same sign as `shifts_rig`. Patches are ordered row by row over the patch grid. | `pw_rigid` runs |
 +| `total_template_rig`, `total_template_els` | Rigid and piecewise templates, float32 | Rigid always; piecewise for `pw_rigid` runs |
 +| `strides`, `overlaps`, `max_shifts`, `upsample_factor_grid`, `shifts_opencv` | Motion settings that locate each patch. With `shifts_opencv` false, CaImAn reports piecewise shifts on a grid refined by `upsample_factor_grid` | Always |
-+| `border_to_0` | CaImAn's largest shift rounded up, in pixels. It is not necessarily what was zeroed: before CNMF-E the pipeline zeroes `border_pix` pixels (saved in `opts_caiman.json`), which is this value unless `border_nan` is `'copy'` (CaImAn's default), in which case no border is zeroed | Always |
++| `border_to_0` | CaImAn's largest shift rounded up, in pixels. It is not necessarily the border the pipeline replaced: before CNMF-E the pipeline fills a border `border_pix` pixels wide with the movie's minimum value (`border_pix` is in `opts_caiman.json` when `save_CNMFE_params` is on). `border_pix` is this value unless `border_nan` is `'copy'` (CaImAn's default), in which case it is 0 and the border is left as it is | Always |
 +| `pw_rigid` | Whether piecewise-rigid correction was requested | Always |
 +| `frame_rate` | Frame rate in Hz | When the recording's frame rate is known |
 +| `source_movie` | Path of the movie the shifts were computed from | Always |
@@ -501,10 +500,10 @@ index ca3afaf..d324046 100644
                  destinations["CaImAn parameters"] = str(directory / "recording" / "saved_movies" / "opts_caiman.json")
          if kind == "multimodal":
 diff --git a/tests/test_gui_analysis.py b/tests/test_gui_analysis.py
-index f74d988..242c76f 100644
+index f74d988..bf19334 100644
 --- a/tests/test_gui_analysis.py
 +++ b/tests/test_gui_analysis.py
-@@ -142,6 +142,44 @@ def test_cnmfe_review_names_exact_destinations_and_respects_disabled_outputs(rec
+@@ -142,6 +142,47 @@ def test_cnmfe_review_names_exact_destinations_and_respects_disabled_outputs(rec
      assert "Neuron estimates" not in review["destinations"]
  
  
@@ -523,7 +522,10 @@ index f74d988..242c76f 100644
 +
 +
 +def test_review_destination_matches_where_the_core_writes_the_shifts(recording):
-+    """Drift guard (AGENTS.md rule 2): the GUI names the path the core processor actually writes."""
++    """Drift guard (AGENTS.md rule 2): the GUI names the path the core processor actually writes.
++
++    ``test_gui_run_outputs`` checks, through a real worker run, that the core writes into ``recording``.
++    """
 +    from types import SimpleNamespace
 +
 +    from aceneurotools.calcium_imaging.calcium_imaging_processor import CalciumImagingProcessor
@@ -550,7 +552,7 @@ index f74d988..242c76f 100644
      root, frames = recording
      project = Project.open(root)
 diff --git a/tests/test_gui_run_outputs.py b/tests/test_gui_run_outputs.py
-index cf7b574..e4be3d2 100644
+index cf7b574..110fbec 100644
 --- a/tests/test_gui_run_outputs.py
 +++ b/tests/test_gui_run_outputs.py
 @@ -6,6 +6,7 @@ from types import SimpleNamespace
@@ -561,29 +563,49 @@ index cf7b574..e4be3d2 100644
  from aceneurotools.gui.run_outputs import OutputInventory, ephys_outputs
  from aceneurotools.gui.run_worker import execute
  from aceneurotools.gui.runs import inventory
-@@ -171,3 +172,41 @@ def test_numeric_object_diagnostics_are_exported_without_pickle(tmp_path):
+@@ -171,3 +172,61 @@ def test_numeric_object_diagnostics_are_exported_without_pickle(tmp_path):
          np.testing.assert_array_equal(saved["neurons_sn"], [119.5, 116.25])
          assert saved["neurons_sn"].dtype.kind == "f"
          np.testing.assert_array_equal(saved["g"], [[0.8], [0.9]])
 +
 +
 +def test_inventory_reports_a_written_motion_correction_shifts_file(worker_case, monkeypatch):
++    """Drift guard (AGENTS.md rule 2): a real worker run makes the core write where the GUI looks.
++
++    The stub pipeline builds the real data manager from the parameters the worker passes and calls
++    the real processor save, so a change to the worker's recording copy or to the core's folder
++    breaks this test. ``test_gui_analysis`` checks that run review names this same path.
++    """
++    from aceneurotools.calcium_imaging.calcium_imaging_data_manager import CalciumImagingDataManager
++    from aceneurotools.calcium_imaging.calcium_imaging_processor import CalciumImagingProcessor
 +    from aceneurotools.pipelines import calcium_imaging as miniscope
 +
 +    root, manifest, dm = worker_case
 +    manifest["parameters"]["apply_motion_correction"] = True
-+    shifts = root / "recording" / "saved_movies" / MOTION_CORRECTION_SHIFTS_FILENAME
++    written = {}
 +
 +    class WritesShifts(miniscope.CalciumImagingPipeline):
 +        def run(self, **params):
-+            # The core writes the file into the run's recording copy during motion correction.
-+            shifts.parent.mkdir(parents=True, exist_ok=True)
-+            np.savez(shifts, shifts_rig=np.zeros((20, 2), dtype=np.float32))
-+            dm.motion_correction_shifts_filepath = str(shifts)
-+            return super().run(**params)
++            manager = CalciumImagingDataManager.create(
++                line_num=params["line_num"],
++                project_path=params["project_path"],
++                data_path=params["data_path"],
++                auto_import_data=False,
++            )
++            manager.fr = 10.0
++            # Motion settings are not read from CSVs here; the record only needs some to look up.
++            manager.opts_caiman = SimpleNamespace(get=lambda group, key: False)
++            motion = SimpleNamespace(shifts_rig=np.zeros((20, 2), dtype=np.float32))
++            written["path"] = CalciumImagingProcessor._save_motion_correction_shifts(
++                object.__new__(CalciumImagingProcessor), manager, motion
++            )
++            dm.motion_correction_shifts_filepath = written["path"]
++            self.calcium_imaging_data_manager = dm
 +
 +    monkeypatch.setattr(miniscope, "CalciumImagingPipeline", WritesShifts)
 +    execute(manifest)
++    expected = root / "recording" / "saved_movies" / MOTION_CORRECTION_SHIFTS_FILENAME
++    assert written["path"] == str(expected) and expected.is_file()
 +    entries = {item["name"]: item for item in json.loads((root / "output-inventory.json").read_text())["outputs"]}
 +    assert entries["motion_correction_shifts"] == {
 +        "name": "motion_correction_shifts",

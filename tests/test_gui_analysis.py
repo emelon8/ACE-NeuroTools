@@ -157,7 +157,10 @@ def test_cnmfe_review_names_the_motion_correction_shifts_destination(recording, 
 
 
 def test_review_destination_matches_where_the_core_writes_the_shifts(recording):
-    """Drift guard (AGENTS.md rule 2): the GUI names the path the core processor actually writes."""
+    """Drift guard (AGENTS.md rule 2): the GUI names the path the core processor actually writes.
+
+    ``test_gui_run_outputs`` checks, through a real worker run, that the core writes into ``recording``.
+    """
     from types import SimpleNamespace
 
     from aceneurotools.calcium_imaging.calcium_imaging_processor import CalciumImagingProcessor
