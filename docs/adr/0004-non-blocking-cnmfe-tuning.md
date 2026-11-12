@@ -46,7 +46,7 @@ opening windows:
   to CaImAn as a list, the only sequence type CaImAn recognizes.
 - `quilt_display_limits(correlation_image)`: the 50th and 99.5th percentiles.
 
-Every function checks its inputs and raises `ValueError` for values the old
+The functions that take settings check them and raise `ValueError` for values the old
 arithmetic could not use: `rf` must be a positive whole number, `stride` a
 non-negative whole number smaller than `2 * rf` (otherwise patches cannot
 advance), frame counts non-negative and `max_frames` positive whole numbers.
@@ -67,8 +67,10 @@ because the inline `gsig_tmp` variable it used to mention no longer exists.
 - Runs without `plot_params`, and runs with valid patch settings, behave as
   before. With `plot_params` on and an unusable `rf`/`stride` (missing, a list,
   or `stride >= 2 * rf`), the run now stops with a `ValueError` after the first
-  window. Before, it failed with a `TypeError` or drew a meaningless quilt, and
-  CaImAn itself cannot build patches when `stride == 2 * rf`.
+  window. Before, it failed with a `TypeError` (missing or list values), with a
+  `ValueError` from `range()` inside CaImAn's `view_quilt` (`stride == 2 * rf`),
+  or drew a single meaningless patch (`stride > 2 * rf`). CaImAn itself cannot
+  build patches when `stride == 2 * rf`.
 - New public names only; nothing is removed.
 
 ## Alternatives
@@ -256,10 +258,10 @@ index 581d6c8..15f1c35 100644
  
 diff --git a/src/aceneurotools/calcium_imaging/cnmfe_tuning.py b/src/aceneurotools/calcium_imaging/cnmfe_tuning.py
 new file mode 100644
-index 0000000..5869daa
+index 0000000..00aedcd
 --- /dev/null
 +++ b/src/aceneurotools/calcium_imaging/cnmfe_tuning.py
-@@ -0,0 +1,126 @@
+@@ -0,0 +1,127 @@
 +"""Window-free CNMF-E parameter-tuning computations.
 +
 +These functions compute the values shown by the interactive ``plot_params``
@@ -346,6 +348,7 @@ index 0000000..5869daa
 +        return int(gsig)
 +    if (
 +        isinstance(gsig, (list, tuple, np.ndarray))
++        and np.ndim(gsig) == 1
 +        and len(gsig) == 2
 +        and all(_is_whole_number(value) and value >= 1 for value in gsig)
 +    ):
@@ -388,10 +391,10 @@ index 0000000..5869daa
 +    return float(np.percentile(values, 50)), float(np.percentile(values, 99.5))
 diff --git a/tests/test_cnmfe_tuning.py b/tests/test_cnmfe_tuning.py
 new file mode 100644
-index 0000000..acd5c76
+index 0000000..bc1163b
 --- /dev/null
 +++ b/tests/test_cnmfe_tuning.py
-@@ -0,0 +1,307 @@
+@@ -0,0 +1,309 @@
 +"""Window-free CNMF-E tuning helpers match the interactive plot_params step."""
 +
 +from types import SimpleNamespace
@@ -556,7 +559,9 @@ index 0000000..acd5c76
 +            np.testing.assert_array_equal(left, right)
 +
 +
-+@pytest.mark.parametrize("gsig", [0, -3, 2.5, True, None, "3", (3,), [3, 3, 3], [0, 3], [3, 2.5], [True, 3]])
++@pytest.mark.parametrize(
++    "gsig", [0, -3, 2.5, True, None, "3", (3,), [3, 3, 3], [0, 3], [3, 2.5], [True, 3], np.array(3), np.ones((2, 2), int)]
++)
 +def test_tuning_images_reject_invalid_kernel_sizes(gsig):
 +    with pytest.raises(ValueError, match="gsig"):
 +        compute_cnmfe_tuning_images(np.zeros((4, 8, 8), dtype=np.float32), gsig=gsig)
@@ -595,7 +600,7 @@ index 0000000..acd5c76
 +
 +@pytest.fixture
 +def tuning_run(monkeypatch):
-+    import caiman
++    caiman = pytest.importorskip("caiman")
 +
 +    from aceneurotools.calcium_imaging import calcium_imaging_processor as module
 +    from aceneurotools.calcium_imaging.calcium_imaging_processor import CalciumImagingProcessor

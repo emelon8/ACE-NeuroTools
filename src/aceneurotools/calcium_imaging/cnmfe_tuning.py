@@ -84,6 +84,7 @@ def _caiman_gsig(gsig: int | Sequence[int]) -> int | list[int]:
         return int(gsig)
     if (
         isinstance(gsig, (list, tuple, np.ndarray))
+        and np.ndim(gsig) == 1
         and len(gsig) == 2
         and all(_is_whole_number(value) and value >= 1 for value in gsig)
     ):

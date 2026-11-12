@@ -162,7 +162,9 @@ def test_tuning_images_match_direct_caiman_call():
             np.testing.assert_array_equal(left, right)
 
 
-@pytest.mark.parametrize("gsig", [0, -3, 2.5, True, None, "3", (3,), [3, 3, 3], [0, 3], [3, 2.5], [True, 3]])
+@pytest.mark.parametrize(
+    "gsig", [0, -3, 2.5, True, None, "3", (3,), [3, 3, 3], [0, 3], [3, 2.5], [True, 3], np.array(3), np.ones((2, 2), int)]
+)
 def test_tuning_images_reject_invalid_kernel_sizes(gsig):
     with pytest.raises(ValueError, match="gsig"):
         compute_cnmfe_tuning_images(np.zeros((4, 8, 8), dtype=np.float32), gsig=gsig)
@@ -201,7 +203,7 @@ class FakeTimer:
 
 @pytest.fixture
 def tuning_run(monkeypatch):
-    import caiman
+    caiman = pytest.importorskip("caiman")
 
     from aceneurotools.calcium_imaging import calcium_imaging_processor as module
     from aceneurotools.calcium_imaging.calcium_imaging_processor import CalciumImagingProcessor
