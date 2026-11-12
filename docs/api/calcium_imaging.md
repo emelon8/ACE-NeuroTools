@@ -12,5 +12,11 @@ This section details the pipeline for processing calcium imaging data.
 ## Processor (CNMF-E)
 ::: aceneurotools.calcium_imaging.calcium_imaging_processor.CalciumImagingProcessor
 
+## Processing result
+::: aceneurotools.calcium_imaging.pipeline_results.ProcessingResult
+
+## Motion-correction record
+::: aceneurotools.calcium_imaging.motion_correction_record
+
 ## Postprocessor
 ::: aceneurotools.calcium_imaging.calcium_imaging_postprocessor.CalciumImagingPostprocessor

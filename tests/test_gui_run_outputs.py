@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
+from aceneurotools.calcium_imaging.motion_correction_record import MOTION_CORRECTION_SHIFTS_FILENAME
 from aceneurotools.gui.run_outputs import OutputInventory, ephys_outputs
 from aceneurotools.gui.run_worker import execute
 from aceneurotools.gui.runs import inventory
@@ -171,3 +172,61 @@ def test_numeric_object_diagnostics_are_exported_without_pickle(tmp_path):
         np.testing.assert_array_equal(saved["neurons_sn"], [119.5, 116.25])
         assert saved["neurons_sn"].dtype.kind == "f"
         np.testing.assert_array_equal(saved["g"], [[0.8], [0.9]])
+
+
+def test_inventory_reports_a_written_motion_correction_shifts_file(worker_case, monkeypatch):
+    """Drift guard (AGENTS.md rule 2): a real worker run makes the core write where the GUI looks.
+
+    The stub pipeline builds the real data manager from the parameters the worker passes and calls
+    the real processor save, so a change to the worker's recording copy or to the core's folder
+    breaks this test. ``test_gui_analysis`` checks that run review names this same path.
+    """
+    from aceneurotools.calcium_imaging.calcium_imaging_data_manager import CalciumImagingDataManager
+    from aceneurotools.calcium_imaging.calcium_imaging_processor import CalciumImagingProcessor
+    from aceneurotools.pipelines import calcium_imaging as miniscope
+
+    root, manifest, dm = worker_case
+    manifest["parameters"]["apply_motion_correction"] = True
+    written = {}
+
+    class WritesShifts(miniscope.CalciumImagingPipeline):
+        def run(self, **params):
+            manager = CalciumImagingDataManager.create(
+                line_num=params["line_num"],
+                project_path=params["project_path"],
+                data_path=params["data_path"],
+                auto_import_data=False,
+            )
+            manager.fr = 10.0
+            # Motion settings are not read from CSVs here; the record only needs some to look up.
+            manager.opts_caiman = SimpleNamespace(get=lambda group, key: False)
+            motion = SimpleNamespace(shifts_rig=np.zeros((20, 2), dtype=np.float32))
+            written["path"] = CalciumImagingProcessor._save_motion_correction_shifts(
+                object.__new__(CalciumImagingProcessor), manager, motion
+            )
+            dm.motion_correction_shifts_filepath = written["path"]
+            self.calcium_imaging_data_manager = dm
+
+    monkeypatch.setattr(miniscope, "CalciumImagingPipeline", WritesShifts)
+    execute(manifest)
+    expected = root / "recording" / "saved_movies" / MOTION_CORRECTION_SHIFTS_FILENAME
+    assert written["path"] == str(expected) and expected.is_file()
+    entries = {item["name"]: item for item in json.loads((root / "output-inventory.json").read_text())["outputs"]}
+    assert entries["motion_correction_shifts"] == {
+        "name": "motion_correction_shifts",
+        "status": "exported",
+        "file": f"recording/saved_movies/{MOTION_CORRECTION_SHIFTS_FILENAME}",
+    }
+
+
+@pytest.mark.parametrize("apply", [False, True])
+def test_inventory_marks_unwritten_motion_correction_shifts_not_computed(worker_case, apply):
+    root, manifest, dm = worker_case
+    manifest["parameters"]["apply_motion_correction"] = apply
+    dm.motion_correction_shifts_filepath = None
+    execute(manifest)
+    entries = {item["name"]: item for item in json.loads((root / "output-inventory.json").read_text())["outputs"]}
+    entry = entries["motion_correction_shifts"]
+    assert entry["status"] == "not_computed"
+    assert ("apply_motion_correction disabled" in entry["reason"]) is (not apply)
+    assert "does not retain" not in entry["reason"]
