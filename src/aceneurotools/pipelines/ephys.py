@@ -9,16 +9,12 @@ from aceneurotools.ephys.ephys_data_manager import EphysDataManager
 from aceneurotools.ephys.ephys_loader import load_ephys_for_analysis
 from aceneurotools.shared.pipeline_defaults import pipeline_defaults
 from aceneurotools.shared.cli_utils import (
-    apply_headless_policy,
-    build_run_params,
-    run_allowed_keys,
-    validate_run_params,
+    add_experiment_arguments,
+    parse_experiment_args,
+    run_pipeline_for_experiments,
+    selected_line_nums,
 )
-from aceneurotools.shared.exceptions import (
-    AceNeuroError,
-    PipelineExecutionError,
-    print_cli_error,
-)
+from aceneurotools.shared.exceptions import PipelineExecutionError
 from aceneurotools.shared.experiment_data_manager import ExperimentDataManager
 
 
@@ -288,7 +284,13 @@ class EphysPipeline:
 
 
 
-if __name__ == "__main__":
+def main(argv=None):
+    """Run ``python -m aceneurotools.pipelines.ephys`` for one or several experiments.
+
+    ``--line-num`` runs one experiment as before. ``--line-nums`` runs several in this
+    process, continuing past failures unless ``--fail-fast`` is given, and exits with
+    code 1 if any experiment failed or was not run.
+    """
     parser = argparse.ArgumentParser(
         description="Run Ephys Analysis Pipeline",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -299,10 +301,12 @@ Examples:
 
   # Run in headless mode (no GUI) for batch processing
   python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /path/to/project --headless
+
+  # Run several experiments one after another, continuing past failures
+  python -m aceneurotools.pipelines.ephys --line-nums 96 97 101 --project-path /path/to/project --headless
 """
     )
-    parser.add_argument('--line-num', type=int, required=True,
-                        help="Experiment line number from experiments.csv")
+    add_experiment_arguments(parser)
     parser.add_argument('--project-path', type=str, required=True,
                         help="Path to project directory (containing experiments.csv)")
     parser.add_argument('--data-path', type=str,
@@ -310,29 +314,24 @@ Examples:
     parser.add_argument('--headless', action='store_true',
                         help="Run in headless mode (no GUI)")
 
-    args = parser.parse_args()
-
-    # Default parameters
-    defaults = pipeline_defaults("ephys")
+    args = parse_experiment_args(parser, argv)
 
     from aceneurotools.shared.config_utils import load_analysis_params
-    run_params = build_run_params(
-        defaults=defaults,
-        allowed_keys=run_allowed_keys(EphysPipeline.run),
-        line_num=args.line_num,
+    code = run_pipeline_for_experiments(
+        pipeline_name="ephys",
+        pipeline_cls=EphysPipeline,
+        defaults=pipeline_defaults("ephys"),
+        line_nums=selected_line_nums(args),
         project_path=args.project_path,
         data_path=args.data_path,
         headless=args.headless,
         csv_loader=load_analysis_params,
+        batch=args.line_nums is not None,
+        fail_fast=args.fail_fast,
     )
-    apply_headless_policy(pipeline_name="ephys", run_params=run_params)
-    validate_run_params(pipeline_name="ephys", run_params=run_params)
+    if code:
+        sys.exit(code)
 
-    e = EphysPipeline()
-    try:
-        e.run(**run_params)
-    except (AceNeuroError, FileNotFoundError, ValueError) as e:
-        print_cli_error(e, include_cause=args.headless)
-        if args.headless:
-            sys.exit(1)
-        raise
+
+if __name__ == "__main__":
+    main()

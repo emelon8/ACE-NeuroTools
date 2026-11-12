@@ -49,6 +49,9 @@ class ProcessingResult:
         opts_caiman: CaImAn ``CNMFParams`` object used during processing.
         motion_corrected_movie_filepath: Path to the motion-corrected memory
             map, or ``None`` if motion correction was not applied.
+        motion_correction_shifts_filepath: Path to the saved per-frame shifts
+            and templates (``motion_correction_shifts.npz``), or ``None`` if
+            motion correction was not applied or the file was not written.
     """
 
     CNMFE_obj: Any
@@ -56,6 +59,7 @@ class ProcessingResult:
     opts_caiman_filepath: str | None
     opts_caiman: Any
     motion_corrected_movie_filepath: str | None
+    motion_correction_shifts_filepath: str | None = None
 
 
 @accept_legacy_keywords(miniscope_phases="calcium_imaging_phases")

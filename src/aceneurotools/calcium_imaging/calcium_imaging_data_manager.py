@@ -153,6 +153,7 @@ class CalciumImagingDataManager(ExperimentDataManager, ABC):
         self.preprocessed_movie_filepath = None #Your preprocessed movie must be saved to disk and its filepath stored here before processing
         self.coords = None #contains the coordinates/shape of your cropped movie
         self.motion_corrected_movie_filepath = None
+        self.motion_correction_shifts_filepath = None
         self.CNMFE_obj = None
         self.estimates_filepath = None
         self.dview = None

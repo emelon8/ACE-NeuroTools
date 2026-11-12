@@ -21,6 +21,9 @@ python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /my/pr
 
 # Run in headless mode
 python -m aceneurotools.pipelines.multimodal --line-num 97 --project-path /my/project --data-path /my/raw_data --headless
+
+# Run several experiments one after another (see "Run several experiments" in Getting started)
+python -m aceneurotools.pipelines.multimodal --line-nums 97 98 --project-path /my/project --data-path /my/raw_data --headless
 ```
 
 ### Python API

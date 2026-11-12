@@ -15,6 +15,9 @@ not exist in your recording.
 python -m aceneurotools.pipelines.ephys --line-num 96 --project-path /my/project --data-path /my/raw_data --headless
 ```
 
+To run several experiments in one command, use `--line-nums`; see
+[Run several experiments](../getting_started.md#run-several-experiments).
+
 `analysis_parameters.csv` is optional for this command; absent settings use
 command defaults. Filtering and phase calculation are off by default. The command
 normally requests channel/spectrogram plots, but headless mode suppresses them.

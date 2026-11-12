@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Remove the duplicate dark-mode switch from the bottom of the GUI navigation;
   the top-bar toggle remains (reported by @Aathok-Git).
+- Stop CaImAn's worker pool when a calcium run fails, so later runs in the same
+  Python session no longer fail with "A cluster is already running".
 - The calcium + ephys movie export finds movies by exact name (movie 1 is never
   `10.avi` or a behavior camera's movie), no longer fails on recordings without a
   "start" event, and saves each selection under its own name.
@@ -33,6 +35,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Save motion-correction shifts, templates and patch settings to
+  `saved_movies/motion_correction_shifts.npz` whenever motion correction runs, and
+  report the file in `ProcessingResult.motion_correction_shifts_filepath` and in
+  the GUI's output inventory and run review. Analysis results are unchanged. If
+  the file cannot be written, the run prints a warning and continues.
+- `aceneurotools.calcium_imaging.cnmfe_tuning` computes the CNMF-E tuning images,
+  patch layout and display limits shown by `plot_params` without opening windows,
+  for example in a notebook. Analysis results are unchanged. With `plot_params`
+  on, unusable `rf`/`stride` settings now stop the run with a clear error.
+- `--line-nums` (and `--fail-fast`) for the calcium imaging, ephys and multimodal
+  commands: run several experiments in one command, continue past failures, print
+  a summary with each failure's cause, and exit 1 if any failed or was not run.
+  `--line-num` is unchanged, and analysis results are unchanged. The CaImAn worker
+  pool is now stopped when calcium processing fails, too.
 - `create_ca_ephys_movie(..., headless=True)` exports without opening windows and
   returns the saved path; `output_path` chooses where it is saved.
 - Installed `ace-gui` workbench with per-launch API authentication and shared

@@ -79,6 +79,37 @@ These examples need actual electrical channels and, for combined recordings,
 verified synchronization information. See the [ephys](guides/ephys.md) and
 [alignment](guides/multimodal.md) guides before running them.
 
+### Run several experiments
+
+Each of these commands also accepts `--line-nums` with several IDs. They run one
+after another in the same process, each with its own saved settings:
+
+```sh
+python -m aceneurotools.pipelines.calcium_imaging --line-nums 96 97 101 --project-path /path/to/project --data-path /path/to/raw_data --headless
+```
+
+- Use either `--line-num` or `--line-nums`, not both. `--line-nums` can be
+  repeated (`--line-nums 96 97 --line-nums 101` runs all three); repeated IDs run
+  once, and IDs must not be negative.
+- The project and data paths are checked once before anything runs. If they are
+  wrong, the command reports it once and exits with `1`.
+- A failed experiment is reported, with the underlying cause, and the next one
+  runs. Add `--fail-fast` to stop at the first failure instead (`--fail-fast` is
+  only accepted with `--line-nums`).
+- At the end the command prints `Completed X of N experiments.`, then each failure
+  as `Failed: <ID> — <error type>: <message> (cause: ...)`, and any IDs not run.
+- The exit code is `1` if any experiment failed or was not run, and `0` otherwise,
+  so scripts and job schedulers can detect partial failures. This also applies to
+  `--line-nums` with a single ID: a failure is reported rather than raised, even
+  without `--headless`. With `--line-num` the behavior and exit code are unchanged.
+- Errors other than settings or recording problems (for example a programming error
+  or Ctrl+C) stop the whole command. The summary of the experiments so far is still
+  printed, with the experiment where it stopped and the IDs not run, before the
+  error is shown.
+
+To keep each experiment fully separate, for example on a cluster, run one
+`--line-num` command per experiment instead.
+
 ## 3. Passing parameters into the pipelines
 
 | Entry point | Effective settings |
