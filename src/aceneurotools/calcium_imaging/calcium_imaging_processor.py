@@ -9,6 +9,12 @@ import numpy as np
 
 import aceneurotools.shared.misc_functions as misc_functions
 from aceneurotools.calcium_imaging.calcium_imaging_data_manager import CalciumImagingDataManager
+from aceneurotools.calcium_imaging.cnmfe_tuning import (
+    cnmfe_patch_geometry,
+    compute_cnmfe_tuning_images,
+    quilt_display_limits,
+)
+from aceneurotools.calcium_imaging.motion_correction_record import save_motion_correction_shifts
 from aceneurotools.calcium_imaging.pipeline_results import ProcessingResult
 from aceneurotools.shared.exceptions import ProcessingError
 
@@ -163,6 +169,7 @@ class CalciumImagingProcessor:
             opts_caiman_filepath=getattr(self.data_manager, 'opts_caiman_filepath', None),
             opts_caiman=self.data_manager.opts_caiman,
             motion_corrected_movie_filepath=getattr(self.data_manager, 'motion_corrected_movie_filepath', None),
+            motion_correction_shifts_filepath=getattr(self.data_manager, 'motion_correction_shifts_filepath', None),
         )
 
         return self.data_manager
@@ -193,9 +200,13 @@ class CalciumImagingProcessor:
             Updated data_manager with motion-corrected memory map.
         """
         motion_correction_object = None
+        #a reused data manager must not report an earlier run's shifts file
+        data_manager.motion_correction_shifts_filepath = None
         if apply_motion_correction:
             #apply motion correction
             motion_correction_object, data_manager.opts_caiman = self._apply_motion_correction(data_manager.opts_caiman, dview)
+            #keep the shifts and templates on disk for later, non-blocking inspection
+            data_manager.motion_correction_shifts_filepath = self._save_motion_correction_shifts(data_manager, motion_correction_object)
             #save the mmap file to disk and add that filepath to opts_caiman
             data_manager.opts_caiman = self._add_temp_mmap_to_opts_caiman(motion_correction_object.mmap_file, data_manager.opts_caiman, data_manager.opts_caiman.get('patch', 'border_pix'))
             #save the mmap file stored in motion_correction_object to data_manager
@@ -207,6 +218,25 @@ class CalciumImagingProcessor:
             self.inspect_motion_correction(motion_correction_object, data_manager.opts_caiman, self.preprocessed_movie, self.data_manager.fr)
 
         return data_manager
+
+    def _save_motion_correction_shifts(self, dm: CalciumImagingDataManager, mc: Any) -> str | None:
+        """Save motion-correction shifts next to the estimates; return the path, or None if not written.
+
+        The record is optional output: any failure to build or write it prints a
+        warning and returns None, so the scientific run continues.
+        """
+        if dm.metadata is None:
+            return None
+        try:
+            save_dir = os.path.join(str(dm.metadata['calcium imaging directory']), "saved_movies")
+            filepath = save_motion_correction_shifts(
+                mc, save_dir, pw_rigid=bool(dm.opts_caiman.get('motion', 'pw_rigid')), frame_rate=dm.fr
+            )
+        except Exception as exc:  # optional output must never stop processing
+            print(f"Warning: motion-correction shifts could not be saved: {exc!r}")
+            return None
+        print(f"Saved motion-correction shifts to {filepath}")
+        return filepath
 
     def cleanup_tkinter(self) -> None:
         """Destroy any active Tkinter root and set the interactive matplotlib backend."""
@@ -220,8 +250,9 @@ class CalciumImagingProcessor:
         """
         -This is an important step before CNMFE. It handles the most important CNMFE parameters.
 
-        -It uses the 'gsig_tmp' below to make the first plot. Adjust this value until the plot shown does not merge any neurons,
-        then update 'gsig' in analysis_parameters.csv with the best 'gsig_tmp' value
+        -The first plot always uses a Gaussian kernel half-size of 3 pixels (``cnmfe_tuning.TUNING_GSIG``). To try other
+        values, call ``cnmfe_tuning.compute_cnmfe_tuning_images(images, gsig=...)`` yourself (for example in a notebook) and
+        adjust it until the plot shown does not merge any neurons, then update 'gSig' in analysis_parameters.csv
 
         -First, this function calculates correlation and peak to noise ratios and plots them. Use the sliders to adjust 'vmax' until neurons are most visible,
         then adjust 'min_corr' and 'min_pnr' in analysis_parameters.csv to values slightly below those vmax values
@@ -242,23 +273,21 @@ class CalciumImagingProcessor:
 
         if plot_params:
             #calculate min correlation/min pnr and plot them
-            gsig_tmp = (3,3)
-            correlation_image, peak_to_noise_ratio = cm.summary_images.correlation_pnr(images[::max(T//1000, 1)], gSig=gsig_tmp[0], swap_dim=False)
+            correlation_image, peak_to_noise_ratio = compute_cnmfe_tuning_images(images)
             if hasattr(dm, 'diag_logger') and dm.diag_logger is not None: dm.diag_logger.pause_timer()
             cm.utils.visualization.inspect_correlation_pnr(correlation_image, peak_to_noise_ratio)
             plt.show(block=True)
             if hasattr(dm, 'diag_logger') and dm.diag_logger is not None: dm.diag_logger.resume_timer()
 
             #Calculate stride/overlap and plot them
-            cnmfe_patch_width = dm.opts_caiman.get('patch', 'rf') * 2 + 1
-            cnmfe_patch_overlap = dm.opts_caiman.get('patch', 'stride') + 1
-            cnmfe_patch_stride = cnmfe_patch_width - cnmfe_patch_overlap
-            print(f'Patch width: {cnmfe_patch_width} , Stride: {cnmfe_patch_stride}, Overlap: {cnmfe_patch_overlap}')
+            patches = cnmfe_patch_geometry(dm.opts_caiman.get('patch', 'rf'), dm.opts_caiman.get('patch', 'stride'))
+            print(f'Patch width: {patches.width} , Stride: {patches.stride}, Overlap: {patches.overlap}')
 
             if hasattr(dm, 'diag_logger') and dm.diag_logger is not None: dm.diag_logger.pause_timer()
-            patch_ax = cm.utils.visualization.view_quilt(correlation_image, cnmfe_patch_stride, cnmfe_patch_overlap, vmin=np.percentile(np.ravel(correlation_image), 50),
-                                                         vmax=np.percentile(np.ravel(correlation_image), 99.5), color='yellow', figsize=(4,4))
-            patch_ax.set_title(f'CNMFE Patch Width {cnmfe_patch_width}, Overlap {cnmfe_patch_overlap}')
+            vmin, vmax = quilt_display_limits(correlation_image)
+            patch_ax = cm.utils.visualization.view_quilt(correlation_image, patches.stride, patches.overlap, vmin=vmin,
+                                                         vmax=vmax, color='yellow', figsize=(4,4))
+            patch_ax.set_title(f'CNMFE Patch Width {patches.width}, Overlap {patches.overlap}')
             plt.show(block=True)
             if hasattr(dm, 'diag_logger') and dm.diag_logger is not None: dm.diag_logger.resume_timer()
 

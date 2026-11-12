@@ -71,6 +71,38 @@ invalid/missing crop until it is saved or disabled.
 Use the [API](../api/calcium_imaging.md) for full details. GUI separate-window
 plots and component-selection dialogs are disabled; use embedded Crop/Neurons.
 
+### Tuning CNMF-E settings
+
+With `plot_params` on (desktop runs only; headless and GUI runs turn it off),
+the run shows two windows before CNMF-E and continues when you close each one:
+
+1. The correlation and peak-to-noise-ratio images, computed with a fixed
+   Gaussian kernel half-size of 3 pixels on every frame of movies shorter than
+   2000 frames, and on every `frames // 1000`-th frame of longer ones. Use the
+   sliders to find where neurons are clearest, then set `min_corr` and `min_pnr`
+   slightly below those values.
+2. The patch layout from `rf` and `stride`: patches are `2 * rf + 1` pixels
+   wide and overlap by `stride + 1` pixels. Choose values so that each patch
+   holds at least 3-4 neuron diameters and at least one neuron fits in the
+   overlap. `stride` must be smaller than `2 * rf`.
+
+To compute the same values without windows, for example in a notebook or to try
+other kernel sizes, use `aceneurotools.calcium_imaging.cnmfe_tuning`:
+
+```python
+from aceneurotools.calcium_imaging.cnmfe_tuning import (
+    cnmfe_patch_geometry,
+    compute_cnmfe_tuning_images,
+    quilt_display_limits,
+)
+
+# images: the motion-corrected movie, frames first: (frames, height, width).
+# CalciumImagingProcessor.cnmfe_parameter_handler returns it as its second value.
+correlation, peak_to_noise = compute_cnmfe_tuning_images(images, gsig=[5, 5])
+patches = cnmfe_patch_geometry(rf=40, stride=20)  # width 81, overlap 21, step 60
+vmin, vmax = quilt_display_limits(correlation)
+```
+
 ## Outputs and interpretation
 
 Successful saved extraction normally creates `saved_movies/estimates.hdf5` within
@@ -79,6 +111,38 @@ saving is enabled. GUI runs place that recording copy under
 `<project>/.ace-runs/<run-id>/recording/` and also export signals, footprints,
 events and available diagnostics; consult [Results](../gui.md#find-and-reopen-results).
 Those GUI exports are not automatically written by direct pipeline calls.
+
+When motion correction runs (`apply_motion_correction`), the per-frame shifts
+are also saved to `saved_movies/motion_correction_shifts.npz`, so the
+correction can be inspected later without running it again. Saving the file does
+not change any analysis result. Read it with
+`aceneurotools.calcium_imaging.motion_correction_record.load_motion_correction_shifts`,
+which returns a dictionary of arrays:
+
+| Key | Contents | Present |
+| --- | --- | --- |
+| `shifts_rig` | Rigid shift per frame, float32, shape `(frames, 2)`. Column 0 is the row (vertical) axis, column 1 the column (horizontal) axis. Values are the correction CaImAn computed, the negative of the movement. For rigid runs this is the correction applied to the movie; for `pw_rigid` runs it comes from the rigid pass CaImAn uses to build the template, and the movie is corrected with the piecewise shifts. | Always, after motion correction |
+| `x_shifts_els`, `y_shifts_els` | Piecewise shift per frame and patch, float32, shape `(frames, patches)`. Following CaImAn's naming, `x_shifts_els` is the **row** (vertical) axis and `y_shifts_els` the column (horizontal) axis; same sign as `shifts_rig`. Patches are ordered row by row over the patch grid. | `pw_rigid` runs |
+| `total_template_rig`, `total_template_els` | Rigid and piecewise templates, float32 | Rigid always; piecewise for `pw_rigid` runs |
+| `strides`, `overlaps`, `max_shifts`, `upsample_factor_grid`, `shifts_opencv` | Motion settings that locate each patch. With `shifts_opencv` false, CaImAn reports piecewise shifts on a grid refined by `upsample_factor_grid` | Always |
+| `border_to_0` | CaImAn's largest shift rounded up, in pixels. It is not necessarily the border the pipeline replaced: before CNMF-E the pipeline fills a border `border_pix` pixels wide with the movie's minimum value (`border_pix` is in `opts_caiman.json` when `save_CNMFE_params` is on). `border_pix` is this value unless `border_nan` is `'copy'` (CaImAn's default), in which case it is 0 and the border is left as it is | Always |
+| `pw_rigid` | Whether piecewise-rigid correction was requested | Always |
+| `frame_rate` | Frame rate in Hz | When the recording's frame rate is known |
+| `source_movie` | Path of the movie the shifts were computed from | Always |
+| `saved_at` | Time the file was written, UTC, ISO 8601 | Always |
+| `skipped_attributes` | Names of values that could not be stored as numbers and were left out | Only when something was skipped |
+
+`source_movie` names the input movie, not the run: every run with the same
+preprocessing reads the same movie path. A later run without motion correction,
+or one whose save fails, leaves an earlier file in place, so compare `saved_at`
+with the time of the run, or use the path the run reports in
+`ProcessingResult.motion_correction_shifts_filepath`, which is `None` when that
+run did not write the file. The file is written to a temporary file, flushed to
+disk and then renamed, so a save that fails with an error never leaves a partial
+file; a run killed outright during the save can leave a hidden
+`.motion_correction_shifts.npz.*.tmp` file in `saved_movies/`, which is safe to
+delete. If the file cannot be written for any reason, the run prints a warning
+and continues.
 
 The core pipeline computes projection phases and spectra before filtering;
 those describe the unfiltered projection even if `inline=True` replaces the

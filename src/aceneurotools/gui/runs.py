@@ -14,6 +14,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from aceneurotools.calcium_imaging.motion_correction_record import MOTION_CORRECTION_SHIFTS_FILENAME
 from aceneurotools.gui.csv_projects import ProjectError
 from aceneurotools.gui.recording_scope import apply_scope
 from aceneurotools.gui.run_specs import PIPELINES, effective_parameters
@@ -251,6 +252,10 @@ class Runs:
                     / "recording"
                     / "saved_movies"
                     / str(params.get("save_CNMFE_estimates_filename", "estimates.hdf5"))
+                )
+            if params.get("apply_motion_correction"):
+                destinations["Motion-correction shifts (when written)"] = str(
+                    directory / "recording" / "saved_movies" / MOTION_CORRECTION_SHIFTS_FILENAME
                 )
             if params.get("save_CNMFE_params"):
                 destinations["CaImAn parameters"] = str(directory / "recording" / "saved_movies" / "opts_caiman.json")
