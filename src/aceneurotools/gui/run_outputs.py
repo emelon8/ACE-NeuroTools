@@ -168,12 +168,10 @@ def miniscope_outputs(report, dm):
         ("caiman_parameters", "opts_caiman_filepath", "save_CNMFE_params"),
         ("preprocessed_movie", "preprocessed_movie_filepath", None),
         ("motion_corrected_movie", "motion_corrected_movie_filepath", "apply_motion_correction"),
+        ("motion_correction_shifts", "motion_correction_shifts_filepath", "apply_motion_correction"),
     ]:
         report.artifact(name, getattr(dm, attribute, None), flag)
     report.missing("correlation_pnr_diagnostics", reason="Interactive plot diagnostics are not computed by the GUI run")
-    report.missing(
-        "motion_correction_shifts", reason="The core pipeline does not retain a motion-correction object or shifts"
-    )
     report.diagnostics.update(
         neuron_count=len(ids) if ids is not None else None,
         inline_requested=params.get("inline"),

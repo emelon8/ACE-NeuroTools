@@ -171,7 +171,7 @@ spreadsheet can display. Ask the analyst to inspect those arrays.
 | Location within a run | Contents when the corresponding step succeeds |
 | --- | --- |
 | `run.log`, CSV snapshots, `effective-parameters.json` | Log and settings used for that run |
-| `recording/saved_movies/` | Processed movies, saved estimates and CaImAn settings when enabled |
+| `recording/saved_movies/` | Processed movies, saved estimates and CaImAn settings when enabled, and `motion_correction_shifts.npz` when motion correction runs |
 | `calcium_signals/meanFluorescence_<ID>.npz` | Mean fluorescence |
 | `preprocessing.npz` | Preprocessing image/timing summaries |
 | `postprocessing.npz`, `components.npz` | Available cell signals and footprints |
