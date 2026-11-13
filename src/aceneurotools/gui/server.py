@@ -16,7 +16,7 @@ from aceneurotools.gui.box_setup import BoxSetup, BoxSetupError
 from aceneurotools.gui.cropping import Cropping, preview_file, saved_previews
 from aceneurotools.gui.csv_projects import Project, ProjectChangedError, ProjectError
 from aceneurotools.gui.features import ENABLED
-from aceneurotools.gui.native_dialogs import NativeDialogs
+from aceneurotools.gui.native_dialogs import NativeDialogs, PickerOpenError
 from aceneurotools.gui.neurons import Neurons
 from aceneurotools.gui.recordings import Recordings
 from aceneurotools.gui.routes import Context, Feature, FileResponse, Registry, Route, load_features
@@ -92,7 +92,7 @@ EXPERIMENT_POST_ROUTES = frozenset(
     }
 )
 PROJECT_POST_ROUTES = frozenset(
-    {"/api/projects/open", "/api/projects/default", "/api/experiment/create", "/api/system/pick", "/api/system/open-folder"}
+    {"/api/projects/open", "/api/projects/default", "/api/experiment/create", "/api/system/pick", "/api/system/pick/dismiss", "/api/system/open-folder"}
 )
 BUILTIN_ROUTES = frozenset(
     {("GET", path) for path in BUILTIN_GET_ROUTES}
@@ -414,6 +414,9 @@ class Handler(BaseHTTPRequestHandler):
             if route == "/api/system/pick":
                 self._json(self.server.native.pick(body))
                 return
+            if route == "/api/system/pick/dismiss":
+                self._json(self.server.native.dismiss())
+                return
             if route == "/api/system/open-folder":
                 if not isinstance(body.get("path"), str) or not body["path"].strip():
                     raise ProjectError("Choose an output folder.")
@@ -530,6 +533,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(project.summary())
         except ProjectChangedError as exc:
             self._json({"error": str(exc), "reload": True}, 409)
+        except PickerOpenError as exc:
+            self._json({"error": str(exc), "picker_open": True}, 409)
         except (ProjectError, BoxSetupError, OSError, ValueError) as exc:
             self._json({"error": str(exc)}, 400)
 
