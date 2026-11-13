@@ -152,8 +152,8 @@ async function chooseRunMovies(control) {
       if (paths.some(path => !path.startsWith(recording.recording_path + "/") || !/\.avi$/i.test(path))) throw new Error("Choose AVI files within this experiment's recording folder. Change the recording folder in Data & settings to use other data.");
       control.value = JSON.stringify(paths.map(path => path.split("/").pop())); control.dispatchEvent(new Event("input", {bubbles:true}));
     };
-    const result = await post("/api/system/pick", {kind:"movies", initial:recording.recording_path});
-    if (!result.available) fallback = () => browseFolders(recording.recording_path, {kind:"movie-files", onpick:path => apply([path])});
+    const result = await systemPick({kind:"movies", initial:recording.recording_path});
+    if (!result.available || (result.dismissed && !result.paths.length)) fallback = () => browseFolders(recording.recording_path, {kind:"movie-files", onpick:path => apply([path])});
     else if (result.paths.length) apply(result.paths);
     $("analysis-status").textContent = "Save any filename changes before reviewing the run.";
   });

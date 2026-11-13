@@ -118,6 +118,8 @@ def test_system_picker_routes_and_arbitrary_file_browser(viewer, monkeypatch):
     assert request(base, "/api/system/pick", {"kind": "folder"})[1]["paths"] == [str(folder)]
     assert request(base, "/api/system/pick", {"kind": "folder"}, {"Origin": "https://foreign.invalid"})[0] == 403
     assert request(base, "/api/system/open-folder", {"path": []})[0] == 400
+    assert request(base, "/api/system/pick/dismiss", {})[1] == {"dismissed": False}
+    assert request(base, "/api/system/pick/dismiss", {}, {"Origin": "https://foreign.invalid"})[0] == 403
     (folder / "Events.nev").touch()
     assert any(
         item["name"] == "Events.nev" for item in request(base, f"/api/folders?path={folder}&files=all")[1]["files"]

@@ -50,7 +50,10 @@ after opening the project and review inherited defaults before running analysis.
    typing only `http://127.0.0.1:8765/` will not reconnect an unauthenticated tab.
 3. Choose **Open project** and select the folder containing `experiments.csv`.
    You can also select the file itself. If a system picker is unavailable, use
-   the folder browser in ACE and choose **Open this project**.
+   the folder browser in ACE and choose **Open this project**. If you cannot see
+   the picker window, it may be behind your browser: switch to it (on a Mac,
+   **Cmd+Tab**), or choose **Browse in ACE instead** in the message at the bottom
+   of ACE to close it and use ACE's folder browser.
 4. Select the experiment and check its subject, date, and recording locations
    in **Overview**. The experiment number is its ID, not its spreadsheet row.
 

@@ -638,7 +638,22 @@ async function saveChanges(event) {
   } catch (error) { showError(error); }
   finally { busy = false; $("editor-form").inert = false; updateSaveBar(); }
 }
-let pickerBusy = false;
+let pickerBusy = false, pickerDismissed = false;
+// Opens the system picker. The window can open behind the browser (notably on
+// macOS), so the status toast offers ACE's own folder browser as a way out.
+async function systemPick(body) {
+  pickerDismissed = false;
+  $("picker-message").textContent = "Choose a location in the file picker window. If you can't see it, it may be behind this browser.";
+  $("picker-escape").disabled = false; $("picker-status").hidden = false;
+  try { return {...await post("/api/system/pick", body), dismissed: pickerDismissed}; }
+  finally { $("picker-status").hidden = true; }
+}
+$("picker-escape").onclick = async () => {
+  pickerDismissed = true; $("picker-escape").disabled = true;
+  // Not dismissed: the picker had not started yet, so let the user try again.
+  try { if (!(await post("/api/system/pick/dismiss", {})).dismissed) { pickerDismissed = false; $("picker-escape").disabled = false; } }
+  catch (error) { pickerDismissed = false; $("picker-escape").disabled = false; showError(error); }
+};
 function applyPickedPath(path, target) {
   if (target?.onpick) { target.onpick(path); return; }
   else if (target?.kind === "neuron-estimates") { chooseNeuronSource(path); $("neuron-load").focus(); }
@@ -657,15 +672,15 @@ async function browse(path, target = null) {
   let initial = target?.field ? fieldValue(target.field) : path;
   if (!initial || initial.includes("\\")) initial = path || project?.path;
   if (initial && !initial.startsWith("/")) initial = (path || project?.path || "") + "/" + initial;
-  $("picker-status").hidden = false; $("picker-status").textContent = "Choose a location in the system file picker, or cancel to return.";
   $("main-content").inert = true;
   try {
-    const result = await post("/api/system/pick", {kind: target?.kind === "neuron-estimates" ? "estimates" : target?.field?.kind === "file" ? "file" : "folder", initial});
+    const result = await systemPick({kind: target?.kind === "neuron-estimates" ? "estimates" : target?.field?.kind === "file" ? "file" : "folder", initial});
     $("main-content").inert = false;
-    if (!result.available) { await browseFolders(path, target); $("folder-description").textContent += " · System picker unavailable; choose a location here."; }
+    if (result.dismissed && !result.paths.length) await browseFolders(path, target);
+    else if (!result.available) { await browseFolders(path, target); $("folder-description").textContent += " · System picker unavailable; choose a location here."; }
     else if (result.paths.length) applyPickedPath(result.paths[0], target);
   } catch (error) { showError(error); }
-  finally { pickerBusy = false; $("main-content").inert = false; $("picker-status").hidden = true; }
+  finally { pickerBusy = false; $("main-content").inert = false; }
 }
 async function openSystemFolder(path) {
   try { await post("/api/system/open-folder", {path}); }

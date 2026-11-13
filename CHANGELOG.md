@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Bring the macOS file picker to the front with the system chooser instead of a
+  Tk window that could open behind the browser, and add **Browse in ACE
+  instead** to close a hidden picker and use the built-in folder browser
+  (reported by a lab tester on an M1 MacBook Air).
 - Remove the duplicate dark-mode switch from the bottom of the GUI navigation;
   the top-bar toggle remains (reported by @Aathok-Git).
 - Stop CaImAn's worker pool when a calcium run fails, so later runs in the same
@@ -63,6 +67,8 @@ published yet; a lab channel and scoped publishing credential must be configured
 - **Olympus edition** capabilities merged from `ace-neurotools-olympus-edition`: master CLI (`ace-neuro` console script), `python -m aceneurotools.init` project bootstrap, compute and stats pipelines (`pipelines.compute`, `pipelines.stats`), miniscope pipeline results and projections helpers, multimodal stats stack (lab config, stats config/loader, coherence, scatter, signal utilities), ephys loader, shared plotting and signal-processing helpers, and example `configs/*.json` plus `run_stats.bat` for Windows stats runs.
 
 ### Changed
+- Keep the install guide to user steps; package-channel status and lock
+  platform coverage now live on the packaging page.
 - Renamed project and Python module from `ace-neuro` / `ace_neuro` to **ACE-NeuroTools** (display) and `aceneurotools` (Python module / distribution name). Source tree moved from `src/ace_neuro/` to `src/aceneurotools/`; all imports, CLI entry points (e.g. `python -m aceneurotools.pipelines.miniscope`), docs, and tutorial notebooks updated.
 - Renamed the optional path-fallback environment variable from `ACE_NEURO_DATA` to `ACE_NEUROTOOLS_DATA` (hard cutover, no backward-compat shim). HPC submit scripts, shell profiles, and CI configuration that previously exported `ACE_NEURO_DATA` must be updated.
 - Resolved env-var docstring contradiction in `src/aceneurotools/shared/paths.py` and `src/aceneurotools/shared/experiment_data_manager.py`: both now correctly document `ACE_NEUROTOOLS_DATA` as a last-resort default for HPC submit scripts (no `.env` lookup).

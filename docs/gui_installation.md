@@ -1,10 +1,8 @@
 # Install and open ACE
 
-ACE runs on your computer and opens its interface in a web browser. The current
-installation uses Miniforge to install the analysis tools, then installs ACE from
-its Git repository. **A project conda package channel is not published yet.**
-There is no current one-command package installation or source-install desktop
-shortcut. Publication is tracked in [issue #128](https://github.com/emelon8/ACE-NeuroTools/issues/128).
+ACE runs on your computer and opens its interface in a web browser. Installation
+uses Miniforge to install the analysis tools, then installs ACE from its Git
+repository.
 
 ## Before you begin
 
@@ -40,11 +38,7 @@ runtime depend on the recording; start with a short representative recording.
 
 Install [Miniforge using its official instructions](https://github.com/conda-forge/miniforge#install).
 Choose the installer matching your operating system and processor: Intel/AMD
-Windows, Intel Mac, Apple silicon Mac, or your Linux architecture. Availability
-of a Miniforge installer does not establish ACE support for that platform.
-The checked-in scientific environment lock covers Linux x86-64 and Windows
-x86-64; Mac installations resolve from `environment.yml`. Full recording analysis
-still needs acceptance testing on your operating system and hardware.
+Windows, Intel Mac, Apple silicon Mac, or your Linux architecture.
 
 - **Windows:** use the installer for your user account and its Start menu prompt.
   You do not need to add Miniforge to the system PATH. Open **Miniforge Prompt**
@@ -164,7 +158,8 @@ server automatically.
 An interface that opens without a project is expected. If you do not already
 have a project, [prepare one from the templates](gui.md#prepare-a-project).
 Choose **Open project** and select your project folder or its `experiments.csv`. If the system
-picker is unavailable, use ACE's embedded folder browser. You do not need to
+picker is unavailable, use ACE's embedded folder browser. If no picker window
+appears, choose **Browse in ACE instead** at the bottom of the ACE page. You do not need to
 start ACE from inside the project folder.
 
 Follow [Use the experiment workbench](gui.md) to select the local recording,
@@ -250,6 +245,7 @@ environment, then repeat the checks.
 | Browser cannot connect | Confirm the terminal still runs ACE, then copy its complete printed local address into a browser on the same computer. |
 | Browser asks you to reopen ACE | Use the current launch address including its token, rather than a bookmark from an earlier launch. |
 | Project opens but recording is missing | Download the recording first, then choose its local recording folder or data base folder as described in the workbench guide. |
+| **Open project** shows a message but no picker window | The picker may be behind your browser. Switch to it (on a Mac, **Cmd+Tab**), or choose **Browse in ACE instead** in the message to use ACE's own folder browser. |
 | No desktop shortcut | This is expected for the source installation. Use the two launch commands above. |
 
 ## Report an installation problem
@@ -261,15 +257,3 @@ the error text, operating system and processor type, and outputs from
 available. Include the dependency-check output and source revision if you reached
 those steps. Remove the private launch token. For analysis failures, also include
 the experiment ID, analysis name, and the run's `run.log` from **Results**.
-
-## Package availability
-
-The future conda package is intended to provide an **ACE NeuroTools** shortcut as
-well as `ace-gui`. Its channel and installation command must be published and
-validated before replacing the source steps here. Until then, use the source
-installation above. Package building and publication are described separately in
-[the release guide](releasing.md#package-channel-setup).
-
-See [packaging](packaging.md) for the locked CI environment and installed-package
-checks, and [conda's environment guide](https://docs.conda.io/projects/conda/en/stable/user-guide/tasks/manage-environments.html)
-for environment management.

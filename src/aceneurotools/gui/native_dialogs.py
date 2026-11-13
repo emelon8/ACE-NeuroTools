@@ -28,6 +28,31 @@ print(json.dumps(list(value) if isinstance(value, tuple) else [value] if value e
 root.destroy()
 """
 
+# macOS: the system chooser, brought to the front. A Tk window started from a
+# terminal often opens behind the browser, leaving the user waiting on a picker
+# they cannot see. Arguments arrive through argv, never through the script text.
+MAC_PICKER = """
+on run argv
+    set promptText to item 1 of argv
+    set startFolder to POSIX file (item 2 of argv)
+    set pickKind to item 3 of argv
+    tell current application to activate
+    if pickKind is "folder" then
+        set picked to {choose folder with prompt promptText default location startFolder}
+    else if pickKind is "movies" then
+        set picked to choose file with prompt promptText default location startFolder with multiple selections allowed
+    else
+        set picked to {choose file with prompt promptText default location startFolder}
+    end if
+    set output to ""
+    repeat with chosen in picked
+        set output to output & POSIX path of chosen & linefeed
+    end repeat
+    return output
+end run
+"""
+MAC_CANCELLED = "(-128)"
+
 
 def desktop_environment():
     environment = dict(os.environ)
@@ -49,6 +74,35 @@ def desktop_environment():
 class NativeDialogs:
     def __init__(self):
         self.lock = threading.Lock()
+        self.process_lock = threading.Lock()
+        self.process = None
+
+    def _run(self, command, environment):
+        """Run one dialog process, keeping a handle so ``dismiss`` can close it."""
+
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=environment)
+        with self.process_lock:
+            self.process = process
+        try:
+            stdout, stderr = process.communicate(timeout=300)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.communicate()
+            raise
+        finally:
+            with self.process_lock:
+                self.process = None
+        return process.returncode, stdout, stderr
+
+    def dismiss(self):
+        """Close an open system picker so the GUI can offer its own folder browser."""
+
+        with self.process_lock:
+            process = self.process
+            if process is None or process.poll() is not None:
+                return {"dismissed": False}
+            process.terminate()
+        return {"dismissed": True}
 
     def pick(self, body):
         kind = body.get("kind", "folder")
@@ -81,6 +135,8 @@ class NativeDialogs:
             raise ProjectError("A system file picker is already open. Choose a location or cancel it first.")
         try:
             zenity, kdialog = shutil.which("zenity"), shutil.which("kdialog")
+            osascript = shutil.which("osascript") if sys.platform == "darwin" else None
+            tk = False
             if sys.platform.startswith("linux") and zenity:
                 command = [zenity, "--file-selection", f"--title={title}", f"--filename={initial}{os.sep}"]
                 if kind == "folder":
@@ -96,7 +152,10 @@ class NativeDialogs:
                 command.extend(["--title", title])
                 if kind == "movies":
                     command.extend(["--multiple", "--separate-output"])
+            elif osascript:
+                command = [osascript, "-e", MAC_PICKER, title, str(initial), kind]
             else:
+                tk = True
                 command = [
                     sys.executable,
                     "-c",
@@ -105,15 +164,14 @@ class NativeDialogs:
                         dict(kind=kind, title=title, initial=str(initial), types=types, multiple=kind == "movies")
                     ),
                 ]
-            result = subprocess.run(command, capture_output=True, text=True, env=environment, timeout=300, check=False)
-            if result.returncode == 1:  # Native chooser cancellation.
-                return {
-                    "available": "-c" not in command and "cannot open display" not in result.stderr.lower(),
-                    "paths": [],
-                }
-            if result.returncode != 0:
+            returncode, stdout, stderr = self._run(command, environment)
+            if returncode == 1:  # Native chooser cancellation.
+                if osascript:
+                    return {"available": MAC_CANCELLED in stderr, "paths": []}
+                return {"available": not tk and "cannot open display" not in stderr.lower(), "paths": []}
+            if returncode != 0:
                 return {"available": False, "paths": []}
-            paths = json.loads(result.stdout) if "-c" in command else result.stdout.rstrip("\n").split("\n")
+            paths = json.loads(stdout) if tk else stdout.rstrip("\n").split("\n")
             paths = [str(Path(value).expanduser().resolve()) for value in paths if value]
             if len(paths) > 1 and kind != "movies":
                 raise ProjectError("Choose one file or folder.")

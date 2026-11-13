@@ -92,7 +92,7 @@ EXPERIMENT_POST_ROUTES = frozenset(
     }
 )
 PROJECT_POST_ROUTES = frozenset(
-    {"/api/projects/open", "/api/projects/default", "/api/experiment/create", "/api/system/pick", "/api/system/open-folder"}
+    {"/api/projects/open", "/api/projects/default", "/api/experiment/create", "/api/system/pick", "/api/system/pick/dismiss", "/api/system/open-folder"}
 )
 BUILTIN_ROUTES = frozenset(
     {("GET", path) for path in BUILTIN_GET_ROUTES}
@@ -413,6 +413,9 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if route == "/api/system/pick":
                 self._json(self.server.native.pick(body))
+                return
+            if route == "/api/system/pick/dismiss":
+                self._json(self.server.native.dismiss())
                 return
             if route == "/api/system/open-folder":
                 if not isinstance(body.get("path"), str) or not body["path"].strip():
