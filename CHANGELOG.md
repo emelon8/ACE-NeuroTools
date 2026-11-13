@@ -15,7 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Python session no longer fail with "A cluster is already running".
 - The calcium + ephys movie export finds movies by exact name (movie 1 is never
   `10.avi` or a behavior camera's movie), no longer fails on recordings without a
-  "start" event, and saves each selection under its own name.
+  "start" event, closes its figure when saving fails, and saves each selection
+  under its own name (`miniscope_ephys_movie3.mp4`, `miniscope_ephys_0.25-1.5s.mp4`)
+  instead of overwriting `miniscope_ephys_animation.mp4`. A missing or ambiguous
+  movie now raises an error instead of printing a message. Analysis results are
+  unchanged.
 - Align bundled CSV example rows with their headers and allow local recording
   checks when optional Box columns are absent.
 - Report a missing explicit CLI configuration as an error without launching setup.
@@ -49,8 +53,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a summary with each failure's cause, and exit 1 if any failed or was not run.
   `--line-num` is unchanged, and analysis results are unchanged. The CaImAn worker
   pool is now stopped when calcium processing fails, too.
-- `create_ca_ephys_movie(..., headless=True)` exports without opening windows and
-  returns the saved path; `output_path` chooses where it is saved.
+- `create_ca_ephys_movie(..., headless=True, save_movie=True)` exports without
+  opening windows and returns the saved path; `output_path` chooses where it is
+  saved. Movie numbers may be NumPy integers and time ranges tuples.
 - Installed `ace-gui` workbench with per-launch API authentication and shared
   CLI/GUI defaults. CSVs remain the settings source of truth.
 - GUI feature registry and run plans: new workbench screens register their own

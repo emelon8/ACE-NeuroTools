@@ -167,7 +167,15 @@ def test_exports_are_named_after_their_selection_or_output_path(export, monkeypa
     assert chosen.read_bytes() == b"movie"
 
 
-@pytest.mark.parametrize("events", [{"labels": [], "timestamps": []}, None, {"labels": np.array(["TTL Input"])}])
+@pytest.mark.parametrize(
+    "events",
+    [
+        {"labels": [], "timestamps": []},
+        {"labels": np.array([]), "timestamps": np.array([])},  # Neuralynx without events: an empty float array
+        None,
+        {"labels": np.array(["TTL Input"])},
+    ],
+)
 def test_recordings_without_a_start_event_export_without_the_marker(export, events, capsys):
     export.channel.events = events
     visualizer.create_ca_ephys_movie(export.dm, export.ttl, export.channel, movie_num=0, save_movie=True, headless=True)
@@ -193,9 +201,10 @@ def test_a_failed_save_is_raised_and_leaves_no_figure(export):
 def test_invalid_requests_raise_when_headless_and_print_otherwise(export, change, message, capsys):
     if "dm_metadata" in change:
         export.dm.metadata = None
-    kwargs = {"movie_num": change.get("movie_num", 0), "plot_ephys": change.get("plot_ephys", True)}
+    kwargs = {"movie_num": change.get("movie_num", 0), "plot_ephys": change.get("plot_ephys", True), "save_movie": True}
     with pytest.raises(ValueError, match=message):
         visualizer.create_ca_ephys_movie(export.dm, export.ttl, export.channel, headless=True, **kwargs)
+    kwargs["save_movie"] = False
     assert visualizer.create_ca_ephys_movie(export.dm, export.ttl, export.channel, headless=False, **kwargs) is None
     assert message in capsys.readouterr().out
 
@@ -236,3 +245,89 @@ def test_crop_uses_supplied_coordinates_without_a_crop_window(export, monkeypatc
     assert calls == {"coords": {"x0": 2, "y0": 1, "x1": 10, "y1": 9}, "headless": True}
     ax = draw(Recorder.instances[0], 5)
     np.testing.assert_array_equal(ax.images[0].get_array(), export.movie[5, 1:9, 2:10])
+
+
+def test_time_range_exports_find_their_movies_by_exact_name(export, monkeypatch):
+    chained = []
+    monkeypatch.setattr(visualizer.cm, "load_movie_chain", lambda paths: chained.append(paths) or export.movie.copy())
+    saved = visualizer.create_ca_ephys_movie(
+        export.dm, export.ttl, export.channel, time_range=(0.25, 1.5), save_movie=True, headless=True
+    )
+    assert chained == [[str(export.root / "Miniscope" / "0.avi")]], "movie 0, not 10.avi; a tuple range is accepted"
+    assert Path(saved).name == "miniscope_ephys_0.25-1.5s.mp4"
+
+
+def test_close_time_ranges_get_different_file_names(export, monkeypatch):
+    monkeypatch.setattr(
+        visualizer, "find_ca_movie_filenums",
+        lambda channel, ttl, dm, time_range: ([str(export.root / "Miniscope" / "0.avi")], np.array([0, FRAMES - 1])),
+    )
+    monkeypatch.setattr(visualizer.cm, "load_movie_chain", lambda paths: export.movie.copy())
+    names = {
+        Path(visualizer.create_ca_ephys_movie(
+            export.dm, export.ttl, export.channel, time_range=np.array([0.0, end]), save_movie=True, headless=True
+        )).name
+        for end in (1234.561, 1234.564)
+    }
+    assert names == {"miniscope_ephys_0-1234.561s.mp4", "miniscope_ephys_0-1234.564s.mp4"}
+
+
+def test_numpy_movie_numbers_are_accepted(export):
+    saved = visualizer.create_ca_ephys_movie(
+        export.dm, export.ttl, export.channel, movie_num=np.int64(0), save_movie=True, headless=True
+    )
+    assert Path(saved).name == "miniscope_ephys_movie0.mp4"
+    assert export.loaded == [str(export.root / "Miniscope" / "0.avi")]
+
+
+@pytest.mark.parametrize("headless", [True, False])
+def test_missing_or_ambiguous_movies_raise_in_both_modes(export, headless):
+    with pytest.raises(FileNotFoundError, match="5.avi"):
+        visualizer.create_ca_ephys_movie(
+            export.dm, export.ttl, export.channel, movie_num=5, save_movie=True, headless=headless, play_movie=False
+        )
+    touch(export.root / "BehavCam_0" / "0.avi")
+    with pytest.raises(ValueError, match="more than one folder"):
+        visualizer.create_ca_ephys_movie(
+            export.dm, export.ttl, export.channel, movie_num=0, save_movie=True, headless=headless, play_movie=False
+        )
+    assert export.loaded == []
+
+
+def test_a_headless_export_without_saving_stops_before_loading(export):
+    with pytest.raises(ValueError, match="needs save_movie=True"):
+        visualizer.create_ca_ephys_movie(export.dm, export.ttl, export.channel, movie_num=0, headless=True)
+    assert export.loaded == [] and Recorder.instances == []
+
+
+def test_headless_crop_without_coordinates_raises_instead_of_exporting_uncropped(export, monkeypatch):
+    class Preprocessor:
+        def __init__(self, manager):
+            pass
+
+        def compute_projections(self, movie):
+            return None
+
+        def get_crop_coordinates(self, coords, projections, height, width, headless=False):
+            return None  # What the real preprocessor returns headless without coordinates.
+
+    monkeypatch.setattr(visualizer, "CalciumImagingPreprocessor", Preprocessor)
+    monkeypatch.setattr(visualizer, "get_coords_dict_from_analysis_params", lambda dm: (None, None))
+    with pytest.raises(ValueError, match="no crop coordinates"):
+        visualizer.create_ca_ephys_movie(
+            export.dm, export.ttl, export.channel, movie_num=0, crop=True, save_movie=True, headless=True
+        )
+    assert Recorder.instances == [] and not (export.root / "saved_movies").exists()
+
+
+def test_a_failed_interactive_export_closes_its_figure(export, monkeypatch):
+    monkeypatch.undo()  # Use real pyplot figures for the interactive path, then re-patch the rest.
+    monkeypatch.setattr(visualizer.cm, "load", lambda path: export.movie.copy())
+    monkeypatch.setattr(visualizer.animation, "FuncAnimation", Recorder)
+    Recorder.fail = OSError("ffmpeg is not installed")
+    plt.close("all")
+    with pytest.raises(OSError, match="ffmpeg"):
+        visualizer.create_ca_ephys_movie(
+            export.dm, export.ttl, export.channel, movie_num=0, play_movie=False, save_movie=True
+        )
+    assert plt.get_fignums() == [], "the figure (and the movie its animation holds) was released"

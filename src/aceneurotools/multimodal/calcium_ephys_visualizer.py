@@ -1,3 +1,4 @@
+import numbers
 import os
 from typing import TYPE_CHECKING
 
@@ -68,6 +69,15 @@ def create_ca_ephys_movie(
     if not plot_ephys and not plot_mean_fluorescence:
         return stop('Note: you have chosen not to overlay an ephys signal nor the mean fluroescence.')
 
+    if headless and not save_movie:
+        return stop('Error: a headless export needs save_movie=True; otherwise nothing is shown or saved.')
+
+    # Accept NumPy integers (for example read from a CSV) and tuple/array time ranges.
+    if isinstance(time_range, (tuple, np.ndarray)):
+        time_range = list(time_range)
+    if isinstance(movie_num, numbers.Integral) and not isinstance(movie_num, bool):
+        movie_num = int(movie_num)
+
     if type(time_range) == list:
         if movie_num != None:
             print('Please only provide either a time range or a video number, not both! Proceeding with time range...')
@@ -93,6 +103,9 @@ def create_ca_ephys_movie(
         preprocessor = CalciumImagingPreprocessor(miniscope_dm)
         projections = preprocessor.compute_projections(movie)
         final_coords = preprocessor.get_crop_coordinates(coords_dict, projections, movie.shape[1], movie.shape[2], headless=headless)
+        if final_coords is None and headless:
+            return stop('Error: crop=True but no crop coordinates were given or saved in analysis_parameters.csv. '
+                        'Pass crop_coords, save crop coordinates, or set crop=False.')
         if final_coords is not None:
             movie, _ = preprocessor.crop_movie(movie, final_coords)
 
@@ -197,24 +210,32 @@ def create_ca_ephys_movie(
         ax.set_axis_off()
         return []
 
-    # Create the animation
-    ani = animation.FuncAnimation(fig, update, frames=len(movie), interval=playback_interval, repeat=False)
+    try:
+        # Create the animation
+        ani = animation.FuncAnimation(fig, update, frames=len(movie), interval=playback_interval, repeat=False)
 
-    # Display the animation
-    if play_movie and not headless:
-        plt.show()
+        # Display the animation
+        if play_movie and not headless:
+            plt.show()
 
-    # Save the animation
-    saved_path = None
-    if save_movie:
-        if output_path is None:
-            if type(time_range) == list:
-                label = f'{float(time_range[0]):g}-{float(time_range[1]):g}s'
-            else:
-                label = f'movie{movie_num}'
-            output_path = os.path.join(miniscope_dir_path, 'saved_movies', f'miniscope_ephys_{label}.mp4')
-        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
-        ani.save(output_path, dpi=300)
-        saved_path = str(output_path)
+        # Save the animation
+        saved_path = None
+        if save_movie:
+            if output_path is None:
+                if type(time_range) == list:
+                    # Shortest exact form of each time, so different ranges never share a name.
+                    start, end = (np.format_float_positional(float(t), trim='-') for t in time_range[:2])
+                    label = f'{start}-{end}s'
+                else:
+                    label = f'movie{movie_num}'
+                output_path = os.path.join(miniscope_dir_path, 'saved_movies', f'miniscope_ephys_{label}.mp4')
+            os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+            ani.save(output_path, dpi=300)
+            saved_path = str(output_path)
+    except BaseException:
+        # Free the figure (and the movie its animation holds) when display or export fails.
+        if not headless:
+            plt.close(fig)
+        raise
     return saved_path
 
