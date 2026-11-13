@@ -9,10 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Bring the macOS file picker to the front with the system chooser instead of a
-  Tk window that could open behind the browser, and add **Browse in ACE
-  instead** to close a hidden picker and use the built-in folder browser
-  (reported by a lab tester on an M1 MacBook Air).
+- Use the macOS system chooser, asked to open in front, instead of a Tk window
+  that could open behind the browser, and add **Browse in ACE instead** to close
+  a hidden picker and use the built-in folder browser. A picker left open by a
+  reloaded page is closed the next time a picker is requested (reported by a lab
+  tester on an M1 MacBook Air). Analysis results are unchanged.
 - Remove the duplicate dark-mode switch from the bottom of the GUI navigation;
   the top-bar toggle remains (reported by @Aathok-Git).
 - Stop CaImAn's worker pool when a calcium run fails, so later runs in the same

@@ -46,7 +46,7 @@ async function request(url, options) {
   try { response = await apiFetch(url, options); }
   catch { throw new Error("The experiment application is not responding. Restart it and try again. Your unsaved changes are still on this page."); }
   const result = await response.json();
-  if (!response.ok) { const error = new Error(result.error || `Request failed (${response.status}).`); error.reload = result.reload; throw error; }
+  if (!response.ok) { const error = new Error(result.error || `Request failed (${response.status}).`); error.reload = result.reload; error.pickerOpen = result.picker_open; throw error; }
   return result;
 }
 const post = (url, payload) => request(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload)});
@@ -646,6 +646,13 @@ async function systemPick(body) {
   $("picker-message").textContent = "Choose a location in the file picker window. If you can't see it, it may be behind this browser.";
   $("picker-escape").disabled = false; $("picker-status").hidden = false;
   try { return {...await post("/api/system/pick", body), dismissed: pickerDismissed}; }
+  catch (error) {
+    // A picker left open (e.g. before a page reload) blocks new ones: close it
+    // and use ACE's folder browser rather than strand the user.
+    if (!error.pickerOpen) throw error;
+    await post("/api/system/pick/dismiss", {});
+    return {available: true, paths: [], dismissed: true};
+  }
   finally { $("picker-status").hidden = true; }
 }
 $("picker-escape").onclick = async () => {

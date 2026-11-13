@@ -245,7 +245,7 @@ environment, then repeat the checks.
 | Browser cannot connect | Confirm the terminal still runs ACE, then copy its complete printed local address into a browser on the same computer. |
 | Browser asks you to reopen ACE | Use the current launch address including its token, rather than a bookmark from an earlier launch. |
 | Project opens but recording is missing | Download the recording first, then choose its local recording folder or data base folder as described in the workbench guide. |
-| **Open project** shows a message but no picker window | The picker may be behind your browser. Switch to it (on a Mac, **Cmd+Tab**), or choose **Browse in ACE instead** in the message to use ACE's own folder browser. |
+| **Open project** shows a message but no picker window | The picker may be behind your browser. Choose **Browse in ACE instead** in the message to use ACE's own folder browser. You can also switch to the picker; on a Mac it may be listed as "osascript" in **Cmd+Tab**. |
 | No desktop shortcut | This is expected for the source installation. Use the two launch commands above. |
 
 ## Report an installation problem

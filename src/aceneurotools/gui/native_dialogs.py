@@ -28,13 +28,14 @@ print(json.dumps(list(value) if isinstance(value, tuple) else [value] if value e
 root.destroy()
 """
 
-# macOS: the system chooser, brought to the front. A Tk window started from a
-# terminal often opens behind the browser, leaving the user waiting on a picker
-# they cannot see. Arguments arrive through argv, never through the script text.
+# macOS: the system chooser, asked to come to the front. A Tk window started
+# from a terminal often opens behind the browser, leaving the user waiting on a
+# picker they cannot see. Arguments arrive through argv, never through the script
+# text. Each path ends with a linefeed; osascript adds one more.
 MAC_PICKER = """
 on run argv
     set promptText to item 1 of argv
-    set startFolder to POSIX file (item 2 of argv)
+    set startFolder to (POSIX file (item 2 of argv)) as alias
     set pickKind to item 3 of argv
     tell current application to activate
     if pickKind is "folder" then
@@ -52,6 +53,10 @@ on run argv
 end run
 """
 MAC_CANCELLED = "(-128)"
+
+
+class PickerOpenError(ProjectError):
+    """A system picker is still open, perhaps from a page that was reloaded."""
 
 
 def desktop_environment():
@@ -132,7 +137,7 @@ class NativeDialogs:
         if sys.platform.startswith("linux") and not (environment.get("DISPLAY") or environment.get("WAYLAND_DISPLAY")):
             return {"available": False, "paths": []}
         if not self.lock.acquire(blocking=False):
-            raise ProjectError("A system file picker is already open. Choose a location or cancel it first.")
+            raise PickerOpenError("A system file picker is already open. Choose a location or cancel it first.")
         try:
             zenity, kdialog = shutil.which("zenity"), shutil.which("kdialog")
             osascript = shutil.which("osascript") if sys.platform == "darwin" else None
@@ -171,7 +176,12 @@ class NativeDialogs:
                 return {"available": not tk and "cannot open display" not in stderr.lower(), "paths": []}
             if returncode != 0:
                 return {"available": False, "paths": []}
-            paths = json.loads(stdout) if tk else stdout.rstrip("\n").split("\n")
+            if tk:
+                paths = json.loads(stdout)
+            elif osascript and kind != "movies":  # One path, which may itself contain a linefeed.
+                paths = [stdout.removesuffix("\n").removesuffix("\n")]
+            else:
+                paths = stdout.rstrip("\n").split("\n")
             paths = [str(Path(value).expanduser().resolve()) for value in paths if value]
             if len(paths) > 1 and kind != "movies":
                 raise ProjectError("Choose one file or folder.")

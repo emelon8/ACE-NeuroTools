@@ -16,7 +16,7 @@ from aceneurotools.gui.box_setup import BoxSetup, BoxSetupError
 from aceneurotools.gui.cropping import Cropping, preview_file, saved_previews
 from aceneurotools.gui.csv_projects import Project, ProjectChangedError, ProjectError
 from aceneurotools.gui.features import ENABLED
-from aceneurotools.gui.native_dialogs import NativeDialogs
+from aceneurotools.gui.native_dialogs import NativeDialogs, PickerOpenError
 from aceneurotools.gui.neurons import Neurons
 from aceneurotools.gui.recordings import Recordings
 from aceneurotools.gui.routes import Context, Feature, FileResponse, Registry, Route, load_features
@@ -533,6 +533,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(project.summary())
         except ProjectChangedError as exc:
             self._json({"error": str(exc), "reload": True}, 409)
+        except PickerOpenError as exc:
+            self._json({"error": str(exc), "picker_open": True}, 409)
         except (ProjectError, BoxSetupError, OSError, ValueError) as exc:
             self._json({"error": str(exc)}, 400)
 
