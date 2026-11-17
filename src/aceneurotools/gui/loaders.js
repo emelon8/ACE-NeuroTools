@@ -27,6 +27,7 @@
     event_labels: sync => ({strategy: "event_labels", labels: Array.isArray(sync.labels) ? sync.labels : []}),
     digital_threshold: sync => ({strategy: "digital_threshold", channel: typeof sync.channel === "string" ? sync.channel : "", threshold: typeof sync.threshold === "number" ? sync.threshold : 0.5, edge: sync.edge || "rising"}),
     shared_clock: () => ({strategy: "shared_clock"}),
+    none: () => ({strategy: "none"}),
   };
 
   // ── Messages ──────────────────────────────────────────────────────────────
@@ -71,7 +72,8 @@
     $("loaders-delete").onclick = remove;
     $("loaders-detect").onclick = () => working(detect);
     try { state.schema = await request("/api/loaders/schema"); }
-    catch (error) { fail(error, "The loader editor could not load"); return; }
+    // Rethrown so show() clears state.ready and the next visit retries.
+    catch (error) { fail(error, "The loader editor could not load"); error.shown = true; throw error; }
     const {choices, templates, preview} = state.schema;
     const options = (select, values, label = value => value) => select.replaceChildren(...values.map(value => { const option = element("option", label(value)); option.value = value; return option; }));
     options($("loaders-f-io"), choices.neo_ios);
@@ -89,7 +91,7 @@
   async function show(current) {
     state.ready ||= prepare();
     try { await state.ready; }
-    catch (error) { state.ready = null; showError(error); return; }
+    catch (error) { state.ready = null; if (!error.shown) showError(error); return; }
     const available = projects.map(item => item.id);
     if (current) state.projectId = current.id;
     else if (!available.includes(state.projectId)) state.projectId = available.length === 1 ? available[0] : (available[0] || null);

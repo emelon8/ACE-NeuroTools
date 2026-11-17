@@ -96,7 +96,7 @@
         <fieldset class="field-group loaders-form">
           <h3>Synchronisation with imaging</h3>
           <div class="fields-grid">
-            <div class="field"><label for="loaders-f-sync">Sync method</label><select id="loaders-f-sync" data-path="sync.strategy"><option value="event_labels">Recorded events with these labels</option><option value="digital_threshold">Threshold crossings on a channel</option><option value="shared_clock">Shared hardware clock (no sync pulses)</option></select></div>
+            <div class="field"><label for="loaders-f-sync">Sync method</label><select id="loaders-f-sync" data-path="sync.strategy"><option value="event_labels">Recorded events with these labels</option><option value="digital_threshold">Threshold crossings on a channel</option><option value="shared_clock">Shared hardware clock (no sync pulses)</option><option value="none">None (ephys only, no imaging)</option></select></div>
             <div class="field wide" id="loaders-labels-field"><label for="loaders-f-labels">Event labels (one per line)</label><textarea id="loaders-f-labels" data-path="sync.labels" rows="2" spellcheck="false"></textarea></div>
             <div class="field" id="loaders-channel-field"><label for="loaders-f-channel">Sync channel</label><input id="loaders-f-channel" data-path="sync.channel" autocomplete="off" spellcheck="false"></div>
             <div class="field" id="loaders-threshold-field"><label for="loaders-f-threshold">Threshold</label><input id="loaders-f-threshold" data-path="sync.threshold" inputmode="decimal" autocomplete="off"></div>

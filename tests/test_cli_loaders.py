@@ -299,3 +299,31 @@ def test_cli_and_workbench_reserve_the_same_names() -> None:
     gui_loaders._builtins_cache = None
     assert cli._reserved_loader_names() == gui_loaders.reserved_names()
     assert {"neuralynx", "neuralynxdatamanager", "rhs2116", "rhs2116datamanager"} <= cli._reserved_loader_names()
+
+
+def test_validate_reports_a_built_in_name_with_other_problems(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    doc = json.loads((EXAMPLES / "neuralynx-example.json").read_text())
+    doc["name"] = "neuralynx"
+    doc["lable"] = "typo"
+    path = tmp_path / "neuralynx.json"
+    path.write_text(json.dumps(doc))
+    assert cli.main(["loaders", "validate", str(path)]) == 1
+    _, err = capsys.readouterr()
+    assert "lable" in err and "'neuralynx' is already used by a built-in loader" in err
+
+
+def test_detect_reports_a_failing_can_handle(
+    project: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    class Broken:
+        @staticmethod
+        def can_handle(folder: Path) -> bool:
+            raise OSError("network drive went away")
+
+    real = cli._builtin_ephys_loaders
+    monkeypatch.setattr(cli, "_builtin_ephys_loaders", lambda: [("BrokenDataManager", Broken), *real()])
+    rec = _touch(tmp_path / "rec", "Events.nev", "CSC1.ncs")
+    assert cli.main(["loaders", "detect", str(rec), "--project-path", str(project)]) == 0
+    out, err = capsys.readouterr()
+    assert "BrokenDataManager.can_handle() failed: network drive went away" in err
+    assert "NeuralynxDataManager" in out

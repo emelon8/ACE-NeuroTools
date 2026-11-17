@@ -80,17 +80,17 @@ index 4d40b18..593f200 100644
  #: Read-only ``mode`` values for neo IOs that accept only some of READ_ONLY_MODES.
 -READ_ONLY_MODES_BY_IO: Mapping[str, tuple[str, ...]] = {"NixIO": ("ro",)}
 +READ_ONLY_MODES_BY_IO: Mapping[str, tuple[str, ...]] = {"NixIO": ("ro",), "NWBIO": ("r",)}
- 
+
  #: neo reader arguments a definition may not set: they name files, folders or
  #: caches (neo's cache is unpickled with joblib), and the loader alone decides
  #: which files a reader opens.
 -_DENIED_ARG_RE = re.compile(r"file|dir|path|folder|cache|dll|url", re.IGNORECASE)
 +_DENIED_ARG_RE = re.compile(r"file|dir|path|folder|cache|dll|url|override", re.IGNORECASE)
- 
+
  #: neo IO classes a definition may not name, with the reason.
  DENIED_NEO_IOS: Mapping[str, str] = {
 @@ -115,11 +115,14 @@ DENIED_NEO_IOS: Mapping[str, str] = {
- 
+
  NAME_PATTERN = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
  NAME_MAX_LENGTH = 64
 +#: Names Windows reserves for devices: ``loaders/nul.json`` is not an ordinary file there.
@@ -98,7 +98,7 @@ index 4d40b18..593f200 100644
  ROLE_PATTERN = r"^[a-z][a-z0-9_]*$"
  VARIABLE_PATTERN = r"^[a-z][a-z0-9_]*$"
  INDEX_PLACEHOLDER = "{index}"
- 
+
  _NAME_RE = re.compile(NAME_PATTERN)
 +_WINDOWS_DEVICE_RE = re.compile(WINDOWS_DEVICE_NAME_PATTERN)
  _ROLE_RE = re.compile(ROLE_PATTERN)
@@ -106,8 +106,8 @@ index 4d40b18..593f200 100644
  _PLACEHOLDER_RE = re.compile(r"\{([^{}]*)\}")
 @@ -544,6 +547,24 @@ def _parameters(func: Any) -> tuple[set[str], bool]:
      return names, var_kw
- 
- 
+
+
 +def _init_parameters(cls: Any) -> tuple[set[str], bool]:
 +    """Named ``__init__`` parameters of a neo IO and whether it accepts other names.
 +
@@ -157,7 +157,7 @@ index 4d40b18..593f200 100644
 +                    "cannot be set in a definition: it names files, folders or a cache, "
 +                    "and the loader alone chooses which files a reader opens",
 +                )
- 
+
      def time(self, value: object, backend: str | None, roles: Mapping[str, object]) -> None:
          if not isinstance(value, dict):
 @@ -1481,7 +1510,12 @@ def definition_json_schema() -> dict[str, Any]:
@@ -190,11 +190,11 @@ index 593f200..7a02da6 100644
 +#: Most '/'-separated segments a pattern may have. pathlib.Path.glob builds one
 +#: nested selector per segment, so a few hundred raise RecursionError.
 +MAX_GLOB_SEGMENTS = 32
- 
+
  _NAME_RE = re.compile(NAME_PATTERN)
  _WINDOWS_DEVICE_RE = re.compile(WINDOWS_DEVICE_NAME_PATTERN)
 @@ -468,8 +471,8 @@ def check_relative_glob(pattern: object) -> str | None:
- 
+
      Patterns are evaluated with :meth:`pathlib.Path.glob` under the recording
      folder. They must use ``/`` separators and may not be absolute, start with
 -    ``~`` or a drive letter, contain backslashes, or have empty, ``.`` or
@@ -220,8 +220,8 @@ index 593f200..7a02da6 100644
 -    r"(?!(?:.*/)?(?:[^/]*[^/]\*\*|\*\*[^/])).+$"
 +    r"(?!(?:.*/)?(?:[^/]*[^/]\*\*|\*\*[^/]))(?!(?:[^/]*/){32}).+$"
  )
- 
- 
+
+
 ```
 
 ## Effect on callers and results

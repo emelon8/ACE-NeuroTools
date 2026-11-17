@@ -85,7 +85,7 @@ LOADERS_DIRNAME = "loaders"
 
 MODALITIES = ("ephys",)
 BACKENDS = ("neo", "raw_binary")
-SYNC_STRATEGIES = ("event_labels", "digital_threshold", "shared_clock")
+SYNC_STRATEGIES = ("event_labels", "digital_threshold", "shared_clock", "none")
 PICK_MODES = ("only", "first_listed", "oldest_modified", "first_sorted")
 PATH_SOURCES = ("recording_folder", "file", "file_parent")
 TIME_SOURCES = ("reader", "clock_file", "sample_index")
@@ -111,6 +111,7 @@ _DENIED_ARG_RE = re.compile(r"file|dir|path|folder|cache|dll|url|override", re.I
 DENIED_NEO_IOS: Mapping[str, str] = {
     "PickleIO": "PickleIO unpickles files, which can run arbitrary code",
     "NeurosharectypesIO": "NeurosharectypesIO loads a native library named in its arguments",
+    "Plexon2IO": "Plexon2IO downloads and loads a native library at run time",
 }
 
 NAME_PATTERN = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
@@ -168,6 +169,7 @@ FIELDS: Mapping[str, tuple[frozenset[str], frozenset[str]]] = {
     "sync.event_labels": (frozenset({"strategy", "labels"}), frozenset()),
     "sync.digital_threshold": (frozenset({"strategy", "channel", "threshold"}), frozenset({"edge"})),
     "sync.shared_clock": (frozenset({"strategy"}), frozenset()),
+    "sync.none": (frozenset({"strategy"}), frozenset()),
 }
 
 Scalar = str | int | float | bool | None
@@ -762,6 +764,7 @@ class _Validator:
             self.channels(data["channels"], backend)
         if "sync" in data:
             self.sync(data["sync"], backend)
+            self.sync_fits(data)
 
     def detect(self, value: object) -> None:
         d = self.obj(value, "detect", "detect")
@@ -959,6 +962,9 @@ class _Validator:
         if read_block is None:
             self.add("reader.io", f"{io_name} has no read_block method")
             return
+        if not _reads_blocks(cls):
+            self.add("reader.io", f"{io_name} cannot read a whole recording (neo Block), which the loader needs")
+            return
         block_params, block_var_kw = _parameters(read_block)
         for key in block_args:
             if not block_var_kw and key not in block_params:
@@ -1052,7 +1058,7 @@ class _Validator:
         assert s is not None
         if strategy == "event_labels":
             if backend == "raw_binary":
-                self.add("sync.strategy", "raw_binary readers record no events; use digital_threshold or shared_clock")
+                self.add("sync.strategy", "raw_binary readers record no events; use digital_threshold, shared_clock or none")
             if "labels" in s:
                 self.string_list(s["labels"], "sync.labels", non_empty=True)
         elif strategy == "digital_threshold":
@@ -1062,6 +1068,40 @@ class _Validator:
                 self.number(s["threshold"], "sync.threshold")
             if "edge" in s:
                 self.choice(s["edge"], "sync.edge", EDGES)
+
+
+    def sync_fits(self, data: dict[str, Any]) -> None:
+        """Checks that need the sync section together with the time and channel sections."""
+        s, t, c, r = (data.get(key) for key in ("sync", "time", "channels", "reader"))
+        if not all(isinstance(item, dict) for item in (s, t, c, r)):
+            return
+        strategy = s.get("strategy")
+        if strategy == "shared_clock" and t.get("source") == "sample_index":
+            # Sample-index times start at 0 for each recording, so they are not on
+            # any clock imaging shares; a loader would silently misalign them.
+            self.add(
+                "sync.strategy",
+                "shared_clock needs times from a hardware clock ('clock_file' or 'reader'); "
+                "'sample_index' times start at 0. Use digital_threshold on the channel that records "
+                "the imaging pulses, or none for a recording without imaging",
+            )
+        if strategy == "digital_threshold" and isinstance(s.get("channel"), str) and c.get("source") == "template":
+            template, count = c.get("template"), r.get("channel_count")
+            if isinstance(template, str) and INDEX_PLACEHOLDER in template and _is_int(count) and count >= 1:
+                names = [template.replace(INDEX_PLACEHOLDER, str(i)) for i in range(count)]
+                if s["channel"] not in names:
+                    self.add(
+                        "sync.channel",
+                        f"'{s['channel']}' is not one of this loader's {count} channels ({names[0]} to {names[-1]})",
+                    )
+
+
+def _reads_blocks(cls: type) -> bool:
+    """Whether a neo IO really reads a Block, not only inheriting BaseIO's stub that raises."""
+    from neo.core import Block
+    from neo.io.baseio import BaseIO
+
+    return getattr(cls, "read_block", None) is not BaseIO.read_block or Block in getattr(cls, "readable_objects", ())
 
 
 def validate_definition(data: object) -> list[DefinitionProblem]:
@@ -1349,9 +1389,21 @@ def _require_safe(pattern: str) -> None:
         raise ValueError(f"unsafe pattern {pattern!r}: {reason}")
 
 
+def _hidden(path: Path, directory: Path, pattern: str) -> bool:
+    """A match inside or named like a hidden entry that the pattern did not ask for.
+
+    ``Path.glob("*.rhd")`` also matches ``._rec.rhd``, the resource-fork copy
+    macOS writes on drives it does not own. Names starting with ``.`` match only
+    when a pattern segment itself starts with ``.``, as in a shell.
+    """
+    if any(segment.startswith(".") for segment in pattern.split("/")):
+        return False
+    return any(part.startswith(".") for part in path.relative_to(directory).parts)
+
+
 def _glob(directory: Path, pattern: str) -> list[Path]:
     _require_safe(pattern)
-    return list(directory.glob(pattern))
+    return [path for path in directory.glob(pattern) if not _hidden(path, directory, pattern)]
 
 
 def matching_files(definition: LoaderDefinition | Detect, directory: str | Path) -> dict[str, list[Path]]:
@@ -1380,7 +1432,7 @@ def definition_matches(definition: LoaderDefinition | Detect, directory: str | P
 
     def found(pattern: str) -> bool:
         _require_safe(pattern)
-        return next(iter(folder.glob(pattern)), None) is not None
+        return any(not _hidden(path, folder, pattern) for path in folder.glob(pattern))
 
     if not all(found(p) for p in detect.all_of):
         return False
@@ -1539,6 +1591,7 @@ def definition_json_schema() -> dict[str, Any]:
                         {"$ref": "#/$defs/sync_event_labels"},
                         {"$ref": "#/$defs/sync_digital_threshold"},
                         {"$ref": "#/$defs/sync_shared_clock"},
+                        {"$ref": "#/$defs/sync_none"},
                     ]
                 },
             },
@@ -1669,5 +1722,6 @@ def definition_json_schema() -> dict[str, Any]:
                 ["channel", "strategy", "threshold"],
             ),
             "sync_shared_clock": closed({"strategy": {"const": "shared_clock"}}, ["strategy"]),
+            "sync_none": closed({"strategy": {"const": "none"}}, ["strategy"]),
         },
     }

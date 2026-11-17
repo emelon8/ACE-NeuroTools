@@ -644,3 +644,62 @@ def test_device_named_file_is_listed_as_needing_a_new_name(served):
     assert entry["editable"] is False and entry["valid"] is False
     status, result = call(served, "/api/loaders/definition", project=served[2].id, name="con")
     assert status == 400 and "reserved device name" in result["error"]
+
+
+@pytest.mark.parametrize("action", ["save", "delete"])
+def test_edit_made_during_backup_is_refused_not_overwritten(served, monkeypatch, action):
+    _, result = save(served, "my-rig", definition())
+    path = folder(served) / "my-rig.json"
+    elsewhere = definition(label="Edited elsewhere")
+    real_backup = loaders._backup
+    made = []
+
+    def backup_then_edit(*args):
+        made.append(real_backup(*args))
+        path.write_text(elsewhere)  # another editor saves while the backup is written
+        return made[-1]
+
+    monkeypatch.setattr(loaders, "_backup", backup_then_edit)
+    if action == "save":
+        status, error = save(served, "my-rig", definition(label="Mine"), result["digest"])
+    else:
+        status, error = call(
+            served, "/api/loaders/delete", {"project": served[2].id, "name": "my-rig", "digest": result["digest"]}
+        )
+    assert status == 409 and error["reload"]
+    assert path.read_text() == elsewhere
+    assert made and not Path(made[0]).exists()  # the backup of the replaced copy is not left behind
+    assert not list(folder(served).glob(".ace-loader-*"))
+
+
+def test_unreadable_definition_is_listed_with_its_problem(served, monkeypatch):
+    save(served, "my-rig", definition())
+    save(served, "other", definition(name="other"))
+    real_read = loaders._read
+
+    def read(path):
+        if path.name == "other.json":
+            raise loaders.ProjectError("Cannot read other.json: Permission denied")
+        return real_read(path)
+
+    monkeypatch.setattr(loaders, "_read", read)
+    status, result = call(served, "/api/loaders", project=served[2].id)
+    assert status == 200
+    entries = {item["name"]: item for item in result["definitions"]}
+    assert entries["my-rig"]["valid"]
+    assert not entries["other"]["valid"] and entries["other"]["digest"] is None
+    assert any("Permission denied" in item["message"] for item in entries["other"]["problems"])
+
+
+def test_suggestions_skip_hidden_files_and_unlistable_folders(tmp_path, monkeypatch):
+    monkeypatch.setattr(loaders.ld, "neo_io_names", lambda: [])
+    (tmp_path / "._rec.dat").write_bytes(b"\0" * 8)
+    assert loaders._suggest_loaders(tmp_path, [], []) == []
+    (tmp_path / "rec.dat").write_bytes(b"\0" * 8)
+    assert [item["patterns"] for item in loaders._suggest_loaders(tmp_path, [], [])] == [["*.dat"]]
+
+    def unlistable(self):
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(Path, "iterdir", unlistable)
+    assert loaders._suggest_loaders(tmp_path, [], []) == []

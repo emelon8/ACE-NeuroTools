@@ -706,6 +706,7 @@ def test_resolve_files_pick_modes(tmp_path: Path) -> None:
             RHS2116,
             _set("reader.files", [{"role": "ac", "pattern": "*.csv", "pick": pick}]),
             _set("time", {"source": "sample_index", "sampling_rate_hz": 1.0}),
+            _set("sync", {"strategy": "none"}),
         ))
 
     assert resolve_files(with_pick("first_sorted"), folder).files["ac"].name == "a_2.csv"
@@ -845,6 +846,7 @@ def _object_schemas(schema: dict[str, Any]) -> dict[str, dict[str, Any]]:
         "sync.event_labels": defs["sync_event_labels"],
         "sync.digital_threshold": defs["sync_digital_threshold"],
         "sync.shared_clock": defs["sync_shared_clock"],
+        "sync.none": defs["sync_none"],
     }
 
 
@@ -1330,3 +1332,49 @@ def test_deep_patterns_are_refused_before_matching_can_overflow(tmp_path: Path) 
     # The limit itself still matches normally.
     limit = "/".join(["x"] * ld.MAX_GLOB_SEGMENTS)
     assert definition_matches(ld.Detect(any_of=(limit,)), tmp_path) is False
+
+
+def test_shared_clock_needs_hardware_clock_times() -> None:
+    doc = _mutated(RHS2116, _set("time", {"source": "sample_index", "sampling_rate_hz": 30000}))
+    assert doc["sync"] == {"strategy": "shared_clock"}
+    problems = [p for p in validate_definition(doc) if p.path == "sync.strategy"]
+    assert problems and "start at 0" in problems[0].message
+    assert validate_definition(_raw(RHS2116)) == []  # clock_file times may share a clock
+
+
+def test_sync_channel_must_be_one_of_the_template_channels() -> None:
+    template = json.loads((Path(ld.__file__).parent / "loader_templates" / "raw-binary.json").read_text())
+    assert validate_definition(template) == []
+    template["reader"]["channel_count"] = 4
+    problems = [p for p in validate_definition(template) if p.path == "sync.channel"]
+    assert problems and "CH0 to CH3" in problems[0].message
+    template["sync"]["channel"] = "CH3"
+    assert validate_definition(template) == []
+
+
+def test_readers_that_cannot_read_a_block_are_rejected() -> None:
+    doc = _raw(NEURALYNX)
+    doc["reader"]["io"] = "AsciiSpikeTrainIO"
+    doc["reader"]["path_argument"] = "filename"
+    doc["reader"].pop("args", None)
+    messages = [p.message for p in validate_definition(doc) if p.path == "reader.io"]
+    assert any("cannot read a whole recording" in m for m in messages), messages
+
+
+def test_plexon2_is_denied() -> None:
+    doc = _raw(NEURALYNX)
+    doc["reader"]["io"] = "Plexon2IO"
+    assert any("not allowed" in p.message for p in validate_definition(doc) if p.path == "reader.io")
+
+
+def test_hidden_files_do_not_match_or_get_picked(tmp_path: Path) -> None:
+    template = json.loads((Path(ld.__file__).parent / "loader_templates" / "raw-binary.json").read_text())
+    definition = parse_definition(template)
+    (tmp_path / "._rec.dat").write_bytes(b"\0" * 4096)
+    assert not definition_matches(definition, tmp_path)
+    assert matching_files(definition, tmp_path) == {"*.dat": []}
+    (tmp_path / "rec.dat").write_bytes(b"\0" * 64)
+    assert definition_matches(definition, tmp_path)
+    assert resolve_files(definition, tmp_path).files["signal"].name == "rec.dat"  # 'only' is not confused by ._rec.dat
+    hidden = parse_definition({**template, "detect": {"all_of": ["._*.dat"]}})
+    assert definition_matches(hidden, tmp_path)  # asked for explicitly

@@ -151,7 +151,8 @@ def _project_definitions(project):
     try:
         return ld.load_project_definitions(project.path, reserved_names=reserved_names())
     except RecursionError:
-        # load_project_definitions does not catch this for very deeply nested JSON.
+        # load_definition reports deeply nested JSON, but validating or matching an
+        # unusual definition could still recurse too far; keep the page usable.
         raise ProjectError(
             "A file in the loaders folder is nested too deeply to read. Remove or fix it outside ACE."
         ) from None
@@ -193,7 +194,13 @@ def listing(context):
         for path in sorted(folder.glob("*.json")):
             if not path.is_file():
                 continue
-            content = _read(path)
+            try:
+                content = _read(path)
+            except ProjectError as exc:
+                # One unreadable file is shown with its problem; it does not hide the others.
+                content = None
+                if path.name not in issues:
+                    issues[path.name] = [ld.DefinitionProblem("", str(exc))]
             definition = valid.get(path.name)
             label = definition.label if definition else None
             if definition is None and content is not None:
@@ -340,13 +347,25 @@ def save(context):
             handle.write(payload)
         mode = path.stat().st_mode & 0o777 if current is not None else 0o644
         os.chmod(staged, mode)
-        _check_version(path, expected)
         if current is not None:
             backup = _backup(project, path.stem, current, mode)
+        # Checked again after the backup, right before the replace, so an edit made
+        # elsewhere while the backup was written is refused rather than overwritten.
+        _recheck(path, expected, backup)
         os.replace(staged, path)
     finally:
         staged.unlink(missing_ok=True)
     return {"name": path.stem, "digest": _digest(payload), "backup": backup, "created": current is None}
+
+
+def _recheck(path: Path, expected: Any, backup: str | None) -> None:
+    """Repeat the version check; on a conflict, drop the backup just written for it."""
+    try:
+        _check_version(path, expected)
+    except ProjectChangedError:
+        if backup is not None:
+            Path(backup).unlink(missing_ok=True)
+        raise
 
 
 def delete(context):
@@ -359,6 +378,7 @@ def delete(context):
     _refuse_links(project, path)
     current = _check_version(path, expected)
     backup = _backup(project, path.stem, current, path.stat().st_mode & 0o777)
+    _recheck(path, expected, backup)
     path.unlink()
     return {"name": path.stem, "backup": backup}
 
@@ -429,14 +449,19 @@ def _suggest_loaders(folder, builtins, definitions):
         for item in items if item["matches"]
     ]
     suffixes = {}
-    for path in folder.iterdir():
-        if path.is_file() and path.suffix:
+    try:
+        entries = list(folder.iterdir())
+    except OSError:
+        entries = []  # detect() has already reported an unlistable folder
+    for path in entries:
+        # Hidden files, such as the "._name" copies macOS writes on other drives, are not recordings.
+        if path.is_file() and path.suffix and not path.name.startswith("."):
             suffixes.setdefault(path.suffix.lower().lstrip("."), set()).add(path.suffix)
     suggestions = list(configured)
     for name in ld.neo_io_names():
         cls = ld._neo_io_class(name)
-        if cls is None:
-            continue
+        if cls is None or not ld._reads_blocks(cls):
+            continue  # a reader that cannot read a recording would give a draft that fails validation
         extensions = {str(ext).lower().lstrip(".") for ext in getattr(cls, "extensions", ())}
         matched = sorted(set(suffixes) & extensions - {""})
         if not matched:
@@ -475,6 +500,14 @@ def detect(context):
     if folder is None:
         return result
     result["folder"] = str(folder)
+    try:
+        next(iter(folder.iterdir()), None)
+    except OSError as exc:
+        return {
+            **result,
+            "status": "unreadable",
+            "message": f"ACE cannot list the ephys folder ({exc.strerror or exc}). Check its permissions, then check again.",
+        }
     builtins = []
     for name, cls in _builtin_classes():
         try:

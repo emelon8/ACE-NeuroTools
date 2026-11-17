@@ -38,6 +38,7 @@ unless ``--config`` is supplied.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -579,7 +580,12 @@ def _loaders_validate(files: list[str]) -> int:
                 problem = DefinitionProblem("name", f"'{definition.name}' is already used by a built-in loader")
                 raise DefinitionError([problem], source=Path(file))
         except DefinitionError as exc:
-            _print_problems(file, exc.problems)
+            problems = list(exc.problems)
+            name = _definition_name(file)
+            if name is not None and name.lower() in reserved and not any(p.path == "name" for p in problems):
+                # Reported with the other problems, so one run lists everything to fix.
+                problems.append(DefinitionProblem("name", f"'{name}' is already used by a built-in loader"))
+            _print_problems(file, problems)
             failed += 1
         except OSError as exc:
             print(f"{file}: (document): cannot read file: {exc.strerror or exc}", file=sys.stderr)
@@ -590,6 +596,28 @@ def _loaders_validate(files: list[str]) -> int:
         print(f"{failed} of {len(files)} file(s) invalid", file=sys.stderr)
         return 1
     return 0
+
+
+def _definition_name(file: str) -> str | None:
+    """The ``name`` field of a definition file that failed validation, if it can be read."""
+    try:
+        data = json.loads(Path(file).read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError, RecursionError):
+        return None
+    name = data.get("name") if isinstance(data, dict) else None
+    return name if isinstance(name, str) else None
+
+
+def _matching_builtins(directory: Path) -> list[tuple[str, type]]:
+    """Built-in loaders whose ``can_handle`` accepts ``directory``; a failing check is reported, not raised."""
+    found = []
+    for name, cls in _builtin_ephys_loaders():
+        try:
+            if cls.can_handle(directory):
+                found.append((name, cls))
+        except Exception as exc:
+            print(f"WARNING: {name}.can_handle() failed: {exc}", file=sys.stderr)
+    return found
 
 
 def _loaders_detect(directory: Path, project_path: Path) -> int:
@@ -612,7 +640,7 @@ def _loaders_detect(directory: Path, project_path: Path) -> int:
     if not project_path.is_dir():
         print(f"WARNING: project folder not found: {project_path}", file=sys.stderr)
 
-    builtin = [(name, cls) for name, cls in _builtin_ephys_loaders() if cls.can_handle(directory)]
+    builtin = _matching_builtins(directory)
     print(f"Recording folder: {directory}")
     print()
     print("Built-in loaders whose can_handle() matches:")

@@ -2,7 +2,7 @@
   "schema": "ace-loader/1",
   "name": "flat-binary-16ch",
   "label": "16-channel flat binary (.dat, 30 kHz)",
-  "description": "Worked example for a system without a built-in loader: one interleaved int16 .dat file per recording, 16 channels at 30 kHz, 0.195 microvolts per bit, no header. Imaging shares the acquisition clock, so there are no sync pulses.",
+  "description": "Worked example for a system without a built-in loader: one interleaved int16 .dat file per recording, 16 channels at 30 kHz, 0.195 microvolts per bit, no header. The imaging system's frame pulses are recorded on channel 15.",
   "modality": "ephys",
   "detect": {
     "all_of": ["*.dat"],
@@ -32,6 +32,9 @@
     "default": "all"
   },
   "sync": {
-    "strategy": "shared_clock"
+    "strategy": "digital_threshold",
+    "channel": "CH15",
+    "threshold": 0.5,
+    "edge": "rising"
   }
 }

@@ -108,8 +108,10 @@ Before writing anything, answer four questions about one recording folder:
     - TTL pulses recorded on a **digital or analog input channel**:
       `digital_threshold` on that channel.
     - Ephys and imaging share one **hardware clock** (as ONIX does), so no
-      pulses are needed: `shared_clock`.
-    - Ephys only, no imaging: `shared_clock` (there are no pulses to find).
+      pulses are needed: `shared_clock`. Times must then come from that
+      clock (`clock_file` or `reader`); times counted from the first sample
+      (`sample_index`) are not on the imaging clock.
+    - Ephys only, no imaging: `none` (there are no pulses to find).
 
 ### Step 3: Start from an example
 
@@ -157,9 +159,10 @@ that both are valid and behave as described here.
   `sampling_rate_hz`.
 - `channels`: named `CH0` to `CH15`; with `select_by_index`, `3` or `"3"`
   also requests `CH3`.
-- `sync`: `shared_clock`, because this rig drives the camera from the
-  acquisition clock. Use `digital_threshold` with a channel name such as
-  `"CH15"` if a channel records the frame TTL.
+- `sync`: `digital_threshold` on `CH15`, the channel that records the
+  imaging frame pulses. Times here are counted from the first sample, so they
+  are not on the imaging clock and `shared_clock` cannot be used. For a
+  recording without imaging, use `none`.
 
 ### Step 4: Edit it for your system
 
@@ -467,7 +470,8 @@ length.
 |------------|------|---------|
 | `event_labels` | `labels` | Sync times are the timestamps of reader events whose label exactly equals one of `labels`. Only for `neo`, because raw binary files have no events. |
 | `digital_threshold` | `channel`, `threshold`, `edge` (`rising` by default, or `falling` or `both`) | Sync times are threshold crossings on a channel. |
-| `shared_clock` | — | No sync pulses. The recording shares a hardware clock with the imaging system, and `get_sync_timestamps()` returns an empty array. |
+| `shared_clock` | — | No sync pulses. The recording shares a hardware clock with the imaging system, and `get_sync_timestamps()` returns an empty array. Needs `time.source` `clock_file` or `reader`. |
+| `none` | — | No imaging to synchronise with (ephys only). `get_sync_timestamps()` returns an empty array. |
 
 ## Examples: the built-in loaders
 
