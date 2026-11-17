@@ -1,3 +1,4 @@
+import numbers
 import os
 from typing import TYPE_CHECKING
 
@@ -46,9 +47,12 @@ def create_ca_ephys_movie(
     time_range: A time range of which movies you want displayed
     movie_num: An integer if you just want to dispay a specific movie (ie. pass in 0 if you want to see 'miniscope_dir/Miniscope/0.avi')
     save_movie: saves the movie to the 'saved_movies' folder in your miniscope directory, named after
-        the movie number or time range (for example 'miniscope_ephys_movie3.mp4'), or to output_path
+        the movie number or time range (for example 'miniscope_ephys_movie3.mp4'), or to output_path.
+        The MP4 plays at the recording's frame rate and needs ffmpeg, which is checked before the
+        movie is loaded. Saving the same selection again replaces the earlier file.
     headless: never open windows: draw on an off-screen figure, crop only with saved or supplied
-        coordinates, do not play the movie, and raise errors instead of printing them
+        coordinates, do not play the movie, and raise errors instead of printing them. A headless
+        call must save the movie (save_movie=True), since nothing else can be done with it
     output_path: where to save the movie (overrides the default name when save_movie is True)
     Movies are found by exact name ('<n>.avi') in the calcium imaging directory or its subfolders;
     a missing movie or a name found in more than one folder is an error.
@@ -67,6 +71,24 @@ def create_ca_ephys_movie(
 
     if not plot_ephys and not plot_mean_fluorescence:
         return stop('Note: you have chosen not to overlay an ephys signal nor the mean fluroescence.')
+
+    # Movie numbers read from a CSV arrive as numpy integers, or as floats when the column has blanks.
+    if isinstance(movie_num, numbers.Integral) and not isinstance(movie_num, bool):
+        movie_num = int(movie_num)
+    elif isinstance(movie_num, float) and movie_num.is_integer():
+        movie_num = int(movie_num)
+
+    if type(time_range) != list and type(movie_num) != int:
+        return stop('Please provide either a time range or a movie number!')
+    if headless and not save_movie:
+        return stop('A headless movie export must save the movie: set save_movie=True.')
+    # Checked before the movie is loaded, so a missing encoder fails at once with a clear message.
+    if save_movie and not animation.writers.is_available('ffmpeg'):
+        raise RuntimeError(
+            'Saving an MP4 needs ffmpeg, which matplotlib cannot find. Install ffmpeg '
+            '(for example "conda install -c conda-forge ffmpeg") or set matplotlib\'s '
+            'animation.ffmpeg_path, then try again.'
+        )
 
     if type(time_range) == list:
         if movie_num != None:
@@ -93,6 +115,11 @@ def create_ca_ephys_movie(
         preprocessor = CalciumImagingPreprocessor(miniscope_dm)
         projections = preprocessor.compute_projections(movie)
         final_coords = preprocessor.get_crop_coordinates(coords_dict, projections, movie.shape[1], movie.shape[2], headless=headless)
+        if final_coords is None and headless:
+            raise ValueError(
+                'crop=True but no crop coordinates were supplied or saved in analysis_parameters.csv. '
+                'Pass crop_coords, save coordinates for this experiment, or export without cropping.'
+            )
         if final_coords is not None:
             movie, _ = preprocessor.crop_movie(movie, final_coords)
 
@@ -206,15 +233,29 @@ def create_ca_ephys_movie(
 
     # Save the animation
     saved_path = None
-    if save_movie:
-        if output_path is None:
-            if type(time_range) == list:
-                label = f'{float(time_range[0]):g}-{float(time_range[1]):g}s'
-            else:
-                label = f'movie{movie_num}'
-            output_path = os.path.join(miniscope_dir_path, 'saved_movies', f'miniscope_ephys_{label}.mp4')
-        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
-        ani.save(output_path, dpi=300)
-        saved_path = str(output_path)
+    try:
+        if save_movie:
+            if output_path is None:
+                if type(time_range) == list:
+                    label = f'{_seconds(time_range[0])}-{_seconds(time_range[1])}s'
+                else:
+                    label = f'movie{movie_num}'
+                output_path = os.path.join(miniscope_dir_path, 'saved_movies', f'miniscope_ephys_{label}.mp4')
+            os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+            # The file plays at the recording's frame rate, not the on-screen playback interval.
+            frame_rate = float(miniscope_dm.metadata.get('frameRate', 1000 / playback_interval))
+            ani.save(output_path, writer='ffmpeg', fps=frame_rate, dpi=300)
+            saved_path = str(output_path)
+    except BaseException:
+        if not headless:
+            plt.close(fig)
+        raise
+    if not headless and not play_movie:
+        plt.close(fig)  # nothing is showing it, so do not leave it open
     return saved_path
+
+
+def _seconds(value: float) -> str:
+    """A time for a file name, to the millisecond: 10000.04 -> '10000.04', 2.0 -> '2'."""
+    return f'{float(value):.3f}'.rstrip('0').rstrip('.')
 

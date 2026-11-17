@@ -21,6 +21,7 @@ from aceneurotools.multimodal.miniscope_ephys_alignment_utils import (  # noqa: 
 )
 
 FRAMES = 20
+_real_subplots = plt.subplots
 
 
 # Exact movie lookup
@@ -80,7 +81,8 @@ class Recorder:
         self.fig, self.func, self.frames = fig, func, frames
         Recorder.instances.append(self)
 
-    def save(self, path, dpi):
+    def save(self, path, **options):
+        self.options = options
         for frame in range(self.frames):
             self.func(frame)
         if Recorder.fail:
@@ -114,6 +116,7 @@ def export(tmp_path, monkeypatch):
     loaded = []
     monkeypatch.setattr(visualizer.cm, "load", lambda path: loaded.append(path) or movie.copy())
     monkeypatch.setattr(visualizer.animation, "FuncAnimation", Recorder)
+    monkeypatch.setattr(visualizer.animation.writers, "is_available", lambda name: True)
     monkeypatch.setattr(visualizer.plt, "subplots", lambda *a, **k: pytest.fail("a headless export used pyplot"))
     monkeypatch.setattr(visualizer.plt, "show", lambda *a, **k: pytest.fail("a headless export opened a window"))
     plt.close("all")
@@ -175,11 +178,97 @@ def test_recordings_without_a_start_event_export_without_the_marker(export, even
     assert "Ketamine infusion" not in [text.get_text() for text in draw(Recorder.instances[0], 12).texts]
 
 
-def test_a_failed_save_is_raised_and_leaves_no_figure(export):
-    Recorder.fail = OSError("ffmpeg is not installed")
-    with pytest.raises(OSError, match="ffmpeg"):
-        visualizer.create_ca_ephys_movie(export.dm, export.ttl, export.channel, movie_num=0, save_movie=True, headless=True)
+def test_missing_ffmpeg_is_reported_before_the_movie_is_loaded(export, monkeypatch):
+    # The real check: matplotlib falls back to Pillow without ffmpeg, which cannot write MP4.
+    monkeypatch.undo()
+    monkeypatch.setitem(matplotlib.rcParams, "animation.ffmpeg_path", str(export.root / "no-such-ffmpeg"))
+    monkeypatch.setattr(visualizer.cm, "load", lambda path: pytest.fail("the movie was loaded"))
+    for headless in (True, False):
+        with pytest.raises(RuntimeError, match="needs ffmpeg"):
+            visualizer.create_ca_ephys_movie(
+                export.dm, export.ttl, export.channel, movie_num=0, save_movie=True, headless=headless
+            )
     assert plt.get_fignums() == []
+
+
+@pytest.mark.parametrize("headless", [True, False])
+def test_a_failed_save_is_raised_and_leaves_no_figure(export, monkeypatch, headless):
+    if not headless:
+        monkeypatch.setattr(visualizer.plt, "subplots", _real_subplots)
+    Recorder.fail = OSError("disk full")
+    with pytest.raises(OSError, match="disk full"):
+        visualizer.create_ca_ephys_movie(
+            export.dm, export.ttl, export.channel, movie_num=0, save_movie=True, play_movie=False, headless=headless
+        )
+    assert plt.get_fignums() == []
+
+
+def test_interactive_save_without_playing_closes_its_figure(export, monkeypatch):
+    monkeypatch.setattr(visualizer.plt, "subplots", _real_subplots)
+    saved = visualizer.create_ca_ephys_movie(
+        export.dm, export.ttl, export.channel, movie_num=0, save_movie=True, play_movie=False
+    )
+    assert Path(saved).read_bytes() == b"movie" and plt.get_fignums() == []
+
+
+def test_saved_movie_plays_at_the_recording_frame_rate(export):
+    visualizer.create_ca_ephys_movie(export.dm, export.ttl, export.channel, movie_num=0, save_movie=True, headless=True)
+    assert Recorder.instances[0].options == {"writer": "ffmpeg", "fps": 20.0, "dpi": 300}
+
+
+def test_nearby_time_ranges_get_distinct_names(export, monkeypatch):
+    monkeypatch.setattr(
+        visualizer, "find_ca_movie_filenums",
+        lambda channel, ttl, dm, time_range: ([str(export.root / "Miniscope" / "0.avi")], np.array([0, FRAMES - 1])),
+    )
+    monkeypatch.setattr(visualizer.cm, "load_movie_chain", lambda paths: export.movie.copy())
+    names = [
+        Path(visualizer.create_ca_ephys_movie(
+            export.dm, export.ttl, export.channel, time_range=selection, save_movie=True, headless=True
+        )).name
+        for selection in ([10000.0, 10001.0], [10000.04, 10001.04], [1234.5678, 1300.0], [1234.5712, 1300.0])
+    ]
+    assert names == [
+        "miniscope_ephys_10000-10001s.mp4",
+        "miniscope_ephys_10000.04-10001.04s.mp4",
+        "miniscope_ephys_1234.568-1300s.mp4",
+        "miniscope_ephys_1234.571-1300s.mp4",
+    ]
+
+
+def test_headless_export_must_save(export):
+    with pytest.raises(ValueError, match="save_movie=True"):
+        visualizer.create_ca_ephys_movie(export.dm, export.ttl, export.channel, movie_num=0, headless=True)
+    assert export.loaded == []
+
+
+def test_headless_crop_without_coordinates_is_an_error(export, monkeypatch):
+    monkeypatch.setattr(visualizer, "get_coords_dict_from_analysis_params", lambda dm: (None, None))
+
+    class Preprocessor:
+        def __init__(self, manager):
+            pass
+
+        def compute_projections(self, movie):
+            return None
+
+        def get_crop_coordinates(self, coords, projections, height, width, headless=False):
+            return None
+
+    monkeypatch.setattr(visualizer, "CalciumImagingPreprocessor", Preprocessor)
+    with pytest.raises(ValueError, match="no crop coordinates"):
+        visualizer.create_ca_ephys_movie(
+            export.dm, export.ttl, export.channel, movie_num=0, crop=True, save_movie=True, headless=True
+        )
+    assert Recorder.instances == []
+
+
+@pytest.mark.parametrize("number", [np.int64(0), 0.0])
+def test_movie_numbers_from_a_csv_are_accepted(export, number):
+    saved = visualizer.create_ca_ephys_movie(
+        export.dm, export.ttl, export.channel, movie_num=number, save_movie=True, headless=True
+    )
+    assert Path(saved).name == "miniscope_ephys_movie0.mp4"
 
 
 @pytest.mark.parametrize(
@@ -193,7 +282,7 @@ def test_a_failed_save_is_raised_and_leaves_no_figure(export):
 def test_invalid_requests_raise_when_headless_and_print_otherwise(export, change, message, capsys):
     if "dm_metadata" in change:
         export.dm.metadata = None
-    kwargs = {"movie_num": change.get("movie_num", 0), "plot_ephys": change.get("plot_ephys", True)}
+    kwargs = {"movie_num": change.get("movie_num", 0), "plot_ephys": change.get("plot_ephys", True), "save_movie": True}
     with pytest.raises(ValueError, match=message):
         visualizer.create_ca_ephys_movie(export.dm, export.ttl, export.channel, headless=True, **kwargs)
     assert visualizer.create_ca_ephys_movie(export.dm, export.ttl, export.channel, headless=False, **kwargs) is None

@@ -88,12 +88,18 @@ path = create_ca_ephys_movie(dm, pipeline.ephys_idx_all_TTL_events, channel,
   If the same name exists in two folders (for example a behavior camera's movie),
   it raises `ValueError`; set `calcium imaging directory` to the miniscope folder.
 - `save_movie=True` writes `saved_movies/miniscope_ephys_movie3.mp4` (or
-  `miniscope_ephys_<start>-<end>s.mp4` for a time range), or to `output_path` if
-  given, and returns the path. Saving MP4 files needs ffmpeg; save errors are
-  raised.
+  `miniscope_ephys_<start>-<end>s.mp4` for a time range, with times to the
+  millisecond), or to `output_path` if given, and returns the path. Saving the
+  same selection again replaces the earlier file. The MP4 plays at the
+  recording's frame rate (`frameRate` in its metadata).
+- Saving MP4 files needs ffmpeg. If matplotlib cannot find it, a `RuntimeError`
+  is raised before the movie is loaded; other save errors are raised as they
+  occur.
 - `headless=True` never opens windows: it crops only with saved or supplied
-  coordinates, does not play the movie, and raises errors instead of printing them.
-  Without it, the movie plays in a window as before.
+  coordinates (with `crop=True` and no coordinates it raises `ValueError`), does
+  not play the movie, and raises errors instead of printing them. It must be
+  used with `save_movie=True`. Without it, the movie plays in a window as
+  before.
 - If no event label starts with "start", the infusion marker is skipped with a
   warning.
 

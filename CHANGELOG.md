@@ -13,7 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the top-bar toggle remains (reported by @Aathok-Git).
 - The calcium + ephys movie export finds movies by exact name (movie 1 is never
   `10.avi` or a behavior camera's movie), no longer fails on recordings without a
-  "start" event, and saves each selection under its own name.
+  "start" event, and saves each selection under its own name. Saved MP4s play at
+  the recording's frame rate, and a missing ffmpeg is reported before the movie
+  is loaded.
 - Align bundled CSV example rows with their headers and allow local recording
   checks when optional Box columns are absent.
 - Report a missing explicit CLI configuration as an error without launching setup.
