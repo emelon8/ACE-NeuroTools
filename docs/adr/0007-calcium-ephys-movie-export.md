@@ -6,6 +6,8 @@ status: accepted
 
 ## Context
 
+Line numbers in this section refer to base `8a256c8`.
+
 `src/aceneurotools/multimodal/calcium_ephys_visualizer.py` defines one function,
 `create_ca_ephys_movie`, which animates calcium frames with an overlaid ephys trace
 and optional mean fluorescence and an infusion marker. No module in the package
@@ -72,8 +74,11 @@ to formats without that key. The same fallback is in
   the movie is not played, cropping uses supplied or saved coordinates without the
   crop window, and invalid requests raise `ValueError` instead of printing:
   missing metadata, nothing to overlay, no movie or time range, no
-  `save_movie=True` (checked before loading anything), or `crop=True` without
-  coordinates.
+  `save_movie=True`, or `crop=True` without coordinates. All of these are checked
+  before the movie is loaded; crop coordinates are resolved before loading for
+  that reason.
+- Document in `find_ca_movie_filenums` that it matches exact names and raises
+  `FileNotFoundError` or `ValueError`.
 - Treat a missing "start" event as a warning that skips the infusion marker,
   including the empty float label array of a recording without events.
 - Create `saved_movies/` before saving, and name the default output after the
@@ -145,12 +150,18 @@ range, and list the returned file in the output inventory.
 - recordings without a "start" event, including empty float label arrays;
 - errors: headless requests raise and interactive ones print; missing or ambiguous
   movies raise in both modes; headless without `save_movie` stops before loading;
-  headless crop without coordinates raises; a non-integer movie number is
-  rejected; missing ffmpeg raises before loading, in both modes; a failed save
-  raises and leaves no figure, in both modes; a failed playback closes its figure;
-  an interactive save without playing closes its figure;
-- the interactive path still shows the movie with pyplot, and supplied crop
-  coordinates are used without a crop window.
+  headless crop without coordinates raises before loading; non-integer, boolean
+  and NaN movie numbers are rejected; missing ffmpeg raises before loading, in
+  both modes; a failed save raises and leaves no figure, in both modes; a failed
+  playback closes its figure; an interactive save without playing closes its
+  figure;
+- the interactive path still shows the movie with pyplot; supplied crop
+  coordinates, and coordinates saved in the analysis parameters, are used without
+  a crop window;
+- a real export (matplotlib and ffmpeg, headless and interactive) writes an H.264
+  MP4 with every frame at `1000 / playback_interval` fps, checked with `ffprobe`;
+  it is skipped where ffmpeg or ffprobe is missing (the locked environment has
+  both).
 
 ## Verification
 
@@ -166,10 +177,10 @@ PR. Representative recording validation is handled separately by the lab, as
 
 ```diff
 diff --git a/CHANGELOG.md b/CHANGELOG.md
-index 935ca5e..d139033 100644
+index 935ca5e..52e126e 100644
 --- a/CHANGELOG.md
 +++ b/CHANGELOG.md
-@@ -18,6 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
+@@ -18,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    the top-bar toggle remains (reported by @Aathok-Git).
  - Stop CaImAn's worker pool when a calcium run fails, so later runs in the same
    Python session no longer fail with "A cluster is already running".
@@ -180,18 +191,22 @@ index 935ca5e..d139033 100644
 +  `miniscope_ephys_0.25-1.5s.mp4`) instead of overwriting
 +  `miniscope_ephys_animation.mp4`. A missing or ambiguous movie now raises an
 +  error instead of printing a message, and a missing ffmpeg is reported before
-+  the movie is loaded. Saved MP4s still play at the `playback_interval` speed.
-+  Analysis results are unchanged.
++  the movie is loaded. `find_ca_movie_filenums` likewise raises for a missing or
++  ambiguous movie instead of returning the matches it found. Saved MP4s still
++  play at the `playback_interval` speed. Analysis results are unchanged.
  - Align bundled CSV example rows with their headers and allow local recording
    checks when optional Box columns are absent.
  - Report a missing explicit CLI configuration as an error without launching setup.
-@@ -51,6 +60,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
+@@ -51,6 +61,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    a summary with each failure's cause, and exit 1 if any failed or was not run.
    `--line-num` is unchanged, and analysis results are unchanged. The CaImAn worker
    pool is now stopped when calcium processing fails, too.
 +- `create_ca_ephys_movie(..., headless=True, save_movie=True)` exports without
 +  opening windows and returns the saved path; `output_path` chooses where it is
-+  saved. Movie numbers may be NumPy integers and time ranges tuples.
++  saved. Movie numbers may be NumPy integers or whole-number floats, and time
++  ranges tuples or NumPy arrays. With `play_movie=False`, an interactive call
++  closes its figure after saving. `find_numbered_movies` finds `<n>.avi` movies by
++  exact name.
  - Installed `ace-gui` workbench with per-launch API authentication and shared
    CLI/GUI defaults. CSVs remain the settings source of truth.
  - GUI feature registry and run plans: new workbench screens register their own
@@ -212,10 +227,10 @@ index 5b92985..eae9a52 100644
 +
 +::: aceneurotools.multimodal.calcium_ephys_visualizer.create_ca_ephys_movie
 diff --git a/docs/guides/multimodal.md b/docs/guides/multimodal.md
-index 9883082..a5078de 100644
+index 9883082..e7d6f5d 100644
 --- a/docs/guides/multimodal.md
 +++ b/docs/guides/multimodal.md
-@@ -70,6 +70,51 @@ Filtering is off unless `filter_type` is supplied, and event-phase analysis is
+@@ -70,6 +70,52 @@ Filtering is off unless `filter_type` is supplied, and event-phase analysis is
  conditional on the requested events/phases. The steps below describe capabilities,
  not a promise that every output is computed for every run.
  
@@ -257,10 +272,11 @@ index 9883082..a5078de 100644
 +  is raised before the movie is loaded; other save errors are raised, and the
 +  figure is closed.
 +- `headless=True` never opens windows and needs `save_movie=True`. It crops only
-+  with supplied or saved coordinates (`crop=True` without either is an error), does
-+  not play the movie, and raises errors that the interactive mode prints (missing
-+  metadata, nothing to overlay, no movie or time range given). Without it, the
-+  movie plays in a window as before.
++  with supplied or saved coordinates (`crop=True` without either is an error,
++  raised before the movie is loaded), does not play the movie, and raises errors
++  that the interactive mode prints (missing metadata, nothing to overlay, no movie
++  or time range given). Without it, the movie plays in a window as before; with
++  `play_movie=False` the movie is only saved and its figure is closed.
 +- If no event label starts with "start", the infusion marker is skipped with a
 +  warning.
 +
@@ -268,7 +284,7 @@ index 9883082..a5078de 100644
  
  The `experiments.csv` must contain both:
 diff --git a/src/aceneurotools/multimodal/calcium_ephys_visualizer.py b/src/aceneurotools/multimodal/calcium_ephys_visualizer.py
-index 03fecc5..cb3ebb4 100644
+index 03fecc5..78747df 100644
 --- a/src/aceneurotools/multimodal/calcium_ephys_visualizer.py
 +++ b/src/aceneurotools/multimodal/calcium_ephys_visualizer.py
 @@ -1,3 +1,4 @@
@@ -287,7 +303,7 @@ index 03fecc5..cb3ebb4 100644
  
  if TYPE_CHECKING:
      from aceneurotools.ephys.channel import Channel
-@@ -33,29 +33,67 @@ def create_ca_ephys_movie(
+@@ -33,60 +33,100 @@ def create_ca_ephys_movie(
      time_stamps: bool = True,
      playback_interval: int = 33,
      play_movie: bool = True,
@@ -313,9 +329,11 @@ index 03fecc5..cb3ebb4 100644
 +        The MP4 plays at the playback_interval speed and needs ffmpeg, which is checked before the
 +        movie is loaded. Saving the same selection again replaces the earlier file.
 +    playback_interval: milliseconds per frame, on screen and in the saved MP4 (33 is about 30 fps)
++    play_movie: play the movie in a window; when False, the figure is closed once the movie is saved
 +    headless: never open windows: draw on an off-screen figure, crop only with saved or supplied
-+        coordinates, do not play the movie, and raise errors instead of printing them. A headless
-+        call must save the movie (save_movie=True), since nothing else can be done with it
++        coordinates (crop=True without either is an error, raised before the movie is loaded), do
++        not play the movie, and raise errors instead of printing them. A headless call must save
++        the movie (save_movie=True), since nothing else can be done with it
 +    output_path: where to save the movie (overrides the default name when save_movie is True)
 +    Movies are found by exact name ('<n>.avi') in the calcium imaging directory or its subfolders;
 +    a missing movie or a name found in more than one folder is an error.
@@ -360,42 +378,58 @@ index 03fecc5..cb3ebb4 100644
 +            '(for example "conda install -c conda-forge ffmpeg") or set matplotlib\'s '
 +            'animation.ffmpeg_path, then try again.'
 +        )
++    # Crop coordinates are resolved before the movie is loaded, so a headless crop without any
++    # fails at once instead of after loading the movie.
++    coords_dict = None
++    if crop:
++        if crop_coords is not None:
++            coords_dict = {
++                'x0': crop_coords[0], 'y0': crop_coords[1],
++                'x1': crop_coords[2], 'y1': crop_coords[3]
++            }
++        else:
++            coords_dict, _ = get_coords_dict_from_analysis_params(miniscope_dm)
++        if coords_dict is None and headless:
++            return stop('Error: crop=True but no crop coordinates were given or saved in analysis_parameters.csv. '
++                        'Pass crop_coords, save crop coordinates, or set crop=False.')
  
      if type(time_range) == list:
          if movie_num != None:
-@@ -63,17 +101,12 @@ def create_ca_ephys_movie(
+             print('Please only provide either a time range or a video number, not both! Proceeding with time range...')
          movie_filepaths_in_range, movie_frames = find_ca_movie_filenums(channel_object, ephys_idx_all_TTL_events, miniscope_dm, time_range)
          movie = cm.load_movie_chain(movie_filepaths_in_range)
-     elif type(movie_num) == int:
+-    elif type(movie_num) == int:
 -        movie_filepaths = PathFinder.find(miniscope_dir_path, suffix='.avi', prefix=str(movie_num))
 -        if movie_filepaths is None or len(movie_filepaths) == 0:
 -            print(f"Error: Could not find movie {movie_num}.avi in {miniscope_dir_path}")
 -            return
 -        movie = cm.load(str(movie_filepaths[0]))
++    else:  # movie_num is an int, checked above
 +        movie = cm.load(find_numbered_movies(miniscope_dir_path, [movie_num])[0])
          movie_frames = np.zeros(2, dtype=int)
          movie_frames[0] = movie_num * int(miniscope_dm.metadata.get('framesPerFile', 1000)) # Start frame of movieNum
          movie_frames[1] = (movie_num + 1) * int(miniscope_dm.metadata.get('framesPerFile', 1000)) - 1 # End frame of movieNum
-     else:
+-    else:
 -        print('Please provide either a time range or a movie number!')
 -        return
-+        return stop('Please provide either a time range or a movie number!')
  
      # Crop the movie if desired.
      if crop:
-@@ -86,7 +119,10 @@ def create_ca_ephys_movie(
-             coords_dict, _ = get_coords_dict_from_analysis_params(miniscope_dm)
+-        if crop_coords is not None:
+-            coords_dict = {
+-                'x0': crop_coords[0], 'y0': crop_coords[1],
+-                'x1': crop_coords[2], 'y1': crop_coords[3]
+-            }
+-        else:
+-            coords_dict, _ = get_coords_dict_from_analysis_params(miniscope_dm)
          preprocessor = CalciumImagingPreprocessor(miniscope_dm)
          projections = preprocessor.compute_projections(movie)
 -        final_coords = preprocessor.get_crop_coordinates(coords_dict, projections, movie.shape[1], movie.shape[2])
 +        final_coords = preprocessor.get_crop_coordinates(coords_dict, projections, movie.shape[1], movie.shape[2], headless=headless)
-+        if final_coords is None and headless:
-+            return stop('Error: crop=True but no crop coordinates were given or saved in analysis_parameters.csv. '
-+                        'Pass crop_coords, save crop coordinates, or set crop=False.')
          if final_coords is not None:
              movie, _ = preprocessor.crop_movie(movie, final_coords)
  
-@@ -112,13 +148,29 @@ def create_ca_ephys_movie(
+@@ -112,13 +152,29 @@ def create_ca_ephys_movie(
          vmax = movie.mean() + movie.std()*4
          print('vmax = ' + str(vmax))
      if mark_start_systemic:
@@ -429,7 +463,7 @@ index 03fecc5..cb3ebb4 100644
  
      def update(frame):
          """Update function for animation - renders a single frame.
-@@ -175,15 +227,35 @@ def create_ca_ephys_movie(
+@@ -175,15 +231,35 @@ def create_ca_ephys_movie(
          ax.set_axis_off()
          return []
  
@@ -476,7 +510,7 @@ index 03fecc5..cb3ebb4 100644
 +        plt.close(fig)  # nothing is showing it, so do not leave it open
 +    return saved_path
 diff --git a/src/aceneurotools/multimodal/miniscope_ephys_alignment_utils.py b/src/aceneurotools/multimodal/miniscope_ephys_alignment_utils.py
-index 879539e..67ddaea 100644
+index 879539e..daec11d 100644
 --- a/src/aceneurotools/multimodal/miniscope_ephys_alignment_utils.py
 +++ b/src/aceneurotools/multimodal/miniscope_ephys_alignment_utils.py
 @@ -1,3 +1,4 @@
@@ -484,7 +518,24 @@ index 879539e..67ddaea 100644
  from typing import TYPE_CHECKING
  
  import numpy as np
-@@ -219,14 +220,39 @@ def find_ca_movie_filenums(
+@@ -191,6 +192,16 @@ def find_ca_movie_filenums(
+ ) -> tuple[list[str], np.ndarray]:
+     """Determine the calcium imaging movie file(s) that correspond to a specified time period (in seconds) in the electrophysiological signal.
+     TIME_RANGE is a list specifing the boundaries of the time period.
++
++    Movies are matched by exact name (``<n>.avi``) with ``find_numbered_movies``.
++
++    Returns:
++        The movie paths in numeric order, and the first and last frame numbers of the
++        period. The path list is empty when no calcium imaging directory is set.
++
++    Raises:
++        FileNotFoundError: A movie in the period is missing.
++        ValueError: A movie name is found in more than one folder.
+     """
+     if time_range == None:
+         if miniscope_dm.analysis_params:
+@@ -219,14 +230,39 @@ def find_ca_movie_filenums(
      print('The first movie in the sequence is ' + str(first_movie) + '.avi.')
      print('The last movie in the sequence is ' + str(last_movie) + '.avi.')
  
@@ -534,13 +585,16 @@ index 879539e..67ddaea 100644
  
 diff --git a/tests/test_calcium_ephys_visualizer.py b/tests/test_calcium_ephys_visualizer.py
 new file mode 100644
-index 0000000..5f63c4f
+index 0000000..9b65db6
 --- /dev/null
 +++ b/tests/test_calcium_ephys_visualizer.py
-@@ -0,0 +1,388 @@
+@@ -0,0 +1,465 @@
 +"""The calcium + ephys movie export finds the right movie, renders it and runs without windows."""
 +
++import json
 +import os
++import shutil
++import subprocess
 +from pathlib import Path
 +from types import SimpleNamespace
 +
@@ -552,6 +606,7 @@ index 0000000..5f63c4f
 +import matplotlib  # noqa: E402
 +
 +matplotlib.use("Agg")
++import matplotlib.animation  # noqa: E402
 +import matplotlib.pyplot as plt  # noqa: E402
 +
 +from aceneurotools.multimodal import calcium_ephys_visualizer as visualizer  # noqa: E402
@@ -778,10 +833,12 @@ index 0000000..5f63c4f
 +    assert export.loaded == [str(export.root / "Miniscope" / "0.avi")]
 +
 +
-+def test_non_integer_movie_numbers_are_rejected(export, capsys):
++@pytest.mark.parametrize("number", [0.5, True, False, float("nan")])
++def test_non_integer_movie_numbers_are_rejected(export, number):
++    touch(export.root / "Miniscope" / "1.avi")  # So treating True as movie 1 would load a real file.
 +    with pytest.raises(ValueError, match="either a time range or a movie number"):
 +        visualizer.create_ca_ephys_movie(
-+            export.dm, export.ttl, export.channel, movie_num=0.5, save_movie=True, headless=True
++            export.dm, export.ttl, export.channel, movie_num=number, save_movie=True, headless=True
 +        )
 +    assert export.loaded == []
 +
@@ -918,6 +975,77 @@ index 0000000..5f63c4f
 +            export.dm, export.ttl, export.channel, movie_num=0, crop=True, save_movie=True, headless=True
 +        )
 +    assert Recorder.instances == [] and not (export.root / "saved_movies").exists()
++    assert export.loaded == [], "the missing coordinates are reported before the movie is loaded"
++
++
++def test_headless_crop_uses_coordinates_saved_in_analysis_parameters(export, monkeypatch):
++    calls = {}
++
++    class Preprocessor:
++        def __init__(self, manager):
++            pass
++
++        def compute_projections(self, movie):
++            return None
++
++        def get_crop_coordinates(self, coords, projections, height, width, headless=False):
++            calls["coords"] = coords
++            return coords
++
++        def crop_movie(self, movie, coords):
++            return movie[:, coords["y0"]:coords["y1"], coords["x0"]:coords["x1"]], ""
++
++    monkeypatch.setattr(visualizer, "CalciumImagingPreprocessor", Preprocessor)
++    export.dm.analysis_params = {"crop_coords": [1, 2, 9, 10]}
++    visualizer.create_ca_ephys_movie(
++        export.dm, export.ttl, export.channel, movie_num=0, crop=True, save_movie=True, headless=True
++    )
++    assert calls == {"coords": {"x0": 1, "y0": 2, "x1": 9, "y1": 10}}
++    np.testing.assert_array_equal(draw(Recorder.instances[0], 5).images[0].get_array(), export.movie[5, 2:10, 1:9])
++
++
++# Real matplotlib + ffmpeg encoding (no Recorder stand-in)
++
++
++@pytest.mark.skipif(
++    not (matplotlib.animation.writers.is_available("ffmpeg") and shutil.which("ffprobe")),
++    reason="needs ffmpeg and ffprobe",
++)
++@pytest.mark.parametrize("headless,interval,rate", [(True, 100, "10/1"), (False, 33, "1000/33")])
++def test_real_export_writes_an_mp4_at_the_playback_interval_speed(tmp_path, monkeypatch, headless, interval, rate):
++    frames = 3
++    dm = SimpleNamespace(
++        metadata={"calcium imaging directory": str(tmp_path), "framesPerFile": frames, "frameRate": 20.0},
++        analysis_params={},
++    )
++    channel = SimpleNamespace(
++        events={"labels": np.array([]), "timestamps": np.array([])},
++        time_vector=np.linspace(0, 0.3, 300),
++        signal=np.sin(np.linspace(0, 6, 300)),
++        sampling_rate=1000.0,
++    )
++    touch(tmp_path / "Miniscope" / "0.avi")
++    movie = np.random.default_rng(1).random((frames, 8, 8)).astype(np.float32)
++    monkeypatch.setattr(visualizer.cm, "load", lambda path: movie.copy())
++    plt.close("all")
++
++    saved = visualizer.create_ca_ephys_movie(
++        dm, np.arange(0, 300, 100), channel, movie_num=0, save_movie=True, headless=headless,
++        play_movie=False, playback_interval=interval,
++    )
++
++    assert saved == str(tmp_path / "saved_movies" / "miniscope_ephys_movie0.mp4")
++    probe = subprocess.run(
++        ["ffprobe", "-v", "error", "-select_streams", "v:0", "-count_frames",
++         "-show_entries", "stream=codec_name,r_frame_rate,nb_read_frames,width,height", "-of", "json", saved],
++        capture_output=True, text=True, check=True,
++    )
++    (stream,) = json.loads(probe.stdout)["streams"]
++    assert stream["codec_name"] == "h264"
++    assert stream["r_frame_rate"] == rate
++    assert int(stream["nb_read_frames"]) == frames
++    assert (stream["width"], stream["height"]) == (1620, 1620), "5.4 in at 300 dpi"
++    assert plt.get_fignums() == []
 +
 +
 +def test_a_failed_playback_closes_its_figure(export, monkeypatch):

@@ -192,6 +192,16 @@ def find_ca_movie_filenums(
 ) -> tuple[list[str], np.ndarray]:
     """Determine the calcium imaging movie file(s) that correspond to a specified time period (in seconds) in the electrophysiological signal.
     TIME_RANGE is a list specifing the boundaries of the time period.
+
+    Movies are matched by exact name (``<n>.avi``) with ``find_numbered_movies``.
+
+    Returns:
+        The movie paths in numeric order, and the first and last frame numbers of the
+        period. The path list is empty when no calcium imaging directory is set.
+
+    Raises:
+        FileNotFoundError: A movie in the period is missing.
+        ValueError: A movie name is found in more than one folder.
     """
     if time_range == None:
         if miniscope_dm.analysis_params:

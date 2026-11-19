@@ -1,6 +1,9 @@
 """The calcium + ephys movie export finds the right movie, renders it and runs without windows."""
 
+import json
 import os
+import shutil
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -12,6 +15,7 @@ pytest.importorskip("caiman")
 import matplotlib  # noqa: E402
 
 matplotlib.use("Agg")
+import matplotlib.animation  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
 
 from aceneurotools.multimodal import calcium_ephys_visualizer as visualizer  # noqa: E402
@@ -238,10 +242,12 @@ def test_movie_numbers_from_a_csv_are_accepted(export, number):
     assert export.loaded == [str(export.root / "Miniscope" / "0.avi")]
 
 
-def test_non_integer_movie_numbers_are_rejected(export, capsys):
+@pytest.mark.parametrize("number", [0.5, True, False, float("nan")])
+def test_non_integer_movie_numbers_are_rejected(export, number):
+    touch(export.root / "Miniscope" / "1.avi")  # So treating True as movie 1 would load a real file.
     with pytest.raises(ValueError, match="either a time range or a movie number"):
         visualizer.create_ca_ephys_movie(
-            export.dm, export.ttl, export.channel, movie_num=0.5, save_movie=True, headless=True
+            export.dm, export.ttl, export.channel, movie_num=number, save_movie=True, headless=True
         )
     assert export.loaded == []
 
@@ -378,6 +384,77 @@ def test_headless_crop_without_coordinates_raises_instead_of_exporting_uncropped
             export.dm, export.ttl, export.channel, movie_num=0, crop=True, save_movie=True, headless=True
         )
     assert Recorder.instances == [] and not (export.root / "saved_movies").exists()
+    assert export.loaded == [], "the missing coordinates are reported before the movie is loaded"
+
+
+def test_headless_crop_uses_coordinates_saved_in_analysis_parameters(export, monkeypatch):
+    calls = {}
+
+    class Preprocessor:
+        def __init__(self, manager):
+            pass
+
+        def compute_projections(self, movie):
+            return None
+
+        def get_crop_coordinates(self, coords, projections, height, width, headless=False):
+            calls["coords"] = coords
+            return coords
+
+        def crop_movie(self, movie, coords):
+            return movie[:, coords["y0"]:coords["y1"], coords["x0"]:coords["x1"]], ""
+
+    monkeypatch.setattr(visualizer, "CalciumImagingPreprocessor", Preprocessor)
+    export.dm.analysis_params = {"crop_coords": [1, 2, 9, 10]}
+    visualizer.create_ca_ephys_movie(
+        export.dm, export.ttl, export.channel, movie_num=0, crop=True, save_movie=True, headless=True
+    )
+    assert calls == {"coords": {"x0": 1, "y0": 2, "x1": 9, "y1": 10}}
+    np.testing.assert_array_equal(draw(Recorder.instances[0], 5).images[0].get_array(), export.movie[5, 2:10, 1:9])
+
+
+# Real matplotlib + ffmpeg encoding (no Recorder stand-in)
+
+
+@pytest.mark.skipif(
+    not (matplotlib.animation.writers.is_available("ffmpeg") and shutil.which("ffprobe")),
+    reason="needs ffmpeg and ffprobe",
+)
+@pytest.mark.parametrize("headless,interval,rate", [(True, 100, "10/1"), (False, 33, "1000/33")])
+def test_real_export_writes_an_mp4_at_the_playback_interval_speed(tmp_path, monkeypatch, headless, interval, rate):
+    frames = 3
+    dm = SimpleNamespace(
+        metadata={"calcium imaging directory": str(tmp_path), "framesPerFile": frames, "frameRate": 20.0},
+        analysis_params={},
+    )
+    channel = SimpleNamespace(
+        events={"labels": np.array([]), "timestamps": np.array([])},
+        time_vector=np.linspace(0, 0.3, 300),
+        signal=np.sin(np.linspace(0, 6, 300)),
+        sampling_rate=1000.0,
+    )
+    touch(tmp_path / "Miniscope" / "0.avi")
+    movie = np.random.default_rng(1).random((frames, 8, 8)).astype(np.float32)
+    monkeypatch.setattr(visualizer.cm, "load", lambda path: movie.copy())
+    plt.close("all")
+
+    saved = visualizer.create_ca_ephys_movie(
+        dm, np.arange(0, 300, 100), channel, movie_num=0, save_movie=True, headless=headless,
+        play_movie=False, playback_interval=interval,
+    )
+
+    assert saved == str(tmp_path / "saved_movies" / "miniscope_ephys_movie0.mp4")
+    probe = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0", "-count_frames",
+         "-show_entries", "stream=codec_name,r_frame_rate,nb_read_frames,width,height", "-of", "json", saved],
+        capture_output=True, text=True, check=True,
+    )
+    (stream,) = json.loads(probe.stdout)["streams"]
+    assert stream["codec_name"] == "h264"
+    assert stream["r_frame_rate"] == rate
+    assert int(stream["nb_read_frames"]) == frames
+    assert (stream["width"], stream["height"]) == (1620, 1620), "5.4 in at 300 dpi"
+    assert plt.get_fignums() == []
 
 
 def test_a_failed_playback_closes_its_figure(export, monkeypatch):

@@ -51,9 +51,11 @@ def create_ca_ephys_movie(
         The MP4 plays at the playback_interval speed and needs ffmpeg, which is checked before the
         movie is loaded. Saving the same selection again replaces the earlier file.
     playback_interval: milliseconds per frame, on screen and in the saved MP4 (33 is about 30 fps)
+    play_movie: play the movie in a window; when False, the figure is closed once the movie is saved
     headless: never open windows: draw on an off-screen figure, crop only with saved or supplied
-        coordinates, do not play the movie, and raise errors instead of printing them. A headless
-        call must save the movie (save_movie=True), since nothing else can be done with it
+        coordinates (crop=True without either is an error, raised before the movie is loaded), do
+        not play the movie, and raise errors instead of printing them. A headless call must save
+        the movie (save_movie=True), since nothing else can be done with it
     output_path: where to save the movie (overrides the default name when save_movie is True)
     Movies are found by exact name ('<n>.avi') in the calcium imaging directory or its subfolders;
     a missing movie or a name found in more than one folder is an error.
@@ -94,21 +96,9 @@ def create_ca_ephys_movie(
             '(for example "conda install -c conda-forge ffmpeg") or set matplotlib\'s '
             'animation.ffmpeg_path, then try again.'
         )
-
-    if type(time_range) == list:
-        if movie_num != None:
-            print('Please only provide either a time range or a video number, not both! Proceeding with time range...')
-        movie_filepaths_in_range, movie_frames = find_ca_movie_filenums(channel_object, ephys_idx_all_TTL_events, miniscope_dm, time_range)
-        movie = cm.load_movie_chain(movie_filepaths_in_range)
-    elif type(movie_num) == int:
-        movie = cm.load(find_numbered_movies(miniscope_dir_path, [movie_num])[0])
-        movie_frames = np.zeros(2, dtype=int)
-        movie_frames[0] = movie_num * int(miniscope_dm.metadata.get('framesPerFile', 1000)) # Start frame of movieNum
-        movie_frames[1] = (movie_num + 1) * int(miniscope_dm.metadata.get('framesPerFile', 1000)) - 1 # End frame of movieNum
-    else:
-        return stop('Please provide either a time range or a movie number!')
-
-    # Crop the movie if desired.
+    # Crop coordinates are resolved before the movie is loaded, so a headless crop without any
+    # fails at once instead of after loading the movie.
+    coords_dict = None
     if crop:
         if crop_coords is not None:
             coords_dict = {
@@ -117,12 +107,26 @@ def create_ca_ephys_movie(
             }
         else:
             coords_dict, _ = get_coords_dict_from_analysis_params(miniscope_dm)
+        if coords_dict is None and headless:
+            return stop('Error: crop=True but no crop coordinates were given or saved in analysis_parameters.csv. '
+                        'Pass crop_coords, save crop coordinates, or set crop=False.')
+
+    if type(time_range) == list:
+        if movie_num != None:
+            print('Please only provide either a time range or a video number, not both! Proceeding with time range...')
+        movie_filepaths_in_range, movie_frames = find_ca_movie_filenums(channel_object, ephys_idx_all_TTL_events, miniscope_dm, time_range)
+        movie = cm.load_movie_chain(movie_filepaths_in_range)
+    else:  # movie_num is an int, checked above
+        movie = cm.load(find_numbered_movies(miniscope_dir_path, [movie_num])[0])
+        movie_frames = np.zeros(2, dtype=int)
+        movie_frames[0] = movie_num * int(miniscope_dm.metadata.get('framesPerFile', 1000)) # Start frame of movieNum
+        movie_frames[1] = (movie_num + 1) * int(miniscope_dm.metadata.get('framesPerFile', 1000)) - 1 # End frame of movieNum
+
+    # Crop the movie if desired.
+    if crop:
         preprocessor = CalciumImagingPreprocessor(miniscope_dm)
         projections = preprocessor.compute_projections(movie)
         final_coords = preprocessor.get_crop_coordinates(coords_dict, projections, movie.shape[1], movie.shape[2], headless=headless)
-        if final_coords is None and headless:
-            return stop('Error: crop=True but no crop coordinates were given or saved in analysis_parameters.csv. '
-                        'Pass crop_coords, save crop coordinates, or set crop=False.')
         if final_coords is not None:
             movie, _ = preprocessor.crop_movie(movie, final_coords)
 

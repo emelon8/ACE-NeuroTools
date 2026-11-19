@@ -108,10 +108,11 @@ path = create_ca_ephys_movie(dm, api.ephys_idx_all_TTL_events, channel,
   is raised before the movie is loaded; other save errors are raised, and the
   figure is closed.
 - `headless=True` never opens windows and needs `save_movie=True`. It crops only
-  with supplied or saved coordinates (`crop=True` without either is an error), does
-  not play the movie, and raises errors that the interactive mode prints (missing
-  metadata, nothing to overlay, no movie or time range given). Without it, the
-  movie plays in a window as before.
+  with supplied or saved coordinates (`crop=True` without either is an error,
+  raised before the movie is loaded), does not play the movie, and raises errors
+  that the interactive mode prints (missing metadata, nothing to overlay, no movie
+  or time range given). Without it, the movie plays in a window as before; with
+  `play_movie=False` the movie is only saved and its figure is closed.
 - If no event label starts with "start", the infusion marker is skipped with a
   warning.
 
