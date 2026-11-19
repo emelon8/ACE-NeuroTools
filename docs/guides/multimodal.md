@@ -97,9 +97,16 @@ path = create_ca_ephys_movie(dm, api.ephys_idx_all_TTL_events, channel,
   only printed a message.
 - `save_movie=True` writes `saved_movies/miniscope_ephys_movie3.mp4` (or
   `miniscope_ephys_<start>-<end>s.mp4` for a time range, with the times written
-  exactly), or to `output_path` if given, and returns the path. This replaces the
-  single `miniscope_ephys_animation.mp4` earlier versions overwrote. Saving MP4
-  files needs ffmpeg; save errors are raised, and the figure is closed.
+  exactly), or to `output_path` if given, and returns the path. Saving the same
+  selection again replaces the earlier file. This replaces the single
+  `miniscope_ephys_animation.mp4` earlier versions overwrote.
+- The movie plays, on screen and in the saved MP4, at one frame every
+  `playback_interval` milliseconds (default 33, about 30 frames per second).
+  Raise it to slow the movie down or lower it to speed it up; set it to
+  `1000 / frameRate` for real time.
+- Saving MP4 files needs ffmpeg. If matplotlib cannot find it, a `RuntimeError`
+  is raised before the movie is loaded; other save errors are raised, and the
+  figure is closed.
 - `headless=True` never opens windows and needs `save_movie=True`. It crops only
   with supplied or saved coordinates (`crop=True` without either is an error), does
   not play the movie, and raises errors that the interactive mode prints (missing

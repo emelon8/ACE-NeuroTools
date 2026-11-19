@@ -47,9 +47,13 @@ def create_ca_ephys_movie(
     time_range: A time range of which movies you want displayed
     movie_num: An integer if you just want to dispay a specific movie (ie. pass in 0 if you want to see 'miniscope_dir/Miniscope/0.avi')
     save_movie: saves the movie to the 'saved_movies' folder in your miniscope directory, named after
-        the movie number or time range (for example 'miniscope_ephys_movie3.mp4'), or to output_path
+        the movie number or time range (for example 'miniscope_ephys_movie3.mp4'), or to output_path.
+        The MP4 plays at the playback_interval speed and needs ffmpeg, which is checked before the
+        movie is loaded. Saving the same selection again replaces the earlier file.
+    playback_interval: milliseconds per frame, on screen and in the saved MP4 (33 is about 30 fps)
     headless: never open windows: draw on an off-screen figure, crop only with saved or supplied
-        coordinates, do not play the movie, and raise errors instead of printing them
+        coordinates, do not play the movie, and raise errors instead of printing them. A headless
+        call must save the movie (save_movie=True), since nothing else can be done with it
     output_path: where to save the movie (overrides the default name when save_movie is True)
     Movies are found by exact name ('<n>.avi') in the calcium imaging directory or its subfolders;
     a missing movie or a name found in more than one folder is an error.
@@ -72,11 +76,24 @@ def create_ca_ephys_movie(
     if headless and not save_movie:
         return stop('Error: a headless export needs save_movie=True; otherwise nothing is shown or saved.')
 
-    # Accept NumPy integers (for example read from a CSV) and tuple/array time ranges.
+    # Accept tuple/array time ranges, and movie numbers read from a CSV: NumPy integers, or
+    # floats when the column has blanks.
     if isinstance(time_range, (tuple, np.ndarray)):
         time_range = list(time_range)
     if isinstance(movie_num, numbers.Integral) and not isinstance(movie_num, bool):
         movie_num = int(movie_num)
+    elif isinstance(movie_num, float) and movie_num.is_integer():
+        movie_num = int(movie_num)
+
+    if type(time_range) != list and type(movie_num) != int:
+        return stop('Please provide either a time range or a movie number!')
+    # Checked before the movie is loaded, so a missing encoder fails at once with a clear message.
+    if save_movie and not animation.writers.is_available('ffmpeg'):
+        raise RuntimeError(
+            'Saving an MP4 needs ffmpeg, which matplotlib cannot find. Install ffmpeg '
+            '(for example "conda install -c conda-forge ffmpeg") or set matplotlib\'s '
+            'animation.ffmpeg_path, then try again.'
+        )
 
     if type(time_range) == list:
         if movie_num != None:
@@ -230,12 +247,15 @@ def create_ca_ephys_movie(
                     label = f'movie{movie_num}'
                 output_path = os.path.join(miniscope_dir_path, 'saved_movies', f'miniscope_ephys_{label}.mp4')
             os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
-            ani.save(output_path, dpi=300)
+            # The saved file plays at the playback_interval speed, as on screen, so it can be
+            # sped up or slowed down for presentations.
+            ani.save(output_path, writer='ffmpeg', fps=1000 / playback_interval, dpi=300)
             saved_path = str(output_path)
     except BaseException:
         # Free the figure (and the movie its animation holds) when display or export fails.
         if not headless:
             plt.close(fig)
         raise
+    if not headless and not play_movie:
+        plt.close(fig)  # nothing is showing it, so do not leave it open
     return saved_path
-

@@ -15,11 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Python session no longer fail with "A cluster is already running".
 - The calcium + ephys movie export finds movies by exact name (movie 1 is never
   `10.avi` or a behavior camera's movie), no longer fails on recordings without a
-  "start" event, closes its figure when saving fails, and saves each selection
-  under its own name (`miniscope_ephys_movie3.mp4`, `miniscope_ephys_0.25-1.5s.mp4`)
-  instead of overwriting `miniscope_ephys_animation.mp4`. A missing or ambiguous
-  movie now raises an error instead of printing a message. Analysis results are
-  unchanged.
+  "start" event, closes its figure when playing or saving fails, and saves each
+  selection under its own name (`miniscope_ephys_movie3.mp4`,
+  `miniscope_ephys_0.25-1.5s.mp4`) instead of overwriting
+  `miniscope_ephys_animation.mp4`. A missing or ambiguous movie now raises an
+  error instead of printing a message, and a missing ffmpeg is reported before
+  the movie is loaded. Saved MP4s still play at the `playback_interval` speed.
+  Analysis results are unchanged.
 - Align bundled CSV example rows with their headers and allow local recording
   checks when optional Box columns are absent.
 - Report a missing explicit CLI configuration as an error without launching setup.

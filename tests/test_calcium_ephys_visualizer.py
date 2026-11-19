@@ -21,6 +21,7 @@ from aceneurotools.multimodal.miniscope_ephys_alignment_utils import (  # noqa: 
 )
 
 FRAMES = 20
+_real_subplots = plt.subplots
 
 
 # Exact movie lookup
@@ -80,7 +81,8 @@ class Recorder:
         self.fig, self.func, self.frames = fig, func, frames
         Recorder.instances.append(self)
 
-    def save(self, path, dpi):
+    def save(self, path, **options):
+        self.options = options
         for frame in range(self.frames):
             self.func(frame)
         if Recorder.fail:
@@ -114,6 +116,7 @@ def export(tmp_path, monkeypatch):
     loaded = []
     monkeypatch.setattr(visualizer.cm, "load", lambda path: loaded.append(path) or movie.copy())
     monkeypatch.setattr(visualizer.animation, "FuncAnimation", Recorder)
+    monkeypatch.setattr(visualizer.animation.writers, "is_available", lambda name: True)
     monkeypatch.setattr(visualizer.plt, "subplots", lambda *a, **k: pytest.fail("a headless export used pyplot"))
     monkeypatch.setattr(visualizer.plt, "show", lambda *a, **k: pytest.fail("a headless export opened a window"))
     plt.close("all")
@@ -183,11 +186,64 @@ def test_recordings_without_a_start_event_export_without_the_marker(export, even
     assert "Ketamine infusion" not in [text.get_text() for text in draw(Recorder.instances[0], 12).texts]
 
 
-def test_a_failed_save_is_raised_and_leaves_no_figure(export):
-    Recorder.fail = OSError("ffmpeg is not installed")
-    with pytest.raises(OSError, match="ffmpeg"):
-        visualizer.create_ca_ephys_movie(export.dm, export.ttl, export.channel, movie_num=0, save_movie=True, headless=True)
+def test_missing_ffmpeg_is_reported_before_the_movie_is_loaded(export, monkeypatch):
+    # The real check: matplotlib falls back to Pillow without ffmpeg, which cannot write MP4.
+    monkeypatch.undo()
+    monkeypatch.setitem(matplotlib.rcParams, "animation.ffmpeg_path", str(export.root / "no-such-ffmpeg"))
+    monkeypatch.setattr(visualizer.cm, "load", lambda path: pytest.fail("the movie was loaded"))
+    for headless in (True, False):
+        with pytest.raises(RuntimeError, match="needs ffmpeg"):
+            visualizer.create_ca_ephys_movie(
+                export.dm, export.ttl, export.channel, movie_num=0, save_movie=True, headless=headless
+            )
     assert plt.get_fignums() == []
+
+
+@pytest.mark.parametrize("headless", [True, False])
+def test_a_failed_save_is_raised_and_leaves_no_figure(export, monkeypatch, headless):
+    if not headless:
+        monkeypatch.setattr(visualizer.plt, "subplots", _real_subplots)
+    Recorder.fail = OSError("disk full")
+    with pytest.raises(OSError, match="disk full"):
+        visualizer.create_ca_ephys_movie(
+            export.dm, export.ttl, export.channel, movie_num=0, save_movie=True, play_movie=False, headless=headless
+        )
+    assert plt.get_fignums() == []
+
+
+def test_interactive_save_without_playing_closes_its_figure(export, monkeypatch):
+    monkeypatch.setattr(visualizer.plt, "subplots", _real_subplots)
+    saved = visualizer.create_ca_ephys_movie(
+        export.dm, export.ttl, export.channel, movie_num=0, save_movie=True, play_movie=False
+    )
+    assert Path(saved).read_bytes() == b"movie" and plt.get_fignums() == []
+
+
+@pytest.mark.parametrize("interval", [33, 66, 10])
+def test_saved_movie_plays_at_the_playback_interval_speed(export, interval):
+    # The frame rate is 20 fps; the saved speed follows playback_interval, so talks can speed it up or slow it down.
+    visualizer.create_ca_ephys_movie(
+        export.dm, export.ttl, export.channel, movie_num=0, save_movie=True, headless=True,
+        playback_interval=interval,
+    )
+    assert Recorder.instances[0].options == {"writer": "ffmpeg", "fps": 1000 / interval, "dpi": 300}
+
+
+@pytest.mark.parametrize("number", [np.int64(0), 0.0])
+def test_movie_numbers_from_a_csv_are_accepted(export, number):
+    saved = visualizer.create_ca_ephys_movie(
+        export.dm, export.ttl, export.channel, movie_num=number, save_movie=True, headless=True
+    )
+    assert Path(saved).name == "miniscope_ephys_movie0.mp4"
+    assert export.loaded == [str(export.root / "Miniscope" / "0.avi")]
+
+
+def test_non_integer_movie_numbers_are_rejected(export, capsys):
+    with pytest.raises(ValueError, match="either a time range or a movie number"):
+        visualizer.create_ca_ephys_movie(
+            export.dm, export.ttl, export.channel, movie_num=0.5, save_movie=True, headless=True
+        )
+    assert export.loaded == []
 
 
 @pytest.mark.parametrize(
@@ -263,21 +319,25 @@ def test_close_time_ranges_get_different_file_names(export, monkeypatch):
         lambda channel, ttl, dm, time_range: ([str(export.root / "Miniscope" / "0.avi")], np.array([0, FRAMES - 1])),
     )
     monkeypatch.setattr(visualizer.cm, "load_movie_chain", lambda paths: export.movie.copy())
-    names = {
+    selections = [
+        np.array([0.0, 1234.561]), np.array([0.0, 1234.564]),
+        [10000.0, 10001.0], [10000.04, 10001.04], [1234.5678, 1300.0], [1234.5712, 1300.0],
+    ]
+    names = [
         Path(visualizer.create_ca_ephys_movie(
-            export.dm, export.ttl, export.channel, time_range=np.array([0.0, end]), save_movie=True, headless=True
+            export.dm, export.ttl, export.channel, time_range=selection, save_movie=True, headless=True
         )).name
-        for end in (1234.561, 1234.564)
-    }
-    assert names == {"miniscope_ephys_0-1234.561s.mp4", "miniscope_ephys_0-1234.564s.mp4"}
-
-
-def test_numpy_movie_numbers_are_accepted(export):
-    saved = visualizer.create_ca_ephys_movie(
-        export.dm, export.ttl, export.channel, movie_num=np.int64(0), save_movie=True, headless=True
-    )
-    assert Path(saved).name == "miniscope_ephys_movie0.mp4"
-    assert export.loaded == [str(export.root / "Miniscope" / "0.avi")]
+        for selection in selections
+    ]
+    # Times are written exactly, so ranges that differ below a millisecond still get their own file.
+    assert names == [
+        "miniscope_ephys_0-1234.561s.mp4",
+        "miniscope_ephys_0-1234.564s.mp4",
+        "miniscope_ephys_10000-10001s.mp4",
+        "miniscope_ephys_10000.04-10001.04s.mp4",
+        "miniscope_ephys_1234.5678-1300s.mp4",
+        "miniscope_ephys_1234.5712-1300s.mp4",
+    ]
 
 
 @pytest.mark.parametrize("headless", [True, False])
@@ -320,14 +380,9 @@ def test_headless_crop_without_coordinates_raises_instead_of_exporting_uncropped
     assert Recorder.instances == [] and not (export.root / "saved_movies").exists()
 
 
-def test_a_failed_interactive_export_closes_its_figure(export, monkeypatch):
-    monkeypatch.undo()  # Use real pyplot figures for the interactive path, then re-patch the rest.
-    monkeypatch.setattr(visualizer.cm, "load", lambda path: export.movie.copy())
-    monkeypatch.setattr(visualizer.animation, "FuncAnimation", Recorder)
-    Recorder.fail = OSError("ffmpeg is not installed")
-    plt.close("all")
-    with pytest.raises(OSError, match="ffmpeg"):
-        visualizer.create_ca_ephys_movie(
-            export.dm, export.ttl, export.channel, movie_num=0, play_movie=False, save_movie=True
-        )
+def test_a_failed_playback_closes_its_figure(export, monkeypatch):
+    monkeypatch.setattr(visualizer.plt, "subplots", _real_subplots)
+    monkeypatch.setattr(visualizer.plt, "show", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("display lost")))
+    with pytest.raises(RuntimeError, match="display lost"):
+        visualizer.create_ca_ephys_movie(export.dm, export.ttl, export.channel, movie_num=0, play_movie=True)
     assert plt.get_fignums() == [], "the figure (and the movie its animation holds) was released"
