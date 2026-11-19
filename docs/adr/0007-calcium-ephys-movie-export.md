@@ -80,8 +80,16 @@ to formats without that key. The same fallback is in
   selection: `miniscope_ephys_movie<N>.mp4`, or
   `miniscope_ephys_<start>-<end>s.mp4` with each time in its shortest exact form.
 - If showing or saving fails, close the interactive figure (releasing the movie
-  its animation holds) and re-raise.
-- Accept NumPy integer movie numbers and tuple or array time ranges.
+  its animation holds) and re-raise. An interactive call that saves without
+  playing (`play_movie=False`) also closes its figure.
+- When saving, check for ffmpeg before loading the movie and raise `RuntimeError`
+  if matplotlib cannot find it. Save with the ffmpeg writer at
+  `1000 / playback_interval` frames per second, the speed matplotlib already used,
+  so `playback_interval` keeps setting the saved movie's speed for slowed-down or
+  sped-up presentation movies.
+- Accept NumPy integer movie numbers, whole-number floats (a CSV column with
+  blanks reads as floats), and tuple or array time ranges. Other movie numbers are
+  rejected with the "time range or movie number" error before anything is loaded.
 
 ## Compatibility
 
@@ -101,6 +109,9 @@ changes:
   when `10.avi` exists) now show the requested movie, so those exports change.
 - Recordings without a "start" event produce a warning instead of an
   `IndexError`.
+- Without ffmpeg, `save_movie=True` raises `RuntimeError` before the movie is
+  loaded, instead of failing in matplotlib after it is rendered.
+- Saved movies play at the same speed as before (`1000 / playback_interval` fps).
 - The return value changes from `None` to `str | None`; callers that ignored it
   are unaffected.
 
@@ -129,19 +140,22 @@ range, and list the returned file in the output inventory.
   through `create_ca_ephys_movie` with a tuple range;
 - the headless export renders every frame (image, ephys trace, elapsed time and
   infusion marker) without pyplot and saves under the selection's name or
-  `output_path`; close time ranges get different names; NumPy movie numbers;
+  `output_path`; close time ranges get different names; NumPy and whole-number
+  float movie numbers; the saved speed follows `playback_interval`;
 - recordings without a "start" event, including empty float label arrays;
 - errors: headless requests raise and interactive ones print; missing or ambiguous
   movies raise in both modes; headless without `save_movie` stops before loading;
-  headless crop without coordinates raises; a failed save raises and leaves no
-  figure, in both modes;
+  headless crop without coordinates raises; a non-integer movie number is
+  rejected; missing ffmpeg raises before loading, in both modes; a failed save
+  raises and leaves no figure, in both modes; a failed playback closes its figure;
+  an interactive save without playing closes its figure;
 - the interactive path still shows the movie with pyplot, and supplied crop
   coordinates are used without a crop window.
 
 ## Verification
 
-The patch below is the full change against base `bd792ae` (main after PRs
-#152-#154), excluding this ADR. It was accepted when PR #155 was merged after
+The patch below is the full change against base `8a256c8` (main after PR #157),
+excluding this ADR. It was accepted when PR #155 was merged after
 adversarial review. The review ran the full default suite
 (`pytest tests -m "not slow"`), changed-line coverage, documentation coverage,
 the documentation link check and the strict MkDocs build; the results are in the
@@ -152,24 +166,26 @@ PR. Representative recording validation is handled separately by the lab, as
 
 ```diff
 diff --git a/CHANGELOG.md b/CHANGELOG.md
-index 01f151b..aa51252 100644
+index 935ca5e..d139033 100644
 --- a/CHANGELOG.md
 +++ b/CHANGELOG.md
-@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
+@@ -18,6 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    the top-bar toggle remains (reported by @Aathok-Git).
  - Stop CaImAn's worker pool when a calcium run fails, so later runs in the same
    Python session no longer fail with "A cluster is already running".
 +- The calcium + ephys movie export finds movies by exact name (movie 1 is never
 +  `10.avi` or a behavior camera's movie), no longer fails on recordings without a
-+  "start" event, closes its figure when saving fails, and saves each selection
-+  under its own name (`miniscope_ephys_movie3.mp4`, `miniscope_ephys_0.25-1.5s.mp4`)
-+  instead of overwriting `miniscope_ephys_animation.mp4`. A missing or ambiguous
-+  movie now raises an error instead of printing a message. Analysis results are
-+  unchanged.
++  "start" event, closes its figure when playing or saving fails, and saves each
++  selection under its own name (`miniscope_ephys_movie3.mp4`,
++  `miniscope_ephys_0.25-1.5s.mp4`) instead of overwriting
++  `miniscope_ephys_animation.mp4`. A missing or ambiguous movie now raises an
++  error instead of printing a message, and a missing ffmpeg is reported before
++  the movie is loaded. Saved MP4s still play at the `playback_interval` speed.
++  Analysis results are unchanged.
  - Align bundled CSV example rows with their headers and allow local recording
    checks when optional Box columns are absent.
  - Report a missing explicit CLI configuration as an error without launching setup.
-@@ -46,6 +53,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
+@@ -51,6 +60,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    a summary with each failure's cause, and exit 1 if any failed or was not run.
    `--line-num` is unchanged, and analysis results are unchanged. The CaImAn worker
    pool is now stopped when calcium processing fails, too.
@@ -196,10 +212,10 @@ index 5b92985..eae9a52 100644
 +
 +::: aceneurotools.multimodal.calcium_ephys_visualizer.create_ca_ephys_movie
 diff --git a/docs/guides/multimodal.md b/docs/guides/multimodal.md
-index 9883082..77b0dca 100644
+index 9883082..a5078de 100644
 --- a/docs/guides/multimodal.md
 +++ b/docs/guides/multimodal.md
-@@ -70,6 +70,44 @@ Filtering is off unless `filter_type` is supplied, and event-phase analysis is
+@@ -70,6 +70,51 @@ Filtering is off unless `filter_type` is supplied, and event-phase analysis is
  conditional on the requested events/phases. The steps below describe capabilities,
  not a promise that every output is computed for every run.
  
@@ -230,9 +246,16 @@ index 9883082..77b0dca 100644
 +  only printed a message.
 +- `save_movie=True` writes `saved_movies/miniscope_ephys_movie3.mp4` (or
 +  `miniscope_ephys_<start>-<end>s.mp4` for a time range, with the times written
-+  exactly), or to `output_path` if given, and returns the path. This replaces the
-+  single `miniscope_ephys_animation.mp4` earlier versions overwrote. Saving MP4
-+  files needs ffmpeg; save errors are raised, and the figure is closed.
++  exactly), or to `output_path` if given, and returns the path. Saving the same
++  selection again replaces the earlier file. This replaces the single
++  `miniscope_ephys_animation.mp4` earlier versions overwrote.
++- The movie plays, on screen and in the saved MP4, at one frame every
++  `playback_interval` milliseconds (default 33, about 30 frames per second).
++  Raise it to slow the movie down or lower it to speed it up; set it to
++  `1000 / frameRate` for real time.
++- Saving MP4 files needs ffmpeg. If matplotlib cannot find it, a `RuntimeError`
++  is raised before the movie is loaded; other save errors are raised, and the
++  figure is closed.
 +- `headless=True` never opens windows and needs `save_movie=True`. It crops only
 +  with supplied or saved coordinates (`crop=True` without either is an error), does
 +  not play the movie, and raises errors that the interactive mode prints (missing
@@ -245,7 +268,7 @@ index 9883082..77b0dca 100644
  
  The `experiments.csv` must contain both:
 diff --git a/src/aceneurotools/multimodal/calcium_ephys_visualizer.py b/src/aceneurotools/multimodal/calcium_ephys_visualizer.py
-index 03fecc5..6dc2fae 100644
+index 03fecc5..cb3ebb4 100644
 --- a/src/aceneurotools/multimodal/calcium_ephys_visualizer.py
 +++ b/src/aceneurotools/multimodal/calcium_ephys_visualizer.py
 @@ -1,3 +1,4 @@
@@ -264,7 +287,7 @@ index 03fecc5..6dc2fae 100644
  
  if TYPE_CHECKING:
      from aceneurotools.ephys.channel import Channel
-@@ -33,29 +33,50 @@ def create_ca_ephys_movie(
+@@ -33,29 +33,67 @@ def create_ca_ephys_movie(
      time_stamps: bool = True,
      playback_interval: int = 33,
      play_movie: bool = True,
@@ -286,9 +309,13 @@ index 03fecc5..6dc2fae 100644
      movie_num: An integer if you just want to dispay a specific movie (ie. pass in 0 if you want to see 'miniscope_dir/Miniscope/0.avi')
 -    save_movie: saves the movie to the 'saved_movies' folder in your miniscope directory
 +    save_movie: saves the movie to the 'saved_movies' folder in your miniscope directory, named after
-+        the movie number or time range (for example 'miniscope_ephys_movie3.mp4'), or to output_path
++        the movie number or time range (for example 'miniscope_ephys_movie3.mp4'), or to output_path.
++        The MP4 plays at the playback_interval speed and needs ffmpeg, which is checked before the
++        movie is loaded. Saving the same selection again replaces the earlier file.
++    playback_interval: milliseconds per frame, on screen and in the saved MP4 (33 is about 30 fps)
 +    headless: never open windows: draw on an off-screen figure, crop only with saved or supplied
-+        coordinates, do not play the movie, and raise errors instead of printing them
++        coordinates, do not play the movie, and raise errors instead of printing them. A headless
++        call must save the movie (save_movie=True), since nothing else can be done with it
 +    output_path: where to save the movie (overrides the default name when save_movie is True)
 +    Movies are found by exact name ('<n>.avi') in the calcium imaging directory or its subfolders;
 +    a missing movie or a name found in more than one folder is an error.
@@ -315,15 +342,28 @@ index 03fecc5..6dc2fae 100644
 +    if headless and not save_movie:
 +        return stop('Error: a headless export needs save_movie=True; otherwise nothing is shown or saved.')
 +
-+    # Accept NumPy integers (for example read from a CSV) and tuple/array time ranges.
++    # Accept tuple/array time ranges, and movie numbers read from a CSV: NumPy integers, or
++    # floats when the column has blanks.
 +    if isinstance(time_range, (tuple, np.ndarray)):
 +        time_range = list(time_range)
 +    if isinstance(movie_num, numbers.Integral) and not isinstance(movie_num, bool):
 +        movie_num = int(movie_num)
++    elif isinstance(movie_num, float) and movie_num.is_integer():
++        movie_num = int(movie_num)
++
++    if type(time_range) != list and type(movie_num) != int:
++        return stop('Please provide either a time range or a movie number!')
++    # Checked before the movie is loaded, so a missing encoder fails at once with a clear message.
++    if save_movie and not animation.writers.is_available('ffmpeg'):
++        raise RuntimeError(
++            'Saving an MP4 needs ffmpeg, which matplotlib cannot find. Install ffmpeg '
++            '(for example "conda install -c conda-forge ffmpeg") or set matplotlib\'s '
++            'animation.ffmpeg_path, then try again.'
++        )
  
      if type(time_range) == list:
          if movie_num != None:
-@@ -63,17 +84,12 @@ def create_ca_ephys_movie(
+@@ -63,17 +101,12 @@ def create_ca_ephys_movie(
          movie_filepaths_in_range, movie_frames = find_ca_movie_filenums(channel_object, ephys_idx_all_TTL_events, miniscope_dm, time_range)
          movie = cm.load_movie_chain(movie_filepaths_in_range)
      elif type(movie_num) == int:
@@ -343,7 +383,7 @@ index 03fecc5..6dc2fae 100644
  
      # Crop the movie if desired.
      if crop:
-@@ -86,7 +102,10 @@ def create_ca_ephys_movie(
+@@ -86,7 +119,10 @@ def create_ca_ephys_movie(
              coords_dict, _ = get_coords_dict_from_analysis_params(miniscope_dm)
          preprocessor = CalciumImagingPreprocessor(miniscope_dm)
          projections = preprocessor.compute_projections(movie)
@@ -355,7 +395,7 @@ index 03fecc5..6dc2fae 100644
          if final_coords is not None:
              movie, _ = preprocessor.crop_movie(movie, final_coords)
  
-@@ -112,13 +131,29 @@ def create_ca_ephys_movie(
+@@ -112,13 +148,29 @@ def create_ca_ephys_movie(
          vmax = movie.mean() + movie.std()*4
          print('vmax = ' + str(vmax))
      if mark_start_systemic:
@@ -389,7 +429,7 @@ index 03fecc5..6dc2fae 100644
  
      def update(frame):
          """Update function for animation - renders a single frame.
-@@ -175,15 +210,32 @@ def create_ca_ephys_movie(
+@@ -175,15 +227,35 @@ def create_ca_ephys_movie(
          ax.set_axis_off()
          return []
  
@@ -399,19 +439,18 @@ index 03fecc5..6dc2fae 100644
 -    # Display the animation
 -    if play_movie:
 -        plt.show()
--
++    try:
++        # Create the animation
++        ani = animation.FuncAnimation(fig, update, frames=len(movie), interval=playback_interval, repeat=False)
+ 
 -    # Save the animation
 -    if save_movie:
 -        dir_str = os.path.join(miniscope_dir_path, 'saved_movies')
 -        ani.save(os.path.join(dir_str, 'miniscope_ephys_animation' + '.mp4'), dpi=300)
-+    try:
-+        # Create the animation
-+        ani = animation.FuncAnimation(fig, update, frames=len(movie), interval=playback_interval, repeat=False)
-+
 +        # Display the animation
 +        if play_movie and not headless:
 +            plt.show()
-+
+ 
 +        # Save the animation
 +        saved_path = None
 +        if save_movie:
@@ -424,15 +463,18 @@ index 03fecc5..6dc2fae 100644
 +                    label = f'movie{movie_num}'
 +                output_path = os.path.join(miniscope_dir_path, 'saved_movies', f'miniscope_ephys_{label}.mp4')
 +            os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
-+            ani.save(output_path, dpi=300)
++            # The saved file plays at the playback_interval speed, as on screen, so it can be
++            # sped up or slowed down for presentations.
++            ani.save(output_path, writer='ffmpeg', fps=1000 / playback_interval, dpi=300)
 +            saved_path = str(output_path)
 +    except BaseException:
 +        # Free the figure (and the movie its animation holds) when display or export fails.
 +        if not headless:
 +            plt.close(fig)
 +        raise
++    if not headless and not play_movie:
++        plt.close(fig)  # nothing is showing it, so do not leave it open
 +    return saved_path
- 
 diff --git a/src/aceneurotools/multimodal/miniscope_ephys_alignment_utils.py b/src/aceneurotools/multimodal/miniscope_ephys_alignment_utils.py
 index 879539e..67ddaea 100644
 --- a/src/aceneurotools/multimodal/miniscope_ephys_alignment_utils.py
@@ -492,10 +534,10 @@ index 879539e..67ddaea 100644
  
 diff --git a/tests/test_calcium_ephys_visualizer.py b/tests/test_calcium_ephys_visualizer.py
 new file mode 100644
-index 0000000..5bf15ab
+index 0000000..5f63c4f
 --- /dev/null
 +++ b/tests/test_calcium_ephys_visualizer.py
-@@ -0,0 +1,333 @@
+@@ -0,0 +1,388 @@
 +"""The calcium + ephys movie export finds the right movie, renders it and runs without windows."""
 +
 +import os
@@ -519,6 +561,7 @@ index 0000000..5bf15ab
 +)
 +
 +FRAMES = 20
++_real_subplots = plt.subplots
 +
 +
 +# Exact movie lookup
@@ -578,7 +621,8 @@ index 0000000..5bf15ab
 +        self.fig, self.func, self.frames = fig, func, frames
 +        Recorder.instances.append(self)
 +
-+    def save(self, path, dpi):
++    def save(self, path, **options):
++        self.options = options
 +        for frame in range(self.frames):
 +            self.func(frame)
 +        if Recorder.fail:
@@ -612,6 +656,7 @@ index 0000000..5bf15ab
 +    loaded = []
 +    monkeypatch.setattr(visualizer.cm, "load", lambda path: loaded.append(path) or movie.copy())
 +    monkeypatch.setattr(visualizer.animation, "FuncAnimation", Recorder)
++    monkeypatch.setattr(visualizer.animation.writers, "is_available", lambda name: True)
 +    monkeypatch.setattr(visualizer.plt, "subplots", lambda *a, **k: pytest.fail("a headless export used pyplot"))
 +    monkeypatch.setattr(visualizer.plt, "show", lambda *a, **k: pytest.fail("a headless export opened a window"))
 +    plt.close("all")
@@ -681,11 +726,64 @@ index 0000000..5bf15ab
 +    assert "Ketamine infusion" not in [text.get_text() for text in draw(Recorder.instances[0], 12).texts]
 +
 +
-+def test_a_failed_save_is_raised_and_leaves_no_figure(export):
-+    Recorder.fail = OSError("ffmpeg is not installed")
-+    with pytest.raises(OSError, match="ffmpeg"):
-+        visualizer.create_ca_ephys_movie(export.dm, export.ttl, export.channel, movie_num=0, save_movie=True, headless=True)
++def test_missing_ffmpeg_is_reported_before_the_movie_is_loaded(export, monkeypatch):
++    # The real check: matplotlib falls back to Pillow without ffmpeg, which cannot write MP4.
++    monkeypatch.undo()
++    monkeypatch.setitem(matplotlib.rcParams, "animation.ffmpeg_path", str(export.root / "no-such-ffmpeg"))
++    monkeypatch.setattr(visualizer.cm, "load", lambda path: pytest.fail("the movie was loaded"))
++    for headless in (True, False):
++        with pytest.raises(RuntimeError, match="needs ffmpeg"):
++            visualizer.create_ca_ephys_movie(
++                export.dm, export.ttl, export.channel, movie_num=0, save_movie=True, headless=headless
++            )
 +    assert plt.get_fignums() == []
++
++
++@pytest.mark.parametrize("headless", [True, False])
++def test_a_failed_save_is_raised_and_leaves_no_figure(export, monkeypatch, headless):
++    if not headless:
++        monkeypatch.setattr(visualizer.plt, "subplots", _real_subplots)
++    Recorder.fail = OSError("disk full")
++    with pytest.raises(OSError, match="disk full"):
++        visualizer.create_ca_ephys_movie(
++            export.dm, export.ttl, export.channel, movie_num=0, save_movie=True, play_movie=False, headless=headless
++        )
++    assert plt.get_fignums() == []
++
++
++def test_interactive_save_without_playing_closes_its_figure(export, monkeypatch):
++    monkeypatch.setattr(visualizer.plt, "subplots", _real_subplots)
++    saved = visualizer.create_ca_ephys_movie(
++        export.dm, export.ttl, export.channel, movie_num=0, save_movie=True, play_movie=False
++    )
++    assert Path(saved).read_bytes() == b"movie" and plt.get_fignums() == []
++
++
++@pytest.mark.parametrize("interval", [33, 66, 10])
++def test_saved_movie_plays_at_the_playback_interval_speed(export, interval):
++    # The frame rate is 20 fps; the saved speed follows playback_interval, so talks can speed it up or slow it down.
++    visualizer.create_ca_ephys_movie(
++        export.dm, export.ttl, export.channel, movie_num=0, save_movie=True, headless=True,
++        playback_interval=interval,
++    )
++    assert Recorder.instances[0].options == {"writer": "ffmpeg", "fps": 1000 / interval, "dpi": 300}
++
++
++@pytest.mark.parametrize("number", [np.int64(0), 0.0])
++def test_movie_numbers_from_a_csv_are_accepted(export, number):
++    saved = visualizer.create_ca_ephys_movie(
++        export.dm, export.ttl, export.channel, movie_num=number, save_movie=True, headless=True
++    )
++    assert Path(saved).name == "miniscope_ephys_movie0.mp4"
++    assert export.loaded == [str(export.root / "Miniscope" / "0.avi")]
++
++
++def test_non_integer_movie_numbers_are_rejected(export, capsys):
++    with pytest.raises(ValueError, match="either a time range or a movie number"):
++        visualizer.create_ca_ephys_movie(
++            export.dm, export.ttl, export.channel, movie_num=0.5, save_movie=True, headless=True
++        )
++    assert export.loaded == []
 +
 +
 +@pytest.mark.parametrize(
@@ -761,21 +859,25 @@ index 0000000..5bf15ab
 +        lambda channel, ttl, dm, time_range: ([str(export.root / "Miniscope" / "0.avi")], np.array([0, FRAMES - 1])),
 +    )
 +    monkeypatch.setattr(visualizer.cm, "load_movie_chain", lambda paths: export.movie.copy())
-+    names = {
++    selections = [
++        np.array([0.0, 1234.561]), np.array([0.0, 1234.564]),
++        [10000.0, 10001.0], [10000.04, 10001.04], [1234.5678, 1300.0], [1234.5712, 1300.0],
++    ]
++    names = [
 +        Path(visualizer.create_ca_ephys_movie(
-+            export.dm, export.ttl, export.channel, time_range=np.array([0.0, end]), save_movie=True, headless=True
++            export.dm, export.ttl, export.channel, time_range=selection, save_movie=True, headless=True
 +        )).name
-+        for end in (1234.561, 1234.564)
-+    }
-+    assert names == {"miniscope_ephys_0-1234.561s.mp4", "miniscope_ephys_0-1234.564s.mp4"}
-+
-+
-+def test_numpy_movie_numbers_are_accepted(export):
-+    saved = visualizer.create_ca_ephys_movie(
-+        export.dm, export.ttl, export.channel, movie_num=np.int64(0), save_movie=True, headless=True
-+    )
-+    assert Path(saved).name == "miniscope_ephys_movie0.mp4"
-+    assert export.loaded == [str(export.root / "Miniscope" / "0.avi")]
++        for selection in selections
++    ]
++    # Times are written exactly, so ranges that differ below a millisecond still get their own file.
++    assert names == [
++        "miniscope_ephys_0-1234.561s.mp4",
++        "miniscope_ephys_0-1234.564s.mp4",
++        "miniscope_ephys_10000-10001s.mp4",
++        "miniscope_ephys_10000.04-10001.04s.mp4",
++        "miniscope_ephys_1234.5678-1300s.mp4",
++        "miniscope_ephys_1234.5712-1300s.mp4",
++    ]
 +
 +
 +@pytest.mark.parametrize("headless", [True, False])
@@ -818,15 +920,10 @@ index 0000000..5bf15ab
 +    assert Recorder.instances == [] and not (export.root / "saved_movies").exists()
 +
 +
-+def test_a_failed_interactive_export_closes_its_figure(export, monkeypatch):
-+    monkeypatch.undo()  # Use real pyplot figures for the interactive path, then re-patch the rest.
-+    monkeypatch.setattr(visualizer.cm, "load", lambda path: export.movie.copy())
-+    monkeypatch.setattr(visualizer.animation, "FuncAnimation", Recorder)
-+    Recorder.fail = OSError("ffmpeg is not installed")
-+    plt.close("all")
-+    with pytest.raises(OSError, match="ffmpeg"):
-+        visualizer.create_ca_ephys_movie(
-+            export.dm, export.ttl, export.channel, movie_num=0, play_movie=False, save_movie=True
-+        )
++def test_a_failed_playback_closes_its_figure(export, monkeypatch):
++    monkeypatch.setattr(visualizer.plt, "subplots", _real_subplots)
++    monkeypatch.setattr(visualizer.plt, "show", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("display lost")))
++    with pytest.raises(RuntimeError, match="display lost"):
++        visualizer.create_ca_ephys_movie(export.dm, export.ttl, export.channel, movie_num=0, play_movie=True)
 +    assert plt.get_fignums() == [], "the figure (and the movie its animation holds) was released"
 ```
