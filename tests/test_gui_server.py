@@ -1,7 +1,9 @@
 """Verify real local HTTP loading, failure preservation, and snapshot reloads."""
 
 import json
+import sys
 import threading
+import time
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -118,6 +120,8 @@ def test_system_picker_routes_and_arbitrary_file_browser(viewer, monkeypatch):
     assert request(base, "/api/system/pick", {"kind": "folder"})[1]["paths"] == [str(folder)]
     assert request(base, "/api/system/pick", {"kind": "folder"}, {"Origin": "https://foreign.invalid"})[0] == 403
     assert request(base, "/api/system/open-folder", {"path": []})[0] == 400
+    assert request(base, "/api/system/pick/dismiss", {})[1] == {"dismissed": False}
+    assert request(base, "/api/system/pick/dismiss", {}, {"Origin": "https://foreign.invalid"})[0] == 403
     (folder / "Events.nev").touch()
     assert any(
         item["name"] == "Events.nev" for item in request(base, f"/api/folders?path={folder}&files=all")[1]["files"]
@@ -181,3 +185,36 @@ def test_run_review_and_new_settings_over_http(viewer):
     assert saved["experiment"]["parameters"]["n_processes"] == "2"
     assert "run_CNMFE" in (folder / "analysis_parameters.csv").read_text()
     assert request(base, f"/api/run/file?project={project['id']}&run=../../experiments.csv&name=x")[0] == 400
+
+
+def test_open_picker_conflict_is_reported_for_the_gui(viewer, monkeypatch):
+    from aceneurotools.gui.native_dialogs import PickerOpenError
+
+    def pick(self, body):
+        raise PickerOpenError("A system file picker is already open.")
+
+    monkeypatch.setattr("aceneurotools.gui.native_dialogs.NativeDialogs.pick", pick)
+    status, result = request(viewer[0], "/api/system/pick", {"kind": "folder"})
+    assert status == 409 and result["picker_open"] is True
+
+
+def test_dismiss_closes_a_picker_another_request_is_waiting_on(viewer, monkeypatch):
+    base, _ = viewer
+    native = {}
+
+    def pick(self, body):
+        native["dialogs"] = self
+        return {"returncode": self._run([sys.executable, "-c", "import time; time.sleep(30)"], None)[0]}
+
+    monkeypatch.setattr("aceneurotools.gui.native_dialogs.NativeDialogs.pick", pick)
+    result = {}
+    waiting = threading.Thread(target=lambda: result.update(pick=request(base, "/api/system/pick", {"kind": "folder"})))
+    waiting.start()
+    deadline = time.monotonic() + 5
+    while getattr(native.get("dialogs"), "process", None) is None and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert request(base, "/api/system/pick/dismiss", {}) == (200, {"dismissed": True})
+    waiting.join(5)
+    assert not waiting.is_alive()
+    status, picked = result["pick"]
+    assert status == 200 and picked["returncode"] != 0

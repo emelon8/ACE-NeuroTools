@@ -37,6 +37,12 @@ full conda environment. In conda environments install the wheel with `--no-deps`
 The root `conda-lock.yml` is the only checked-in lock. CI creates its environment
 from that file; no installer-specific lock or rendered per-platform environment
 is maintained. `environment.yml` is the human-edited environment specification.
+The lock covers Linux x86-64 and Windows x86-64; Mac source installations resolve
+from `environment.yml`, so full recording analysis there still needs acceptance
+testing on the target hardware. A project conda package channel is not published
+yet; publication is tracked in
+[issue #128](https://github.com/emelon8/ACE-NeuroTools/issues/128) and described in
+[the release guide](releasing.md#package-channel-setup).
 
 ```sh
 python -m build
