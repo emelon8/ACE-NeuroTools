@@ -15,3 +15,11 @@ Alignment and cross-modal analysis between Miniscope calcium imaging and electro
 ::: aceneurotools.multimodal.miniscope_ephys_alignment_utils.find_ephys_idx_of_TTL_events
 
 ::: aceneurotools.multimodal.miniscope_ephys_alignment_utils.find_ca_movie_frame_num_of_ephys_idx
+
+::: aceneurotools.multimodal.miniscope_ephys_alignment_utils.find_ca_movie_filenums
+
+::: aceneurotools.multimodal.miniscope_ephys_alignment_utils.find_numbered_movies
+
+## Calcium + ephys movie export
+
+::: aceneurotools.multimodal.calcium_ephys_visualizer.create_ca_ephys_movie

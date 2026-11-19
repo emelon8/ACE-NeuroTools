@@ -70,6 +70,52 @@ Filtering is off unless `filter_type` is supplied, and event-phase analysis is
 conditional on the requested events/phases. The steps below describe capabilities,
 not a promise that every output is computed for every run.
 
+## Export a calcium + ephys movie
+
+After a multimodal run, `create_ca_ephys_movie` (in
+`aceneurotools.multimodal.calcium_ephys_visualizer`) draws calcium frames with the
+ephys trace, and optionally mean fluorescence and an infusion marker, on top.
+Choose one movie with `movie_num` or a period with `time_range` (seconds, as a
+list or tuple). Continuing the Python example above, where `api.run(...)` has
+finished:
+
+```python
+from aceneurotools.multimodal.calcium_ephys_visualizer import create_ca_ephys_movie
+
+dm = api.calcium_imaging_pipeline.calcium_imaging_data_manager
+# Use the name of an ephys channel loaded by the run, as in channel_name.
+channel = api.ephys_pipeline.ephys_data_manager.get_channel("YourChannel")
+path = create_ca_ephys_movie(dm, api.ephys_idx_all_TTL_events, channel,
+                             movie_num=3, save_movie=True, headless=True)
+```
+
+- Movies are found by their exact name (`3.avi`) in the calcium imaging directory
+  or its subfolders (except `saved_movies`), never by prefix. In both modes, a
+  missing movie raises `FileNotFoundError`, and a name found in two folders (for
+  example a behavior camera's movie) raises `ValueError`; set
+  `calcium imaging directory` to the miniscope folder. Previously a missing movie
+  only printed a message.
+- `save_movie=True` writes `saved_movies/miniscope_ephys_movie3.mp4` (or
+  `miniscope_ephys_<start>-<end>s.mp4` for a time range, with the times written
+  exactly), or to `output_path` if given, and returns the path. Saving the same
+  selection again replaces the earlier file. This replaces the single
+  `miniscope_ephys_animation.mp4` earlier versions overwrote.
+- The movie plays, on screen and in the saved MP4, at one frame every
+  `playback_interval` milliseconds (default 33, about 30 frames per second).
+  Raise it to slow the movie down or lower it to speed it up; set it to
+  `1000 / frameRate` for real time.
+- Saving MP4 files needs ffmpeg. If matplotlib cannot find it, a `RuntimeError`
+  is raised before the movie is loaded; other save errors are raised, and the
+  figure is closed.
+- `headless=True` never opens windows and needs `save_movie=True`. It crops only
+  with supplied or saved coordinates (`crop=True` without either is an error,
+  raised before the movie is loaded), does not play the movie, and raises errors
+  that the interactive mode prints (missing metadata, nothing to overlay, no movie
+  or time range given). Without it, the movie plays in a window as before; with
+  `play_movie=False` the movie is only saved and its figure is closed.
+- If no event label starts with "start", the infusion marker is skipped with a
+  warning.
+
 ## Data Requirements
 
 The `experiments.csv` must contain both:

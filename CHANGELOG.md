@@ -18,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the top-bar toggle remains (reported by @Aathok-Git).
 - Stop CaImAn's worker pool when a calcium run fails, so later runs in the same
   Python session no longer fail with "A cluster is already running".
+- The calcium + ephys movie export finds movies by exact name (movie 1 is never
+  `10.avi` or a behavior camera's movie), no longer fails on recordings without a
+  "start" event, closes its figure when playing or saving fails, and saves each
+  selection under its own name (`miniscope_ephys_movie3.mp4`,
+  `miniscope_ephys_0.25-1.5s.mp4`) instead of overwriting
+  `miniscope_ephys_animation.mp4`. A missing or ambiguous movie now raises an
+  error instead of printing a message, and a missing ffmpeg is reported before
+  the movie is loaded. `find_ca_movie_filenums` likewise raises for a missing or
+  ambiguous movie instead of returning the matches it found. Saved MP4s still
+  play at the `playback_interval` speed. Analysis results are unchanged.
 - Align bundled CSV example rows with their headers and allow local recording
   checks when optional Box columns are absent.
 - Report a missing explicit CLI configuration as an error without launching setup.
@@ -51,6 +61,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a summary with each failure's cause, and exit 1 if any failed or was not run.
   `--line-num` is unchanged, and analysis results are unchanged. The CaImAn worker
   pool is now stopped when calcium processing fails, too.
+- `create_ca_ephys_movie(..., headless=True, save_movie=True)` exports without
+  opening windows and returns the saved path; `output_path` chooses where it is
+  saved. Movie numbers may be NumPy integers or whole-number floats, and time
+  ranges tuples or NumPy arrays. With `play_movie=False`, an interactive call
+  closes its figure after saving. `find_numbered_movies` finds `<n>.avi` movies by
+  exact name.
 - Installed `ace-gui` workbench with per-launch API authentication and shared
   CLI/GUI defaults. CSVs remain the settings source of truth.
 - GUI feature registry and run plans: new workbench screens register their own
